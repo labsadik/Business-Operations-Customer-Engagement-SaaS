@@ -5,7 +5,7 @@ const workspaceSchema = new Schema(
     companyId: { type: Schema.Types.ObjectId, ref: "Company", required: true, unique: true, index: true },
     name: { type: String, required: true, trim: true },
     timezone: { type: String, required: true, default: "Asia/Kolkata" },
-    planId: { type: String, enum: ["starter", "business"], default: "starter", required: true },
+    planId: { type: String, enum: ["free", "starter", "elite", "pro", "plus"], default: "free", required: true },
     active: { type: Boolean, default: true, index: true }
   },
   { timestamps: true }
