@@ -9,6 +9,10 @@ export async function requireCompanyMember(roles?: string[]) {
   const adminManaged = session.role === "PLATFORM_ADMIN";
   if (roles && !adminManaged && !roles.includes(session.role)) throw new Error("FORBIDDEN");
 
+  if (session.role === "PLATFORM_ADMIN") {
+    return { session, membership: null };
+  }
+
   const membership = await Membership.findOne({
     companyId: session.companyId,
     userId: session.userId,
