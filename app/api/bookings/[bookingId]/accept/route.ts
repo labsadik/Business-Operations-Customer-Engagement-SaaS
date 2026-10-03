@@ -8,6 +8,7 @@ import { eligibleEmployees } from "@/lib/routing";
 import { getCompanyEntitlements } from "@/lib/plans-server";
 import { createMeetingForBooking } from "@/lib/meeting-service";
 import { jsonError, jsonOk } from "@/lib/http";
+import { assertSameOrigin } from "@/lib/security";
 import { after } from "next/server";
 
 export const runtime = "nodejs";
@@ -17,6 +18,12 @@ export async function POST(
   _request: Request,
   { params }: { params: Promise<{ bookingId: string }> }
 ) {
+  try {
+    assertSameOrigin(_request);
+  } catch {
+    return jsonError("CSRF_ORIGIN_INVALID", 403);
+  }
+
   let session: { userId: string; companyId?: string };
   try {
     const result = await requireCompanyMember(["EMPLOYEE", "COMPANY_OWNER", "COMPANY_ADMIN"]);

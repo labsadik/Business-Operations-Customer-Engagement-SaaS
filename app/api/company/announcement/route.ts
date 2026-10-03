@@ -3,6 +3,7 @@ import { Announcement } from "@/models/announcement";
 import { getSession } from "@/lib/session";
 import { Membership } from "@/models/membership";
 import { jsonError, jsonOk } from "@/lib/http";
+import { assertSameOrigin } from "@/lib/security";
 import { Types } from "mongoose";
 
 export const runtime = "nodejs";
@@ -61,6 +62,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  assertSameOrigin(request);
   try {
     const session = await requireManager();
     const body = await request.json().catch(() => null) as {
@@ -74,20 +76,33 @@ export async function POST(request: Request) {
     if (title.length > 120) return jsonError("ANNOUNCEMENT_TITLE_TOO_LONG", 400);
     if (!message || message.length > 500) return jsonError("ANNOUNCEMENT_MESSAGE_INVALID", 400);
 
-    await Announcement.updateMany(
-      { companyId: session.companyId, active: true },
-      { $set: { active: false } }
-    );
+    const db = await getMongo();
+    const tx = await db.startSession();
+    try {
+      let created;
+      await tx.withTransaction(async () => {
+        await Announcement.updateMany(
+          { companyId: session.companyId, active: true },
+          { $set: { active: false } },
+          { session: tx }
+        );
 
-    const announcement = await Announcement.create({
-      companyId: session.companyId,
-      title,
-      message,
-      active: true,
-      createdByUserId: session.userId
-    });
+        const [announcement] = await Announcement.create([{
+          companyId: session.companyId,
+          title,
+          message,
+          active: true,
+          createdByUserId: session.userId
+        }], { session: tx });
 
-    return jsonOk(serialize(announcement), 201);
+        created = announcement;
+      });
+
+      if (!created) return jsonError("ANNOUNCEMENT_CREATE_FAILED", 500);
+      return jsonOk(serialize(created), 201);
+    } finally {
+      await tx.endSession();
+    }
   } catch (error) {
     const code = error instanceof Error ? error.message : "ANNOUNCEMENT_CREATE_FAILED";
     const status = code === "UNAUTHENTICATED" ? 401 : code === "FORBIDDEN" ? 403 : 500;
@@ -96,6 +111,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  assertSameOrigin(request);
   try {
     const session = await requireManager();
     const body = await request.json().catch(() => null) as {
@@ -151,6 +167,7 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  assertSameOrigin(request);
   try {
     const session = await requireManager();
     const { searchParams } = new URL(request.url);

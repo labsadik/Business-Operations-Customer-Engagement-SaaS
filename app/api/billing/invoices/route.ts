@@ -37,6 +37,7 @@ export async function GET() {
     amount: invoice.amount,
     currency: invoice.currency,
     issuedAt: invoice.issuedAt,
+    merchantSnapshot: invoice.merchantSnapshot ?? null,
     companySnapshot: invoice.companySnapshot
   })));
 }

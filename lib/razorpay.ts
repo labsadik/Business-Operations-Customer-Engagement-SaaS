@@ -75,6 +75,7 @@ export async function fetchRazorpayPayment(paymentId: string) {
     amount?: number;
     currency?: string;
     status?: string;
+    created_at?: number;
   }>("/payments/" + encodeURIComponent(paymentId), { method: "GET" });
 }
 

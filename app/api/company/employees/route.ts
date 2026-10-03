@@ -1,4 +1,5 @@
 import { jsonError, jsonOk } from "@/lib/http";
+import { assertSameOrigin } from "@/lib/security";
 import { requireCompanyMember } from "@/lib/authz";
 import { getMongo } from "@/lib/mongodb";
 import { Membership } from "@/models/membership";
@@ -37,6 +38,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  assertSameOrigin(request);
   try {
     const { session } = await requireCompanyMember(["COMPANY_OWNER", "COMPANY_ADMIN"]);
     await getMongo();

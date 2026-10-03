@@ -2,10 +2,12 @@ import { cookies } from "next/headers";
 import { getMongo } from "@/lib/mongodb";
 import { Session } from "@/models/session";
 import { User } from "@/models/user";
+import { Membership } from "@/models/membership";
 import { randomToken, sha256 } from "@/lib/security";
 
 const COOKIE_NAME = "conventus_session";
 const SESSION_DAYS = 30;
+const COMPANY_ROLES = ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] as const;
 
 export type AuthSession = {
   userId: string;
@@ -17,6 +19,34 @@ export type AuthSession = {
   image?: string;
 };
 
+async function validateScope(input: {
+  userId: string;
+  role: string;
+  companyId?: string;
+  workspaceId?: string;
+}) {
+  const user = await User.findById(input.userId).select("active role").lean();
+  if (!user || user.active === false) throw new Error("USER_INACTIVE");
+
+  if (input.role === "PLATFORM_ADMIN" && user.role !== "PLATFORM_ADMIN") {
+    throw new Error("FORBIDDEN");
+  }
+
+  if (input.companyId && COMPANY_ROLES.includes(input.role as typeof COMPANY_ROLES[number])) {
+    const membership = await Membership.findOne({
+      companyId: input.companyId,
+      userId: input.userId,
+      active: true,
+      role: input.role
+    }).lean();
+
+    if (!membership) throw new Error("FORBIDDEN");
+    if (input.workspaceId && String(membership.workspaceId) !== input.workspaceId) {
+      throw new Error("FORBIDDEN");
+    }
+  }
+}
+
 export async function createSession(input: {
   userId: string;
   role: string;
@@ -24,6 +54,8 @@ export async function createSession(input: {
   workspaceId?: string;
 }) {
   await getMongo();
+  await validateScope(input);
+
   const rawToken = randomToken(48);
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
 
@@ -72,6 +104,25 @@ export async function getSession(): Promise<AuthSession | null> {
 
   const user = await User.findById(session.userId).lean();
   if (!user || user.active === false) return null;
+
+  if (session.role === "PLATFORM_ADMIN" && user.role !== "PLATFORM_ADMIN") {
+    await Session.deleteOne({ _id: session._id });
+    return null;
+  }
+
+  if (session.companyId && COMPANY_ROLES.includes(session.role as typeof COMPANY_ROLES[number])) {
+    const membership = await Membership.findOne({
+      companyId: session.companyId,
+      userId: session.userId,
+      active: true,
+      role: session.role
+    }).lean();
+
+    if (!membership || (session.workspaceId && String(membership.workspaceId) !== String(session.workspaceId))) {
+      await Session.deleteOne({ _id: session._id });
+      return null;
+    }
+  }
 
   await Session.updateOne(
     { _id: session._id },

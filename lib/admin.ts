@@ -117,6 +117,10 @@ function toMoneyMinor(value: number | undefined) {
   return Number.isFinite(value ?? NaN) ? Number(value) : 0;
 }
 
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 async function buildCompanyRows(
   companies: Array<{
     _id: Types.ObjectId;
@@ -265,13 +269,14 @@ export async function getAdminOverview() {
 export async function getAdminCompanies(search = "") {
   await requirePlatformAdmin();
 
-  const cleaned = search.trim();
-  const query = cleaned
+  const cleaned = search.trim().slice(0, 80);
+  const safeSearch = escapeRegex(cleaned);
+  const query = safeSearch
     ? {
         $or: [
-          { name: { $regex: cleaned, $options: "i" } },
-          { slug: { $regex: cleaned, $options: "i" } },
-          { email: { $regex: cleaned, $options: "i" } }
+          { name: { $regex: safeSearch, $options: "i" } },
+          { slug: { $regex: safeSearch, $options: "i" } },
+          { email: { $regex: safeSearch, $options: "i" } }
         ]
       }
     : {};
@@ -471,4 +476,76 @@ export async function getAdminUsers() {
       };
     })
     .sort((a, b) => (b.lastBookingAt?.getTime() ?? 0) - (a.lastBookingAt?.getTime() ?? 0));
+}
+
+
+export type AdminAccessUserListItem = {
+  id: string;
+  name: string;
+  email: string;
+  image: string;
+  role: string;
+  active: boolean;
+  createdAt: Date;
+  lastLoginAt: Date | null;
+  companies: string[];
+};
+
+export async function getAdminAccessUsers(search = "") {
+  await requirePlatformAdmin();
+
+  const cleaned = search.trim().slice(0, 80);
+  const safeSearch = escapeRegex(cleaned);
+  const query = safeSearch
+    ? {
+        $or: [
+          { name: { $regex: safeSearch, $options: "i" } },
+          { email: { $regex: safeSearch, $options: "i" } },
+          { role: { $regex: safeSearch, $options: "i" } }
+        ]
+      }
+    : {};
+
+  const users = await User.find(query)
+    .sort({ createdAt: -1 })
+    .limit(200)
+    .select("name email image role active createdAt lastLoginAt")
+    .lean();
+
+  if (!users.length) return [] as AdminAccessUserListItem[];
+
+  const userIds = users.map((user) => user._id);
+  const memberships = await Membership.find({
+    userId: { $in: userIds },
+    active: true
+  }).select("userId companyId").lean();
+
+  const companyIds = [...new Set(memberships.map((membership) => String(membership.companyId)))];
+  const companies = companyIds.length
+    ? await Company.find({ _id: { $in: companyIds } }).select("name").lean()
+    : [];
+
+  const companyMap = new Map(companies.map((company) => [String(company._id), company.name]));
+  const userCompanyMap = new Map<string, string[]>();
+
+  for (const membership of memberships) {
+    const userId = String(membership.userId);
+    const companyName = companyMap.get(String(membership.companyId));
+    if (!companyName) continue;
+    const current = userCompanyMap.get(userId) ?? [];
+    current.push(companyName);
+    userCompanyMap.set(userId, current);
+  }
+
+  return users.map((user) => ({
+    id: String(user._id),
+    name: user.name,
+    email: user.email,
+    image: user.image ?? "",
+    role: user.role,
+    active: user.active !== false,
+    createdAt: user.createdAt,
+    lastLoginAt: user.lastLoginAt ?? null,
+    companies: userCompanyMap.get(String(user._id)) ?? []
+  }));
 }

@@ -3,6 +3,7 @@ import { getSession } from "@/lib/session";
 import { Membership } from "@/models/membership";
 import { Invitation } from "@/models/invitation";
 import { jsonError, jsonOk } from "@/lib/http";
+import { assertSameOrigin } from "@/lib/security";
 import { Types } from "mongoose";
 
 export const runtime = "nodejs";
@@ -13,6 +14,7 @@ export async function DELETE(
   { params }: { params: Promise<{ invitationId: string }> }
 ) {
   try {
+    assertSameOrigin(_request);
     const session = await getSession();
     if (!session) return jsonError("UNAUTHENTICATED", 401);
     if (!session.companyId || !["COMPANY_OWNER", "COMPANY_ADMIN"].includes(session.role)) {

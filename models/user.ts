@@ -14,7 +14,11 @@ const userSchema = new Schema(
     googleSubject: { type: String, index: true, sparse: true },
     googleEmail: { type: String, lowercase: true, trim: true },
     lastLoginAt: { type: Date },
-    active: { type: Boolean, default: true, index: true }
+    active: { type: Boolean, default: true, index: true },
+    platformAdminPreviousRole: {
+      type: String,
+      enum: ["CUSTOMER", "COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"]
+    }
   },
   { timestamps: true }
 );

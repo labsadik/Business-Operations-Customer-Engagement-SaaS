@@ -1,4 +1,5 @@
 import { jsonError, jsonOk } from "@/lib/http";
+import { assertSameOrigin } from "@/lib/security";
 import { requireCompanyMember } from "@/lib/authz";
 import { getMongo } from "@/lib/mongodb";
 import { Membership } from "@/models/membership";
@@ -20,6 +21,7 @@ export async function DELETE(
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
+    assertSameOrigin(request);
     const { session } = await requireCompanyMember(["COMPANY_OWNER", "COMPANY_ADMIN"]);
     await getMongo();
     const { userId } = await params;

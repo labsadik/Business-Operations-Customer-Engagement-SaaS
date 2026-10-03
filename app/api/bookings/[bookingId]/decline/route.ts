@@ -2,6 +2,7 @@ import { getMongo } from "@/lib/mongodb";
 import { BookingRequest } from "@/models/booking-request";
 import { requireCompanyMember } from "@/lib/authz";
 import { jsonError, jsonOk } from "@/lib/http";
+import { assertSameOrigin } from "@/lib/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,6 +11,12 @@ export async function POST(
   _request: Request,
   { params }: { params: Promise<{ bookingId: string }> }
 ) {
+  try {
+    assertSameOrigin(_request);
+  } catch {
+    return jsonError("CSRF_ORIGIN_INVALID", 403);
+  }
+
   let session: { userId: string; companyId?: string };
   try {
     const result = await requireCompanyMember(["EMPLOYEE", "COMPANY_OWNER", "COMPANY_ADMIN"]);

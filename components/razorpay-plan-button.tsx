@@ -62,8 +62,9 @@ export default function RazorpayPlanButton({
         key: body.data.keyId,
         amount: body.data.amount,
         currency: body.data.currency,
-        name: customer?.name || "Conventus",
-        description: plan.name + " plan · 1 month",
+        name: body.data.merchant?.name || "Conventus",
+        image: body.data.logoUrl,
+        description: plan.name + " plan · 1 month for " + (customer?.name || "your company"),
         order_id: body.data.orderId,
         prefill: {
           name: customer?.name,
@@ -85,6 +86,8 @@ export default function RazorpayPlanButton({
             const result = await verify.json().catch(() => ({}));
             if (!verify.ok) throw new Error(result.error || "PAYMENT_VERIFICATION_FAILED");
             onComplete?.();
+            const paymentId = paymentResponse.razorpay_payment_id;
+            window.location.assign("/billing/result?paymentId=" + encodeURIComponent(paymentId));
           } catch (error) {
             onError?.(
               error instanceof Error

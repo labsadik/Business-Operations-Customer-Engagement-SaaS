@@ -9,6 +9,7 @@ import { getMeetingDurationOptions } from "@/lib/plans";
 import { eligibleEmployees } from "@/lib/routing";
 import { withRedisLock } from "@/lib/redis-lock";
 import { jsonError, jsonOk } from "@/lib/http";
+import { assertSameOrigin } from "@/lib/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +18,12 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ companySlug: string }> }
 ) {
+  try {
+    assertSameOrigin(request);
+  } catch {
+    return jsonError("CSRF_ORIGIN_INVALID", 403);
+  }
+
   const session = await getSession();
   if (!session || session.role !== "CUSTOMER") return jsonError("CUSTOMER_LOGIN_REQUIRED", 401);
 

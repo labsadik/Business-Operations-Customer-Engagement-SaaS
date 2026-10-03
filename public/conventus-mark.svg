@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title desc">
+  <title id="title">Conventus</title>
+  <desc id="desc">Conventus geometric C mark</desc>
+  <rect width="96" height="96" rx="24" fill="#0f172a"/>
+  <path d="M61 27.5A25 25 0 1 0 61 68.5L52.5 60a13 13 0 1 1 0-24Z" fill="#fff"/>
+  <circle cx="68" cy="48" r="5" fill="#2563eb"/>
+</svg>
