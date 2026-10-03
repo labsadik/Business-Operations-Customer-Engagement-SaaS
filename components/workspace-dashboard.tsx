@@ -117,16 +117,6 @@ export default function WorkspaceDashboard() {
 
   async function setPresenceStatus(status: Presence["status"]) {
     try {
-      const next = await api<Omit<Presence, "userId" | "role">>("/api/employee/presence", { method: "PATCH", body: JSON.stringify({ status }) });
-      setPresence((current) => current ? { ...current, ...next } : current);
-      await refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "PRESENCE_UPDATE_FAILED");
-    }
-  }
-
-  async function setPresenceStatus(status: Presence["status"]) {
-    try {
       const next = await api<{ status: Presence["status"]; redisAvailable: boolean }>("/api/employee/presence", {
         method: "PATCH",
         body: JSON.stringify({ status })
