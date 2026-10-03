@@ -85,3 +85,28 @@ export async function POST(request: Request) {
     await tx.endSession();
   }
 }
+
+export async function PATCH(request: Request) {
+  const session = await getSession();
+  if (!session) return jsonError("UNAUTHENTICATED", 401);
+  if (!["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role)) return jsonError("FORBIDDEN", 403);
+
+  await getMongo();
+  const body = await request.json().catch(() => null) as { publicBookingEnabled?: boolean; description?: string } | null;
+  if (!session.companyId) return jsonError("COMPANY_NOT_CONFIGURED", 400);
+
+  const update: Record<string, unknown> = {};
+  if (typeof body?.publicBookingEnabled === "boolean") update.publicBookingEnabled = body.publicBookingEnabled;
+  if (typeof body?.description === "string") update.description = body.description.trim().slice(0, 1200);
+
+  const company = await Company.findOneAndUpdate(
+    { _id: session.companyId, ownerUserId: session.role === "COMPANY_OWNER" ? session.userId : { $exists: true } },
+    { $set: update },
+    { new: true }
+  ).lean();
+
+  if (!company) return jsonError("COMPANY_NOT_FOUND", 404);
+  return jsonOk({
+    company: { id: String(company._id), name: company.name, slug: company.slug, description: company.description, publicBookingEnabled: company.publicBookingEnabled }
+  });
+}
