@@ -5,6 +5,7 @@ import { MeetingType } from "@/models/meeting-type";
 import { BookingRequest } from "@/models/booking-request";
 import { getSession } from "@/lib/session";
 import { assertMeetingCapacity } from "@/lib/plans-server";
+import { getMeetingDurationOptions } from "@/lib/plans";
 import { eligibleEmployees } from "@/lib/routing";
 import { withRedisLock } from "@/lib/redis-lock";
 import { jsonError, jsonOk } from "@/lib/http";
@@ -51,7 +52,12 @@ export async function POST(
     const type = await MeetingType.findOne({ _id: body.meetingTypeId, companyId: company._id, active: true }).lean();
     const workspace = await Workspace.findOne({ companyId: company._id, active: true }).lean();
     if (!type || !workspace) throw new Error("MEETING_TYPE_NOT_FOUND");
-    if (!type.durationOptionsMinutes.includes(durationMinutes)) throw new Error("INVALID_DURATION");
+    if (durationMinutes < 10 || !getMeetingDurationOptions(plan.maxMeetingDurationMinutes, type.durationOptionsMinutes).includes(durationMinutes)) {
+      throw new Error("INVALID_DURATION");
+    }
+    if (Math.abs((endAt.getTime() - startAt.getTime()) - durationMinutes * 60_000) > 0) {
+      throw new Error("INVALID_TIME_RANGE");
+    }
     if (startAt.getTime() <= Date.now()) throw new Error("BOOKING_TIME_IN_PAST");
 
     const busyForCompany = await BookingRequest.countDocuments({
@@ -86,7 +92,7 @@ export async function POST(
     return jsonOk({ bookingId: String(booking._id), status: booking.status, expiresAt: booking.expiresAt }, 201);
   } catch (error) {
     const code = error instanceof Error ? error.message : "BOOKING_CREATE_FAILED";
-    const status = ["NO_EMPLOYEE_AVAILABLE", "CONCURRENT_MEETING_LIMIT", "MONTHLY_MEETING_LIMIT", "MEETING_DURATION_LIMIT"].includes(code) ? 409 : 400;
+    const status = ["NO_EMPLOYEE_AVAILABLE", "CONCURRENT_MEETING_LIMIT", "MONTHLY_MEETING_LIMIT", "MEETING_DURATION_LIMIT", "INVALID_DURATION"].includes(code) ? 409 : 400;
     return jsonError(code, status);
   }
 }
