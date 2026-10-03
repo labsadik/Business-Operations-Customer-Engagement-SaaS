@@ -23,8 +23,10 @@ export async function GET() {
 
   const filter: Record<string, unknown> = {
     companyId: session.companyId,
-    endAt: { $lte: new Date() },
-    status: { $in: ["READY", "LIVE", "COMPLETED"] }
+    $or: [
+      { status: { $in: ["COMPLETED", "CANCELLED"] } },
+      { status: { $in: ["READY", "LIVE"] }, endAt: { $lte: new Date() } }
+    ]
   };
 
   if (session.role === "EMPLOYEE") {
@@ -33,8 +35,8 @@ export async function GET() {
 
   const meetings = await Meeting.find(filter)
     .sort({ startAt: -1 })
-    .limit(100)
-    .select("employeeId customerId startAt endAt status calendarSyncStatus googleMeetingUri")
+    .limit(500)
+    .select("employeeId customerId startAt endAt endedAt status calendarSyncStatus")
     .lean();
 
   const participantIds = meetings.flatMap((meeting) => [
@@ -67,6 +69,7 @@ export async function GET() {
       return {
         startAt: meeting.startAt,
         endAt: meeting.endAt,
+        endedAt: meeting.endedAt ?? meeting.endAt,
         durationMinutes,
         status: meeting.status,
         calendarSyncStatus: meeting.calendarSyncStatus,
