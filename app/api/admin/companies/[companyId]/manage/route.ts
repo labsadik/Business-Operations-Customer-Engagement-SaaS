@@ -5,6 +5,7 @@ import { Company } from "@/models/company";
 import { Workspace } from "@/models/workspace";
 import { assertSameOrigin } from "@/lib/security";
 import { jsonError, jsonOk } from "@/lib/http";
+import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,8 +33,8 @@ export async function POST(
       .lean();
     if (!workspace) return jsonError("WORKSPACE_NOT_FOUND", 404);
 
-    const store = (await import("next/headers")).cookies();
-    (await store).set(ADMIN_MANAGED_COMPANY_COOKIE, String(company._id), {
+    const store = await cookies();
+    store.set(ADMIN_MANAGED_COMPANY_COOKIE, String(company._id), {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
