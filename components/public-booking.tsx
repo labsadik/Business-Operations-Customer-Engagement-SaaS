@@ -554,18 +554,6 @@ export default function PublicBooking({
               </div>
             </div>
 
-            <div className="mt-4 flex gap-2 rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
-              <ShieldCheck className="mt-0.5 size-4 shrink-0 text-blue-600" />
-              <p className="text-[11px] leading-5 text-blue-950/70">
-                Your request is checked again on the server before it is created and sent for company approval.
-              </p>
-            </div>
-
-            {companyDescription && (
-              <p className="mt-4 text-xs leading-5 text-slate-500">
-                {companyDescription}
-              </p>
-            )}
           </aside>
 
           <div className="min-w-0 p-5 sm:p-7 lg:p-9">
