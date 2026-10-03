@@ -1236,12 +1236,13 @@ export default function WorkspaceDashboard({
                     {employee.googleConnected ? (
                       <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">Connected</span>
                     ) : employee.email === user.email ? (
-                      <a
+                      <Link
                         href="/api/auth/google/start?intent=connect&returnTo=%2Fdashboard"
+                        prefetch={false}
                         className="rounded-xl bg-slate-950 px-2.5 py-2 text-[10px] font-semibold text-white hover:bg-slate-800"
                       >
                         Setup Google
-                      </a>
+                      </Link>
                     ) : (
                       <span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">Needs setup</span>
                     )}
