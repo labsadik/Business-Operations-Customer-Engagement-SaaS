@@ -338,8 +338,6 @@ export default function WorkspaceDashboard({
   const hasMoreMeetings =
     meetingView === "new" ? requests.length > 5 : meetingHistory.length > 5;
 
-  const activeAnnouncement = announcements.find((item) => item.active) ?? null;
-
   async function refreshAll() {
     if (refreshingRef.current) return;
     refreshingRef.current = true;
