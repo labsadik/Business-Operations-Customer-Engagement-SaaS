@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { AdminCompanyDetails } from "@/lib/admin";
 import AdminManageCompanyButton from "@/components/admin-manage-company-button";
+import AdminGrantPlanButton from "@/components/admin-grant-plan-button";
 
 function dateLabel(value: Date | null, withTime = false) {
   if (!value) return "—";
@@ -123,7 +124,10 @@ export default function AdminCompanyDetailsView({ company }: { company: AdminCom
                   <div key={plan.id} className={`rounded-2xl border p-4 ${plan.id === company.planId ? "border-blue-200 bg-blue-50/50" : "border-slate-200 bg-white"}`}>
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-semibold">{plan.name}</p>
-                      {plan.id === company.planId ? <span className="rounded-full bg-blue-600 px-2 py-1 text-[10px] font-semibold text-white">Chosen</span> : <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500">Not chosen</span>}
+                      <div className="flex items-center gap-2">
+                        {plan.id === company.planId ? <span className="rounded-full bg-blue-600 px-2 py-1 text-[10px] font-semibold text-white">Current</span> : <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500">Available</span>}
+                        <AdminGrantPlanButton companyId={company.id} planId={plan.id as import("@/lib/plans").PlanId} currentPlanId={company.planId} />
+                      </div>
                     </div>
                     <p className="mt-2 text-xl font-semibold">₹{plan.priceInr}<span className="text-xs font-normal text-slate-400"> / month</span></p>
                     <p className="mt-2 text-xs leading-5 text-slate-500">{plan.maxEmployees} employees · {plan.monthlyMeetingLimit} meetings · {plan.maxMeetingDurationMinutes} min · {plan.maxConcurrentMeetings} concurrent</p>
@@ -163,7 +167,11 @@ export default function AdminCompanyDetailsView({ company }: { company: AdminCom
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-xs font-semibold">{invoice.invoiceNumber}</p>
-                      <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">Paid</span>
+                      <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
+                        invoice.source === "PAID" ? "bg-emerald-50 text-emerald-700" :
+                        invoice.source === "ADMIN_GRANTED" ? "bg-violet-50 text-violet-700" :
+                        "bg-slate-100 text-slate-700"
+                      }`}>{invoice.source === "PAID" ? "Paid" : invoice.source === "ADMIN_GRANTED" ? "Admin granted" : "Free"}</span>
                       {invoice.isCurrentPlan && <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-700">Current plan</span>}
                     </div>
                     <p className="mt-1 text-[11px] text-slate-500">
