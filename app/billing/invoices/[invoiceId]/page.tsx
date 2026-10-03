@@ -41,7 +41,7 @@ export default async function InvoicePage({
   if (!plan) notFound();
 
   const legal = await platformLegalProfile();
-  const tax = invoice.taxSnapshot ?? calculateInvoiceTax(invoice.amount, legal.gst.ratePercent, legal.gst.inclusive);
+  const tax = invoice.taxSnapshot ?? calculateInvoiceTax(invoice.amount, legal.gst.ratePercent, legal.gst.inclusive, legal.gst.enabled);
   const merchantSnapshot = invoice.merchantSnapshot ?? {
     name: legal.legalName,
     description: "Company scheduling infrastructure for customer meetings.",
