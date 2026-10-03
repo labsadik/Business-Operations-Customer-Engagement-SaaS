@@ -67,7 +67,8 @@ export default async function BillingResultPage({
       ? calculateInvoiceTax(
           payment.amount,
           legal.gst.ratePercent,
-          legal.gst.inclusive
+          legal.gst.inclusive,
+          legal.gst.enabled
         )
       : null
   );
