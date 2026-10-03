@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";\nimport { useEffect, useMemo, useState } from "react";
 import { CalendarDays, CheckCircle2, Clock3, LayoutDashboard, Loader2, LogIn, ShieldCheck } from "lucide-react";
 
 type Type = { id: string; name: string; description?: string; durationOptionsMinutes: number[] };
 type Slot = { startAt: string; endAt: string };
-type Access = "anonymous" | "company-member" | "customer";
+type Access = "anonymous" | "company-member" | "customer";\n\nconst DEFAULT_BOOKING_DATE = new Date().toISOString().slice(0, 10);
 
 export default function PublicBooking({
   companySlug,
@@ -20,8 +20,7 @@ export default function PublicBooking({
   sessionName?: string;
   employeeLoginUrl: string;
 }) {
-  const initialDate = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-  const [date, setDate] = useState(initialDate);
+  const [date, setDate] = useState(DEFAULT_BOOKING_DATE);
   const [typeId, setTypeId] = useState(types[0]?.id ?? "");
   const type = types.find((item) => item.id === typeId) ?? types[0];
   const [duration, setDuration] = useState(type?.durationOptionsMinutes[0] ?? 20);
@@ -31,11 +30,6 @@ export default function PublicBooking({
   const [bookingId, setBookingId] = useState("");
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    setDuration(type?.durationOptionsMinutes[0] ?? 20);
-    setSelected(null);
-  }, [typeId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,6 +55,13 @@ export default function PublicBooking({
     return () => { cancelled = true; };
   }, [companySlug, date, typeId, duration, access]);
 
+  function handleTypeChange(nextTypeId: string) {
+    setTypeId(nextTypeId);
+    const nextType = types.find((item) => item.id === nextTypeId);
+    setDuration(nextType?.durationOptionsMinutes[0] ?? 20);
+    setSelected(null);
+  }
+
   useEffect(() => {
     if (!bookingId) return;
     const timer = window.setInterval(async () => {
@@ -69,7 +70,7 @@ export default function PublicBooking({
       if (!response.ok) return;
       setStatus(body.data.booking.status);
       const meeting = body.data.meeting;
-      if (meeting?.status === "READY") window.location.assign(`/${companySlug}/meet/${meeting.id}`);
+      if (meeting?.status === "READY") window.open(`/${companySlug}/meet/${meeting.id}`, "_self");
       if (["EXPIRED", "CANCELLED"].includes(body.data.booking.status)) window.clearInterval(timer);
     }, 2000);
     return () => window.clearInterval(timer);
@@ -117,10 +118,10 @@ export default function PublicBooking({
         <p className="mt-3 text-sm leading-6 text-slate-600">
           Your Google email is already registered for this company. Conventus will keep you inside the company-scoped workspace.
         </p>
-        <a href="/dashboard" className="mt-7 flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white hover:bg-slate-800">
+        <Link href="/dashboard" className="mt-7 flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white hover:bg-slate-800">
           <LayoutDashboard className="size-4" /> Open company dashboard
-        </a>
-        <a href={employeeLoginUrl} className="mt-4 block text-center text-xs font-semibold text-blue-700">Company login page</a>
+        </Link>
+        <Link href={employeeLoginUrl} className="mt-4 block text-center text-xs font-semibold text-blue-700">Company login page</Link>
       </section>
     );
   }
@@ -133,11 +134,11 @@ export default function PublicBooking({
         <p className="mt-3 text-sm leading-6 text-slate-600">
           Continue with Google. Conventus checks this company first: registered employees go to the company dashboard, while other Google accounts continue as customers for the meeting request.
         </p>
-        <a href={loginUrl} className="mt-7 flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white hover:bg-slate-800">
+        <button type="button" onClick={() => window.open(loginUrl, "_self")} className="mt-7 flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white hover:bg-slate-800">
           <span className="grid size-6 place-items-center rounded-full bg-white/10 text-xs font-bold">G</span>
           Continue with Google
-        </a>
-        <a href={employeeLoginUrl} className="mt-4 block text-center text-xs font-semibold text-blue-700">Employee? Open company login</a>
+        </button>
+        <Link href={employeeLoginUrl} className="mt-4 block text-center text-xs font-semibold text-blue-700">Employee? Open company login</a>
         <div className="mt-5 flex gap-2 text-[11px] leading-5 text-slate-500">
           <ShieldCheck className="size-4 shrink-0 text-blue-600" />Employee authorization is checked server-side using the company email list.
         </div>
@@ -152,7 +153,7 @@ export default function PublicBooking({
         <h2 className="mt-5 text-2xl font-semibold tracking-tight text-slate-950">{status === "CONFIRMED" ? "Meeting confirmed" : status === "EXPIRED" ? "Request expired" : "Finding your employee..."}</h2>
         <p className="mt-3 text-sm leading-6 text-slate-600">{status === "CONFIRMED" ? "Your company meeting page is opening now." : "The request is server-managed. An employee can accept within five minutes; otherwise Conventus retries or expires it."}</p>
         <div className="mt-6 rounded-2xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Request</p><p className="mt-1 font-mono text-xs text-slate-700">{bookingId}</p></div>
-        <a href={`/${companySlug}`} className="mt-5 inline-flex text-sm font-semibold text-blue-700">Start another request</a>
+        <Link href={`/${companySlug}`} className="mt-5 inline-flex text-sm font-semibold text-blue-700">Start another request</Link>
       </section>
     );
   }
@@ -163,7 +164,7 @@ export default function PublicBooking({
       <div className="grid gap-5">
         <label className="grid gap-2 text-sm font-semibold text-slate-800">
           Meeting type
-          <select value={typeId} onChange={(e) => setTypeId(e.target.value)} className="focus-ring rounded-xl border border-slate-300 px-4 py-3 font-normal outline-none focus:border-blue-500">
+          <select value={typeId} onChange={(e) => handleTypeChange(e.target.value)} className="focus-ring rounded-xl border border-slate-300 px-4 py-3 font-normal outline-none focus:border-blue-500">
             {types.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
         </label>
@@ -171,7 +172,7 @@ export default function PublicBooking({
           Date
           <div className="flex items-center gap-3 rounded-xl border border-slate-300 px-4 py-3">
             <CalendarDays className="size-4 text-blue-600" />
-            <input type="date" value={date} min={initialDate} onChange={(e) => setDate(e.target.value)} className="min-w-0 flex-1 bg-transparent font-normal outline-none" />
+            <input type="date" value={date} min={DEFAULT_BOOKING_DATE} onChange={(e) => setDate(e.target.value)} className="min-w-0 flex-1 bg-transparent font-normal outline-none" />
           </div>
         </label>
         <div>
