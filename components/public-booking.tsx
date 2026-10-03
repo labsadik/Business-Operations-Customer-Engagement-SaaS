@@ -220,6 +220,32 @@ export default function PublicBooking({
     );
   }
 
+  {outcomeModal && (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 p-5 backdrop-blur-sm" role="dialog" aria-modal="true">
+      <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
+        <div className="grid size-11 place-items-center rounded-2xl bg-amber-50 text-amber-700">
+          <Clock3 className="size-5" />
+        </div>
+        <h2 className="mt-5 text-xl font-semibold tracking-tight text-slate-950">
+          {outcomeModal === "EXPIRED" ? "No employee accepted this request" : "That time is no longer available"}
+        </h2>
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          {outcomeModal === "EXPIRED"
+            ? "The five-minute acceptance window has ended. The employee may have become busy or unavailable in the meantime. Please choose another time and try again."
+            : "The selected time became unavailable on the connected employee calendars. Please choose another time and try again."}
+        </p>
+        <button
+          type="button"
+          onClick={() => { setOutcomeModal(null); setBookingId(""); setStatus(""); setExpiresAt(""); setRemainingSeconds(0); void loadAvailability(true); }}
+          className="mt-6 w-full rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white"
+        >
+          Choose another time
+        </button>
+      </div>
+    </div>
+  )}
+
+
   if (bookingId) {
     const minutes = Math.floor(remainingSeconds / 60);
     const seconds = remainingSeconds % 60;
@@ -265,31 +291,6 @@ export default function PublicBooking({
       </section>
     );
   }
-
-  {outcomeModal && (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 p-5 backdrop-blur-sm" role="dialog" aria-modal="true">
-      <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
-        <div className="grid size-11 place-items-center rounded-2xl bg-amber-50 text-amber-700">
-          <Clock3 className="size-5" />
-        </div>
-        <h2 className="mt-5 text-xl font-semibold tracking-tight text-slate-950">
-          {outcomeModal === "EXPIRED" ? "No employee accepted this request" : "That time is no longer available"}
-        </h2>
-        <p className="mt-3 text-sm leading-6 text-slate-600">
-          {outcomeModal === "EXPIRED"
-            ? "The five-minute acceptance window has ended. The employee may have become busy or unavailable in the meantime. Please choose another time and try again."
-            : "The selected time became unavailable on the connected employee calendars. Please choose another time and try again."}
-        </p>
-        <button
-          type="button"
-          onClick={() => { setOutcomeModal(null); setBookingId(""); setStatus(""); setExpiresAt(""); setRemainingSeconds(0); void loadAvailability(true); }}
-          className="mt-6 w-full rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white"
-        >
-          Choose another time
-        </button>
-      </div>
-    </div>
-  )}
 
   return (
     <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
