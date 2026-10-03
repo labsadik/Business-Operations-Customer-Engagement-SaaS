@@ -103,12 +103,11 @@ function drawLabelValue(
 }
 
 function drawConventusMark(page: PDFPage, x: number, y: number, size: number) {
-  page.drawRectangle({ x, y, width: size, height: size, color: INK, borderRadius: 8 });
+  page.drawRectangle({ x, y, width: size, height: size, color: INK });
   page.drawCircle({ x: x + size * 0.66, y: y + size * 0.5, size: size * 0.055, color: BLUE });
-  page.drawSvgPath(
-    `M ${x + size * 0.635} ${y + size * 0.285} A ${size * 0.26} ${size * 0.26} 0 1 1 ${x + size * 0.635} ${y + size * 0.715} L ${x + size * 0.547} ${y + size * 0.625} A ${size * 0.13} ${size * 0.13} 0 1 0 ${x + size * 0.547} ${y + size * 0.375} Z`,
-    { color: WHITE }
-  );
+  page.drawCircle({ x: x + size * 0.5, y: y + size * 0.5, size: size * 0.29, color: WHITE });
+  page.drawCircle({ x: x + size * 0.58, y: y + size * 0.5, size: size * 0.19, color: INK });
+
 }
 
 export async function GET(
