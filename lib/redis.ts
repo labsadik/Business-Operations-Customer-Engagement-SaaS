@@ -1,6 +1,6 @@
 import { createClient, type RedisClientType } from "redis";
 
-type RedisSetOptions = { NX?: boolean; PX?: number };
+type RedisSetOptions = { NX?: boolean; PX?: number; EX?: number };
 export type ConventusRedis = {
   isReady: boolean;
   connect(): Promise<ConventusRedis>;
@@ -42,6 +42,7 @@ class UpstashRestRedis implements ConventusRedis {
     const pathParts = ["/set", encodeURIComponent(key), encodeURIComponent(value)];
     if (options?.NX) pathParts.push("NX");
     if (options?.PX) pathParts.push("PX", String(options.PX));
+    if (options?.EX) pathParts.push("EX", String(options.EX));
     const path = pathParts.join("/");
     const body = await this.command(path);
     return body.result == null ? null : String(body.result);
@@ -79,7 +80,7 @@ function createRedisClient(): ConventusRedis {
     get isReady() { return client.isReady; },
     async connect() { if (!client.isReady) await client.connect(); return this; },
     async ping() { return client.ping(); },
-    async set(key, value, options) { return client.set(key, value, { NX: options?.NX, PX: options?.PX }); },
+    async set(key, value, options) { return client.set(key, value, { NX: options?.NX, PX: options?.PX, EX: options?.EX }); },
     async get(key) { return client.get(key); },
     async del(key) { return client.del(key); }
   };
