@@ -3,6 +3,7 @@ import { Announcement } from "@/models/announcement";
 import { getSession } from "@/lib/session";
 import { Membership } from "@/models/membership";
 import { jsonError, jsonOk } from "@/lib/http";
+import { assertSameOrigin } from "@/lib/security";
 import { Types } from "mongoose";
 
 export const runtime = "nodejs";
@@ -61,6 +62,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  assertSameOrigin(request);
   try {
     const session = await requireManager();
     const body = await request.json().catch(() => null) as {
@@ -109,6 +111,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  assertSameOrigin(request);
   try {
     const session = await requireManager();
     const body = await request.json().catch(() => null) as {
@@ -164,6 +167,7 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  assertSameOrigin(request);
   try {
     const session = await requireManager();
     const { searchParams } = new URL(request.url);
