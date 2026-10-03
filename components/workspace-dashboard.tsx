@@ -15,7 +15,17 @@ type CompanyData = {
 };
 
 type Employee = { id: string; name: string; email: string; role: string; googleConnected: boolean };
-type RequestItem = { id: string; startAt: string; endAt: string; durationMinutes: number; status: string; assignedEmployeeId: string | null; expiresAt: string; customer: { name: string; email: string } | null };
+type RequestItem = {
+  id: string;
+  startAt: string;
+  endAt: string;
+  durationMinutes: number;
+  status: string;
+  assignedEmployeeId: string | null;
+  expiresAt: string;
+  customer: { name: string; email: string } | null;
+  meeting: { status: string; meetingUri: string | null; joinToken: string | null } | null;
+};
 
 const INITIAL_NOW = Date.now();
 
@@ -189,31 +199,50 @@ export default function WorkspaceDashboard() {
               const remaining = Math.max(0, Math.ceil((new Date(item.expiresAt).getTime() - now) / 1000));
               const actionable = item.status === "REQUESTED" || item.status === "RETRYING";
               const creating = item.status === "ASSIGNED" || item.status === "CREATING_MEETING";
+              const ready = item.meeting?.status === "READY" && Boolean(item.meeting.joinToken);
+              const scheduled = item.status === "CONFIRMED" || item.status === "IN_PROGRESS";
               const urgent = remaining <= 60;
+              const pendingTimer = !ready && !scheduled;
               return <div key={item.id} className="px-6 py-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-semibold text-slate-950">{item.customer?.name ?? "Customer"}</p>
-                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${creating ? "bg-blue-50 text-blue-700" : item.status === "RETRYING" ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>
-                        {creating ? "Creating meeting" : item.status === "RETRYING" ? "Retrying" : "Waiting for acceptance"}
+                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${ready ? "bg-emerald-50 text-emerald-700" : creating ? "bg-blue-50 text-blue-700" : item.status === "RETRYING" ? "bg-amber-50 text-amber-700" : scheduled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                        {ready ? "Meeting ready" : creating ? "Creating meeting" : item.status === "RETRYING" ? "Retrying" : scheduled ? "Confirmed" : "Waiting for acceptance"}
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-slate-500">{new Date(item.startAt).toLocaleString()} · {item.durationMinutes} min</p>
-                    <div className="mt-3 flex items-center gap-3">
-                      <span className={`rounded-xl border px-3 py-1.5 font-mono text-sm font-bold ${urgent ? "border-rose-200 bg-rose-50 text-rose-700" : "border-slate-200 bg-slate-50 text-slate-950"}`}>
-                        {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
-                      </span>
-                      <span className="text-[11px] font-medium text-slate-500">{creating ? "Meeting setup in progress" : "Acceptance timer"}</span>
-                    </div>
-                    <div className="mt-2 h-1.5 max-w-sm overflow-hidden rounded-full bg-slate-100">
-                      <div className={`h-full transition-all duration-1000 ${urgent ? "bg-rose-500" : "bg-blue-600"}`} style={{ width: `${Math.min(100, Math.max(0, (remaining / 300) * 100))}%` }} />
-                    </div>
+                    {pendingTimer && (
+                      <>
+                        <div className="mt-3 flex items-center gap-3">
+                          <span className={`rounded-xl border px-3 py-1.5 font-mono text-sm font-bold ${urgent ? "border-rose-200 bg-rose-50 text-rose-700" : "border-slate-200 bg-slate-50 text-slate-950"}`}>
+                            {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
+                          </span>
+                          <span className="text-[11px] font-medium text-slate-500">{creating ? "Meeting setup in progress" : "Acceptance timer"}</span>
+                        </div>
+                        <div className="mt-2 h-1.5 max-w-sm overflow-hidden rounded-full bg-slate-100">
+                          <div className={`h-full transition-all duration-1000 ${urgent ? "bg-rose-500" : "bg-blue-600"}`} style={{ width: `${Math.min(100, Math.max(0, (remaining / 300) * 100))}%` }} />
+                        </div>
+                      </>
+                    )}
                   </div>
-                  {actionable && <div className="flex gap-2">
-                    <button disabled={actingRequestId === item.id} onClick={() => void act(item.id, "decline")} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3.5 py-2.5 text-xs font-semibold text-slate-700 disabled:opacity-50"><XCircle className="size-4" /> Decline</button>
-                    <button disabled={actingRequestId === item.id} onClick={() => void act(item.id, "accept")} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3.5 py-2.5 text-xs font-semibold text-white disabled:opacity-50"><CheckCircle2 className="size-4" /> {actingRequestId === item.id ? "Accepting..." : "Accept"}</button>
-                  </div>}
+                                    <div className="flex flex-wrap gap-2">
+                    {ready && item.meeting?.joinToken && (
+                      <Link
+                        href={`/${data!.company.slug}/meet/${item.meeting.joinToken}`}
+                        className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                      >
+                        <Video className="size-4" /> Join meeting
+                      </Link>
+                    )}
+                    {actionable && (
+                      <>
+                        <button disabled={actingRequestId === item.id} onClick={() => void act(item.id, "decline")} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3.5 py-2.5 text-xs font-semibold text-slate-700 disabled:opacity-50"><XCircle className="size-4" /> Decline</button>
+                        <button disabled={actingRequestId === item.id} onClick={() => void act(item.id, "accept")} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3.5 py-2.5 text-xs font-semibold text-white disabled:opacity-50"><CheckCircle2 className="size-4" /> {actingRequestId === item.id ? "Accepting..." : "Accept"}</button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>;
             })}</div></section>
