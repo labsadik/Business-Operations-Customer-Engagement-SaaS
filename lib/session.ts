@@ -4,6 +4,7 @@ import { Session } from "@/models/session";
 import { User } from "@/models/user";
 import { Membership } from "@/models/membership";
 import { randomToken, sha256 } from "@/lib/security";
+import { isPlatformAdminEmail } from "@/lib/platform";
 
 const COOKIE_NAME = "conventus_session";
 const SESSION_DAYS = 30;
@@ -104,6 +105,48 @@ export async function getSession(): Promise<AuthSession | null> {
 
   const user = await User.findById(session.userId).lean();
   if (!user || user.active === false) return null;
+
+  // PLATFORM_ADMIN_EMAILS is the server-side bootstrap source of truth. This
+  // also repairs already-issued company sessions, so an admin who added their
+  // email after first login does not need a stale session or manual DB edit.
+  const configuredPlatformAdmin = isPlatformAdminEmail(String(user.email));
+  if (configuredPlatformAdmin) {
+    if (user.role !== "PLATFORM_ADMIN") {
+      await User.updateOne(
+        { _id: user._id, role: { $ne: "PLATFORM_ADMIN" } },
+        {
+          $set: {
+            role: "PLATFORM_ADMIN",
+            platformAdminPreviousRole: String(user.role)
+          }
+        }
+      );
+    }
+
+    if (session.role !== "PLATFORM_ADMIN" || session.companyId || session.workspaceId) {
+      await Session.updateOne(
+        { _id: session._id },
+        {
+          $set: {
+            role: "PLATFORM_ADMIN",
+            lastSeenAt: new Date()
+          },
+          $unset: {
+            companyId: 1,
+            workspaceId: 1
+          }
+        }
+      );
+
+      return {
+        userId: String(user._id),
+        role: "PLATFORM_ADMIN",
+        email: String(user.email),
+        name: String(user.name),
+        image: user.image ?? undefined
+      };
+    }
+  }
 
   if (session.role === "PLATFORM_ADMIN" && user.role !== "PLATFORM_ADMIN") {
     await Session.deleteOne({ _id: session._id });
