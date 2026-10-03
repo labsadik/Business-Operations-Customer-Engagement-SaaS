@@ -50,7 +50,6 @@ export async function GET(
       availability: {
         reason: availability.reason,
         schedulingReadyMemberCount: availability.schedulingReadyMemberCount,
-        membersWithWorkingHoursCount: availability.membersWithWorkingHoursCount,
         calendarErrorCount: availability.calendarErrorCount
       }
     });
