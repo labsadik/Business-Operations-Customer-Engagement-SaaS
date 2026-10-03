@@ -22,20 +22,27 @@ export async function GET() {
 
   await getMongo();
   const roleAllowsAllActive = ["COMPANY_OWNER", "COMPANY_ADMIN"].includes(session.role);
+  const now = new Date();
   const bookings = await BookingRequest.find({
     companyId: session.companyId,
-    expiresAt: { $gt: new Date() },
     $or: [
       {
         status: { $in: ["REQUESTED", "RETRYING"] },
+        expiresAt: { $gt: now },
         declinedBy: { $ne: session.userId }
       },
       {
         status: { $in: ["ASSIGNED", "CREATING_MEETING"] },
+        expiresAt: { $gt: now },
+        ...(roleAllowsAllActive ? {} : { assignedEmployeeId: session.userId })
+      },
+      {
+        status: { $in: ["CONFIRMED", "IN_PROGRESS"] },
+        requestedEndAt: { $gt: now },
         ...(roleAllowsAllActive ? {} : { assignedEmployeeId: session.userId })
       }
     ]
-  }).sort({ expiresAt: 1, requestedStartAt: 1 }).limit(50).lean();
+  }).sort({ requestedStartAt: 1 }).limit(100).lean();
 
   const customers = await User.find({ _id: { $in: bookings.map((b) => b.customerId) } }).select("name email image").lean();
   const meetings = await Meeting.find({
