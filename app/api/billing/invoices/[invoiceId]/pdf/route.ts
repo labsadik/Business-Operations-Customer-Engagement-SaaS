@@ -182,7 +182,7 @@ export async function GET(
     drawText(page, merchant.name, 94, PAGE_HEIGHT - 43, bold, 15);
     drawWrapped(page, merchant.description, 94, PAGE_HEIGHT - 58, 230, regular, 8.5, 2, MUTED);
 
-    drawRight(page, "TAX INVOICE", PAGE_WIDTH - 42, PAGE_HEIGHT - 38, bold, 8, BLUE);
+    drawRight(page, tax.enabled ? "TAX INVOICE" : "INVOICE", PAGE_WIDTH - 42, PAGE_HEIGHT - 38, bold, 8, BLUE);
     drawRight(page, invoice.invoiceNumber, PAGE_WIDTH - 42, PAGE_HEIGHT - 54, bold, 14, INK);
     drawRight(page, `Issued ${dateLabel(invoice.issuedAt)}`, PAGE_WIDTH - 42, PAGE_HEIGHT - 68, regular, 8.5, MUTED);
 
@@ -240,7 +240,7 @@ export async function GET(
 
     drawText(page, invoice.serviceDescription || `Conventus ${planSnapshot.name} monthly scheduling service`, 56, tableTop - 48, bold, 9, INK);
     drawText(page, "One-month subscription", 56, tableTop - 62, regular, 8, MUTED);
-    drawRight(page, money(invoice.amount, invoice.currency), PAGE_WIDTH - 56, tableTop - 48, regular, 9, INK);
+    drawRight(page, money(tax.taxableAmount, invoice.currency), PAGE_WIDTH - 56, tableTop - 48, regular, 9, INK);
 
     drawRule(page, tableTop - 78, 56, PAGE_WIDTH - 112);
 
