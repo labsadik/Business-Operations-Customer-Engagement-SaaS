@@ -3,6 +3,9 @@ import { GoogleAccount } from "@/models/google-account";
 import { Membership } from "@/models/membership";
 import { queryFreeBusy } from "@/lib/google-calendar";
 import { getRedis } from "@/lib/redis";
+import { Workspace } from "@/models/workspace";
+import { getEmployeePresence } from "@/lib/employee-presence";
+import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
 
 type Slot = { startAt: string; endAt: string };
 
@@ -25,7 +28,8 @@ function sameLocalDay(date: Date, day: { year: number; month: number; day: numbe
 }
 
 export async function getAvailableSlots(companyId: string, dateIso: string, durationMinutes: number) {
-  const timezone = "Asia/Kolkata";
+  const workspace = await Workspace.findOne({ companyId, active: true }).select("timezone").lean();
+  const timezone = workspace?.timezone || "Asia/Kolkata";
   const parsed = new Date(`${dateIso}T00:00:00+05:30`);
   if (Number.isNaN(parsed.getTime())) throw new Error("INVALID_DATE");
 
@@ -46,7 +50,9 @@ export async function getAvailableSlots(companyId: string, dateIso: string, dura
   for (const membership of memberships) {
     const employeeId = String(membership.userId);
     const account = await GoogleAccount.findOne({ userId: employeeId, status: "CONNECTED" }).lean();
-    if (!account) continue;
+    if (!isGoogleSchedulingReady(account)) continue;
+    const presence = await getEmployeePresence(companyId, employeeId);
+    if (presence.status !== "AVAILABLE") continue;
 
     const rules = await AvailabilityRule.find({ companyId, employeeId, active: true }).lean();
     const relevantRule = rules.find((r) => {
@@ -63,6 +69,7 @@ export async function getAvailableSlots(companyId: string, dateIso: string, dura
     for (let minute = relevantRule.startMinute; minute + durationMinutes <= relevantRule.endMinute; minute += 30) {
       const startAt = new Date(parsed.getTime() + minute * 60_000);
       const endAt = new Date(startAt.getTime() + durationMinutes * 60_000);
+      if (startAt.getTime() <= Date.now()) continue;
       if (!sameLocalDay(startAt, dayParts(parsed, relevantRule.timezone || timezone), relevantRule.timezone || timezone)) continue;
       const overlaps = busy.some((item) => startAt < new Date(item.end) && endAt > new Date(item.start));
       if (!overlaps) {
