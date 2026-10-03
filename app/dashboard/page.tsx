@@ -14,7 +14,9 @@ export default async function DashboardPage() {
     redirect("/login?error=workspace_access_required");
   }
 
-  if (session.role === "PLATFORM_ADMIN") redirect("/admin");
+  // Platform admins normally live in /admin. A managed-company scope is the
+  // explicit exception that opens one tenant's real workspace dashboard.
+  if (session.role === "PLATFORM_ADMIN" && !session.companyId) redirect("/admin");
 
   if (["COMPANY_ADMIN", "EMPLOYEE"].includes(session.role) && !session.companyId) {
     redirect("/login?error=workspace_access_required");
