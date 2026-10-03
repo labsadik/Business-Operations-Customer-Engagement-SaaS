@@ -1,12 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import {
-  ArrowLeft,
-  Building2,
-  CheckCircle2,
-  FileText,
-  ShieldCheck
-} from "lucide-react";
+import { ArrowLeft, Building2, CheckCircle2, Download, FileText, ShieldCheck } from "lucide-react";
+import InvoiceDocument from "@/components/invoice-document";
 import { getMongo } from "@/lib/mongodb";
 import { getSession } from "@/lib/session";
 import { Company } from "@/models/company";
@@ -14,7 +9,9 @@ import { Payment } from "@/models/payment";
 import { Invoice } from "@/models/invoice";
 import { Subscription } from "@/models/subscription";
 import { getPlan } from "@/lib/plans";
-import { PLATFORM_BRAND, platformLogoUrl } from "@/lib/platform";
+import { ensureInvoicesForCapturedPayments } from "@/lib/billing";
+import { calculateInvoiceTax, invoiceTaxConfig } from "@/lib/invoicing";
+import { platformLegalProfile, platformLogoUrl, PLATFORM_BRAND } from "@/lib/platform";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -29,14 +26,6 @@ function dateLabel(value: Date | null) {
   }).format(new Date(value));
 }
 
-function money(minor: number, currency: string) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 0
-  }).format(minor / 100);
-}
-
 export default async function BillingResultPage({
   searchParams
 }: {
@@ -44,12 +33,13 @@ export default async function BillingResultPage({
 }) {
   const session = await getSession();
   if (!session) redirect("/login?error=signin_required");
-  if (!session.companyId || !["COMPANY_OWNER", "COMPANY_ADMIN"].includes(session.role)) {
+  if (!session.companyId || !["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role)) {
     redirect("/dashboard");
   }
 
   const { paymentId } = await searchParams;
   await getMongo();
+  await ensureInvoicesForCapturedPayments(session.companyId);
 
   const [payment, company, subscription] = await Promise.all([
     paymentId
@@ -60,7 +50,7 @@ export default async function BillingResultPage({
           merchantAccount: "CONVENTUS"
         }).lean()
       : null,
-    Company.findById(session.companyId).select("name logoUrl description slug email").lean(),
+    Company.findById(session.companyId).select("name logoUrl description email phone websiteUrl taxId address").lean(),
     Subscription.findOne({ companyId: session.companyId }).lean()
   ]);
 
@@ -69,18 +59,69 @@ export default async function BillingResultPage({
     : null;
 
   const plan = getPlan(payment?.planId ?? subscription?.planId);
-  const platformLogo = platformLogoUrl();
-  const validPayment = Boolean(payment && company);
+  const validPayment = Boolean(payment && company && invoice && plan);
+
+  const legal = platformLegalProfile();
+  const tax = invoice?.taxSnapshot ?? (
+    payment
+      ? calculateInvoiceTax(
+          payment.amount,
+          invoiceTaxConfig().ratePercent,
+          invoiceTaxConfig().inclusive
+        )
+      : null
+  );
+
+  const merchant = invoice?.merchantSnapshot ?? {
+    name: legal.legalName,
+    description: PLATFORM_BRAND.description,
+    logoUrl: platformLogoUrl(),
+    websiteUrl: legal.websiteUrl,
+    email: legal.email,
+    phone: legal.phone,
+    taxId: legal.taxId,
+    gstin: legal.gstin,
+    address: legal.address
+  };
+
+  const invoiceData = validPayment && invoice && plan && payment ? {
+    invoiceNumber: invoice.invoiceNumber,
+    issuedAt: invoice.issuedAt,
+    amount: invoice.amount,
+    currency: invoice.currency,
+    status: "PAID / CAPTURED",
+    providerPaymentId: invoice.providerPaymentId,
+    serviceDescription: invoice.serviceDescription,
+    plan: {
+      id: invoice.planId,
+      name: (invoice.planSnapshot ?? plan).name,
+      priceInr: (invoice.planSnapshot ?? plan).priceInr,
+      maxEmployees: (invoice.planSnapshot ?? plan).maxEmployees,
+      monthlyMeetingLimit: (invoice.planSnapshot ?? plan).monthlyMeetingLimit,
+      maxMeetingDurationMinutes: (invoice.planSnapshot ?? plan).maxMeetingDurationMinutes,
+      maxConcurrentMeetings: (invoice.planSnapshot ?? plan).maxConcurrentMeetings
+    },
+    currentPlanId: subscription?.status === "ACTIVE" &&
+      subscription.currentPeriodEnd.getTime() > Date.now()
+      ? subscription.planId
+      : null,
+    billingPeriodStart: invoice.billingPeriodStart ?? null,
+    billingPeriodEnd: invoice.billingPeriodEnd ?? null,
+    merchant,
+    company: invoice.companySnapshot,
+    tax: tax!,
+    pdfHref: `/api/billing/invoices/${invoice._id}/pdf`
+  } : null;
 
   return (
     <main className="min-h-screen bg-[#f7f8fb] text-slate-950">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex min-h-18 max-w-5xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
+        <div className="mx-auto flex min-h-18 max-w-6xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
           <Link href="/dashboard" className="flex items-center gap-3">
             <img
-              src={platformLogo}
+              src={platformLogoUrl()}
               alt={PLATFORM_BRAND.name}
-              className="size-9 rounded-xl object-cover"
+              className="size-9 rounded-xl object-contain"
               referrerPolicy="no-referrer"
             />
             <div>
@@ -98,122 +139,72 @@ export default async function BillingResultPage({
         </div>
       </header>
 
-      <div className="mx-auto max-w-5xl px-5 py-8 sm:px-6 lg:px-8 lg:py-12">
-        {validPayment && company && payment ? (
+      <div className="mx-auto max-w-6xl px-5 py-8 sm:px-6 lg:px-8 lg:py-12">
+        {validPayment && company && payment && invoiceData ? (
           <>
             <section className="overflow-hidden rounded-[2rem] border border-emerald-200 bg-white shadow-sm">
               <div className="border-b border-emerald-100 bg-emerald-50/70 px-6 py-6 sm:px-8">
-                <div className="flex items-start gap-4">
-                  <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-emerald-600 text-white shadow-sm">
-                    <CheckCircle2 className="size-6" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700">Payment successful</p>
-                    <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Your Conventus plan is active.</h1>
-                    <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-                      The payment was verified by Conventus and the subscription has been applied to your company workspace.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-6 p-6 sm:p-8 lg:grid-cols-[1.1fr_.9fr]">
-                <section>
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-start gap-4">
-                    <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                      {company.logoUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={company.logoUrl}
-                          alt={company.name}
-                          className="size-full object-contain p-2"
-                          referrerPolicy="no-referrer"
-                        />
-                      ) : (
-                        <Building2 className="size-7 text-slate-400" />
-                      )}
+                    <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-emerald-600 text-white shadow-sm">
+                      <CheckCircle2 className="size-6" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-600">Billed company</p>
-                      <h2 className="mt-1 text-xl font-semibold tracking-tight">{company.name}</h2>
-                      <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
-                        {(company.description || "Your company workspace on Conventus.").slice(0, 220)}
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700">Payment successful</p>
+                      <h1 className="mt-2 text-3xl font-semibold tracking-tight">Your Conventus plan is active.</h1>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        {company.name} is now subscribed to {invoiceData.plan.name}. The captured payment has been converted into the invoice below.
                       </p>
                     </div>
                   </div>
+                  <Link
+                    href={invoiceData.pdfHref}
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-semibold text-white hover:bg-slate-800"
+                  >
+                    <Download className="size-3.5" />
+                    Download invoice PDF
+                  </Link>
+                </div>
+              </div>
 
-                  <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-2xl bg-slate-50 p-4">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Plan</p>
-                      <p className="mt-2 text-sm font-semibold">{plan?.name ?? payment.planId}</p>
+              <div className="grid gap-5 p-6 sm:grid-cols-3 sm:p-8">
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Company</p>
+                  <div className="mt-2 flex items-center gap-2.5">
+                    <div className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-xl border border-slate-200 bg-white">
+                      {company.logoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={company.logoUrl} alt={company.name} className="size-full object-contain p-1" referrerPolicy="no-referrer" />
+                      ) : (
+                        <Building2 className="size-4 text-slate-400" />
+                      )}
                     </div>
-                    <div className="rounded-2xl bg-slate-50 p-4">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Amount</p>
-                      <p className="mt-2 text-sm font-semibold">{money(payment.amount, payment.currency)}</p>
-                    </div>
-                    <div className="rounded-2xl bg-slate-50 p-4">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Paid at</p>
-                      <p className="mt-2 text-sm font-semibold">{dateLabel(payment.paidAt ?? null)}</p>
-                    </div>
-                    <div className="rounded-2xl bg-slate-50 p-4">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Period ends</p>
-                      <p className="mt-2 text-sm font-semibold">{dateLabel(subscription?.currentPeriodEnd ?? null)}</p>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">{company.name}</p>
+                      <p className="truncate text-[10px] text-slate-500">{company.email || "No billing email"}</p>
                     </div>
                   </div>
-                </section>
-
-                <aside className="rounded-3xl border border-slate-200 bg-slate-950 p-6 text-white">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={platformLogo}
-                      alt={PLATFORM_BRAND.name}
-                      className="size-11 rounded-xl bg-white object-contain p-1"
-                      referrerPolicy="no-referrer"
-                    />
-                    <div>
-                      <p className="text-sm font-semibold">{PLATFORM_BRAND.name}</p>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/45">Merchant</p>
-                    </div>
-                  </div>
-                  <p className="mt-6 text-sm leading-6 text-white/65">{PLATFORM_BRAND.description}</p>
-
-                  <div className="mt-6 space-y-3 border-t border-white/10 pt-5 text-xs">
-                    {invoice && (
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-white/45">Invoice</span>
-                        <span className="font-semibold">{invoice.invoiceNumber}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-white/45">Payment</span>
-                      <span className="max-w-40 truncate font-semibold">{payment.providerPaymentId ?? "Verified"}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-white/45">Status</span>
-                      <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-300">
-                        <ShieldCheck className="size-3.5" />
-                        Captured
-                      </span>
-                    </div>
-                  </div>
-                </aside>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Current plan</p>
+                  <p className="mt-2 text-lg font-semibold">{invoiceData.plan.name}</p>
+                  <p className="mt-1 text-xs text-slate-500">{subscription?.status ?? "ACTIVE"} · {dateLabel(subscription?.currentPeriodEnd ?? null)}</p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Captured payment</p>
+                  <p className="mt-2 text-sm font-semibold">₹{(payment.amount / 100).toFixed(2)}</p>
+                  <p className="mt-1 truncate text-[10px] text-slate-500">{dateLabel(payment.paidAt ?? null)}</p>
+                </div>
               </div>
             </section>
 
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Link
-                href="/dashboard"
-                className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-semibold text-white hover:bg-slate-800"
-              >
-                Back to workspace
-              </Link>
-              <Link
-                href="/dashboard?section=billing"
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                <FileText className="size-3.5" />
-                Open billing
-              </Link>
+            <div className="mt-8">
+              <InvoiceDocument invoice={invoiceData} />
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+              <span className="inline-flex items-center gap-2"><ShieldCheck className="size-3.5 text-emerald-600" /> Payment verified and captured.</span>
+              <span className="inline-flex items-center gap-2"><FileText className="size-3.5 text-blue-600" /> Invoice {invoiceData.invoiceNumber}</span>
             </div>
           </>
         ) : (
