@@ -2,12 +2,57 @@ import { getMongo } from "@/lib/mongodb";
 import { BookingRequest } from "@/models/booking-request";
 import { Meeting } from "@/models/meeting";
 import { User } from "@/models/user";
-import { createCalendarEvent, getCalendarEvent } from "@/lib/google-calendar";
-import { createMeetSpace } from "@/lib/google-meet";
+import {
+  createCalendarEvent,
+  getCalendarEvent,
+  type GoogleCalendarEvent
+} from "@/lib/google-calendar";
 
 function calendarEventIdForBooking(bookingId: string) {
-  // Google Calendar event ids must use lower-case base32hex-compatible chars.
   return `conventus${bookingId}`;
+}
+
+function conferenceRequestIdForBooking(bookingId: string) {
+  return `conventus-${bookingId}`;
+}
+
+function googleMeetUri(event: GoogleCalendarEvent | null | undefined) {
+  if (event?.hangoutLink) return event.hangoutLink;
+  return (
+    event?.conferenceData?.entryPoints?.find(
+      (entryPoint) => entryPoint.entryPointType === "video" && entryPoint.uri
+    )?.uri ?? null
+  );
+}
+
+function conferenceStatus(event: GoogleCalendarEvent | null | undefined) {
+  return event?.conferenceData?.createRequest?.status?.statusCode?.toLowerCase() ?? null;
+}
+
+function wait(milliseconds: number) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function waitForGoogleMeet(
+  employeeId: string,
+  eventId: string,
+  initialEvent: GoogleCalendarEvent
+) {
+  const immediateUri = googleMeetUri(initialEvent);
+  if (immediateUri) return immediateUri;
+
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    await wait(1000);
+    const event = await getCalendarEvent(employeeId, eventId);
+    const uri = googleMeetUri(event);
+    if (uri) return uri;
+
+    if (conferenceStatus(event) === "failure") {
+      throw new Error("GOOGLE_MEET_CONFERENCE_FAILED");
+    }
+  }
+
+  throw new Error("GOOGLE_MEET_PENDING");
 }
 
 export async function createMeetingForBooking(bookingId: string) {
@@ -50,38 +95,27 @@ export async function createMeetingForBooking(bookingId: string) {
   }
 
   booking.status = "CREATING_MEETING";
+  booking.assignedEmployeeId = meeting.employeeId;
   await booking.save();
 
   try {
-    if (!meeting.googleMeetSpaceName || !meeting.googleMeetingUri) {
-      const space = await createMeetSpace(String(employee._id));
-      if (!space.name || !space.meetingUri) {
-        throw new Error("GOOGLE_MEET_CREATE_INVALID");
-      }
-
-      meeting.googleMeetSpaceName = space.name;
-      meeting.googleMeetingUri = space.meetingUri;
-      meeting.status = "CREATING";
-      await meeting.save();
-    }
+    let event: GoogleCalendarEvent | null = null;
 
     if (!meeting.googleCalendarEventId) {
       const eventId = calendarEventIdForBooking(String(booking._id));
-      let event;
+      const conferenceRequestId = conferenceRequestIdForBooking(String(booking._id));
 
       try {
         event = await createCalendarEvent(String(employee._id), {
           eventId,
+          conferenceRequestId,
           summary: `Conventus meeting with ${customer.name}`,
           description: `Conventus booking ${booking._id}`,
           startAt: booking.requestedStartAt,
           endAt: booking.requestedEndAt,
-          attendeeEmails: [customer.email],
-          meetingUri: meeting.googleMeetingUri!
+          attendeeEmails: [customer.email]
         });
       } catch (error) {
-        // A previous attempt may have created the deterministic event before
-        // the process failed while persisting its id.
         if (error instanceof Error && error.message.startsWith("GOOGLE_API_409")) {
           event = await getCalendarEvent(String(employee._id), eventId);
         } else {
@@ -89,9 +123,22 @@ export async function createMeetingForBooking(bookingId: string) {
         }
       }
 
+      if (!event?.id) throw new Error("GOOGLE_CALENDAR_EVENT_INVALID");
       meeting.googleCalendarEventId = event.id;
+      await meeting.save();
     }
 
+    const eventId = meeting.googleCalendarEventId;
+    if (!eventId) throw new Error("GOOGLE_CALENDAR_EVENT_MISSING");
+
+    const resolvedEvent = event ?? (await getCalendarEvent(String(employee._id), eventId));
+    const meetingUri = await waitForGoogleMeet(
+      String(employee._id),
+      eventId,
+      resolvedEvent
+    );
+
+    meeting.googleMeetingUri = meetingUri;
     meeting.calendarSyncStatus = "SYNCED";
     meeting.status = "READY";
     await meeting.save();
@@ -99,10 +146,22 @@ export async function createMeetingForBooking(bookingId: string) {
     booking.status = "CONFIRMED";
     booking.confirmedAt = new Date();
     booking.assignedEmployeeId = meeting.employeeId;
+    booking.nextRetryAt = undefined;
     await booking.save();
 
     return meeting;
   } catch (error) {
+    if (error instanceof Error && error.message === "GOOGLE_MEET_PENDING") {
+      meeting.status = "CREATING";
+      meeting.calendarSyncStatus = "PENDING";
+      await meeting.save();
+
+      booking.status = "CREATING_MEETING";
+      booking.assignedEmployeeId = meeting.employeeId;
+      await booking.save();
+      throw error;
+    }
+
     meeting.status = "FAILED";
     meeting.calendarSyncStatus = "FAILED";
     await meeting.save();
