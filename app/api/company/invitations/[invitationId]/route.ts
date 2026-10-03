@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export async function DELETE(
   _request: Request,
   {
-  assertSameOrigin(request); params }: { params: Promise<{ invitationId: string }> }
+  assertSameOrigin(_request); params }: { params: Promise<{ invitationId: string }> }
 ) {
   try {
     const session = await getSession();
