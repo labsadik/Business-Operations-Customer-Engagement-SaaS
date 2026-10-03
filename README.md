@@ -82,6 +82,33 @@ For local development use Razorpay Test Mode credentials. For production/Vercel,
 
 Never commit the secret values.
 
+## Platform administration
+
+Platform administrator access is a **database role**, not a client-side flag. The role is stored on `User.role`, checked again when a session is loaded, and restricted to `/admin/*` through the server layout. Administrators can manage platform-admin access from `/admin/access`; grants and revocations are written to `AdminAuditEvent`, self-demotion is blocked, and the last active platform admin cannot be removed.
+
+For first-time bootstrap, set `PLATFORM_ADMIN_EMAILS` to one or more trusted Google account emails, then sign in through the normal `/login` flow. The matching `User` record is promoted to `PLATFORM_ADMIN` in MongoDB. After bootstrap, use the Admin Access screen for additional role changes.
+
+Required platform-admin configuration:
+
+```
+PLATFORM_ADMIN_EMAILS=admin@example.com
+CONVENTUS_LOGO_URL=
+```
+
+## Platform-owned billing
+
+Tenant companies are the **customers/billing subjects**. Payments are created with the Conventus Razorpay credentials and merchant identity, so the funds are collected by the Conventus merchant account rather than a tenant's own payment account.
+
+The payment flow is:
+- The signed-in company owner/admin chooses a trusted Conventus plan.
+- The server creates the Razorpay order using the server-side plan price and Conventus merchant metadata.
+- Razorpay Checkout displays **Conventus** as the merchant and the paying company as the prefilled customer.
+- Signature, order, amount, currency, and captured status are verified server-side.
+- Webhook reconciliation can safely retry, including successful retries after a failed payment attempt.
+- Payment activation, invoice creation, subscription changes, and workspace plan state are idempotent.
+- The successful result page is `/billing/result` and is company-scoped; it shows Conventus merchant branding plus the paying company's name, short description, and logo.
+
+For the Razorpay account itself, the legal merchant/business identity, settlement account, checkout branding, and statement descriptor must also be configured in the Conventus-owned Razorpay account. Application code cannot change the Razorpay account holder or settlement account.
 ## Security
 
 Never commit secrets. Google refresh tokens, application secrets, Redis credentials, database credentials, billing secrets, and email provider keys must stay server-side.
