@@ -67,27 +67,3 @@ Queue tuning, Redis upgrade when required, database scaling, caching, load testi
 ## Security
 
 Never commit secrets. Google refresh tokens, application secrets, Redis credentials, database credentials, billing secrets, and email provider keys must stay server-side.
-
-
-## Realtime presence
-
-Conventus uses Socket.IO for live employee presence and instant customer availability updates. The Next.js app remains the web/API service; the persistent Socket.IO process runs separately on Node.js.
-
-### Local development
-
-Run the Next.js app in one terminal:
-
-```powershell
-npm install
-npm run dev
-```
-
-Run the Socket.IO server in a second terminal:
-
-```powershell
-npm run socket
-```
-
-The Socket.IO server defaults to `http://localhost:3001`. Set `NEXT_PUBLIC_SOCKET_URL` when the Socket.IO service is hosted at another URL.
-
-The Socket.IO process must have the same `AUTH_SECRET` or `REALTIME_SECRET` and Redis environment variables as the Next.js application.
