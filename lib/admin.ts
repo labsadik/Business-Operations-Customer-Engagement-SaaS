@@ -11,6 +11,7 @@ import { BookingRequest } from "@/models/booking-request";
 import { Invoice } from "@/models/invoice";
 import { GoogleAccount } from "@/models/google-account";
 import { getPlan, PLANS } from "@/lib/plans";
+import { ensureInvoicesForCapturedPayments } from "@/lib/billing";
 
 export type AdminCompanyListItem = {
   id: string;
@@ -76,6 +77,9 @@ export type AdminCompanyDetails = AdminCompanyListItem & {
     amount: number;
     currency: string;
     issuedAt: Date;
+    isCurrentPlan: boolean;
+    gstAmount: number;
+    gstRatePercent: number;
   }>;
   recentMeetings: Array<{
     id: string;
@@ -297,6 +301,8 @@ export async function getAdminCompanyDetails(companyId: string) {
   const company = await Company.findById(objectId).lean();
   if (!company) return null;
 
+  await ensureInvoicesForCapturedPayments(String(objectId));
+
   const [baseRow, owner, members, memberUsers, subscription, payments, invoices, meetingStats, meetingRequestStats, recentMeetings, meetingCustomers] =
     await Promise.all([
       buildCompanyRows([company as never]).then((rows) => rows[0] ?? null),
@@ -383,7 +389,12 @@ export async function getAdminCompanyDetails(companyId: string) {
       planId: invoice.planId,
       amount: invoice.amount,
       currency: invoice.currency,
-      issuedAt: invoice.issuedAt
+      issuedAt: invoice.issuedAt,
+      isCurrentPlan: subscription?.status === "ACTIVE" &&
+        subscription.currentPeriodEnd.getTime() > Date.now() &&
+        subscription.planId === invoice.planId,
+      gstAmount: invoice.taxSnapshot?.gstAmount ?? 0,
+      gstRatePercent: invoice.taxSnapshot?.enabled ? invoice.taxSnapshot.ratePercent : 0
     })),
     recentMeetings: recentMeetings.map((meeting) => ({
       id: String(meeting._id),

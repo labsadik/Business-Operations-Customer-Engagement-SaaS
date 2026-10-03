@@ -24,7 +24,7 @@ export async function POST(
     return jsonError("CSRF_ORIGIN_INVALID", 403);
   }
 
-  let session: { userId: string; companyId?: string };
+  let session: { userId: string; companyId?: string; role: string };
   try {
     const result = await requireCompanyMember(["EMPLOYEE", "COMPANY_OWNER", "COMPANY_ADMIN"]);
     session = result.session;
@@ -33,6 +33,9 @@ export async function POST(
     return jsonError(code, code === "UNAUTHENTICATED" ? 401 : 403);
   }
   if (!session.companyId) return jsonError("COMPANY_NOT_CONFIGURED", 403);
+  if (session.role === "PLATFORM_ADMIN") {
+    return jsonError("PLATFORM_ADMIN_CANNOT_ACCEPT_AS_EMPLOYEE", 403);
+  }
 
   await getMongo();
   const { bookingId } = await params;

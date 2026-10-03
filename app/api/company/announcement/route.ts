@@ -12,9 +12,11 @@ export const dynamic = "force-dynamic";
 async function requireManager() {
   const session = await getSession();
   if (!session) throw new Error("UNAUTHENTICATED");
-  if (!session.companyId || !["COMPANY_OWNER", "COMPANY_ADMIN"].includes(session.role)) {
+  if (!session.companyId || (session.role !== "PLATFORM_ADMIN" && !["COMPANY_OWNER", "COMPANY_ADMIN"].includes(session.role))) {
     throw new Error("FORBIDDEN");
   }
+
+  if (session.role === "PLATFORM_ADMIN") return session;
 
   await getMongo();
   const membership = await Membership.findOne({

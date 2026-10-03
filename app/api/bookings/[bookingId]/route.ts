@@ -24,7 +24,7 @@ export async function GET(
   let companyRole = false;
   let activeCompanyMember = false;
 
-  if (companyMatch && session.role !== "CUSTOMER" && session.role !== "PLATFORM_ADMIN") {
+  if (companyMatch && session.role !== "CUSTOMER") {
     const membership = await Membership.findOne({
       companyId: booking.companyId,
       userId: session.userId,

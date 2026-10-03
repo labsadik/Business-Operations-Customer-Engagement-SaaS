@@ -6,7 +6,12 @@ export async function requireCompanyMember(roles?: string[]) {
   const session = await getSession();
   if (!session) throw new Error("UNAUTHENTICATED");
   if (!session.companyId) throw new Error("COMPANY_NOT_CONFIGURED");
-  if (roles && !roles.includes(session.role)) throw new Error("FORBIDDEN");
+  const adminManaged = session.role === "PLATFORM_ADMIN";
+  if (roles && !adminManaged && !roles.includes(session.role)) throw new Error("FORBIDDEN");
+
+  if (session.role === "PLATFORM_ADMIN") {
+    return { session, membership: null };
+  }
 
   const membership = await Membership.findOne({
     companyId: session.companyId,

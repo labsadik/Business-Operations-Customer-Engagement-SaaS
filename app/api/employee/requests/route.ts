@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   if (!session.companyId) return jsonError("COMPANY_NOT_CONFIGURED", 403);
 
   await getMongo();
-  const roleAllowsAllActive = ["COMPANY_OWNER", "COMPANY_ADMIN"].includes(session.role);
+  const roleAllowsAllActive = ["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role);
   const now = new Date();
   const bookings = await BookingRequest.find({
     companyId: session.companyId,
