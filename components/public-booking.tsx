@@ -1,11 +1,14 @@
 "use client";
 
-import Link from "next/link";\nimport { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, CheckCircle2, Clock3, LayoutDashboard, Loader2, LogIn, ShieldCheck } from "lucide-react";
 
 type Type = { id: string; name: string; description?: string; durationOptionsMinutes: number[] };
 type Slot = { startAt: string; endAt: string };
-type Access = "anonymous" | "company-member" | "customer";\n\nconst DEFAULT_BOOKING_DATE = new Date().toISOString().slice(0, 10);
+type Access = "anonymous" | "company-member" | "customer";
+
+const DEFAULT_BOOKING_DATE = new Date().toISOString().slice(0, 10);
 
 export default function PublicBooking({
   companySlug,
@@ -138,7 +141,7 @@ export default function PublicBooking({
           <span className="grid size-6 place-items-center rounded-full bg-white/10 text-xs font-bold">G</span>
           Continue with Google
         </button>
-        <Link href={employeeLoginUrl} className="mt-4 block text-center text-xs font-semibold text-blue-700">Employee? Open company login</a>
+        <Link href={employeeLoginUrl} className="mt-4 block text-center text-xs font-semibold text-blue-700">Employee? Open company login</Link>
         <div className="mt-5 flex gap-2 text-[11px] leading-5 text-slate-500">
           <ShieldCheck className="size-4 shrink-0 text-blue-600" />Employee authorization is checked server-side using the company email list.
         </div>
