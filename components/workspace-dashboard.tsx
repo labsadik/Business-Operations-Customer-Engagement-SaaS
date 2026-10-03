@@ -78,6 +78,7 @@ type CompanyData = {
   canPublish: boolean;
   gstRatePercent: number;
   gstEnabled: boolean;
+  gstInclusive: boolean;
   currentRole: string;
 };
 
@@ -1742,7 +1743,9 @@ export default function WorkspaceDashboard({
                 {(Object.keys(PLANS) as PlanId[]).map((id) => {
                   const item = PLANS[id];
                   const isCurrent = id === planId;
-                  const totalWithGst = Math.round(item.priceInr * 100 * (1 + (data.gstRatePercent || 0) / 100));
+                  const baseMinor = Math.round(item.priceInr * 100);
+                  const gstRate = data.gstEnabled ? (data.gstRatePercent || 0) : 0;
+                  const totalWithGst = data.gstInclusive ? baseMinor : Math.round(baseMinor * (1 + gstRate / 100));
                   return (
                     <tr key={id} className="border-b border-slate-100 last:border-b-0">
                       <td className="px-4 py-4">
@@ -1757,7 +1760,7 @@ export default function WorkspaceDashboard({
                       <td className="px-4 py-4">
                         <p className="text-sm font-semibold">{item.priceInr === 0 ? "Free" : `₹${item.priceInr}`}</p>
                         {item.priceInr > 0 && (
-                          <p className="mt-1 text-[10px] text-slate-400">+{data.gstRatePercent}% GST · ₹{(totalWithGst / 100).toFixed(2)} total</p>
+                          <p className="mt-1 text-[10px] text-slate-400">+{data.gstEnabled ? data.gstRatePercent : 0}% GST · ₹{(totalWithGst / 100).toFixed(2)} total</p>
                         )}
                       </td>
                       <td className="px-4 py-4 text-xs text-slate-600">{item.maxEmployees}</td>
