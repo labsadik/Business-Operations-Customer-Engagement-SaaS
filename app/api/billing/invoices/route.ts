@@ -53,7 +53,9 @@ export async function GET() {
       maxEmployees: currentPlan.maxEmployees,
       monthlyMeetingLimit: currentPlan.monthlyMeetingLimit,
       maxMeetingDurationMinutes: currentPlan.maxMeetingDurationMinutes,
-      maxConcurrentMeetings: currentPlan.maxConcurrentMeetings
+      maxConcurrentMeetings: currentPlan.maxConcurrentMeetings,
+      validityDays: currentPlan.validityDays,
+      freeFeatureDays: currentPlan.freeFeatureDays
     } : {
       name: invoice.planId,
       priceInr: invoice.amount / 100,
@@ -68,6 +70,7 @@ export async function GET() {
       invoiceNumber: invoice.invoiceNumber,
       planId: invoice.planId,
       planSnapshot,
+      source: invoice.source ?? "PAID",
       providerOrderId: invoice.providerOrderId,
       providerPaymentId: invoice.providerPaymentId,
       amount: invoice.amount,
