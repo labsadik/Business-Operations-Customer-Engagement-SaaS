@@ -81,6 +81,7 @@ export default async function BillingResultPage({
     phone: legal.phone,
     taxId: legal.taxId,
     gstin: legal.gstin,
+    sacCode: legal.sacCode,
     address: legal.address
   };
 
