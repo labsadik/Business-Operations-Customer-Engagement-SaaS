@@ -101,6 +101,8 @@ To create the first platform administrator, create/promote the existing MongoDB 
 npm run admin:create -- admin@example.com
 ```
 
+The standalone admin CLI reads `.env.local` first (then `.env`), so `MONGODB_URI` does not need to be exported separately in PowerShell.
+
 After that, the platform admin can use `/admin/access` to grant or revoke `PLATFORM_ADMIN` on other MongoDB users. No admin email allow-list is read from environment variables.
  
 ## Platform-owned billing
