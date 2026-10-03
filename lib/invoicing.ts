@@ -109,6 +109,14 @@ export function buildInvoiceSnapshots(input: {
       taxId: input.company.taxId ?? ""
     },
     taxSnapshot,
+    planSnapshot: {
+      name: input.plan.name,
+      priceInr: input.plan.priceInr,
+      maxEmployees: input.plan.maxEmployees,
+      monthlyMeetingLimit: input.plan.monthlyMeetingLimit,
+      maxMeetingDurationMinutes: input.plan.maxMeetingDurationMinutes,
+      maxConcurrentMeetings: input.plan.maxConcurrentMeetings
+    },
     serviceDescription: `Conventus ${input.plan.name} monthly scheduling service`
   };
 }
