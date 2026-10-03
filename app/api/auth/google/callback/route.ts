@@ -409,8 +409,8 @@ export async function GET(request: Request) {
       await createSession({
         userId: String(user._id),
         role: platformAdminSession ? "PLATFORM_ADMIN" : String(membership.role),
-        companyId: platformAdminSession ? undefined : String(invite.companyId),
-        workspaceId: platformAdminSession ? undefined : String(invite.workspaceId)
+        companyId: String(invite.companyId),
+        workspaceId: String(invite.workspaceId)
       });
 
       const response = NextResponse.redirect(
@@ -437,7 +437,7 @@ export async function GET(request: Request) {
         image: googleUser.picture || user.image,
         googleSubject: googleUser.sub,
         googleEmail: email,
-        role: bootstrapPlatformAdmin ? "PLATFORM_ADMIN" : user.role,
+        role: user.role,
         lastLoginAt: new Date()
       });
       await user.save();
