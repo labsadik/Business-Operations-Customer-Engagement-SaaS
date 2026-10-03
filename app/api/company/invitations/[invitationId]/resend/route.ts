@@ -3,6 +3,7 @@ import { getSession } from "@/lib/session";
 import { Membership } from "@/models/membership";
 import { Invitation } from "@/models/invitation";
 import { jsonError, jsonOk } from "@/lib/http";
+import { assertSameOrigin } from "@/lib/security";
 import { randomToken, sha256 } from "@/lib/security";
 import { Types } from "mongoose";
 
@@ -11,7 +12,8 @@ export const dynamic = "force-dynamic";
 
 export async function POST(
   _request: Request,
-  { params }: { params: Promise<{ invitationId: string }> }
+  {
+  assertSameOrigin(request); params }: { params: Promise<{ invitationId: string }> }
 ) {
   try {
     const session = await getSession();
