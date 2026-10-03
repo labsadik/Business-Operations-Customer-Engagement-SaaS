@@ -35,6 +35,8 @@ export default function PublicBooking({
   const [loading, setLoading] = useState(false);
   const [bookingId, setBookingId] = useState("");
   const [status, setStatus] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
+  const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [error, setError] = useState("");
 
   const loadAvailability = useCallback(async (silent = false) => {
@@ -64,7 +66,9 @@ export default function PublicBooking({
 
   useEffect(() => {
     if (!typeId || access !== "customer") return;
-    void loadAvailability();
+    const initial = window.setTimeout(() => {
+      void loadAvailability();
+    }, 0);
 
     const interval = window.setInterval(() => {
       void loadAvailability(true);
@@ -76,6 +80,7 @@ export default function PublicBooking({
     window.addEventListener("focus", onFocus);
 
     return () => {
+      window.clearTimeout(initial);
       window.clearInterval(interval);
       window.removeEventListener("focus", onFocus);
     };
@@ -90,17 +95,50 @@ export default function PublicBooking({
 
   useEffect(() => {
     if (!bookingId) return;
+
     const timer = window.setInterval(async () => {
       const response = await fetch(`/api/bookings/${bookingId}`, { cache: "no-store" });
       const body = await response.json();
       if (!response.ok) return;
-      setStatus(body.data.booking.status);
+
+      const nextStatus = body.data.booking.status as string;
+      setStatus(nextStatus);
+      setExpiresAt(body.data.booking.expiresAt);
+      setRemainingSeconds(
+        Math.max(
+          0,
+          Math.ceil(
+            (new Date(body.data.booking.expiresAt).getTime() - Date.now()) / 1000
+          )
+        )
+      );
+
       const meeting = body.data.meeting;
-      if (meeting?.status === "READY") window.open(`/${companySlug}/meet/${meeting.id}`, "_self");
-      if (["EXPIRED", "CANCELLED"].includes(body.data.booking.status)) window.clearInterval(timer);
+      if (meeting?.status === "READY") {
+        window.clearInterval(timer);
+        window.open(`/${companySlug}/meet/${meeting.id}`, "_self");
+      }
+
+      if (["EXPIRED", "CANCELLED", "CONFIRMED"].includes(nextStatus)) {
+        window.clearInterval(timer);
+      }
     }, 2000);
+
     return () => window.clearInterval(timer);
   }, [bookingId, companySlug]);
+
+  useEffect(() => {
+    if (!bookingId || !expiresAt || ["CONFIRMED", "EXPIRED", "CANCELLED"].includes(status)) return;
+    const timer = window.setInterval(() => {
+      setRemainingSeconds(
+        Math.max(
+          0,
+          Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000)
+        )
+      );
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [bookingId, expiresAt, status]);
 
   const loginUrl = useMemo(
     () => `/api/auth/google/start?intent=customer&companySlug=${encodeURIComponent(companySlug)}&returnTo=%2F${encodeURIComponent(companySlug)}`,
@@ -126,6 +164,8 @@ export default function PublicBooking({
       if (!response.ok) throw new Error(body.error || "BOOKING_FAILED");
       setBookingId(body.data.bookingId);
       setStatus(body.data.status);
+      setExpiresAt(body.data.expiresAt);
+      setRemainingSeconds(Math.max(0, Math.ceil((new Date(body.data.expiresAt).getTime() - Date.now()) / 1000)));
     } catch (err) {
       setError(err instanceof Error ? err.message : "BOOKING_FAILED");
     } finally {
@@ -173,12 +213,46 @@ export default function PublicBooking({
   }
 
   if (bookingId) {
+    const minutes = Math.floor(remainingSeconds / 60);
+    const seconds = remainingSeconds % 60;
+    const pending = !["CONFIRMED", "EXPIRED", "CANCELLED"].includes(status);
     return (
       <section className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm sm:p-8">
-        <div className="grid size-12 place-items-center rounded-2xl bg-blue-50 text-blue-700"><Loader2 className="size-5 animate-spin" /></div>
-        <h2 className="mt-5 text-2xl font-semibold tracking-tight text-slate-950">{status === "CONFIRMED" ? "Meeting confirmed" : status === "EXPIRED" ? "Request expired" : "Finding your employee..."}</h2>
-        <p className="mt-3 text-sm leading-6 text-slate-600">{status === "CONFIRMED" ? "Your company meeting page is opening now." : "The request is server-managed. An employee can accept within five minutes; otherwise Conventus retries or expires it."}</p>
-        <div className="mt-6 rounded-2xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Request</p><p className="mt-1 font-mono text-xs text-slate-700">{bookingId}</p></div>
+        <div className="flex items-start justify-between gap-4">
+          <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-blue-50 text-blue-700">
+            {status === "CONFIRMED" ? <CheckCircle2 className="size-5" /> : <Loader2 className="size-5 animate-spin" />}
+          </div>
+          {pending && (
+            <div className={`rounded-2xl border px-4 py-2 text-right ${remainingSeconds <= 60 ? "border-rose-200 bg-rose-50" : "border-slate-200 bg-slate-50"}`}>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Acceptance timer</p>
+              <p className={`mt-0.5 font-mono text-lg font-bold ${remainingSeconds <= 60 ? "text-rose-700" : "text-slate-950"}`}>
+                {minutes}:{String(seconds).padStart(2, "0")}
+              </p>
+            </div>
+          )}
+        </div>
+        <h2 className="mt-5 text-2xl font-semibold tracking-tight text-slate-950">
+          {status === "CONFIRMED" ? "Meeting confirmed" : status === "EXPIRED" ? "Request expired" : "Finding your employee..."}
+        </h2>
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          {status === "CONFIRMED"
+            ? "Your company meeting page is opening now."
+            : status === "EXPIRED"
+              ? "No employee accepted this request before the five-minute window ended."
+              : "An employee can accept this request during the five-minute window. Conventus retries automatically when needed."}
+        </p>
+        {pending && (
+          <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-100">
+            <div
+              className={`h-full transition-all duration-1000 ${remainingSeconds <= 60 ? "bg-rose-500" : "bg-blue-600"}`}
+              style={{ width: `${Math.min(100, Math.max(0, (remainingSeconds / 300) * 100))}%` }}
+            />
+          </div>
+        )}
+        <div className="mt-6 rounded-2xl bg-slate-50 p-4">
+          <p className="text-xs text-slate-500">Request</p>
+          <p className="mt-1 font-mono text-xs text-slate-700">{bookingId}</p>
+        </div>
         <Link href={`/${companySlug}` as Route} className="mt-5 inline-flex text-sm font-semibold text-blue-700">Start another request</Link>
       </section>
     );
