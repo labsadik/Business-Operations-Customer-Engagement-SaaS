@@ -622,20 +622,6 @@ export default function PublicBooking({
               </div>
             )}
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Step 1</p>
-                <p className="mt-1 text-xs font-semibold text-slate-800">Choose a date</p>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Step 2</p>
-                <p className="mt-1 text-xs font-semibold text-slate-800">Pick a time</p>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Step 3</p>
-                <p className="mt-1 text-xs font-semibold text-slate-800">Wait for approval</p>
-              </div>
-            </div>
           </div>
         </div>
       </section>
