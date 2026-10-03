@@ -17,7 +17,7 @@ class UpstashRestRedis implements ConventusRedis {
   async connect() { return this; }
 
   private async command(path: string, init?: RequestInit) {
-    const response = await fetch(this.baseUrl.replace(/\\/$/, "") + path, {
+    const response = await fetch(this.baseUrl.replace(/\/$/, "") + path, {
       ...init,
       headers: {
         Authorization: "Bearer " + this.token,
