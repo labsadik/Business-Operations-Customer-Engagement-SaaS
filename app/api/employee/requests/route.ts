@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  let session: { userId: string; companyId?: string };
+  let session: { userId: string; companyId?: string; role: string };
   try {
     const result = await requireCompanyMember(["EMPLOYEE", "COMPANY_OWNER", "COMPANY_ADMIN"]);
     session = result.session;
