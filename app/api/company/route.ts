@@ -75,9 +75,10 @@ export async function POST(request: Request) {
       ids = { companyId: String(company._id), workspaceId: String(workspace._id) };
     });
 
-    if (!ids) throw new Error("COMPANY_CREATE_FAILED");
-    await updateSessionScope(session.userId, ids);
-    return jsonOk({ ...ids, slug }, 201);
+    const createdIds = ids;
+    if (!createdIds) throw new Error("COMPANY_CREATE_FAILED");
+    await updateSessionScope(session.userId, createdIds);
+    return jsonOk({ ...createdIds, slug }, 201);
   } catch (error) {
     const message = error instanceof Error ? error.message : "COMPANY_CREATE_FAILED";
     return jsonError(message, 500);
