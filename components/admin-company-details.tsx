@@ -158,11 +158,33 @@ export default function AdminCompanyDetailsView({ company }: { company: AdminCom
 
             <div className="border-t border-slate-200">
               {company.invoices.length ? company.invoices.map((invoice) => (
-                <div key={invoice.id} className="flex items-center justify-between gap-4 border-b border-slate-100 px-6 py-4 last:border-b-0">
-                  <div><p className="text-xs font-semibold">{invoice.invoiceNumber}</p><p className="mt-1 text-[11px] text-slate-500">{dateLabel(invoice.issuedAt)} · {company.plans[invoice.planId as keyof typeof company.plans]?.name ?? invoice.planId}</p></div>
-                  <p className="text-sm font-semibold">{money(invoice.amount)}</p>
+                <div key={invoice.id} className="flex flex-col gap-3 border-b border-slate-100 px-6 py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-xs font-semibold">{invoice.invoiceNumber}</p>
+                      <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">Paid</span>
+                      {invoice.isCurrentPlan && <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-700">Current plan</span>}
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      {company.plans[invoice.planId as keyof typeof company.plans]?.name ?? invoice.planId} · {dateLabel(invoice.issuedAt)}
+                      {invoice.gstRatePercent ? ` · GST ${invoice.gstRatePercent.toFixed(2)}%` : " · GST not applied"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="text-sm font-semibold">{money(invoice.amount)}</p>
+                      {invoice.gstAmount > 0 && <p className="mt-1 text-[10px] text-slate-400">GST included {money(invoice.gstAmount)}</p>}
+                    </div>
+                    <a
+                      href={`/billing/invoices/${invoice.id}`}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      View
+                      <ArrowUpRight className="size-3.5" />
+                    </a>
+                  </div>
                 </div>
-              )) : <div className="p-6 text-xs text-slate-500">No automatic invoices have been recorded.</div>}
+              )) : <div className="p-6 text-xs text-slate-500">No automatic invoices have been recorded for captured payments.</div>}
             </div>
           </section>
         </div>
