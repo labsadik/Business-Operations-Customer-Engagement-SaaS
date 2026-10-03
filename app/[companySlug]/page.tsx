@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, CalendarDays, CheckCircle2, Clock3, Command, LogIn, LogOut, ShieldCheck } from "lucide-react";
+import { Command, LogIn, LogOut } from "lucide-react";
 import { getMongo } from "@/lib/mongodb";
 import { getSession } from "@/lib/session";
 import { Company } from "@/models/company";
@@ -63,12 +63,6 @@ export default async function CompanyPublicPage({
     )
   }));
 
-  const features = [
-    [CalendarDays, "Choose a time", "Pick the date and duration that fits your schedule."],
-    [Clock3, "Send a request", "The company team reviews the request inside their workspace."],
-    [CheckCircle2, "Join when ready", "Once accepted, your meeting link appears immediately."]
-  ] as const;
-
   return (
     <main className="min-h-screen bg-[#f7f8fb] text-slate-950">
       <header className="border-b border-slate-200 bg-white/95 backdrop-blur-xl">
@@ -114,7 +108,6 @@ export default async function CompanyPublicPage({
       </header>
 
       <div className="mx-auto max-w-7xl px-5 py-8 sm:px-6 lg:px-8 lg:py-12">
-        <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8 lg:p-10">
         <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8 lg:p-10">
           <div className="mx-auto max-w-4xl">
             <div className="mb-6 flex items-end justify-between gap-4">
