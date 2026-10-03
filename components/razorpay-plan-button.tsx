@@ -18,7 +18,8 @@ export default function RazorpayPlanButton({
   planId,
   currentPlanId,
   disabled = false,
-  onComplete
+  onComplete,
+  onError
 }: {
   planId: PlanId;
   currentPlanId: PlanId;
@@ -62,14 +63,20 @@ export default function RazorpayPlanButton({
           razorpay_payment_id: string;
           razorpay_signature: string;
         }) => {
-          const verify = await fetch("/api/billing/verify", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify(paymentResponse)
-          });
-          const result = await verify.json().catch(() => ({}));
-          if (!verify.ok) throw new Error(result.error || "PAYMENT_VERIFICATION_FAILED");
-          onComplete?.();
+          try {
+            const verify = await fetch("/api/billing/verify", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(paymentResponse)
+            });
+            const result = await verify.json().catch(() => ({}));
+            if (!verify.ok) throw new Error(result.error || "PAYMENT_VERIFICATION_FAILED");
+            onComplete?.();
+          } catch (error) {
+            onError?.(error instanceof Error ? error.message : "PAYMENT_VERIFICATION_FAILED");
+          } finally {
+            setLoading(false);
+          }
         }
       });
 
@@ -93,8 +100,9 @@ export default function RazorpayPlanButton({
       <button
         type="button"
         onClick={() => {
-          void startCheckout().catch(() => {
+          void startCheckout().catch((error) => {
             setLoading(false);
+            onError?.(error instanceof Error ? error.message : "CHECKOUT_FAILED");
           });
         }}
         disabled={disabled || isCurrent || loading || !ready}
