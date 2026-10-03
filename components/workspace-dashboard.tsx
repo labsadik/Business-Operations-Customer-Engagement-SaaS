@@ -20,6 +20,7 @@ import {
   RefreshCw,
   Save,
   Settings2,
+  ShieldCheck,
   Trash2,
   UsersRound,
   Video,
@@ -342,8 +343,9 @@ export default function WorkspaceDashboard({
   const seenRequestIdsRef = useRef(new Set<string>());
 
   const canManage = Boolean(
-    data && ["COMPANY_OWNER", "COMPANY_ADMIN"].includes(data.currentRole)
+    data && ["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(data.currentRole)
   );
+  const adminManaged = Boolean(data?.currentRole === "PLATFORM_ADMIN" && data.company?.id);
 
   const planId = (data?.subscription?.planId === "business"
     ? "business"
@@ -824,6 +826,27 @@ export default function WorkspaceDashboard({
           </Link>
 
           <div className="flex items-center gap-2">
+            {adminManaged && (
+              <>
+                <Link
+                  href={`/admin/companies/${data!.company.id}` as Route}
+                  className="hidden items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 sm:inline-flex"
+                >
+                  <ShieldCheck className="size-4" />
+                  Admin console
+                </Link>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await fetch("/api/admin/companies/unmanage", { method: "POST" });
+                    window.location.assign("/admin");
+                  }}
+                  className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 sm:inline-flex"
+                >
+                  Exit admin mode
+                </button>
+              </>
+            )}
             <Link
               href={"/dashboard/company-profile" as Route}
               className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 sm:inline-flex"
@@ -1209,9 +1232,11 @@ export default function WorkspaceDashboard({
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Billing</p>
                     <h2 className="mt-2 text-base font-semibold">{plan.name} plan</h2>
                     <p className="mt-1 text-xs leading-5 text-slate-500">
-                      {data.company.profileComplete
-                        ? "Payment checkout and automatic invoice generation are ready."
-                        : "Complete the company profile before starting a payment."}
+                      {adminManaged
+                        ? "Admin management mode is read/write for this company dashboard; payment checkout stays disabled in support mode."
+                        : data.company.profileComplete
+                          ? "Payment checkout and automatic invoice generation are ready."
+                          : "Complete the company profile before starting a payment."}
                     </p>
                   </div>
                   <button type="button" onClick={() => openModal("billing")} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">
@@ -1705,7 +1730,7 @@ export default function WorkspaceDashboard({
                         <RazorpayPlanButton
                           planId={id}
                           currentPlanId={planId}
-                          disabled={busy || !data.company.profileComplete}
+                          disabled={busy || !data.company.profileComplete || adminManaged}
                           onComplete={() => {
                             void loadInvoices();
                             void refreshAll();
