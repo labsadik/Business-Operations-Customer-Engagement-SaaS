@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import WorkspaceDashboard from "@/components/workspace-dashboard";
 import { getSession } from "@/lib/session";
 import { Membership } from "@/models/membership";
+import { Company } from "@/models/company";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Workspace" };
@@ -20,6 +21,27 @@ export default async function DashboardPage() {
   if (session.companyId && ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"].includes(session.role)) {
     const membership = await Membership.findOne({ companyId: session.companyId, userId: session.userId, active: true }).lean();
     if (!membership) redirect("/login?error=workspace_access_revoked");
+  }
+
+  if (session.role === "COMPANY_OWNER" && !session.companyId) {
+    const company = await Company.findOne({ ownerUserId: session.userId }).lean();
+    if (company) {
+      const membership = await Membership.findOne({
+        companyId: company._id,
+        userId: session.userId,
+        active: true,
+        role: "COMPANY_OWNER"
+      }).lean();
+      if (membership) {
+        const { updateSessionScope } = await import("@/lib/session");
+        await updateSessionScope(session.userId, {
+          companyId: String(company._id),
+          workspaceId: String(membership.workspaceId),
+          role: "COMPANY_OWNER"
+        });
+        redirect("/dashboard");
+      }
+    }
   }
 
   return <WorkspaceDashboard />;
