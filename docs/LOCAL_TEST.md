@@ -60,3 +60,17 @@ Expected shape:
 ```
 
 A missing local service should show `degraded`, not be mistaken for a successful production configuration.
+
+## Company-scoped employee login
+
+Each company now has its own login page:
+
+```
+/<company-slug>/login
+```
+
+The page renders the company member/employee email list. Google sign-in is accepted only when the Google email is already an active company member or matches an active pending employee invitation. A rejected email does not create a session.
+
+The public page `/<company-slug>` uses the same Google entry point but resolves access server-side:
+- company member/employee → `/dashboard`
+- non-member Google account → customer booking flow
