@@ -24,7 +24,7 @@ export async function GET(request: Request) {
 
   const retry = await BookingRequest.updateMany(
     { status: "RETRYING", expiresAt: { $gt: now }, nextRetryAt: { $lte: now } },
-    { $set: { status: "REQUESTED", nextRetryAt: null, assignedEmployeeId: null, declinedBy: [] } }
+    { $set: { status: "REQUESTED", nextRetryAt: null, assignedEmployeeId: null } }
   );
 
   return NextResponse.json({
