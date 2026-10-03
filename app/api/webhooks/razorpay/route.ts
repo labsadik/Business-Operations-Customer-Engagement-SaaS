@@ -46,7 +46,7 @@ export async function POST(request: Request) {
       const entity = event.payload?.payment?.entity;
       if (entity?.order_id && entity.id) {
         const payment = await Payment.findOne({ providerOrderId: entity.order_id });
-        if (payment && payment.merchantAccount === "CONVENTUS") {
+        if (payment && (!payment.merchantAccount || payment.merchantAccount === "CONVENTUS")) {
           payment.providerPaymentId = entity.id;
           if (entity.created_at) payment.paidAt = new Date(entity.created_at * 1000);
           await payment.save();
