@@ -24,6 +24,14 @@ const invoiceSchema = new Schema(
     currency: { type: String, required: true, default: "INR" },
     issuedAt: { type: Date, required: true },
     serviceDescription: { type: String, required: true, default: "Conventus monthly scheduling service" },
+    planSnapshot: {
+      name: { type: String, required: true, default: "" },
+      priceInr: { type: Number, required: true, default: 0 },
+      maxEmployees: { type: Number, required: true, default: 0 },
+      monthlyMeetingLimit: { type: Number, required: true, default: 0 },
+      maxMeetingDurationMinutes: { type: Number, required: true, default: 0 },
+      maxConcurrentMeetings: { type: Number, required: true, default: 0 }
+    },
     merchantSnapshot: {
       name: { type: String, required: true },
       description: { type: String, required: true },
