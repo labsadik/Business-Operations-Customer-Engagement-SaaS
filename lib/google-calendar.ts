@@ -4,6 +4,11 @@ import { getRedis } from "@/lib/redis";
 import { GoogleAccount } from "@/models/google-account";
 import { googleApi, refreshGoogleAccessToken } from "@/lib/google";
 
+export async function clearGoogleAccessTokenCache(userId: string) {
+  const redis = await getRedis();
+  if (redis) await redis.del(`google:access:${userId}`);
+}
+
 export async function getGoogleAccessToken(userId: string) {
   await getMongo();
   const redis = await getRedis();
@@ -18,10 +23,24 @@ export async function getGoogleAccessToken(userId: string) {
   if (!account) throw new Error("GOOGLE_NOT_CONNECTED");
 
   const refreshToken = await decryptSecret(account.encryptedRefreshToken);
-  const refreshed = await refreshGoogleAccessToken(refreshToken);
+
+  let refreshed;
+  try {
+    refreshed = await refreshGoogleAccessToken(refreshToken);
+  } catch (error) {
+    account.status = "REAUTH_REQUIRED";
+    account.lastErrorAt = new Date();
+    account.lastErrorCode = error instanceof Error ? error.message.slice(0, 200) : "GOOGLE_TOKEN_REFRESH_FAILED";
+    await account.save();
+    if (redis) await redis.del(cacheKey);
+    throw error;
+  }
+
   account.accessTokenExpiresAt = new Date(Date.now() + refreshed.expires_in * 1000);
   account.status = "CONNECTED";
   account.lastSuccessfulSyncAt = new Date();
+  account.lastErrorAt = undefined;
+  account.lastErrorCode = undefined;
   await account.save();
 
   if (redis) {
