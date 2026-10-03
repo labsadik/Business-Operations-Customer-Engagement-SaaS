@@ -163,13 +163,13 @@ export default async function CompanyLoginPage({
             </div>
           )}
 
-          <Link
+          <a
             href={loginUrl}
             className="mt-7 flex w-full items-center justify-center gap-3 rounded-2xl bg-slate-950 px-4 py-3.5 text-sm font-semibold text-white hover:bg-slate-800"
           >
             <span className="grid size-6 place-items-center rounded-full bg-white/10 text-xs font-bold">→</span>
             Continue securely
-          </Link>
+          </a>
 
           <div className="mt-7 rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center justify-between gap-3">
