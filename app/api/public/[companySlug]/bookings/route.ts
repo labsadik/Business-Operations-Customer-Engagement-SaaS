@@ -9,13 +9,15 @@ import { getMeetingDurationOptions } from "@/lib/plans";
 import { eligibleEmployees } from "@/lib/routing";
 import { withRedisLock } from "@/lib/redis-lock";
 import { jsonError, jsonOk } from "@/lib/http";
+import { assertSameOrigin } from "@/lib/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ companySlug: string }> }
+  {
+  assertSameOrigin(request); params }: { params: Promise<{ companySlug: string }> }
 ) {
   const session = await getSession();
   if (!session || session.role !== "CUSTOMER") return jsonError("CUSTOMER_LOGIN_REQUIRED", 401);
