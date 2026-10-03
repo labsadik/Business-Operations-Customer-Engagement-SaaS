@@ -280,21 +280,16 @@ export default function PublicBooking({
       </div>
   );
 
-  const emptyAvailabilityMessage = useMemo(() => {
-    switch (availabilityReason) {
-      case "NO_GOOGLE_SCHEDULING_MEMBER":
-        return "No employee is currently connected to the required Google Calendar and Meet services. Please contact the company and ask them to connect Google.";
-      case "NO_WORKING_HOURS":
-        return "No working hours are configured for this date. Choose another date.";
-      case "NO_ACTIVE_MEMBERS":
-        return "There are no active employees available for scheduling right now.";
-      case "GOOGLE_CALENDAR_ERROR":
-        return "A connected employee's Google Calendar could not be checked. Please ask the company to reconnect Google Calendar and try again.";
-      case "NO_FREE_SLOTS":
-      default:
-        return "Every connected employee calendar is busy for the selected duration. Choose another time or another date.";
-    }
-  }, [availabilityReason]);
+  const emptyAvailabilityMessage =
+    availabilityReason === "NO_GOOGLE_SCHEDULING_MEMBER"
+      ? "No employee is currently connected to the required Google Calendar and Meet services. Please contact the company and ask them to connect Google."
+      : availabilityReason === "NO_WORKING_HOURS"
+        ? "No working hours are configured for this date. Choose another date."
+        : availabilityReason === "NO_ACTIVE_MEMBERS"
+          ? "There are no active employees available for scheduling right now."
+          : availabilityReason === "GOOGLE_CALENDAR_ERROR"
+            ? "A connected employee's Google Calendar could not be checked. Please ask the company to reconnect Google Calendar and try again."
+            : "Every connected employee calendar is busy for the selected duration. Choose another time or another date.";
 
   if (bookingId) {
 
