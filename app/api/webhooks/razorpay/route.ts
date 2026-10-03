@@ -30,8 +30,6 @@ export async function POST(request: Request) {
       const payment = await Payment.findOne({ providerOrderId: entity.order_id });
       if (payment) {
         payment.providerPaymentId = entity.id;
-        payment.status = "CAPTURED";
-        payment.paidAt = payment.paidAt ?? new Date();
         await payment.save();
         await activatePaidPlan(String(payment._id));
       }
