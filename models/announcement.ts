@@ -12,6 +12,13 @@ const announcementSchema = new Schema(
 );
 
 announcementSchema.index({ companyId: 1, active: 1, createdAt: -1 });
+announcementSchema.index(
+  { companyId: 1, active: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { active: true }
+  }
+);
 
 export const Announcement =
   models.Announcement ?? model("Announcement", announcementSchema);
