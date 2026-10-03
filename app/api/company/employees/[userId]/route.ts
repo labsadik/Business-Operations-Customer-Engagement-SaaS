@@ -18,10 +18,10 @@ export const dynamic = "force-dynamic";
 
 export async function DELETE(
   request: Request,
-  {
-  assertSameOrigin(request); params }: { params: Promise<{ userId: string }> }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
+    assertSameOrigin(request);
     const { session } = await requireCompanyMember(["COMPANY_OWNER", "COMPANY_ADMIN"]);
     await getMongo();
     const { userId } = await params;
