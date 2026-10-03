@@ -3,7 +3,7 @@
 import type { Route } from "next";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarDays, CheckCircle2, Clock3, LayoutDashboard, Loader2, LogIn, ShieldCheck } from "lucide-react";
 import { getTodayIso } from "@/lib/timezone";
 
@@ -37,29 +37,49 @@ export default function PublicBooking({
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      if (!typeId || access !== "customer") return;
-      setLoading(true);
-      setError("");
-      try {
-        const response = await fetch(
-          `/api/public/${encodeURIComponent(companySlug)}/availability?date=${date}&meetingTypeId=${typeId}&duration=${duration}`,
-          { cache: "no-store" }
-        );
-        const body = await response.json();
-        if (!response.ok) throw new Error(body.error || "AVAILABILITY_FAILED");
-        if (!cancelled) setSlots(body.data.slots);
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "AVAILABILITY_FAILED");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+  const loadAvailability = useCallback(async (silent = false) => {
+    if (!typeId || access !== "customer") return;
+    if (!silent) setLoading(true);
+    setError("");
+    try {
+      const response = await fetch(
+        `/api/public/${encodeURIComponent(companySlug)}/availability?date=${date}&meetingTypeId=${typeId}&duration=${duration}`,
+        { cache: "no-store", headers: { "Cache-Control": "no-cache" } }
+      );
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || "AVAILABILITY_FAILED");
+      const nextSlots = Array.isArray(body.data?.slots) ? body.data.slots as Slot[] : [];
+      setSlots(nextSlots);
+      setSelected((current) =>
+        current && nextSlots.some((slot) => slot.startAt === current.startAt) ? current : null
+      );
+    } catch (err) {
+      setSlots([]);
+      setSelected(null);
+      setError(err instanceof Error ? err.message : "AVAILABILITY_FAILED");
+    } finally {
+      if (!silent) setLoading(false);
     }
-    void load();
-    return () => { cancelled = true; };
-  }, [companySlug, date, typeId, duration, access]);
+  }, [access, companySlug, date, duration, typeId]);
+
+  useEffect(() => {
+    if (!typeId || access !== "customer") return;
+    void loadAvailability();
+
+    const interval = window.setInterval(() => {
+      void loadAvailability(true);
+    }, 15000);
+
+    const onFocus = () => {
+      void loadAvailability(true);
+    };
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [access, loadAvailability, typeId]);
 
   function handleTypeChange(nextTypeId: string) {
     setTypeId(nextTypeId);
@@ -203,7 +223,7 @@ export default function PublicBooking({
               </button>
             ))}
           </div>
-          {!loading && slots.length === 0 && <div className="mt-3 rounded-2xl bg-slate-50 p-4 text-xs text-slate-500">No free times found for this date.</div>}
+          {!loading && slots.length === 0 && <div className="mt-3 rounded-2xl bg-slate-50 p-4 text-xs leading-5 text-slate-500">No free times found for this date. Conventus checks employee availability and Google Calendar in real time; choose another date or wait for the schedule to refresh.</div>}
         </div>
         <button type="button" disabled={!selected || loading} onClick={() => void submit()} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3.5 text-sm font-semibold text-white disabled:opacity-40">
           <CheckCircle2 className="size-4" /> Request meeting
