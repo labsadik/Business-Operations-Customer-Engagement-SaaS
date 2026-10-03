@@ -14,16 +14,32 @@ function localParts(date: Date, timezone: string) {
     hour12: false
   });
   const parts = Object.fromEntries(
-    formatter.formatToParts(date).filter((part) => part.type !== "literal").map((part) => [part.type, part.value])
+    formatter
+      .formatToParts(date)
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value])
   );
-  const days: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const days: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6
+  };
   return {
     dayOfWeek: days[parts.weekday],
     minute: Number(parts.hour) * 60 + Number(parts.minute)
   };
 }
 
-export async function eligibleEmployees(companyId: string, startAt: Date, endAt: Date, excludedIds: string[] = []) {
+export async function eligibleEmployees(
+  companyId: string,
+  startAt: Date,
+  endAt: Date,
+  excludedIds: string[] = []
+) {
   const memberships = await Membership.find({
     companyId,
     active: true,
@@ -32,9 +48,13 @@ export async function eligibleEmployees(companyId: string, startAt: Date, endAt:
   }).lean();
 
   const results: string[] = [];
+
   for (const membership of memberships) {
     const userId = String(membership.userId);
-    const account = await GoogleAccount.findOne({ userId, status: "CONNECTED" }).lean();
+    const account = await GoogleAccount.findOne({
+      userId,
+      status: "CONNECTED"
+    }).lean();
     if (!isGoogleSchedulingReady(account)) continue;
 
     const presence = await getEmployeePresence(companyId, userId);
@@ -46,14 +66,18 @@ export async function eligibleEmployees(companyId: string, startAt: Date, endAt:
       active: true
     }).lean();
 
-    if (rules.length === 0) continue;
+    const durationMinutes = Math.round(
+      (endAt.getTime() - startAt.getTime()) / 60000
+    );
 
-    const parts = localParts(startAt, rules[0]?.timezone ?? "Asia/Kolkata");
-    const durationMinutes = Math.round((endAt.getTime() - startAt.getTime()) / 60000);
     const hasRule = rules.some((rule) => {
-      const start = rule.startMinute;
-      const end = rule.endMinute;
-      return rule.dayOfWeek === parts.dayOfWeek && parts.minute >= start && parts.minute + durationMinutes <= end;
+      const timezone = rule.timezone || "Asia/Kolkata";
+      const parts = localParts(startAt, timezone);
+      return (
+        rule.dayOfWeek === parts.dayOfWeek &&
+        parts.minute >= rule.startMinute &&
+        parts.minute + durationMinutes <= rule.endMinute
+      );
     });
     if (!hasRule) continue;
 
