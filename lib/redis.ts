@@ -39,11 +39,10 @@ class UpstashRestRedis implements ConventusRedis {
   }
 
   async set(key: string, value: string, options?: RedisSetOptions) {
-    const params = new URLSearchParams();
-    if (options?.NX) params.set("nx", "true");
-    if (options?.PX) params.set("px", String(options.PX));
-    const query = params.toString();
-    const path = "/set/" + encodeURIComponent(key) + "/" + encodeURIComponent(value) + (query ? "?" + query : "");
+    const pathParts = ["/set", encodeURIComponent(key), encodeURIComponent(value)];
+    if (options?.NX) pathParts.push("NX");
+    if (options?.PX) pathParts.push("PX", String(options.PX));
+    const path = pathParts.join("/");
     const body = await this.command(path);
     return body.result == null ? null : String(body.result);
   }
