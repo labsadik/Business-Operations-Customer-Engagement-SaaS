@@ -162,6 +162,22 @@ export async function ensureInvoicesForCapturedPayments(companyId: string) {
 
     const issuedAt = payment.paidAt ?? payment.createdAt ?? new Date();
     const existing = await Invoice.findOne({ paymentId: payment._id }).lean();
+
+    const hasCompleteSnapshot = Boolean(
+      existing?.merchantSnapshot?.name &&
+      existing?.merchantSnapshot?.description &&
+      existing?.merchantSnapshot?.logoUrl &&
+      existing?.merchantSnapshot?.websiteUrl !== undefined &&
+      existing?.merchantSnapshot?.email !== undefined &&
+      existing?.merchantSnapshot?.taxId !== undefined &&
+      existing?.merchantSnapshot?.gstin !== undefined &&
+      existing?.merchantSnapshot?.sacCode !== undefined &&
+      existing?.planSnapshot?.name &&
+      existing?.taxSnapshot
+    );
+
+    if (existing && hasCompleteSnapshot) continue;
+
     const billingPeriodStart = existing?.billingPeriodStart ?? issuedAt;
     const billingPeriodEnd = existing?.billingPeriodEnd ?? (() => {
       const end = new Date(billingPeriodStart);
