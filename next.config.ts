@@ -4,6 +4,11 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   typedRoutes: true,
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "**.googleusercontent.com" }
+    ]
+  },
   async headers() {
     return [
       {
