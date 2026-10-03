@@ -81,11 +81,11 @@ export async function createMeetingForBooking(bookingId: string) {
     });
   }
 
-  if (
-    meeting.status === "READY" ||
-    meeting.status === "LIVE" ||
-    meeting.status === "COMPLETED"
-  ) {
+  if (meeting.status === "COMPLETED" || meeting.status === "CANCELLED") {
+    throw new Error("MEETING_ALREADY_ENDED");
+  }
+
+  if (meeting.status === "READY" || meeting.status === "LIVE") {
     if (booking.status !== "CONFIRMED") {
       booking.status = "CONFIRMED";
       booking.confirmedAt ??= new Date();
