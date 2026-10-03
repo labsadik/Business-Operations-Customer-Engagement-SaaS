@@ -42,15 +42,15 @@ export default async function CompanyPublicPage({ params }: { params: Promise<{ 
   }).select("userId role").lean();
 
   const teamUsers = await User.find({ _id: { $in: teamMembers.map((member) => member.userId) } })
-    .select("name email")
+    .select("name")
     .sort({ name: 1 })
     .lean();
   const teamMap = new Map(teamUsers.map((user) => [String(user._id), user]));
 
   const team = teamMembers.map((member) => {
     const user = teamMap.get(String(member.userId));
-    return user ? { name: user.name, email: user.email, role: member.role } : null;
-  }).filter((item): item is { name: string; email: string; role: string } => Boolean(item));
+    return user ? { name: user.name, role: member.role } : null;
+  }).filter((item): item is { name: string; role: string } => Boolean(item));
 
   const types = meetingTypes.map((type) => ({
     id: String(type._id),
@@ -99,9 +99,9 @@ export default async function CompanyPublicPage({ params }: { params: Promise<{ 
               <p className="mt-1 text-xs leading-5 text-slate-500">Employee login is restricted to the Google email addresses added by this company.</p>
               <div className="mt-4 max-h-60 space-y-2 overflow-auto pr-1">
                 {team.map((member) => (
-                  <div key={member.email} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                  <div key={member.name + member.role} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
                     <p className="truncate text-xs font-semibold text-slate-900">{member.name}</p>
-                    <p className="truncate text-[11px] text-slate-500">{member.email} · {member.role.replaceAll("_", " ")}</p>
+                    <p className="truncate text-[11px] text-slate-500">{member.role.replaceAll("_", " ")}</p>
                   </div>
                 ))}
                 {team.length === 0 && <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500">No employees have been added yet.</p>}
