@@ -77,9 +77,15 @@ export async function eligibleEmployees(
     });
     if (!hasRule) continue;
 
-    const freeBusy = await queryFreeBusy(userId, startAt, endAt);
-    const busy = freeBusy.calendars?.primary?.busy ?? [];
-    if (busy.length === 0) results.push(userId);
+    try {
+      const freeBusy = await queryFreeBusy(userId, startAt, endAt);
+      const busy = freeBusy.calendars?.primary?.busy ?? [];
+      if (busy.length === 0) results.push(userId);
+    } catch {
+      // A single employee's expired/revoked Google connection must not
+      // prevent other healthy employees from accepting the booking.
+      continue;
+    }
   }
 
   return results;
