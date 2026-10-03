@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
 import { useEffect, useRef, useState } from "react";
 import {
   Activity,
@@ -426,19 +427,21 @@ export default function WorkspaceDashboard({
   }
 
   useEffect(() => {
-    void refreshAll();
+    const initialLoad = window.setTimeout(() => void refreshAll(), 0);
     const poll = window.setInterval(() => void refreshLive(), 5000);
-    return () => window.clearInterval(poll);
+    return () => {
+      window.clearTimeout(initialLoad);
+      window.clearInterval(poll);
+    };
   }, []);
 
   useEffect(() => {
-    if (activeModal === "team") {
-      void loadInvitations();
-    }
-    if (activeModal === "billing") {
-      void loadInvoices();
-    }
-    if (!activeModal) setTeamActionFor(null);
+    const handle = window.setTimeout(() => {
+      if (activeModal === "team") void loadInvitations();
+      if (activeModal === "billing") void loadInvoices();
+      if (!activeModal) setTeamActionFor(null);
+    }, 0);
+    return () => window.clearTimeout(handle);
   }, [activeModal]);
 
   useEffect(() => {
@@ -801,7 +804,7 @@ export default function WorkspaceDashboard({
 
           <div className="flex items-center gap-2">
             <Link
-              href="/dashboard/company-profile"
+              href={"/dashboard/company-profile" as Route}
               className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 sm:inline-flex"
             >
               <Settings2 className="size-4 text-blue-600" />
