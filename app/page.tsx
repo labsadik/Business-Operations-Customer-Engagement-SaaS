@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, CalendarCheck2, Check, CircleCheck, Clock3, Layers3, ShieldCheck, UsersRound, Video } from "lucide-react";
+import { ArrowRight, CalendarCheck2, Check, CircleCheck, Clock3, Command, Layers3, ShieldCheck, UsersRound, Video } from "lucide-react";
 import { PLANS } from "@/lib/plans";
 
 const steps = [
