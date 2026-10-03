@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, CalendarCheck2, Check, CircleCheck, Clock3, Command, Layers3, ShieldCheck, UsersRound, Video } from "lucide-react";
 import { PLANS } from "@/lib/plans";
+import { platformLegalProfile } from "@/lib/platform";
 
 const steps = [
   ["01", "Create your workspace", "Set your company profile, add employees, define availability, and connect Google."],
@@ -9,7 +10,10 @@ const steps = [
   ["04", "Meet in your flow", "After acceptance, Conventus creates the Google Meet and Calendar event and opens the company meeting route."]
 ] as const;
 
-export default function Home() {
+export default async function Home() {
+  const legal = await platformLegalProfile();
+  const gstRate = legal.gst.enabled ? legal.gst.ratePercent : 0;
+
   return (
     <main>
       <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
@@ -169,7 +173,7 @@ export default function Home() {
                   {plan.id === "plus" && <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">Highest capacity</span>}
                 </div>
                 <div className="mt-7 flex items-end gap-2"><span className="text-4xl font-semibold tracking-[-0.05em] text-slate-950">{plan.priceInr === 0 ? "Free" : `₹${plan.priceInr}`}</span><span className="pb-1.5 text-sm text-slate-500">{plan.priceInr > 0 ? "/ month + GST" : "30-day cycle"}</span></div>
-                {plan.priceInr > 0 && <p className="mt-2 text-xs text-slate-500">18% GST added at checkout · total ₹{(plan.priceInr * 1.18).toFixed(2)}</p>}
+                {plan.priceInr > 0 && <p className="mt-2 text-xs text-slate-500">{gstRate > 0 ? `${gstRate}% GST added at checkout · total ₹${(plan.priceInr * (1 + gstRate / 100)).toFixed(2)}` : "No GST applied"}</p>}
                 <div className="mt-7 grid gap-3 sm:grid-cols-2">
                   {[
                     `${plan.maxEmployees} employees`,
