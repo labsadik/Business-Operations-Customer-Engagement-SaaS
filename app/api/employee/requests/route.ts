@@ -64,8 +64,10 @@ export async function GET() {
       meeting: (() => {
         const meeting = meetingMap.get(String(booking._id));
         if (!meeting) return null;
-        const ready = meeting.status === "READY";
-        return {\n          status: meeting.status,\n          meetingUri: meeting.googleMeetingUri ?? null\n        };\n      })()
+        return {
+          status: meeting.status,
+          meetingUri: meeting.googleMeetingUri ?? null
+        };
       })()
     };
   }));
