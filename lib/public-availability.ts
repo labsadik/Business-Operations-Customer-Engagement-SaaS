@@ -15,9 +15,11 @@ export type AvailabilityResult = {
     | "NO_ACTIVE_MEMBERS"
     | "NO_GOOGLE_SCHEDULING_MEMBER"
     | "NO_WORKING_HOURS"
-    | "NO_FREE_SLOTS";
+    | "NO_FREE_SLOTS"
+    | "GOOGLE_CALENDAR_ERROR";
   schedulingReadyMemberCount: number;
   membersWithWorkingHoursCount: number;
+  calendarErrorCount: number;
 };
 
 const SLOT_STEP_MINUTES = 5;
@@ -48,7 +50,8 @@ export async function getAvailableSlots(
       slots: [],
       reason: "NO_ACTIVE_MEMBERS",
       schedulingReadyMemberCount: 0,
-      membersWithWorkingHoursCount: 0
+      membersWithWorkingHoursCount: 0,
+      calendarErrorCount: 0
     };
   }
 
@@ -67,6 +70,7 @@ export async function getAvailableSlots(
         return {
           accountReady: false,
           hasWorkingHours: false,
+          calendarError: false,
           slots: [] as Slot[]
         };
       }
@@ -92,6 +96,7 @@ export async function getAvailableSlots(
         return {
           accountReady: true,
           hasWorkingHours: false,
+          calendarError: false,
           slots: [] as Slot[]
         };
       }
@@ -106,6 +111,7 @@ export async function getAvailableSlots(
         return {
           accountReady: true,
           hasWorkingHours: true,
+          calendarError: true,
           slots: [] as Slot[]
         };
       }
@@ -151,6 +157,7 @@ export async function getAvailableSlots(
       return {
         accountReady: true,
         hasWorkingHours: true,
+        calendarError: false,
         slots: [...employeeSlots.values()]
       };
     })
@@ -161,6 +168,9 @@ export async function getAvailableSlots(
   ).length;
   const membersWithWorkingHoursCount = employeeResults.filter(
     (result) => result.hasWorkingHours
+  ).length;
+  const calendarErrorCount = employeeResults.filter(
+    (result) => result.calendarError
   ).length;
 
   for (const result of employeeResults) {
@@ -179,6 +189,8 @@ export async function getAvailableSlots(
       reason = "NO_GOOGLE_SCHEDULING_MEMBER";
     } else if (membersWithWorkingHoursCount === 0) {
       reason = "NO_WORKING_HOURS";
+    } else if (calendarErrorCount === membersWithWorkingHoursCount) {
+      reason = "GOOGLE_CALENDAR_ERROR";
     } else {
       reason = "NO_FREE_SLOTS";
     }
@@ -188,6 +200,7 @@ export async function getAvailableSlots(
     slots: sortedSlots,
     reason,
     schedulingReadyMemberCount,
-    membersWithWorkingHoursCount
+    membersWithWorkingHoursCount,
+    calendarErrorCount
   };
 }
