@@ -6,6 +6,7 @@ import { Payment } from "@/models/payment";
 import { Subscription } from "@/models/subscription";
 import { Workspace } from "@/models/workspace";
 import { buildInvoiceSnapshots, type InvoiceTaxSnapshot } from "@/lib/invoicing";
+import { reconcileLatestPaidAccess } from "@/lib/plans-server";
 
 function addValidityDays(from: Date, days: number) {
   const result = new Date(from);
@@ -132,16 +133,43 @@ export async function activatePaidPlan(paymentId: string) {
 
       if (payment.status === "CAPTURED") {
         const existingInvoice = await Invoice.exists({ paymentId: payment._id }).session(tx);
-        if (existingInvoice) {
-          if (!payment.activatedAt) {
-            await Payment.updateOne(
-              { _id: payment._id },
-              { $set: { activatedAt: invoiceDate } },
-              { session: tx }
-            );
-          }
-          return;
+
+        await Subscription.findOneAndUpdate(
+          { companyId: payment.companyId },
+          {
+            $set: {
+              planId: plan.id,
+              source: "PAID",
+              status: "ACTIVE",
+              currentPeriodStart: existingInvoice?.billingPeriodStart ?? invoiceDate,
+              currentPeriodEnd:
+                existingInvoice?.billingPeriodEnd ??
+                addValidityDays(existingInvoice?.billingPeriodStart ?? invoiceDate, plan.validityDays),
+              monthlyMeetingsUsed: 0,
+              freeUsageDates: [],
+              grantedByUserId: undefined,
+              grantedAt: undefined
+            },
+            $setOnInsert: { companyId: payment.companyId }
+          },
+          { upsert: true, new: true, session: tx }
+        );
+
+        await Workspace.updateOne(
+          { companyId: payment.companyId },
+          { $set: { planId: plan.id } },
+          { session: tx }
+        );
+
+        if (!payment.activatedAt) {
+          await Payment.updateOne(
+            { _id: payment._id },
+            { $set: { activatedAt: invoiceDate } },
+            { session: tx }
+          );
         }
+
+        if (existingInvoice) return;
       }
 
       const claimed = await Payment.findOneAndUpdate(
@@ -390,6 +418,7 @@ export async function ensureInvoicesForCapturedPayments(companyId: string) {
     createdOrUpdated += 1;
   }
 
+  await reconcileLatestPaidAccess(companyId);
   await ensureCurrentAccessInvoice(companyId);
   return createdOrUpdated;
 }
