@@ -13,7 +13,9 @@ type CompanyData = {
 
 type Employee = { id: string; name: string; email: string; role: string; googleConnected: boolean; presence: "AVAILABLE" | "BUSY" | "NOT_AVAILABLE" };
 type RequestItem = { id: string; startAt: string; endAt: string; durationMinutes: number; status: string; expiresAt: string; customer: { name: string; email: string } | null };
-type Presence = { userId: string; role: string; status: "AVAILABLE" | "BUSY" | "NOT_AVAILABLE"; redisAvailable: boolean };\n\nconst INITIAL_NOW = Date.now();
+type Presence = { userId: string; role: string; status: "AVAILABLE" | "BUSY" | "NOT_AVAILABLE"; redisAvailable: boolean };
+
+const INITIAL_NOW = Date.now();
 
 async function api<T>(url: string, init?: RequestInit) {
   const response = await fetch(url, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) }, cache: "no-store" });
@@ -33,7 +35,8 @@ export default function WorkspaceDashboard() {
   const [slug, setSlug] = useState("");
   const [email, setEmail] = useState("");
   const [invite, setInvite] = useState("");
-  const [presence, setPresence] = useState<Presence | null>(null);\n  const [now, setNow] = useState(INITIAL_NOW);
+  const [presence, setPresence] = useState<Presence | null>(null);
+  const [now, setNow] = useState(INITIAL_NOW);
 
   async function refresh() {
     try {
