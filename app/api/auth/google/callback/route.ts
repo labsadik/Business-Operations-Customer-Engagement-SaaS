@@ -12,6 +12,7 @@ import { Workspace } from "@/models/workspace";
 import { Invitation } from "@/models/invitation";
 import { AvailabilityRule } from "@/models/availability-rule";
 import { clearGoogleAccessTokenCache } from "@/lib/google-calendar";
+import { isPlatformAdminEmail } from "@/lib/platform";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -181,6 +182,7 @@ export async function GET(request: Request) {
     }
 
     const email = googleUser.email.toLowerCase();
+    const bootstrapPlatformAdmin = isPlatformAdminEmail(email);
 
     if (oauth.intent === "connect") {
       const current = await getSession();
@@ -294,6 +296,7 @@ export async function GET(request: Request) {
           image: googleUser.picture || user.image,
           googleSubject: googleUser.sub,
           googleEmail: email,
+          role: bootstrapPlatformAdmin ? "PLATFORM_ADMIN" : user.role,
           lastLoginAt: new Date()
         });
         await user.save();
@@ -445,7 +448,8 @@ export async function GET(request: Request) {
       workspaceId: scopedMembership ? String(scopedMembership.workspaceId) : undefined
     });
 
-    const response = NextResponse.redirect(new URL(returnTo, request.url));
+    const finalReturnTo = oauth.intent === "workspace" && user.role === "PLATFORM_ADMIN" && !companySlug ? "/admin" : returnTo;
+    const response = NextResponse.redirect(new URL(finalReturnTo, request.url));
     response.cookies.delete("conventus_oauth_state");
     return response;
   } catch (error) {
