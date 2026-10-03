@@ -25,6 +25,7 @@ export default function RazorpayPlanButton({
   currentPlanId: PlanId;
   disabled?: boolean;
   onComplete?: () => void;
+  onError?: (message: string) => void;
 }) {
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
