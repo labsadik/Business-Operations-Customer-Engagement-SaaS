@@ -15,12 +15,19 @@ const addressSchema = new Schema(
 const invoiceSchema = new Schema(
   {
     companyId: { type: Schema.Types.ObjectId, ref: "Company", required: true, index: true },
-    paymentId: { type: Schema.Types.ObjectId, ref: "Payment", required: true, unique: true, index: true },
+    paymentId: { type: Schema.Types.ObjectId, ref: "Payment", unique: true, sparse: true, index: true },
+    source: {
+      type: String,
+      enum: ["PAID", "FREE", "ADMIN_GRANTED"],
+      required: true,
+      default: "PAID",
+      index: true
+    },
     invoiceNumber: { type: String, required: true, unique: true, index: true },
-    planId: { type: String, enum: ["starter", "business"], required: true },
-    providerOrderId: { type: String, required: true, index: true },
-    providerPaymentId: { type: String, required: true, index: true },
-    amount: { type: Number, required: true, min: 1 },
+    planId: { type: String, enum: ["free", "starter", "elite", "pro", "plus"], required: true },
+    providerOrderId: { type: String, default: "", index: true },
+    providerPaymentId: { type: String, default: "", index: true },
+    amount: { type: Number, required: true, min: 0 },
     currency: { type: String, required: true, default: "INR" },
     issuedAt: { type: Date, required: true },
     billingPeriodStart: { type: Date },
@@ -32,7 +39,9 @@ const invoiceSchema = new Schema(
       maxEmployees: { type: Number, required: true, default: 0 },
       monthlyMeetingLimit: { type: Number, required: true, default: 0 },
       maxMeetingDurationMinutes: { type: Number, required: true, default: 0 },
-      maxConcurrentMeetings: { type: Number, required: true, default: 0 }
+      maxConcurrentMeetings: { type: Number, required: true, default: 0 },
+      validityDays: { type: Number, required: true, default: 30 },
+      freeFeatureDays: { type: Number, default: null }
     },
     merchantSnapshot: {
       name: { type: String, required: true },
@@ -56,7 +65,7 @@ const invoiceSchema = new Schema(
     taxSnapshot: {
       enabled: { type: Boolean, default: false },
       ratePercent: { type: Number, default: 0, min: 0, max: 100 },
-      inclusive: { type: Boolean, default: true },
+      inclusive: { type: Boolean, default: false },
       taxableAmount: { type: Number, required: true, min: 0, default: 0 },
       gstAmount: { type: Number, required: true, min: 0, default: 0 }
     }

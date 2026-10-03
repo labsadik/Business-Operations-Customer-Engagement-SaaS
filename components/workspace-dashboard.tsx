@@ -66,14 +66,22 @@ type CompanyData = {
     planId: string;
   } | null;
   subscription: {
-    planId: string;
+    planId: PlanId;
     status: string;
+    source: "FREE" | "PAID" | "ADMIN_GRANTED";
     monthlyMeetingsUsed: number;
+    freeUsageDates?: string[];
+    periodStart: string;
     periodEnd: string;
   } | null;
   memberCount: number;
   connectedMemberCount: number;
   canPublish: boolean;
+  gstRatePercent: number;
+  gstEnabled: boolean;
+  gstInclusive: boolean;
+  featureLocked: boolean;
+  freeFeatureEndsAt: string | null;
   currentRole: string;
 };
 
@@ -81,6 +89,7 @@ type Employee = {
   id: string;
   name: string;
   email: string;
+  image: string;
   role: string;
   googleConnected: boolean;
 };
@@ -128,6 +137,7 @@ type InvitationItem = {
 type InvoiceItem = {
   id: string;
   invoiceNumber: string;
+  source: "PAID" | "FREE" | "ADMIN_GRANTED";
   planId: PlanId;
   providerOrderId: string;
   providerPaymentId: string;
@@ -145,6 +155,8 @@ type InvoiceItem = {
     monthlyMeetingLimit: number;
     maxMeetingDurationMinutes: number;
     maxConcurrentMeetings: number;
+    validityDays?: number;
+    freeFeatureDays?: number | null;
   };
   taxSnapshot: {
     enabled: boolean;
@@ -347,10 +359,11 @@ export default function WorkspaceDashboard({
   );
   const adminManaged = Boolean(data?.currentRole === "PLATFORM_ADMIN" && data.company?.id);
 
-  const planId = (data?.subscription?.planId === "business"
-    ? "business"
-    : "starter") as PlanId;
+  const planId: PlanId = data?.subscription?.planId && PLANS[data.subscription.planId]
+    ? data.subscription.planId
+    : "free";
   const plan = PLANS[planId];
+  const subscriptionSource = data?.subscription?.source ?? "FREE";
   const usagePercent = Math.min(
     100,
     Math.round(((data?.subscription?.monthlyMeetingsUsed ?? 0) / plan.monthlyMeetingLimit) * 100)
@@ -875,6 +888,20 @@ export default function WorkspaceDashboard({
       </header>
 
       <div className="mx-auto max-w-7xl px-5 py-7 sm:px-6 lg:px-8 lg:py-9">
+        {data.featureLocked && (
+          <div className="mb-6 flex items-start justify-between gap-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-900">
+            <div>
+              <p className="font-semibold">Free feature window ended</p>
+              <p className="mt-1 text-xs leading-5 text-rose-700">
+                Your Free plan remains active for this 30-day cycle, but scheduling features are locked after the first 14 days. The next cycle renews automatically.
+              </p>
+            </div>
+            <Link href="/dashboard?billing=1" className="shrink-0 rounded-xl bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">
+              View plans
+            </Link>
+          </div>
+        )}
+
         {error && (
           <div role="alert" className="mb-6 flex items-start justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             <span>{error.replaceAll("_", " ")}</span>
@@ -937,7 +964,7 @@ export default function WorkspaceDashboard({
                 <button
                   type="button"
                   onClick={() => void updatePublishing()}
-                  disabled={busy || (!data.company.publicBookingEnabled && !data.canPublish)}
+                  disabled={busy || data.featureLocked || (!data.company.publicBookingEnabled && !data.canPublish)}
                   className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {data.company.publicBookingEnabled ? "Published" : "Publish page"}
@@ -1201,16 +1228,24 @@ export default function WorkspaceDashboard({
               <div className="mt-5 space-y-2.5">
                 {employees.slice(0, 5).map((employee) => (
                   <div key={employee.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 p-3">
-                    <div className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-slate-100 text-[11px] font-semibold text-slate-500">
-                      {initials(employee.name)}
-                    </div>
+                    <UserAvatar name={employee.name} email={employee.email} image={employee.image} size={36} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-semibold">{employee.name}</p>
                       <p className="truncate text-[11px] text-slate-500">{employee.email}</p>
                     </div>
-                    <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${employee.googleConnected ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-                      {employee.googleConnected ? "Ready" : "Needs setup"}
-                    </span>
+                    {employee.googleConnected ? (
+                      <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">Connected</span>
+                    ) : employee.email === user.email ? (
+                      <Link
+                        href="/api/auth/google/start?intent=connect&returnTo=%2Fdashboard"
+                        prefetch={false}
+                        className="rounded-xl bg-slate-950 px-2.5 py-2 text-[10px] font-semibold text-white hover:bg-slate-800"
+                      >
+                        Setup Google
+                      </Link>
+                    ) : (
+                      <span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">Needs setup</span>
+                    )}
                   </div>
                 ))}
                 {employees.length === 0 && (
@@ -1543,18 +1578,28 @@ export default function WorkspaceDashboard({
               {employees.map((employee) => (
                 <div key={employee.id} className="relative rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="flex items-center gap-3">
-                    <div className="grid size-11 shrink-0 place-items-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
-                      {initials(employee.name)}
-                    </div>
+                    <UserAvatar name={employee.name} email={employee.email} image={employee.image} size={44} />
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="truncate text-sm font-semibold">{employee.name}</p>
-                        <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${employee.googleConnected ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-                          {employee.googleConnected ? "Connected" : "Needs setup"}
-                        </span>
+                        {employee.googleConnected ? (
+                          <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">Connected</span>
+                        ) : (
+                          <span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">Needs setup</span>
+                        )}
                       </div>
                       <p className="mt-1 truncate text-xs text-slate-500">{employee.email}</p>
                     </div>
+
+                    {!employee.googleConnected && employee.email === user.email && (
+                      <Link
+                        href="/api/auth/google/start?intent=connect&returnTo=%2Fdashboard"
+                        prefetch={false}
+                        className="shrink-0 rounded-xl bg-slate-950 px-3 py-2.5 text-[10px] font-semibold text-white hover:bg-slate-800"
+                      >
+                        Setup Google
+                      </Link>
+                    )}
 
                     {canManage && employee.role === "EMPLOYEE" && (
                       <button
@@ -1714,29 +1759,60 @@ export default function WorkspaceDashboard({
                 </tr>
               </thead>
               <tbody>
-                {(["starter", "business"] as PlanId[]).map((id) => {
+                {(Object.keys(PLANS) as PlanId[]).map((id) => {
                   const item = PLANS[id];
+                  const isCurrent = id === planId;
+                  const baseMinor = Math.round(item.priceInr * 100);
+                  const gstRate = data.gstEnabled ? (data.gstRatePercent || 0) : 0;
+                  const totalWithGst = data.gstInclusive ? baseMinor : Math.round(baseMinor * (1 + gstRate / 100));
                   return (
                     <tr key={id} className="border-b border-slate-100 last:border-b-0">
                       <td className="px-4 py-4">
-                        <p className="text-sm font-semibold">{item.name}</p>
-                        {id === planId && <span className="mt-1 inline-flex rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">Current</span>}
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold">{item.name}</p>
+                          {isCurrent && <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">Current</span>}
+                        </div>
+                        {item.freeFeatureDays && (
+                          <p className="mt-1 text-[10px] text-slate-400">{item.freeFeatureDays}-day feature window / {item.validityDays}-day cycle</p>
+                        )}
                       </td>
-                      <td className="px-4 py-4 text-sm font-semibold">₹{item.priceInr}<span className="text-xs font-normal text-slate-400"> / month</span></td>
+                      <td className="px-4 py-4">
+                        <p className="text-sm font-semibold">{item.priceInr === 0 ? "Free" : `₹${item.priceInr}`}</p>
+                        {item.priceInr > 0 && (
+                          <p className="mt-1 text-[10px] text-slate-400">+{data.gstEnabled ? data.gstRatePercent : 0}% GST · ₹{(totalWithGst / 100).toFixed(2)} total</p>
+                        )}
+                      </td>
                       <td className="px-4 py-4 text-xs text-slate-600">{item.maxEmployees}</td>
                       <td className="px-4 py-4 text-xs text-slate-600">{item.monthlyMeetingLimit}/month</td>
                       <td className="px-4 py-4 text-xs text-slate-600">{item.maxMeetingDurationMinutes} min</td>
                       <td className="px-4 py-4">
-                        <RazorpayPlanButton
-                          planId={id}
-                          currentPlanId={planId}
-                          disabled={busy || !data.company.profileComplete || adminManaged}
-                          onComplete={() => {
-                            void loadInvoices();
-                            void refreshAll();
-                          }}
-                          onError={(message) => setError(message)}
-                        />
+                        {item.requiresPayment ? (
+                          <RazorpayPlanButton
+                            planId={id}
+                            currentPlanId={planId}
+                            disabled={busy || !data.company.profileComplete || adminManaged}
+                            onComplete={() => {
+                              void loadInvoices();
+                              void refreshAll();
+                            }}
+                            onError={(message) => setError(message)}
+                          />
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={busy || isCurrent || adminManaged}
+                            onClick={() => {
+                              setBusy(true);
+                              void api("/api/billing/free", { method: "POST" })
+                                .then(() => Promise.all([loadInvoices(), refreshAll()]))
+                                .catch((error) => setError(error instanceof Error ? error.message : "FREE_PLAN_FAILED"))
+                                .finally(() => setBusy(false));
+                            }}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            {isCurrent ? "Current plan" : "Switch to Free"}
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -1750,7 +1826,7 @@ export default function WorkspaceDashboard({
               <div>
                 <p className="text-xs font-semibold text-slate-900">Current subscription</p>
                 <p className="mt-1 text-[11px] text-slate-500">
-                  {data.subscription?.status ?? "ACTIVE"} · {plan.name}
+                  {data.subscription?.status ?? "ACTIVE"} · {plan.name} · {subscriptionSource === "PAID" ? "Paid" : subscriptionSource === "ADMIN_GRANTED" ? "Admin granted" : "Free"}
                 </p>
               </div>
               <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-700">
@@ -1770,6 +1846,12 @@ export default function WorkspaceDashboard({
                 <p className="text-[10px] uppercase tracking-[0.1em] text-slate-400">Billing phone</p>
                 <p className="mt-1 text-xs font-semibold">{data.company.phone || "—"}</p>
               </div>
+              {plan.freeFeatureDays && (
+                <div className="rounded-xl bg-amber-50 px-3.5 py-3">
+                  <p className="text-[10px] uppercase tracking-[0.1em] text-amber-600">Free feature window</p>
+                  <p className="mt-1 text-xs font-semibold">{data.featureLocked ? "Locked until renewal" : `${plan.freeFeatureDays} days available`}</p>
+                </div>
+              )}
             </div>
           </section>
 
@@ -1777,7 +1859,7 @@ export default function WorkspaceDashboard({
             <div className="border-b border-slate-200 px-4 py-4">
               <p className="text-xs font-semibold text-slate-900">Invoices</p>
               <p className="mt-1 text-[11px] text-slate-500">
-                Captured payments are reconciled into tax invoices using the plan actually purchased, the Conventus legal profile, and the GST treatment configured for your account.
+                Every active subscription has an invoice record. Paid plans include GST; free and admin-granted access is clearly labelled.
               </p>
             </div>
 
@@ -1789,8 +1871,8 @@ export default function WorkspaceDashboard({
             ) : invoices.length === 0 ? (
               <div className="p-10 text-center">
                 <CreditCard className="mx-auto size-5 text-slate-300" />
-                <p className="mt-3 text-xs font-semibold text-slate-700">No captured-payment invoices</p>
-                <p className="mt-1 text-[11px] text-slate-400">An invoice is created automatically after a payment is captured.</p>
+                <p className="mt-3 text-xs font-semibold text-slate-700">No invoices yet</p>
+                <p className="mt-1 text-[11px] text-slate-400">An invoice is created automatically for active paid, free, or admin-granted access.</p>
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
@@ -1802,7 +1884,15 @@ export default function WorkspaceDashboard({
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="text-sm font-semibold">{invoice.invoiceNumber}</p>
-                            <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">Paid</span>
+                            <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
+                              invoice.source === "PAID"
+                                ? "bg-emerald-50 text-emerald-700"
+                                : invoice.source === "ADMIN_GRANTED"
+                                  ? "bg-violet-50 text-violet-700"
+                                  : "bg-slate-100 text-slate-700"
+                            }`}>
+                              {invoice.source === "PAID" ? "Paid" : invoice.source === "ADMIN_GRANTED" ? "Admin granted" : "Free"}
+                            </span>
                             {invoice.isCurrentPlan && (
                               <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-700">Current plan</span>
                             )}
@@ -1816,13 +1906,13 @@ export default function WorkspaceDashboard({
                               : "GST not applied"}
                           </p>
                           <p className="mt-2 break-all text-[10px] text-slate-400">
-                            Payment: {invoice.providerPaymentId}
+                            {invoice.source === "PAID" ? `Payment: ${invoice.providerPaymentId}` : invoice.source === "ADMIN_GRANTED" ? "Access granted by platform admin" : "Free plan access"}
                           </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-3 lg:justify-end">
                           <div className="text-left lg:text-right">
                             <p className="text-lg font-semibold">₹{(invoice.amount / 100).toFixed(2)}</p>
-                            <p className="mt-1 text-[10px] uppercase tracking-[0.1em] text-slate-400">{invoice.currency} · total paid</p>
+                            <p className="mt-1 text-[10px] uppercase tracking-[0.1em] text-slate-400">{invoice.currency} · {invoice.source === "PAID" ? "total paid" : "access value"}</p>
                           </div>
                           <Link
                             href={`/billing/invoices/${invoice.id}` as Route}
@@ -1831,6 +1921,13 @@ export default function WorkspaceDashboard({
                             View
                             <ArrowUpRight className="size-3.5" />
                           </Link>
+                          <a
+                            href={`/api/billing/invoices/${invoice.id}/pdf`}
+                            download
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-950 px-3 py-2.5 text-xs font-semibold text-white hover:bg-slate-800"
+                          >
+                            PDF
+                          </a>
                         </div>
                       </div>
                       <div className="mt-4 grid gap-2 text-[11px] text-slate-500 sm:grid-cols-3">

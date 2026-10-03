@@ -10,6 +10,8 @@ const steps = [
 ] as const;
 
 export default function Home() {
+  const gstRate = 18;
+
   return (
     <main>
       <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
@@ -161,14 +163,15 @@ export default function Home() {
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Simple limits. Clear value.</h2>
             <p className="mt-4 text-base leading-7 text-slate-600">Start with the team size and meeting volume you actually need.</p>
           </div>
-          <div className="mx-auto mt-12 grid max-w-5xl gap-5 md:grid-cols-2">
+          <div className="mx-auto mt-12 grid max-w-7xl gap-5 md:grid-cols-2 xl:grid-cols-5">
             {Object.values(PLANS).map((plan) => (
-              <article key={plan.id} className={`rounded-[2rem] border p-7 shadow-sm ${plan.id === "business" ? "border-blue-200 bg-white shadow-blue-100/50" : "border-slate-200 bg-white"}`}>
+              <article key={plan.id} className={`rounded-[2rem] border p-7 shadow-sm ${plan.id === "plus" ? "border-blue-200 bg-white shadow-blue-100/50" : "border-slate-200 bg-white"}`}>
                 <div className="flex items-center justify-between">
-                  <div><h3 className="text-xl font-semibold text-slate-950">{plan.name}</h3><p className="mt-1 text-sm text-slate-500">{plan.id === "business" ? "For growing teams" : "For small teams"}</p></div>
-                  {plan.id === "business" && <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">Higher capacity</span>}
+                  <div><h3 className="text-xl font-semibold text-slate-950">{plan.name}</h3><p className="mt-1 text-sm text-slate-500">{plan.id === "free" ? "Try Conventus free" : plan.id === "plus" ? "Maximum capacity" : `${plan.name} capacity`}</p></div>
+                  {plan.id === "plus" && <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">Highest capacity</span>}
                 </div>
-                <div className="mt-7 flex items-end gap-2"><span className="text-5xl font-semibold tracking-[-0.05em] text-slate-950">₹{plan.priceInr}</span><span className="pb-1.5 text-sm text-slate-500">/ month</span></div>
+                <div className="mt-7 flex items-end gap-2"><span className="text-4xl font-semibold tracking-[-0.05em] text-slate-950">{plan.priceInr === 0 ? "Free" : `₹${plan.priceInr}`}</span><span className="pb-1.5 text-sm text-slate-500">{plan.priceInr > 0 ? "/ month + GST" : "30-day cycle"}</span></div>
+                {plan.priceInr > 0 && <p className="mt-2 text-xs text-slate-500">{gstRate > 0 ? `${gstRate}% GST added at checkout · total ₹${(plan.priceInr * (1 + gstRate / 100)).toFixed(2)}` : "No GST applied"}</p>}
                 <div className="mt-7 grid gap-3 sm:grid-cols-2">
                   {[
                     `${plan.maxEmployees} employees`,
@@ -176,7 +179,9 @@ export default function Home() {
                     `${plan.maxMeetingDurationMinutes} min max duration`,
                     `${plan.maxConcurrentMeetings} concurrent meetings`,
                     `${plan.maxWorkspaces} workspace`,
-                    `${plan.maxCompanies} company`
+                    `${plan.maxCompanies} company`,
+                    `${plan.validityDays}-day validity`,
+                    ...(plan.freeFeatureDays ? [`${plan.freeFeatureDays} feature days`] : [])
                   ].map((item) => <div key={item} className="flex items-center gap-2 text-sm text-slate-700"><Check className="size-4 shrink-0 text-blue-600" />{item}</div>)}
                 </div>
                 <Link href="/login" className="mt-8 inline-flex w-full items-center justify-center rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white hover:bg-slate-800">Choose {plan.name}</Link>

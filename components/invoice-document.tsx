@@ -5,7 +5,8 @@ export type InvoiceDocumentData = {
   issuedAt: Date | string;
   amount: number;
   currency: string;
-  status: "PAID" | "CAPTURED" | string;
+  status: "PAID" | "CAPTURED" | "FREE" | "ADMIN_GRANTED" | string;
+  source: "PAID" | "FREE" | "ADMIN_GRANTED";
   providerPaymentId: string;
   serviceDescription: string;
   plan: {
@@ -16,6 +17,8 @@ export type InvoiceDocumentData = {
     monthlyMeetingLimit: number;
     maxMeetingDurationMinutes: number;
     maxConcurrentMeetings: number;
+    validityDays?: number;
+    freeFeatureDays?: number | null;
   };
   currentPlanId?: string | null;
   billingPeriodStart?: Date | string | null;
@@ -94,6 +97,8 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentD
   const gst = invoice.tax.gstAmount;
   const total = invoice.amount;
   const isCurrent = Boolean(invoice.currentPlanId && invoice.currentPlanId === invoice.plan.id);
+  const isPaid = invoice.source === "PAID";
+  const accessLabel = isPaid ? "PAID" : invoice.source === "ADMIN_GRANTED" ? "ADMIN GRANTED" : "FREE";
   const merchantAddress = addressLines(invoice.merchant.address);
   const companyAddress = addressLines(invoice.company.address);
 
@@ -148,9 +153,17 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentD
             <div className="min-w-[220px] text-left sm:text-right">
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">{invoice.tax.enabled ? "Tax invoice" : "Invoice"}</p>
               <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">{invoice.invoiceNumber}</p>
-              <div className="mt-4 space-y-1.5 text-[11px] text-slate-500">
+              <div className="mt-4 flex flex-wrap items-center gap-2 sm:justify-end">
+                <span className={`rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] ${
+                  isPaid ? "bg-emerald-50 text-emerald-700" :
+                  invoice.source === "ADMIN_GRANTED" ? "bg-violet-50 text-violet-700" :
+                  "bg-slate-100 text-slate-700"
+                }`}>{accessLabel}</span>
+                {isCurrent && <span className="rounded-full bg-blue-50 px-3 py-1.5 text-[10px] font-semibold text-blue-700">Current plan</span>}
+              </div>
+              <div className="mt-3 space-y-1.5 text-[11px] text-slate-500">
                 <p>Issue date <span className="font-semibold text-slate-800">{dateLabel(invoice.issuedAt)}</span></p>
-                <p>Status <span className="font-semibold text-emerald-700">{invoice.status}</span></p>
+                <p>Status <span className="font-semibold text-slate-800">{invoice.status}</span></p>
               </div>
             </div>
           </header>
@@ -171,11 +184,6 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentD
               <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-blue-600">Subscription</p>
               <div className="mt-2 flex items-center justify-between gap-3">
                 <h2 className="text-base font-semibold text-slate-950">{invoice.plan.name}</h2>
-                {isCurrent && (
-                  <span className="rounded-full bg-blue-600 px-2.5 py-1 text-[10px] font-semibold text-white">
-                    Current plan
-                  </span>
-                )}
               </div>
               <p className="mt-2 text-xs leading-5 text-slate-600">{invoice.serviceDescription}</p>
               <div className="mt-4 grid grid-cols-2 gap-2 text-[11px] text-slate-600">
@@ -184,6 +192,8 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentD
                 <span>{invoice.plan.monthlyMeetingLimit} meetings / month</span>
                 <span>{invoice.plan.maxMeetingDurationMinutes} min max</span>
                 <span>{invoice.plan.maxConcurrentMeetings} concurrent</span>
+                <span>{invoice.plan.validityDays ?? 30} days validity</span>
+                {invoice.plan.freeFeatureDays ? <span>{invoice.plan.freeFeatureDays} active feature days</span> : null}
               </div>
               {(invoice.billingPeriodStart || invoice.billingPeriodEnd) && (
                 <p className="mt-4 text-[11px] font-medium text-slate-600">
@@ -210,9 +220,13 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentD
           <section className="mt-7 flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
             <div className="max-w-md space-y-2">
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Payment reference</p>
-              <p className="break-all text-xs font-semibold text-slate-700">{valueOrDash(invoice.providerPaymentId)}</p>
+              <p className="break-all text-xs font-semibold text-slate-700">
+                {isPaid ? valueOrDash(invoice.providerPaymentId) : invoice.source === "ADMIN_GRANTED" ? "Access granted by platform administrator" : "Free plan access"}
+              </p>
               <p className="text-[11px] leading-5 text-slate-500">
-                Payment was captured through the Conventus payment account. Displayed subscription price is {invoice.tax.inclusive ? "GST inclusive" : "before GST"}.
+                {isPaid
+                  ? `Payment was captured through the Conventus payment account. Displayed subscription price is ${invoice.tax.inclusive ? "GST inclusive" : "before GST"}.`
+                  : "This invoice confirms active subscription access. No customer payment was required."}
               </p>
             </div>
 

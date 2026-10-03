@@ -1,4 +1,4 @@
-export const PLAN_IDS = ["starter", "business"] as const;
+export const PLAN_IDS = ["free", "starter", "elite", "pro", "plus"] as const;
 
 export type PlanId = (typeof PLAN_IDS)[number];
 
@@ -12,9 +12,26 @@ export type PlanEntitlements = {
   monthlyMeetingLimit: number;
   maxMeetingDurationMinutes: number;
   maxConcurrentMeetings: number;
+  validityDays: number;
+  freeFeatureDays: number | null;
+  requiresPayment: boolean;
 };
 
 export const PLANS: Record<PlanId, PlanEntitlements> = {
+  free: {
+    id: "free",
+    name: "Free",
+    priceInr: 0,
+    maxWorkspaces: 1,
+    maxCompanies: 1,
+    maxEmployees: 1,
+    monthlyMeetingLimit: 10,
+    maxMeetingDurationMinutes: 5,
+    maxConcurrentMeetings: 1,
+    validityDays: 30,
+    freeFeatureDays: 14,
+    requiresPayment: false
+  },
   starter: {
     id: "starter",
     name: "Starter",
@@ -24,18 +41,52 @@ export const PLANS: Record<PlanId, PlanEntitlements> = {
     maxEmployees: 10,
     monthlyMeetingLimit: 100,
     maxMeetingDurationMinutes: 20,
-    maxConcurrentMeetings: 10
+    maxConcurrentMeetings: 10,
+    validityDays: 30,
+    freeFeatureDays: null,
+    requiresPayment: true
   },
-  business: {
-    id: "business",
-    name: "Business",
-    priceInr: 199,
+  elite: {
+    id: "elite",
+    name: "Elite",
+    priceInr: 399,
     maxWorkspaces: 1,
     maxCompanies: 1,
-    maxEmployees: 30,
-    monthlyMeetingLimit: 350,
-    maxMeetingDurationMinutes: 35,
-    maxConcurrentMeetings: 30
+    maxEmployees: 50,
+    monthlyMeetingLimit: 850,
+    maxMeetingDurationMinutes: 60,
+    maxConcurrentMeetings: 25,
+    validityDays: 30,
+    freeFeatureDays: null,
+    requiresPayment: true
+  },
+  pro: {
+    id: "pro",
+    name: "Pro",
+    priceInr: 799,
+    maxWorkspaces: 1,
+    maxCompanies: 1,
+    maxEmployees: 100,
+    monthlyMeetingLimit: 1500,
+    maxMeetingDurationMinutes: 90,
+    maxConcurrentMeetings: 50,
+    validityDays: 30,
+    freeFeatureDays: null,
+    requiresPayment: true
+  },
+  plus: {
+    id: "plus",
+    name: "Plus",
+    priceInr: 1499,
+    maxWorkspaces: 1,
+    maxCompanies: 1,
+    maxEmployees: 250,
+    monthlyMeetingLimit: 3000,
+    maxMeetingDurationMinutes: 120,
+    maxConcurrentMeetings: 100,
+    validityDays: 30,
+    freeFeatureDays: null,
+    requiresPayment: true
   }
 };
 
@@ -43,20 +94,18 @@ export function getPlan(planId: string | null | undefined): PlanEntitlements | n
   if (!planId || !(planId in PLANS)) return null;
   return PLANS[planId as PlanId];
 }
-export const STANDARD_MEETING_DURATIONS_MINUTES = [10, 15, 20, 25, 30, 35] as const;
+
+export const STANDARD_MEETING_DURATIONS_MINUTES = [5, 10, 15, 20, 25, 30, 35, 45, 60, 90, 120] as const;
 
 export function getMeetingDurationOptions(
   planMaxMinutes: number,
   configured: number[] = []
 ) {
   const configuredOptions = configured
-    .filter((minutes) => Number.isInteger(minutes) && minutes >= 10 && minutes <= planMaxMinutes)
+    .filter((minutes) => Number.isInteger(minutes) && minutes >= 5 && minutes <= planMaxMinutes)
     .sort((a, b) => a - b);
 
-  // Older workspaces were created with only [20]. Treat that as the legacy
-  // default and expose the plan-supported standard durations.
-  const legacyDefault = configuredOptions.length === 1 && configuredOptions[0] === 20;
-  const source = legacyDefault
+  const source = configuredOptions.length === 0 || (configuredOptions.length === 1 && configuredOptions[0] === 20)
     ? STANDARD_MEETING_DURATIONS_MINUTES
     : configuredOptions;
 

@@ -11,6 +11,7 @@ import { slugify } from "@/lib/slug";
 import { jsonError, jsonOk } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
 import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
+import { invoiceTaxConfig } from "@/lib/invoicing";
 import { GoogleAccount } from "@/models/google-account";
 
 export const runtime = "nodejs";
@@ -113,15 +114,19 @@ export async function GET() {
   const company = await getScopedCompany(session);
   if (!company) return jsonOk(null);
 
-  const [workspace, subscription, activeMembers, owner] = await Promise.all([
+  const subscriptionPromise = import("@/lib/plans-server").then(({ getCompanySubscription }) =>
+    getCompanySubscription(String(company._id))
+  );
+  const [workspace, subscription, activeMembers, owner, taxConfig] = await Promise.all([
     Workspace.findOne({ companyId: company._id }).lean(),
-    Subscription.findOne({ companyId: company._id }).lean(),
+    subscriptionPromise,
     Membership.find({
       companyId: company._id,
       active: true,
       role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] }
     }).select("userId").lean(),
-    User.findById(company.ownerUserId).select("name email image").lean()
+    User.findById(company.ownerUserId).select("name email image").lean(),
+    invoiceTaxConfig()
   ]);
 
   const connectedAccounts = await GoogleAccount.find({
@@ -131,6 +136,10 @@ export async function GET() {
 
   const connectedMemberCount = connectedAccounts.filter(isGoogleSchedulingReady).length;
   const memberCount = activeMembers.length;
+  const freeFeatureEndsAt = subscription.planId === "free"
+    ? new Date(subscription.currentPeriodStart.getTime() + 14 * 24 * 60 * 60 * 1000)
+    : null;
+  const featureLocked = Boolean(freeFeatureEndsAt && freeFeatureEndsAt.getTime() <= Date.now());
 
   return jsonOk({
     company: profilePayload(company, owner ?? undefined),
@@ -142,12 +151,20 @@ export async function GET() {
           planId: subscription.planId,
           status: subscription.status,
           monthlyMeetingsUsed: subscription.monthlyMeetingsUsed,
+          source: subscription.source,
+          freeUsageDates: subscription.freeUsageDates ?? [],
+          periodStart: subscription.currentPeriodStart,
           periodEnd: subscription.currentPeriodEnd
         }
       : null,
     memberCount,
     connectedMemberCount,
     canPublish: connectedMemberCount > 0,
+    gstRatePercent: taxConfig.ratePercent,
+    gstEnabled: taxConfig.enabled,
+    gstInclusive: taxConfig.inclusive,
+    featureLocked,
+    freeFeatureEndsAt,
     currentRole: session.role
   });
 }
@@ -189,7 +206,7 @@ export async function POST(request: Request) {
 
   const now = new Date();
   const periodEnd = new Date(now);
-  periodEnd.setMonth(periodEnd.getMonth() + 1);
+  periodEnd.setDate(periodEnd.getDate() + 30);
 
   const db = await getMongo();
   const tx = await db.startSession();
@@ -208,12 +225,13 @@ export async function POST(request: Request) {
         companyId: company._id,
         name: `${name} workspace`,
         timezone: body.timezone || "Asia/Kolkata",
-        planId: "starter"
+        planId: "free"
       }], { session: tx });
 
       await Subscription.create([{
         companyId: company._id,
-        planId: "starter",
+        planId: "free",
+        source: "FREE",
         status: "ACTIVE",
         currentPeriodStart: now,
         currentPeriodEnd: periodEnd,
@@ -234,7 +252,7 @@ export async function POST(request: Request) {
         workspaceId: workspace._id,
         name: "General meeting",
         slug: "general",
-        durationOptionsMinutes: [10, 15, 20, 25, 30, 35]
+        durationOptionsMinutes: [5]
       }], { session: tx });
 
       const rules = [1, 2, 3, 4, 5].map((dayOfWeek) => ({
@@ -263,6 +281,10 @@ export async function POST(request: Request) {
       await Membership.updateOne(
         { companyId: createdIds.companyId, userId: session.userId, active: true },
         { $set: { googleConnectionStatus: "CONNECTED" } }
+      );
+      await Company.updateOne(
+        { _id: createdIds.companyId },
+        { $set: { publicBookingEnabled: true } }
       );
     }
 
@@ -345,6 +367,12 @@ export async function PATCH(request: Request) {
 
   if (typeof body?.publicBookingEnabled === "boolean") {
     if (body.publicBookingEnabled) {
+      const { assertFeatureAccess } = await import("@/lib/plans-server");
+      try {
+        await assertFeatureAccess(session.companyId);
+      } catch (error) {
+        return jsonError(error instanceof Error ? error.message : "FREE_FEATURE_DAYS_EXHAUSTED", 409);
+      }
       const members = await Membership.find({
         companyId: session.companyId,
         active: true,

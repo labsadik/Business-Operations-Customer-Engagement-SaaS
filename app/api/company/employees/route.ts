@@ -28,6 +28,7 @@ export async function GET() {
       id: String(user._id),
       name: user.name,
       email: user.email,
+      image: user.image ?? "",
       role: user.role,
       googleConnected: connected.has(String(user._id))
     })));

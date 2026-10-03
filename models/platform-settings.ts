@@ -34,7 +34,7 @@ const platformSettingsSchema = new Schema(
     gst: {
       enabled: { type: Boolean, default: true },
       ratePercent: { type: Number, min: 0, max: 100, default: 18 },
-      inclusive: { type: Boolean, default: true }
+      inclusive: { type: Boolean, default: false }
     },
     updatedByUserId: { type: Schema.Types.ObjectId, ref: "User" }
   },

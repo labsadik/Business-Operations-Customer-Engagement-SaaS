@@ -94,7 +94,7 @@ export async function platformLegalProfile(): Promise<PlatformLegalProfile> {
       ratePercent: Number.isFinite(Number(settings.gst?.ratePercent))
         ? Number(settings.gst?.ratePercent)
         : 18,
-      inclusive: settings.gst?.inclusive !== false
+      inclusive: settings.gst?.inclusive === true
     }
   };
 }
