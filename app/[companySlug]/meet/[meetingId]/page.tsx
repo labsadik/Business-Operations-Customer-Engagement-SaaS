@@ -132,9 +132,17 @@ export default async function CompanyMeetingPage({ params }: { params: Promise<{
             <div className="grid min-h-[68vh] place-items-center p-8 text-center">
               <div className="max-w-md">
                 <Video className="mx-auto size-12 text-blue-300" />
-                <h2 className="mt-5 text-2xl font-semibold">Meeting is being created</h2>
-                <p className="mt-3 text-sm leading-6 text-white/55">Conventus has the booking and Calendar event. Google is still generating the Meet entry point. Refresh this page after a moment; the booking remains company-scoped and protected.</p>
-                <p className="mt-4 text-xs text-white/35">Secure participant link required to access this meeting.</p>
+                <h2 className="mt-5 text-2xl font-semibold">
+                  {meetingIsActive ? "Meeting is being created" : "This meeting has ended"}
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-white/55">
+                  {meetingIsActive
+                    ? "Conventus has the booking and Calendar event. Google is still generating the Meet entry point. Refresh this page after a moment; the booking remains company-scoped and protected."
+                    : "The Conventus meeting flow is closed. This booking cannot be joined or reused. Create a new booking for another meeting."}
+                </p>
+                <p className="mt-4 text-xs text-white/35">
+                  {meetingIsActive ? "Secure participant link required to access this meeting." : "Meeting access has been revoked."}
+                </p>
               </div>
             </div>
           )}
