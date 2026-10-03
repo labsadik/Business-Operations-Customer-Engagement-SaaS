@@ -35,34 +35,42 @@ export async function activatePaidPlan(paymentId: string) {
       const providerPaymentId = payment.providerPaymentId;
       if (!providerPaymentId) throw new Error("PAYMENT_ID_MISSING");
 
-      if (payment.status === "CAPTURED" && payment.activatedAt) {
-        return;
+      // A captured payment that already has an invoice has completed its
+      // activation. Webhooks and browser verification can safely retry.
+      if (payment.status === "CAPTURED") {
+        const existingInvoice = await Invoice.exists({ paymentId: payment._id }).session(tx);
+        if (existingInvoice) {
+          if (!payment.activatedAt) {
+            await Payment.updateOne(
+              { _id: payment._id },
+              { $set: { activatedAt: invoiceDate } },
+              { session: tx }
+            );
+          }
+          return;
+        }
       }
 
-      if (payment.status !== "CAPTURED") {
-        const claimed = await Payment.findOneAndUpdate(
-          {
-            _id: payment._id,
-            status: "PENDING",
-            $or: [{ activatedAt: null }, { activatedAt: { $exists: false } }]
-          },
-          {
-            $set: {
-              status: "CAPTURED",
-              paidAt: payment.paidAt ?? invoiceDate,
-              activatedAt: new Date()
-            }
-          },
-          { new: true, session: tx }
-        );
+      // Atomically claim the payment so only one webhook/verification request
+      // can activate the subscription.
+      const claimed = await Payment.findOneAndUpdate(
+        {
+          _id: payment._id,
+          status: "PENDING",
+          $or: [{ activatedAt: null }, { activatedAt: { $exists: false } }]
+        },
+        {
+          $set: {
+            status: "CAPTURED",
+            paidAt: payment.paidAt ?? invoiceDate,
+            activatedAt: new Date()
+          }
+        },
+        { new: true, session: tx }
+      );
 
-        if (!claimed) return;
-      } else {
-        await Payment.updateOne(
-          { _id: payment._id },
-          { $set: { activatedAt: invoiceDate } },
-          { session: tx }
-        );
+      if (!claimed) {
+        return;
       }
 
       const invoiceNumber =
