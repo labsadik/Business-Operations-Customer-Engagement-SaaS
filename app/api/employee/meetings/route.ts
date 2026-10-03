@@ -7,7 +7,10 @@ import { jsonError, jsonOk } from "@/lib/http";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const requestedLimit = Number(searchParams.get("limit") ?? "500");
+  const limit = Number.isFinite(requestedLimit) ? Math.min(500, Math.max(1, Math.floor(requestedLimit))) : 500;
   let session: { userId: string; companyId?: string; role: string };
   try {
     const result = await requireCompanyMember(["EMPLOYEE", "COMPANY_OWNER", "COMPANY_ADMIN"]);
@@ -35,7 +38,7 @@ export async function GET() {
 
   const meetings = await Meeting.find(filter)
     .sort({ startAt: -1 })
-    .limit(500)
+    .limit(limit)
     .select("employeeId customerId startAt endAt endedAt status calendarSyncStatus")
     .lean();
 
