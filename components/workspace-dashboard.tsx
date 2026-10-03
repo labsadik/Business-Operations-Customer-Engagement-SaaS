@@ -133,6 +133,32 @@ type InvoiceItem = {
   amount: number;
   currency: string;
   issuedAt: string;
+  billingPeriodStart: string | null;
+  billingPeriodEnd: string | null;
+  serviceDescription: string;
+  isCurrentPlan: boolean;
+  planSnapshot: {
+    name: string;
+    priceInr: number;
+    maxEmployees: number;
+    monthlyMeetingLimit: number;
+    maxMeetingDurationMinutes: number;
+    maxConcurrentMeetings: number;
+  };
+  taxSnapshot: {
+    enabled: boolean;
+    ratePercent: number;
+    inclusive: boolean;
+    taxableAmount: number;
+    gstAmount: number;
+  } | null;
+  merchantSnapshot: {
+    name: string;
+    websiteUrl: string;
+    email: string;
+    taxId: string;
+    gstin: string;
+  } | null;
   companySnapshot: {
     name: string;
     email: string;
@@ -1726,50 +1752,70 @@ export default function WorkspaceDashboard({
             <div className="border-b border-slate-200 px-4 py-4">
               <p className="text-xs font-semibold text-slate-900">Invoices</p>
               <p className="mt-1 text-[11px] text-slate-500">
-                Every captured payment creates an invoice automatically with a company snapshot.
+                Captured payments are reconciled into tax invoices using the plan actually purchased, the Conventus legal profile, and the GST treatment configured for your account.
               </p>
             </div>
 
             {billingLoading ? (
               <div className="space-y-3 p-4">
-                <div className="h-16 animate-pulse rounded-xl bg-slate-100" />
-                <div className="h-16 animate-pulse rounded-xl bg-slate-100" />
+                <div className="h-20 animate-pulse rounded-xl bg-slate-100" />
+                <div className="h-20 animate-pulse rounded-xl bg-slate-100" />
               </div>
             ) : invoices.length === 0 ? (
               <div className="p-10 text-center">
                 <CreditCard className="mx-auto size-5 text-slate-300" />
-                <p className="mt-3 text-xs font-semibold text-slate-700">No invoices yet</p>
-                <p className="mt-1 text-[11px] text-slate-400">A successful plan payment will appear here automatically.</p>
+                <p className="mt-3 text-xs font-semibold text-slate-700">No captured-payment invoices</p>
+                <p className="mt-1 text-[11px] text-slate-400">An invoice is created automatically after a payment is captured.</p>
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {invoices.map((invoice) => (
-                  <div key={invoice.id} className="px-4 py-4">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-semibold">{invoice.invoiceNumber}</p>
-                          <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">Paid</span>
+                {invoices.map((invoice) => {
+                  const tax = invoice.taxSnapshot;
+                  return (
+                    <div key={invoice.id} className="px-4 py-4">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-semibold">{invoice.invoiceNumber}</p>
+                            <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">Paid</span>
+                            {invoice.isCurrentPlan && (
+                              <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-700">Current plan</span>
+                            )}
+                          </div>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {invoice.planSnapshot.name} · {formatDate(invoice.issuedAt)}
+                          </p>
+                          <p className="mt-2 text-[11px] font-medium text-slate-600">
+                            {tax?.enabled
+                              ? `GST @ ${tax.ratePercent.toFixed(2)}% ${tax.inclusive ? "included" : "added"} · taxable ${(tax.taxableAmount / 100).toFixed(2)} · GST ${(tax.gstAmount / 100).toFixed(2)}`
+                              : "GST not applied"}
+                          </p>
+                          <p className="mt-2 break-all text-[10px] text-slate-400">
+                            Payment: {invoice.providerPaymentId}
+                          </p>
                         </div>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {PLANS[invoice.planId]?.name ?? invoice.planId} · {formatDate(invoice.issuedAt)}
-                        </p>
-                        <p className="mt-2 break-all text-[10px] text-slate-400">
-                          Order: {invoice.providerOrderId} · Payment: {invoice.providerPaymentId}
-                        </p>
+                        <div className="flex flex-wrap items-center gap-3 lg:justify-end">
+                          <div className="text-left lg:text-right">
+                            <p className="text-lg font-semibold">₹{(invoice.amount / 100).toFixed(2)}</p>
+                            <p className="mt-1 text-[10px] uppercase tracking-[0.1em] text-slate-400">{invoice.currency} · total paid</p>
+                          </div>
+                          <Link
+                            href={`/billing/invoices/${invoice.id}` as Route}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                          >
+                            View
+                            <ArrowUpRight className="size-3.5" />
+                          </Link>
+                        </div>
                       </div>
-                      <div className="text-left lg:text-right">
-                        <p className="text-lg font-semibold">₹{(invoice.amount / 100).toFixed(2)}</p>
-                        <p className="mt-1 text-[10px] uppercase tracking-[0.1em] text-slate-400">{invoice.currency}</p>
+                      <div className="mt-4 grid gap-2 text-[11px] text-slate-500 sm:grid-cols-3">
+                        <span>{invoice.companySnapshot.name}</span>
+                        <span>{invoice.companySnapshot.email}</span>
+                        <span>{invoice.companySnapshot.phone}</span>
                       </div>
                     </div>
-                    <div className="mt-3 grid gap-2 text-[11px] text-slate-500 sm:grid-cols-3">
-                      <span>{invoice.companySnapshot.name}</span>
-                      <span>{invoice.companySnapshot.email}</span>
-                      <span>{invoice.companySnapshot.phone}</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </section>
