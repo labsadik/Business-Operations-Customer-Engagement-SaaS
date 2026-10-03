@@ -439,9 +439,6 @@ export async function GET(request: Request) {
       workspaceId: scopedMembership ? String(scopedMembership.workspaceId) : undefined
     });
 
-    if (scopedMembership) {
-    }
-
     const response = NextResponse.redirect(new URL(returnTo, request.url));
     response.cookies.delete("conventus_oauth_state");
     return response;
