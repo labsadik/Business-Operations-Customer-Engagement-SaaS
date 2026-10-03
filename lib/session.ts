@@ -7,7 +7,6 @@ import { Company } from "@/models/company";
 import { Workspace } from "@/models/workspace";
 import { Types } from "mongoose";
 import { randomToken, sha256 } from "@/lib/security";
-import { isPlatformAdminEmail } from "@/lib/platform";
 
 const COOKIE_NAME = "conventus_session";
 export const ADMIN_MANAGED_COMPANY_COOKIE = "conventus_admin_company";
@@ -130,46 +129,58 @@ export async function getSession(): Promise<AuthSession | null> {
   const user = await User.findById(session.userId).lean();
   if (!user || user.active === false) return null;
 
-  const configuredPlatformAdmin = isPlatformAdminEmail(String(user.email));
-  if (configuredPlatformAdmin && user.role !== "PLATFORM_ADMIN") {
-    await User.updateOne(
-      { _id: user._id, role: { $ne: "PLATFORM_ADMIN" } },
-      {
-        $set: {
-          role: "PLATFORM_ADMIN",
-          platformAdminPreviousRole: String(user.role)
-        }
-      }
-    );
-    user.role = "PLATFORM_ADMIN";
-  }
-
-  const platformAdmin = user.role === "PLATFORM_ADMIN" || configuredPlatformAdmin;
+  const platformAdmin = user.role === "PLATFORM_ADMIN";
 
   if (platformAdmin) {
-    if (session.role !== "PLATFORM_ADMIN" || session.companyId || session.workspaceId) {
+    if (session.role !== "PLATFORM_ADMIN") {
       await Session.updateOne(
         { _id: session._id },
         {
           $set: {
             role: "PLATFORM_ADMIN",
             lastSeenAt: new Date()
-          },
-          $unset: {
-            companyId: 1,
-            workspaceId: 1
           }
         }
       );
     }
 
     const managed = await getManagedCompanyScope(user._id, true, store);
+    const scopedCompanyId = managed?.companyId ?? (session.companyId ? String(session.companyId) : undefined);
+    const scopedWorkspaceId = managed?.workspaceId ?? (session.workspaceId ? String(session.workspaceId) : undefined);
+
+    if (scopedCompanyId && (!Types.ObjectId.isValid(scopedCompanyId) || !scopedWorkspaceId || !Types.ObjectId.isValid(scopedWorkspaceId))) {
+      return {
+        userId: String(user._id),
+        role: "PLATFORM_ADMIN",
+        email: String(user.email),
+        name: String(user.name),
+        image: user.image ?? undefined
+      };
+    }
+
+    if (scopedCompanyId && scopedWorkspaceId) {
+      const workspace = await Workspace.findOne({
+        _id: scopedWorkspaceId,
+        companyId: scopedCompanyId,
+        active: true
+      }).select("_id").lean();
+
+      if (!workspace) {
+        return {
+          userId: String(user._id),
+          role: "PLATFORM_ADMIN",
+          email: String(user.email),
+          name: String(user.name),
+          image: user.image ?? undefined
+        };
+      }
+    }
 
     return {
       userId: String(user._id),
       role: "PLATFORM_ADMIN",
-      companyId: managed?.companyId,
-      workspaceId: managed?.workspaceId,
+      companyId: scopedCompanyId,
+      workspaceId: scopedWorkspaceId,
       email: String(user.email),
       name: String(user.name),
       image: user.image ?? undefined
