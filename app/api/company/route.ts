@@ -11,6 +11,7 @@ import { slugify } from "@/lib/slug";
 import { jsonError, jsonOk } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
 import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
+import { invoiceTaxConfig } from "@/lib/invoicing";
 import { GoogleAccount } from "@/models/google-account";
 
 export const runtime = "nodejs";
@@ -116,7 +117,7 @@ export async function GET() {
   const subscriptionPromise = import("@/lib/plans-server").then(({ getCompanySubscription }) =>
     getCompanySubscription(String(company._id))
   );
-  const [workspace, subscription, activeMembers, owner] = await Promise.all([
+  const [workspace, subscription, activeMembers, owner, taxConfig] = await Promise.all([
     Workspace.findOne({ companyId: company._id }).lean(),
     subscriptionPromise,
     Membership.find({
@@ -124,7 +125,8 @@ export async function GET() {
       active: true,
       role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] }
     }).select("userId").lean(),
-    User.findById(company.ownerUserId).select("name email image").lean()
+    User.findById(company.ownerUserId).select("name email image").lean(),
+    invoiceTaxConfig()
   ]);
 
   const connectedAccounts = await GoogleAccount.find({
@@ -153,6 +155,8 @@ export async function GET() {
     memberCount,
     connectedMemberCount,
     canPublish: connectedMemberCount > 0,
+    gstRatePercent: taxConfig.ratePercent,
+    gstEnabled: taxConfig.enabled,
     currentRole: session.role
   });
 }
