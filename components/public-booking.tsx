@@ -5,7 +5,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarDays, CheckCircle2, Clock3, LayoutDashboard, Loader2, LogIn, ShieldCheck } from "lucide-react";
-import { getTodayIso } from "@/lib/timezone";
+import { getTodayIso, zonedDateTimeToUtc } from "@/lib/timezone";
 
 type Type = { id: string; name: string; description?: string; durationOptionsMinutes: number[] };
 type Slot = { startAt: string; endAt: string };
@@ -47,6 +47,7 @@ export default function PublicBooking({
   const [duration, setDuration] = useState(type?.durationOptionsMinutes[0] ?? 20);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [selected, setSelected] = useState<Slot | null>(null);
+  const [customTime, setCustomTime] = useState("");
   const [loading, setLoading] = useState(false);
   const [bookingId, setBookingId] = useState("");
   const [status, setStatus] = useState("");
@@ -113,6 +114,30 @@ export default function PublicBooking({
     const nextType = types.find((item) => item.id === nextTypeId);
     setDuration(nextType?.durationOptionsMinutes[0] ?? 20);
     setSelected(null);
+    setCustomTime("");
+  }
+
+  function handleCustomTimeChange(value: string) {
+    setCustomTime(value);
+    setSelected(null);
+
+    if (!value) return;
+
+    const [hour, minute] = value.split(":").map(Number);
+    const startMinute = hour * 60 + minute;
+
+    if (!Number.isInteger(startMinute) || startMinute < 0 || startMinute + duration > 24 * 60) {
+      setError("CHOOSE_AN_EARLIER_TIME");
+      return;
+    }
+
+    setError("");
+    const startAt = zonedDateTimeToUtc(date, startMinute, timezone);
+    const endAt = zonedDateTimeToUtc(date, startMinute + duration, timezone);
+    setSelected({
+      startAt: startAt.toISOString(),
+      endAt: endAt.toISOString()
+    });
   }
 
   useEffect(() => {
@@ -289,7 +314,7 @@ export default function PublicBooking({
           ? "There are no active employees available for scheduling right now."
           : availabilityReason === "GOOGLE_CALENDAR_ERROR"
             ? "A connected employee's Google Calendar could not be checked. Please ask the company to reconnect Google Calendar and try again."
-            : "Every connected employee calendar is busy for the selected duration. Choose another time or another date.";
+            : "Every connected employee calendar is busy for the selected duration. Try another time, another minute, or another date.";
 
   if (bookingId) {
 
@@ -355,14 +380,23 @@ export default function PublicBooking({
           Date
           <div className="flex items-center gap-3 rounded-xl border border-slate-300 px-4 py-3">
             <CalendarDays className="size-4 text-blue-600" />
-            <input type="date" value={date} min={getTodayIso(timezone)} onChange={(e) => { setDate(e.target.value); setSelected(null); }} className="min-w-0 flex-1 bg-transparent font-normal outline-none" />
+            <input type="date" value={date} min={getTodayIso(timezone)} onChange={(e) => { setDate(e.target.value); setSelected(null); setCustomTime(""); setError(""); }} className="min-w-0 flex-1 bg-transparent font-normal outline-none" />
           </div>
         </label>
         <div>
           <p className="text-sm font-semibold text-slate-800">Duration</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {(type?.durationOptionsMinutes ?? [20]).map((minutes) => (
-              <button key={minutes} type="button" onClick={() => setDuration(minutes)} className={`rounded-xl border px-4 py-2.5 text-sm font-semibold ${duration === minutes ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 bg-white text-slate-700"}`}>
+              <button
+                key={minutes}
+                type="button"
+                onClick={() => {
+                  setDuration(minutes);
+                  setSelected(null);
+                  if (customTime) handleCustomTimeChange(customTime);
+                }}
+                className={`rounded-xl border px-4 py-2.5 text-sm font-semibold ${duration === minutes ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 bg-white text-slate-700"}`}
+              >
                 {minutes} min
               </button>
             ))}
@@ -375,10 +409,30 @@ export default function PublicBooking({
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {slots.map((item) => (
-              <button key={item.startAt} type="button" onClick={() => setSelected(item)} className={`rounded-xl border px-3 py-3 text-sm font-semibold ${selected?.startAt === item.startAt ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-700 hover:border-slate-400"}`}>
+              <button
+                key={item.startAt}
+                type="button"
+                onClick={() => { setSelected(item); setCustomTime(""); setError(""); }}
+                className={`rounded-xl border px-3 py-3 text-sm font-semibold ${selected?.startAt === item.startAt ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-700 hover:border-slate-400"}`}
+              >
                 {new Date(item.startAt).toLocaleTimeString([], { timeZone: timezone, hour: "numeric", minute: "2-digit" })}
               </button>
             ))}
+          </div>
+          <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-4">
+            <label className="grid gap-2 text-xs font-semibold text-slate-700">
+              Specific time
+              <input
+                type="time"
+                step={60}
+                value={customTime}
+                onChange={(e) => handleCustomTimeChange(e.target.value)}
+                className="focus-ring rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal outline-none focus:border-blue-500"
+              />
+            </label>
+            <p className="mt-2 text-[11px] leading-5 text-slate-500">
+              You can request any minute. Google Calendar is checked again when you submit.
+            </p>
           </div>
           {!loading && slots.length === 0 && (
             <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs leading-5 text-slate-600">
