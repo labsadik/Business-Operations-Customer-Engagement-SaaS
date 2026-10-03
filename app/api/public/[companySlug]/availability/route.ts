@@ -4,6 +4,7 @@ import { MeetingType } from "@/models/meeting-type";
 import { getAvailableSlots } from "@/lib/public-availability";
 import { jsonError, jsonOk } from "@/lib/http";
 import { getCompanyEntitlements } from "@/lib/plans-server";
+import { getSession } from "@/lib/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,6 +13,9 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ companySlug: string }> }
 ) {
+  const session = await getSession();
+  if (!session || session.role !== "CUSTOMER") return jsonError("CUSTOMER_LOGIN_REQUIRED", 401);
+
   await getMongo();
   const { companySlug } = await params;
   const url = new URL(request.url);
