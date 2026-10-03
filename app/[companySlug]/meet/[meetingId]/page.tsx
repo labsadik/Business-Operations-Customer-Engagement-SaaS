@@ -7,6 +7,7 @@ import { Company } from "@/models/company";
 import { Meeting } from "@/models/meeting";
 import { Membership } from "@/models/membership";
 import { verifyMeetingAccessToken } from "@/lib/security";
+import GoogleMeetEmbed from "@/components/google-meet-embed";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -102,32 +103,10 @@ export default async function CompanyMeetingPage({ params }: { params: Promise<{
 
         <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-black shadow-2xl">
           {meetingUri && meetingIsActive ? (
-            <div className="relative h-[72vh] min-h-[620px] bg-black">
-              <div className="pointer-events-none absolute left-4 top-4 z-10 flex items-center gap-2 rounded-full border border-white/10 bg-slate-950/85 px-3 py-2 text-xs text-white/70 backdrop-blur">
-                <Video className="size-3.5 text-blue-300" />
-                <span>Google Meet</span>
-                {googleMeetCode && <span className="font-mono text-white/50">· {googleMeetCode}</span>}
-              </div>
-              <iframe
-                src={meetingUri}
-                title={googleMeetCode ? `Google Meet ${googleMeetCode}` : "Google Meet"}
-                className="h-full w-full border-0 bg-black"
-                allow="camera; microphone; autoplay; display-capture; fullscreen; clipboard-write"
-                allowFullScreen
-                referrerPolicy="strict-origin-when-cross-origin"
-              />
-              <div className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2">
-                <a
-                  href={meetingUri}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-slate-950/90 px-4 py-2.5 text-xs font-semibold text-white shadow-xl backdrop-blur hover:bg-slate-900"
-                >
-                  <ExternalLink className="size-3.5" />
-                  Open Google Meet in a new tab
-                </a>
-              </div>
-            </div>
+            <GoogleMeetEmbed
+              meetingCode={googleMeetCode ?? ""}
+              meetingUri={meetingUri}
+            />
           ) : (
             <div className="grid min-h-[68vh] place-items-center p-8 text-center">
               <div className="max-w-md">
