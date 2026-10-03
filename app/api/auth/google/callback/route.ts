@@ -10,6 +10,7 @@ import { Company } from "@/models/company";
 import { Membership } from "@/models/membership";
 import { Workspace } from "@/models/workspace";
 import { Invitation } from "@/models/invitation";
+import { AvailabilityRule } from "@/models/availability-rule";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -137,6 +138,18 @@ export async function GET(request: Request) {
         },
         { upsert: true, new: true }
       );
+
+      await AvailabilityRule.deleteMany({ companyId: invite.companyId, employeeId: user._id });
+      const defaultRules = [1, 2, 3, 4, 5].map((dayOfWeek) => ({
+        companyId: invite.companyId,
+        employeeId: user._id,
+        dayOfWeek,
+        startMinute: 9 * 60,
+        endMinute: 17 * 60,
+        timezone: "Asia/Kolkata",
+        active: true
+      }));
+      await AvailabilityRule.insertMany(defaultRules);
 
       await Invitation.updateOne(
         { _id: invite._id },
