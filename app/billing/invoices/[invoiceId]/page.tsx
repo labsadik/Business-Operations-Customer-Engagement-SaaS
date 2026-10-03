@@ -66,8 +66,9 @@ export default async function InvoicePage({
     issuedAt: invoice.issuedAt,
     amount: invoice.amount,
     currency: invoice.currency,
-    status: "PAID / CAPTURED",
-    providerPaymentId: invoice.providerPaymentId,
+    status: invoice.source === "PAID" ? "PAID / CAPTURED" : invoice.source === "ADMIN_GRANTED" ? "ADMIN GRANTED" : "FREE ACCESS",
+    source: invoice.source,
+    providerPaymentId: invoice.providerPaymentId || "",
     serviceDescription: invoice.serviceDescription,
     plan: {
       id: invoice.planId,
@@ -76,7 +77,9 @@ export default async function InvoicePage({
       maxEmployees: plan.maxEmployees,
       monthlyMeetingLimit: plan.monthlyMeetingLimit,
       maxMeetingDurationMinutes: plan.maxMeetingDurationMinutes,
-      maxConcurrentMeetings: plan.maxConcurrentMeetings
+      maxConcurrentMeetings: plan.maxConcurrentMeetings,
+      validityDays: plan.validityDays,
+      freeFeatureDays: plan.freeFeatureDays
     },
     currentPlanId,
     billingPeriodStart: invoice.billingPeriodStart ?? null,
