@@ -96,7 +96,19 @@ export async function PATCH(request: Request) {
   if (!session.companyId) return jsonError("COMPANY_NOT_CONFIGURED", 400);
 
   const update: Record<string, unknown> = {};
-  if (typeof body?.publicBookingEnabled === "boolean") update.publicBookingEnabled = body.publicBookingEnabled;
+  if (typeof body?.publicBookingEnabled === "boolean") {
+    if (body.publicBookingEnabled) {
+      const { GoogleAccount } = await import("@/models/google-account");
+      const { Membership } = await import("@/models/membership");
+      const members = await Membership.find({ companyId: session.companyId, active: true }).select("userId").lean();
+      const connected = await GoogleAccount.countDocuments({
+        userId: { $in: members.map((member) => member.userId) },
+        status: "CONNECTED"
+      });
+      if (connected === 0) return jsonError("GOOGLE_EMPLOYEE_REQUIRED", 409);
+    }
+    update.publicBookingEnabled = body.publicBookingEnabled;
+  }
   if (typeof body?.description === "string") update.description = body.description.trim().slice(0, 1200);
 
   const company = await Company.findOneAndUpdate(
