@@ -3,7 +3,7 @@ import { Schema, model, models } from "mongoose";
 const oauthStateSchema = new Schema(
   {
     state: { type: String, required: true, unique: true, index: true },
-    intent: { type: String, enum: ["workspace", "customer"], required: true },
+    intent: { type: String, enum: ["workspace", "customer", "employee", "connect"], required: true },
     companySlug: { type: String, lowercase: true, trim: true },
     invitationToken: { type: String },
     returnTo: { type: String, required: true },
