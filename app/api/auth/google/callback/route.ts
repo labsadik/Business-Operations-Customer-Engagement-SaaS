@@ -441,14 +441,27 @@ export async function GET(request: Request) {
 
     const scopedMembership = activeMemberships[0];
 
+    const platformAdminSession = user.role === "PLATFORM_ADMIN";
     await createSession({
       userId: String(user._id),
-      role: scopedMembership ? String(scopedMembership.role) : String(user.role),
-      companyId: scopedMembership ? String(scopedMembership.companyId) : undefined,
-      workspaceId: scopedMembership ? String(scopedMembership.workspaceId) : undefined
+      role: platformAdminSession
+        ? "PLATFORM_ADMIN"
+        : scopedMembership
+          ? String(scopedMembership.role)
+          : String(user.role),
+      companyId: platformAdminSession
+        ? undefined
+        : scopedMembership
+          ? String(scopedMembership.companyId)
+          : undefined,
+      workspaceId: platformAdminSession
+        ? undefined
+        : scopedMembership
+          ? String(scopedMembership.workspaceId)
+          : undefined
     });
 
-    const finalReturnTo = oauth.intent === "workspace" && user.role === "PLATFORM_ADMIN" && !companySlug ? "/admin" : returnTo;
+    const finalReturnTo = oauth.intent === "workspace" && platformAdminSession && !companySlug ? "/admin" : returnTo;
     const response = NextResponse.redirect(new URL(finalReturnTo, request.url));
     response.cookies.delete("conventus_oauth_state");
     return response;
