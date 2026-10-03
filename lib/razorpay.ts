@@ -30,7 +30,12 @@ async function razorpayRequest<T extends RazorpayResponse>(
     cache: "no-store"
   });
   const body = await response.text();
-  const parsed = body ? JSON.parse(body) as T : ({} as T);
+  let parsed: T;
+  try {
+    parsed = body ? JSON.parse(body) as T : ({} as T);
+  } catch {
+    parsed = {} as T;
+  }
   if (!response.ok) {
     const message =
       typeof parsed.error === "object" && parsed.error && "description" in parsed.error
