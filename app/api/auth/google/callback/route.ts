@@ -283,7 +283,7 @@ export async function GET(request: Request) {
           email,
           name: googleUser.name || email.split("@")[0],
           image: googleUser.picture,
-          role: "CUSTOMER",
+          role: bootstrapPlatformAdmin ? "PLATFORM_ADMIN" : "CUSTOMER",
           googleSubject: googleUser.sub,
           googleEmail: email,
           lastLoginAt: new Date()
@@ -413,7 +413,7 @@ export async function GET(request: Request) {
         email,
         name: googleUser.name || email.split("@")[0],
         image: googleUser.picture,
-        role: "COMPANY_OWNER",
+        role: bootstrapPlatformAdmin ? "PLATFORM_ADMIN" : "COMPANY_OWNER",
         googleSubject: googleUser.sub,
         googleEmail: email,
         lastLoginAt: new Date()
