@@ -129,7 +129,7 @@ export default async function BillingResultPage({
     pdfHref: "/api/billing/invoices/" + invoice._id + "/pdf"
   } : null;
 
-  const source = invoice?.source ?? "FREE";
+  const source = invoice?.source ?? "PAID";
   const title = source === "PAID"
     ? "Your Conventus plan is active."
     : source === "ADMIN_GRANTED"
