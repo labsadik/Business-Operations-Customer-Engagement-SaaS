@@ -139,3 +139,82 @@ export async function activatePaidPlan(paymentId: string) {
     await tx.endSession();
   }
 }
+
+
+export async function ensureInvoicesForCapturedPayments(companyId: string) {
+  await getMongo();
+
+  const company = await Company.findById(companyId).lean();
+  if (!company) throw new Error("COMPANY_NOT_FOUND");
+
+  const payments = await Payment.find({
+    companyId,
+    status: "CAPTURED",
+    providerPaymentId: { $exists: true, $ne: "" }
+  }).sort({ paidAt: -1, createdAt: -1 }).limit(100).lean();
+
+  if (!payments.length) return 0;
+
+  let createdOrUpdated = 0;
+  for (const payment of payments) {
+    const plan = PLANS[payment.planId as PlanId];
+    if (!plan) continue;
+
+    const issuedAt = payment.paidAt ?? payment.createdAt ?? new Date();
+    const existing = await Invoice.findOne({ paymentId: payment._id }).lean();
+    const billingPeriodStart = existing?.billingPeriodStart ?? issuedAt;
+    const billingPeriodEnd = existing?.billingPeriodEnd ?? (() => {
+      const end = new Date(billingPeriodStart);
+      end.setMonth(end.getMonth() + 1);
+      return end;
+    })();
+
+    const snapshots = buildInvoiceSnapshots({
+      company: {
+        name: company.name,
+        email: company.email ?? "",
+        phone: company.phone ?? "",
+        address: company.address ?? {},
+        taxId: company.taxId ?? ""
+      },
+      plan,
+      amount: payment.amount
+    });
+
+    const invoiceNumber =
+      existing?.invoiceNumber ??
+      `CONV-${issuedAt.toISOString().slice(0, 7).replace("-", "")}-${String(payment._id).slice(-8).toUpperCase()}`;
+
+    await Invoice.findOneAndUpdate(
+      { paymentId: payment._id },
+      {
+        $set: {
+          companyId: payment.companyId,
+          paymentId: payment._id,
+          invoiceNumber,
+          planId: plan.id,
+          providerOrderId: payment.providerOrderId,
+          providerPaymentId: payment.providerPaymentId,
+          amount: payment.amount,
+          currency: payment.currency,
+          issuedAt,
+          billingPeriodStart,
+          billingPeriodEnd,
+          serviceDescription: snapshots.serviceDescription,
+          planSnapshot: snapshots.planSnapshot,
+          merchantSnapshot: snapshots.merchantSnapshot,
+          companySnapshot: snapshots.companySnapshot,
+          taxSnapshot: snapshots.taxSnapshot
+        },
+        $setOnInsert: {
+          invoiceNumber
+        }
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    createdOrUpdated += 1;
+  }
+
+  return createdOrUpdated;
+}
