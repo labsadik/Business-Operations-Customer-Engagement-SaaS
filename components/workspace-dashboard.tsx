@@ -341,22 +341,23 @@ export default function WorkspaceDashboard({
     if (refreshingRef.current) return;
     refreshingRef.current = true;
     try {
-      const company = await api<CompanyData>("/api/company");
-      setData(company);
-
-      const [staff, pending, history, announcementList] = await Promise.all([
+      const [company, staff, pending, history, announcementList] = await Promise.all([
+        api<CompanyData>("/api/company"),
         api<Employee[]>("/api/company/employees"),
         api<RequestItem[]>("/api/employee/requests?limit=6"),
         api<MeetingHistoryItem[]>("/api/employee/meetings?limit=6"),
-        ["COMPANY_OWNER", "COMPANY_ADMIN"].includes(company.currentRole)
-          ? api<AnnouncementItem[]>("/api/company/announcement")
-          : Promise.resolve([] as AnnouncementItem[])
+        api<AnnouncementItem[]>("/api/company/announcement").catch(() => [] as AnnouncementItem[])
       ]);
 
+      setData(company);
       setEmployees(staff);
       setRequests(pending);
       setMeetingHistory(history);
-      setAnnouncements(announcementList);
+      setAnnouncements(
+        ["COMPANY_OWNER", "COMPANY_ADMIN"].includes(company.currentRole)
+          ? announcementList
+          : []
+      );
       setError("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "REQUEST_FAILED");
