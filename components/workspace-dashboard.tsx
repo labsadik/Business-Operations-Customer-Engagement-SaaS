@@ -21,7 +21,8 @@ import {
   UsersRound,
   Video,
   XCircle,
-  Megaphone
+  Megaphone,
+  CreditCard
 } from "lucide-react";
 import ConfirmDialog from "@/components/confirm-dialog";
 import UserAvatar from "@/components/user-avatar";
@@ -513,7 +514,7 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
               <ShieldCheck className="size-4 text-blue-600" />
               Connection
             </button>
-            <UserAvatar name={user.name} email={user.email} size={38} />
+            <UserAvatar name={user.name} email={user.email} image={user.image} size={38} />
             <form action="/api/auth/logout" method="post">
               <button
                 aria-label="Sign out"
@@ -839,6 +840,7 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
                           <UserAvatar
                             name={scheduledBy?.name ?? "Customer"}
                             email={scheduledBy?.email}
+                            image={scheduledBy?.image}
                             size={40}
                           />
                           <div className="min-w-0">
