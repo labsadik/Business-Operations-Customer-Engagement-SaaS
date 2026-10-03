@@ -36,6 +36,7 @@ type MeetingHistoryItem = {
   calendarSyncStatus: string;
   employee: { name: string; email: string; image: string | null } | null;
   customer: { name: string; email: string; image: string | null } | null;
+  scheduledBy: { name: string; email: string; image: string | null } | null;
 };
 
 const INITIAL_NOW = Date.now();
@@ -362,28 +363,28 @@ export default function WorkspaceDashboard() {
                     hour: "numeric",
                     minute: "2-digit"
                   });
-                  const endLabel = ended.toLocaleTimeString(undefined, {
-                    timeZone,
-                    hour: "numeric",
-                    minute: "2-digit"
-                  });
                   const scheduledEndLabel = scheduledEnd.toLocaleTimeString(undefined, {
                     timeZone,
                     hour: "numeric",
                     minute: "2-digit"
                   });
+                  const endedLabel = ended.toLocaleTimeString(undefined, {
+                    timeZone,
+                    hour: "numeric",
+                    minute: "2-digit"
+                  });
                   const statusLabel = meeting.status === "CANCELLED" ? "Cancelled" : meeting.status === "COMPLETED" ? "Completed" : "Ended";
-                  const scheduledBy = meeting.customer?.name ?? "Customer";
+                  const scheduledBy = meeting.scheduledBy ?? meeting.customer;
                   return (
                     <div key={`${meeting.startAt}-${meeting.customer?.email ?? index}`} className="px-6 py-5">
                       <div className="grid gap-4 lg:grid-cols-[1.15fr_1fr]">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="truncate text-sm font-semibold text-slate-950">{scheduledBy}</p>
+                            <p className="truncate text-sm font-semibold text-slate-950">{scheduledBy?.name ?? "Customer"}</p>
                             <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">{statusLabel}</span>
                           </div>
                           <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Scheduled by</p>
-                          <p className="mt-1 truncate text-xs text-slate-500">{meeting.customer?.email ?? "Customer email unavailable"}</p>
+                          <p className="mt-1 truncate text-xs text-slate-500">{scheduledBy?.email ?? "Customer email unavailable"}</p>
                           {meeting.employee && (
                             <p className="mt-2 text-xs text-slate-500">
                               Employee: <span className="font-medium text-slate-700">{meeting.employee.name}</span>
@@ -393,10 +394,10 @@ export default function WorkspaceDashboard() {
                         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                           <p className="text-xs font-semibold text-slate-950">{dateLabel}</p>
                           <p className="mt-1 text-xs text-slate-700">
-                            {startLabel} – {endLabel} · {meeting.durationMinutes} min
+                            Scheduled {startLabel} – {scheduledEndLabel} · {meeting.durationMinutes} min
                           </p>
                           {ended.getTime() !== scheduledEnd.getTime() && (
-                            <p className="mt-1 text-[11px] text-slate-500">Scheduled end: {scheduledEndLabel}</p>
+                            <p className="mt-1 text-[11px] font-medium text-slate-600">Ended at {endedLabel}</p>
                           )}
                           <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400">{timeZone}</p>
                         </div>
