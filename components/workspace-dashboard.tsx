@@ -30,6 +30,7 @@ type RequestItem = {
 type MeetingHistoryItem = {
   startAt: string;
   endAt: string;
+  endedAt: string;
   durationMinutes: number;
   status: string;
   calendarSyncStatus: string;
@@ -51,6 +52,7 @@ export default function WorkspaceDashboard() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [meetingHistory, setMeetingHistory] = useState<MeetingHistoryItem[]>([]);
+  const [meetingView, setMeetingView] = useState<"new" | "old">("new");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -68,12 +70,14 @@ export default function WorkspaceDashboard() {
       const company = await api<CompanyData | null>("/api/company");
       setData(company);
       if (company) {
-        const [staff, pending] = await Promise.all([
+        const [staff, pending, history] = await Promise.all([
           api<Employee[]>("/api/company/employees"),
-          api<RequestItem[]>("/api/employee/requests")
+          api<RequestItem[]>("/api/employee/requests"),
+          api<MeetingHistoryItem[]>("/api/employee/meetings")
         ]);
         setEmployees(staff);
         setRequests(pending);
+        setMeetingHistory(history);
       }
       setError("");
     } catch (err) {
