@@ -5,6 +5,8 @@ import { Membership } from "@/models/membership";
 import { User } from "@/models/user";
 import { GoogleAccount } from "@/models/google-account";
 import { getEmployeePresenceMap } from "@/lib/employee-presence";
+import { Invitation } from "@/models/invitation";
+import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,8 +17,13 @@ export async function GET() {
     await getMongo();
     const members = await Membership.find({ companyId: session.companyId, active: true }).lean();
     const users = await User.find({ _id: { $in: members.map((m) => m.userId) } }).lean();
-    const connections = await GoogleAccount.find({ userId: { $in: users.map((u) => u._id) }, status: "CONNECTED" }).select("userId status").lean();
-    const connected = new Set(connections.map((item) => String(item.userId)));
+    const connections = await GoogleAccount.find({
+      userId: { $in: users.map((u) => u._id) },
+      status: "CONNECTED"
+    }).select("userId status scopes").lean();
+    const connected = new Set(
+      connections.filter(isGoogleSchedulingReady).map((item) => String(item.userId))
+    );
     const presence = await getEmployeePresenceMap(session.companyId!, users.map((user) => String(user._id)));
 
     return jsonOk(users.map((user) => ({
@@ -49,7 +56,15 @@ export async function POST(request: Request) {
     const workspace = await (await import("@/models/workspace")).Workspace.findOne({ companyId: session.companyId }).lean();
     if (!workspace) return jsonError("WORKSPACE_NOT_FOUND", 404);
 
-    const existingUser = await User.findOne({ email }).lean();
+    const pendingInvitation = await Invitation.findOne({
+      companyId: session.companyId,
+      invitedEmail: email,
+      acceptedAt: null,
+      expiresAt: { $gt: new Date() }
+    }).lean();
+    if (pendingInvitation) return jsonError("INVITATION_ALREADY_PENDING", 409);
+
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
       const existingMembership = await Membership.findOne({ companyId: session.companyId, userId: existingUser._id, active: true }).lean();
       if (existingMembership) return jsonError("ALREADY_MEMBER", 409);
