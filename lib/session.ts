@@ -95,3 +95,21 @@ export async function requireSession(roles?: string[]) {
   if (roles && !roles.includes(session.role)) throw new Error("FORBIDDEN");
   return session;
 }
+
+export async function updateSessionScope(userId: string, scope: { companyId?: string; workspaceId?: string; role?: string }) {
+  await getMongo();
+  const store = await cookies();
+  const raw = store.get(COOKIE_NAME)?.value;
+  if (!raw) return;
+  await Session.updateOne(
+    { tokenHash: sha256(raw), userId },
+    {
+      $set: {
+        ...(scope.companyId !== undefined ? { companyId: scope.companyId } : {}),
+        ...(scope.workspaceId !== undefined ? { workspaceId: scope.workspaceId } : {}),
+        ...(scope.role !== undefined ? { role: scope.role } : {}),
+        lastSeenAt: new Date()
+      }
+    }
+  );
+}
