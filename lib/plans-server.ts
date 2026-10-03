@@ -2,7 +2,19 @@ import { getPlan, type PlanEntitlements } from "@/lib/plans";
 import { Subscription } from "@/models/subscription";
 
 export async function getCompanyEntitlements(companyId: string): Promise<PlanEntitlements> {
-  const subscription = await Subscription.findOne({ companyId }).lean();
+  let subscription = await Subscription.findOne({ companyId });
+
+  if (subscription && subscription.currentPeriodEnd.getTime() <= Date.now()) {
+    const periodStart = new Date();
+    const periodEnd = new Date(periodStart);
+    periodEnd.setMonth(periodEnd.getMonth() + 1);
+    subscription.currentPeriodStart = periodStart;
+    subscription.currentPeriodEnd = periodEnd;
+    subscription.monthlyMeetingsUsed = 0;
+    subscription.status = "ACTIVE";
+    await subscription.save();
+  }
+
   return getPlan(subscription?.planId) ?? getPlan("starter")!;
 }
 
