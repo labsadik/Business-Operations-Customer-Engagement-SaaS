@@ -27,7 +27,7 @@ const invoiceSchema = new Schema(
     planId: { type: String, enum: ["free", "starter", "elite", "pro", "plus"], required: true },
     providerOrderId: { type: String, default: "", index: true },
     providerPaymentId: { type: String, default: "", index: true },
-    amount: { type: Number, required: true, min: 1 },
+    amount: { type: Number, required: true, min: 0 },
     currency: { type: String, required: true, default: "INR" },
     issuedAt: { type: Date, required: true },
     billingPeriodStart: { type: Date },
@@ -63,7 +63,7 @@ const invoiceSchema = new Schema(
     taxSnapshot: {
       enabled: { type: Boolean, default: false },
       ratePercent: { type: Number, default: 0, min: 0, max: 100 },
-      inclusive: { type: Boolean, default: true },
+      inclusive: { type: Boolean, default: false },
       taxableAmount: { type: Number, required: true, min: 0, default: 0 },
       gstAmount: { type: Number, required: true, min: 0, default: 0 }
     }
