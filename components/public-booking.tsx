@@ -603,14 +603,14 @@ export default function PublicBooking({
                 <Clock3 className="mx-auto size-7 text-slate-300" />
                 <p className="mt-3 text-sm font-semibold text-slate-900">
                   {availabilityReason === "AVAILABILITY_SERVICE_ERROR"
-                    ? "Calendar availability could not be checked"
+                    ? "Availability could not be checked"
                     : availabilityReason === "NO_SCHEDULING_MEMBER"
                       ? "No scheduling-ready employee is available"
                       : "Employees are busy for this time"}
                 </p>
                 <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-slate-500">
                   {availabilityReason === "AVAILABILITY_SERVICE_ERROR"
-                    ? "Please try another date or ask the company to reconnect Google Calendar."
+                    ? "Please try another date or ask the company administrator to restore availability."
                     : "Choose another date or check back later for an available meeting time."}
                 </p>
               </div>
@@ -815,7 +815,7 @@ export default function PublicBooking({
                     <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600" />
                     <div>
                       <p className="text-sm font-semibold text-emerald-950">
-                        Meeting accepted and created.
+                        Meeting confirmed and created.
                       </p>
                       <p className="mt-1 text-xs leading-5 text-emerald-900/70">
                         Your meeting details are ready.
