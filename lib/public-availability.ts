@@ -2,7 +2,6 @@ import { AvailabilityRule } from "@/models/availability-rule";
 import { GoogleAccount } from "@/models/google-account";
 import { Membership } from "@/models/membership";
 import { queryFreeBusy } from "@/lib/google-calendar";
-import { getRedis } from "@/lib/redis";
 import { Workspace } from "@/models/workspace";
 import { getEmployeePresence } from "@/lib/employee-presence";
 import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
@@ -32,13 +31,6 @@ export async function getAvailableSlots(companyId: string, dateIso: string, dura
   const timezone = workspace?.timezone || "Asia/Kolkata";
   const parsed = new Date(`${dateIso}T00:00:00+05:30`);
   if (Number.isNaN(parsed.getTime())) throw new Error("INVALID_DATE");
-
-  const cacheKey = `availability:${companyId}:${dateIso}:${durationMinutes}`;
-  const redis = await getRedis();
-  if (redis) {
-    const cached = await redis.get(cacheKey);
-    if (cached) return JSON.parse(cached) as Slot[];
-  }
 
   const memberships = await Membership.find({
     companyId,
@@ -80,6 +72,5 @@ export async function getAvailableSlots(companyId: string, dateIso: string, dura
   }
 
   const result = [...slots.values()].sort((a, b) => a.startAt.localeCompare(b.startAt));
-  if (redis) await redis.set(cacheKey, JSON.stringify(result), { EX: 20 });
   return result;
 }
