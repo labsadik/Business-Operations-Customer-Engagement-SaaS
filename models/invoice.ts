@@ -15,11 +15,18 @@ const addressSchema = new Schema(
 const invoiceSchema = new Schema(
   {
     companyId: { type: Schema.Types.ObjectId, ref: "Company", required: true, index: true },
-    paymentId: { type: Schema.Types.ObjectId, ref: "Payment", required: true, unique: true, index: true },
+    paymentId: { type: Schema.Types.ObjectId, ref: "Payment", unique: true, sparse: true, index: true },
+    source: {
+      type: String,
+      enum: ["PAID", "FREE", "ADMIN_GRANTED"],
+      required: true,
+      default: "PAID",
+      index: true
+    },
     invoiceNumber: { type: String, required: true, unique: true, index: true },
-    planId: { type: String, enum: ["starter", "business"], required: true },
-    providerOrderId: { type: String, required: true, index: true },
-    providerPaymentId: { type: String, required: true, index: true },
+    planId: { type: String, enum: ["free", "starter", "elite", "pro", "plus"], required: true },
+    providerOrderId: { type: String, default: "", index: true },
+    providerPaymentId: { type: String, default: "", index: true },
     amount: { type: Number, required: true, min: 1 },
     currency: { type: String, required: true, default: "INR" },
     issuedAt: { type: Date, required: true },
