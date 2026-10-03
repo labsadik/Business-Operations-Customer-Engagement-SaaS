@@ -115,65 +115,24 @@ export default async function CompanyPublicPage({
 
       <div className="mx-auto max-w-7xl px-5 py-8 sm:px-6 lg:px-8 lg:py-12">
         <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8 lg:p-10">
-          <div className="grid gap-10 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
-            <div className="max-w-xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-[11px] font-semibold text-blue-700">
-                <span className="size-1.5 rounded-full bg-blue-600" />
-                Public scheduling
+        <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8 lg:p-10">
+          <div className="mx-auto max-w-4xl">
+            <div className="mb-6 flex items-end justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Schedule</p>
+                <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{company.name}</h1>
               </div>
-
-              <h1 className="mt-5 text-4xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-5xl">
-                Schedule time with {company.name}.
-              </h1>
-              <p className="mt-5 text-base leading-7 text-slate-600">
-                Choose a suitable date and duration. Your request is routed to the company team and the confirmed meeting link becomes available in the same flow.
-              </p>
-
-              <div className="mt-8 grid gap-3">
-                {features.map(([Icon, title, description]) => (
-                  <div key={title} className="flex gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-                    <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-blue-600 shadow-sm ring-1 ring-slate-200">
-                      <Icon className="size-4" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold">{title}</p>
-                      <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-4">
-                <div className="flex items-start gap-3">
-                  <ShieldCheck className="mt-0.5 size-5 shrink-0 text-blue-600" />
-                  <div>
-                    <p className="text-sm font-semibold">Secure company access</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">
-                      Requests are linked to your account and checked again on the server before anything is created.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <Link
-                href={`/${company.slug}/login`}
-                className="mt-5 inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-900"
-              >
-                Employee access
-                <ArrowRight className="size-3.5" />
-              </Link>
+              <p className="hidden text-xs font-medium text-slate-400 sm:block">{workspace?.timezone || "Asia/Kolkata"}</p>
             </div>
 
-            <div className="min-w-0">
-              <PublicBooking
-                companySlug={company.slug}
-                types={types}
-                access={session?.role === "CUSTOMER" ? "customer" : "anonymous"}
-                timezone={workspace?.timezone || "Asia/Kolkata"}
-                companyName={company.name}
-                companyDescription={company.description || ""}
-              />
-            </div>
+            <PublicBooking
+              companySlug={company.slug}
+              types={types}
+              access={session?.role === "CUSTOMER" ? "customer" : "anonymous"}
+              timezone={workspace?.timezone || "Asia/Kolkata"}
+              companyName={company.name}
+              companyDescription=""
+            />
           </div>
         </section>
       </div>
