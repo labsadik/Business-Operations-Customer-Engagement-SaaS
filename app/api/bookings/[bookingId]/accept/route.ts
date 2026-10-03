@@ -50,6 +50,18 @@ export async function POST(
           const meeting = await Meeting.findOne({ bookingRequestId: bookingId }).lean();
           return { bookingId, status: current.status, meetingUri: meeting?.googleMeetingUri ?? null };
         }
+        if (
+          current &&
+          ["ASSIGNED", "CREATING_MEETING"].includes(current.status) &&
+          String(current.assignedEmployeeId || "") === session.userId
+        ) {
+          const meeting = await Meeting.findOne({ bookingRequestId: bookingId }).lean();
+          return {
+            bookingId,
+            status: current.status,
+            meetingUri: meeting?.googleMeetingUri ?? null
+          };
+        }
         throw new Error("BOOKING_NO_LONGER_AVAILABLE");
       }
 
@@ -118,7 +130,8 @@ export async function POST(
           );
         }
         throw error;
-      }    });
+      }
+    });
 
     return jsonOk(result);
   } catch (error) {
@@ -129,8 +142,7 @@ export async function POST(
       "EMPLOYEE_NOT_AVAILABLE",
       "CONCURRENT_MEETING_LIMIT",
       "MONTHLY_MEETING_LIMIT",
-      "RESOURCE_BUSY",
-      "BOOKING_NO_LONGER_AVAILABLE"
+      "RESOURCE_BUSY"
     ].includes(code)
       ? 409
       : code.startsWith("GOOGLE_API_") || code.startsWith("GOOGLE_")
