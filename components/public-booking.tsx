@@ -1,3 +1,4 @@
+import type { Route } from "next";
 "use client";
 
 import Link from "next/link";
@@ -124,7 +125,7 @@ export default function PublicBooking({
         <Link href="/dashboard" className="mt-7 flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white hover:bg-slate-800">
           <LayoutDashboard className="size-4" /> Open company dashboard
         </Link>
-        <Link href={employeeLoginUrl} className="mt-4 block text-center text-xs font-semibold text-blue-700">Company login page</Link>
+        <Link href={employeeLoginUrl as Route} className="mt-4 block text-center text-xs font-semibold text-blue-700">Company login page</Link>
       </section>
     );
   }
@@ -156,7 +157,7 @@ export default function PublicBooking({
         <h2 className="mt-5 text-2xl font-semibold tracking-tight text-slate-950">{status === "CONFIRMED" ? "Meeting confirmed" : status === "EXPIRED" ? "Request expired" : "Finding your employee..."}</h2>
         <p className="mt-3 text-sm leading-6 text-slate-600">{status === "CONFIRMED" ? "Your company meeting page is opening now." : "The request is server-managed. An employee can accept within five minutes; otherwise Conventus retries or expires it."}</p>
         <div className="mt-6 rounded-2xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Request</p><p className="mt-1 font-mono text-xs text-slate-700">{bookingId}</p></div>
-        <Link href={`/${companySlug}`} className="mt-5 inline-flex text-sm font-semibold text-blue-700">Start another request</Link>
+        <Link href={`/${companySlug}` as Route} className="mt-5 inline-flex text-sm font-semibold text-blue-700">Start another request</Link>
       </section>
     );
   }
