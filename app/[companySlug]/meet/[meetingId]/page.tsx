@@ -63,19 +63,35 @@ export default async function CompanyMeetingPage({ params }: { params: Promise<{
 
         <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-black shadow-2xl">
           {meetingUri ? (
-            <div className="relative min-h-[68vh] bg-slate-950">
-              <iframe
-                title={`Google Meet with ${company.name}`}
-                src={meetingUri}
-                className="absolute inset-0 h-full min-h-[68vh] w-full border-0"
-                allow="camera; microphone; display-capture; fullscreen; autoplay"
-                allowFullScreen
-                referrerPolicy="strict-origin-when-cross-origin"
-              />
+            <div className="grid min-h-[68vh] place-items-center bg-[radial-gradient(circle_at_top,rgba(37,99,235,0.18),transparent_45%)] p-8 text-center">
+              <div className="max-w-xl">
+                <div className="mx-auto grid size-20 place-items-center rounded-3xl bg-blue-500/15 text-blue-300 ring-1 ring-blue-400/20">
+                  <Video className="size-9" />
+                </div>
+                <p className="mt-7 text-xs font-semibold uppercase tracking-[0.2em] text-blue-300">Meeting ready</p>
+                <h2 className="mt-3 text-3xl font-semibold tracking-tight">Your Google Meet is ready.</h2>
+                <p className="mt-4 text-sm leading-6 text-white/55">
+                  The event is saved to the employee's Google Calendar and the customer has been invited. Open Google Meet to join the live meeting surface.
+                </p>
+                <a
+                  href={meetingUri}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-6 py-4 text-sm font-semibold text-slate-950 hover:bg-slate-100 sm:w-auto"
+                >
+                  <ExternalLink className="size-4" />
+                  Open Google Meet
+                </a>
+              </div>
             </div>
           ) : (
             <div className="grid min-h-[68vh] place-items-center p-8 text-center">
-              <div className="max-w-md"><Video className="mx-auto size-12 text-blue-300" /><h2 className="mt-5 text-2xl font-semibold">Meeting surface unavailable</h2><p className="mt-3 text-sm leading-6 text-white/55">The booking exists, but Google has not returned a meeting entry point yet. The backend will retry the external meeting operation without exposing Google credentials.</p></div>
+              <div className="max-w-md">
+                <Video className="mx-auto size-12 text-blue-300" />
+                <h2 className="mt-5 text-2xl font-semibold">Meeting is being created</h2>
+                <p className="mt-3 text-sm leading-6 text-white/55">Conventus has the booking and Calendar event. Google is still generating the Meet entry point. Refresh this page after a moment; the booking remains company-scoped and protected.</p>
+                <p className="mt-4 text-xs text-white/35">Meeting ID: {meetingId}</p>
+              </div>
             </div>
           )}
         </section>
