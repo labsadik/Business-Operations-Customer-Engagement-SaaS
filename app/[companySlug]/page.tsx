@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { getMongo } from "@/lib/mongodb";
+import { Announcement } from "@/models/announcement";
 import { getSession } from "@/lib/session";
 import { Company } from "@/models/company";
 import { Workspace } from "@/models/workspace";
