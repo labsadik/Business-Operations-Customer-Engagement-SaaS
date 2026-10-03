@@ -380,9 +380,9 @@ export default function PublicBooking({
             />
           </div>
         )}
-        <div className="mt-6 rounded-2xl bg-slate-50 p-4">
-          <p className="text-xs text-slate-500">Request</p>
-          <p className="mt-1 font-mono text-xs text-slate-700">{bookingId}</p>
+        <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <p className="text-xs font-semibold text-slate-700">Secure booking</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">Your request is protected by your signed-in session and a private participant meeting link.</p>
         </div>
         <Link href={`/${companySlug}` as Route} className="mt-5 inline-flex text-sm font-semibold text-blue-700">Start another request</Link>
       </section>
