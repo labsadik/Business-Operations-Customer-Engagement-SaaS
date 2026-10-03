@@ -1,10 +1,9 @@
-import { AvailabilityRule } from "@/models/availability-rule";
 import { GoogleAccount } from "@/models/google-account";
 import { Membership } from "@/models/membership";
 import { queryFreeBusy } from "@/lib/google-calendar";
-import { Workspace } from "@/models/workspace";
 import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
-import { getDayOfWeekForDate, nextDateIso, zonedDateTimeToUtc } from "@/lib/timezone";
+import { Workspace } from "@/models/workspace";
+import { nextDateIso, zonedDateTimeToUtc } from "@/lib/timezone";
 
 type Slot = { startAt: string; endAt: string };
 
@@ -14,11 +13,9 @@ export type AvailabilityResult = {
     | "AVAILABLE"
     | "NO_ACTIVE_MEMBERS"
     | "NO_GOOGLE_SCHEDULING_MEMBER"
-    | "NO_WORKING_HOURS"
-    | "NO_FREE_SLOTS"
-    | "GOOGLE_CALENDAR_ERROR";
+    | "GOOGLE_CALENDAR_ERROR"
+    | "NO_FREE_SLOTS";
   schedulingReadyMemberCount: number;
-  membersWithWorkingHoursCount: number;
   calendarErrorCount: number;
 };
 
@@ -37,7 +34,7 @@ export async function getAvailableSlots(
   const workspace = await Workspace.findOne({ companyId, active: true })
     .select("timezone")
     .lean();
-  const workspaceTimezone = workspace?.timezone || "Asia/Kolkata";
+  const timezone = workspace?.timezone || "Asia/Kolkata";
 
   const memberships = await Membership.find({
     companyId,
@@ -50,15 +47,18 @@ export async function getAvailableSlots(
       slots: [],
       reason: "NO_ACTIVE_MEMBERS",
       schedulingReadyMemberCount: 0,
-      membersWithWorkingHoursCount: 0,
       calendarErrorCount: 0
     };
   }
 
-  const dayCache = new Map<string, number>();
+  const dayStart = zonedDateTimeToUtc(dateIso, 0, timezone);
+  const dayEnd = zonedDateTimeToUtc(nextDateIso(dateIso), 0, timezone);
   const slots = new Map<string, Slot>();
 
-  const employeeResults = await Promise.all(
+  let schedulingReadyMemberCount = 0;
+  let calendarErrorCount = 0;
+
+  const results = await Promise.all(
     memberships.map(async (membership) => {
       const employeeId = String(membership.userId);
       const account = await GoogleAccount.findOne({
@@ -67,113 +67,55 @@ export async function getAvailableSlots(
       }).lean();
 
       if (!isGoogleSchedulingReady(account)) {
-        return {
-          accountReady: false,
-          hasWorkingHours: false,
-          calendarError: false,
-          slots: [] as Slot[]
-        };
-      }
-
-      const rules = await AvailabilityRule.find({
-        companyId,
-        employeeId,
-        active: true
-      }).lean();
-
-      const relevantRules = rules.filter((rule) => {
-        const timezone = rule.timezone || workspaceTimezone;
-        const key = dateIso + ":" + timezone;
-        let dayOfWeek = dayCache.get(key);
-        if (dayOfWeek === undefined) {
-          dayOfWeek = getDayOfWeekForDate(dateIso, timezone);
-          dayCache.set(key, dayOfWeek);
-        }
-        return rule.dayOfWeek === dayOfWeek;
-      });
-
-      if (relevantRules.length === 0) {
-        return {
-          accountReady: true,
-          hasWorkingHours: false,
-          calendarError: false,
-          slots: [] as Slot[]
-        };
+        return { ready: false, calendarError: false, slots: [] as Slot[] };
       }
 
       let freeBusy;
       try {
-        const firstTimezone = relevantRules[0].timezone || workspaceTimezone;
-        const dayStart = zonedDateTimeToUtc(dateIso, 0, firstTimezone);
-        const dayEnd = zonedDateTimeToUtc(nextDateIso(dateIso), 0, firstTimezone);
         freeBusy = await queryFreeBusy(employeeId, dayStart, dayEnd);
       } catch {
-        return {
-          accountReady: true,
-          hasWorkingHours: true,
-          calendarError: true,
-          slots: [] as Slot[]
-        };
+        return { ready: true, calendarError: true, slots: [] as Slot[] };
       }
 
       const busy = freeBusy.calendars?.primary?.busy ?? [];
-      const employeeSlots = new Map<string, Slot>();
+      const employeeSlots: Slot[] = [];
 
-      for (const rule of relevantRules) {
-        const timezone = rule.timezone || workspaceTimezone;
-        const firstMinute =
-          Math.ceil(rule.startMinute / SLOT_STEP_MINUTES) * SLOT_STEP_MINUTES;
+      for (
+        let minute = 0;
+        minute + durationMinutes <= 24 * 60;
+        minute += SLOT_STEP_MINUTES
+      ) {
+        const startAt = zonedDateTimeToUtc(dateIso, minute, timezone);
+        const endAt = zonedDateTimeToUtc(
+          dateIso,
+          minute + durationMinutes,
+          timezone
+        );
 
-        for (
-          let minute = firstMinute;
-          minute + durationMinutes <= rule.endMinute;
-          minute += SLOT_STEP_MINUTES
-        ) {
-          const startAt = zonedDateTimeToUtc(dateIso, minute, timezone);
-          const endAt = zonedDateTimeToUtc(
-            dateIso,
-            minute + durationMinutes,
-            timezone
-          );
+        if (startAt.getTime() <= Date.now()) continue;
 
-          if (startAt.getTime() <= Date.now()) continue;
+        const overlaps = busy.some(
+          (item) =>
+            startAt < new Date(item.end) &&
+            endAt > new Date(item.start)
+        );
 
-          const overlaps = busy.some(
-            (item) =>
-              startAt < new Date(item.end) &&
-              endAt > new Date(item.start)
-          );
-
-          if (!overlaps) {
-            const key = startAt.toISOString();
-            employeeSlots.set(key, {
-              startAt: startAt.toISOString(),
-              endAt: endAt.toISOString()
-            });
-          }
+        if (!overlaps) {
+          employeeSlots.push({
+            startAt: startAt.toISOString(),
+            endAt: endAt.toISOString()
+          });
         }
       }
 
-      return {
-        accountReady: true,
-        hasWorkingHours: true,
-        calendarError: false,
-        slots: [...employeeSlots.values()]
-      };
+      return { ready: true, calendarError: false, slots: employeeSlots };
     })
   );
 
-  const schedulingReadyMemberCount = employeeResults.filter(
-    (result) => result.accountReady
-  ).length;
-  const membersWithWorkingHoursCount = employeeResults.filter(
-    (result) => result.hasWorkingHours
-  ).length;
-  const calendarErrorCount = employeeResults.filter(
-    (result) => result.calendarError
-  ).length;
+  for (const result of results) {
+    if (result.ready) schedulingReadyMemberCount += 1;
+    if (result.calendarError) calendarErrorCount += 1;
 
-  for (const result of employeeResults) {
     for (const slot of result.slots) {
       slots.set(slot.startAt, slot);
     }
@@ -187,9 +129,7 @@ export async function getAvailableSlots(
   if (sortedSlots.length === 0) {
     if (schedulingReadyMemberCount === 0) {
       reason = "NO_GOOGLE_SCHEDULING_MEMBER";
-    } else if (membersWithWorkingHoursCount === 0) {
-      reason = "NO_WORKING_HOURS";
-    } else if (calendarErrorCount === membersWithWorkingHoursCount) {
+    } else if (calendarErrorCount === schedulingReadyMemberCount) {
       reason = "GOOGLE_CALENDAR_ERROR";
     } else {
       reason = "NO_FREE_SLOTS";
@@ -200,7 +140,6 @@ export async function getAvailableSlots(
     slots: sortedSlots,
     reason,
     schedulingReadyMemberCount,
-    membersWithWorkingHoursCount,
     calendarErrorCount
   };
 }
