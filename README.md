@@ -64,6 +64,24 @@ Subscriptions, usage enforcement, notifications, admin operations, audit logs, m
 ### Phase 6 — Scale
 Queue tuning, Redis upgrade when required, database scaling, caching, load testing, SLOs, observability, and disaster recovery.
 
+## Billing with Razorpay
+
+Conventus connects the existing Starter (₹99/month) and Business (₹199/month) plan entitlements to Razorpay Checkout. The server creates the Razorpay order from the trusted plan definition, validates the returned signature, confirms the payment is captured, and then activates the paid plan for one month. Razorpay webhook events are also accepted at `/api/webhooks/razorpay` for server-side reconciliation. Razorpay recommends server-side order creation, signature validation, payment-status verification, and HMAC validation for webhooks. citeturn731333search0turn318613search5
+
+Required environment variables:
+
+```
+RAZORPAY_KEY_ID=
+RAZORPAY_KEY_SECRET=
+RAZORPAY_WEBHOOK_SECRET=
+```
+
+For local development use Razorpay Test Mode credentials. For production/Vercel, configure the Live Mode credentials in the Vercel environment settings and configure the Razorpay webhook URL as:
+
+`https://YOUR_DOMAIN/api/webhooks/razorpay`
+
+Never commit the secret values.
+
 ## Security
 
 Never commit secrets. Google refresh tokens, application secrets, Redis credentials, database credentials, billing secrets, and email provider keys must stay server-side.
