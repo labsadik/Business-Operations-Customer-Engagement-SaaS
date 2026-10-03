@@ -1,4 +1,5 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
+import { CalendarDays } from "lucide-react";
 import { getMongo } from "@/lib/mongodb";
 import { Announcement } from "@/models/announcement";
 import { getSession } from "@/lib/session";
