@@ -44,6 +44,7 @@ export async function PATCH(request: Request) {
     const input = body as Record<string, unknown>;
 
     const gst = input.gst && typeof input.gst === "object" ? input.gst as Record<string, unknown> : {};
+    const address = input.address && typeof input.address === "object" ? input.address as Record<string, unknown> : {};
     const rate = Number(gst.ratePercent ?? 18);
     if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
       return jsonError("INVALID_GST_RATE", 400);
@@ -55,22 +56,22 @@ export async function PATCH(request: Request) {
     }
 
     const values = {
-      legalName: clean(body.legalName, 200),
-      description: clean(body.description, 1200),
-      websiteUrl: clean(body.websiteUrl, 500),
+      legalName: clean(input.legalName, 200),
+      description: clean(input.description, 1200),
+      websiteUrl: clean(input.websiteUrl, 500),
       billingEmail,
-      phone: clean(body.phone, 32),
-      logoUrl: clean(body.logoUrl, 2000),
-      taxId: clean(body.taxId, 80),
-      gstin: clean(body.gstin, 80),
-      sacCode: clean(body.sacCode, 40),
+      phone: clean(input.phone, 32),
+      logoUrl: clean(input.logoUrl, 2000),
+      taxId: clean(input.taxId, 80),
+      gstin: clean(input.gstin, 80),
+      sacCode: clean(input.sacCode, 40),
       address: {
-        line1: clean(body.address?.line1, 200),
-        line2: clean(body.address?.line2, 200),
-        city: clean(body.address?.city, 100),
-        state: clean(body.address?.state, 100),
-        postalCode: clean(body.address?.postalCode, 30),
-        country: clean(body.address?.country, 100) || "India"
+        line1: clean(input.address?.line1, 200),
+        line2: clean(input.address?.line2, 200),
+        city: clean(input.address?.city, 100),
+        state: clean(input.address?.state, 100),
+        postalCode: clean(input.address?.postalCode, 30),
+        country: clean(input.address?.country, 100) || "India"
       },
       gst: {
         enabled: gst.enabled !== false,
