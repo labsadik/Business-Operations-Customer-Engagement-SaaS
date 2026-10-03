@@ -18,6 +18,14 @@ type AvailabilityReason =
   | "NO_FREE_SLOTS"
   | "GOOGLE_CALENDAR_ERROR";
 
+function nextWeekdayIso(dateIso: string) {
+  const date = new Date(`${dateIso}T12:00:00.000Z`);
+  const day = date.getUTCDay();
+  const daysToAdd = day === 5 ? 3 : day === 6 ? 2 : 1;
+  date.setUTCDate(date.getUTCDate() + daysToAdd);
+  return date.toISOString().slice(0, 10);
+}
+
 export default function PublicBooking({
   companySlug,
   types,
@@ -379,7 +387,16 @@ export default function PublicBooking({
           </div>
           {!loading && slots.length === 0 && (
             <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs leading-5 text-slate-600">
-              {emptyAvailabilityMessage}
+              <p>{emptyAvailabilityMessage}</p>
+              {availabilityReason === "NO_WORKING_HOURS" && (
+                <button
+                  type="button"
+                  onClick={() => { setDate(nextWeekdayIso(date)); setSelected(null); }}
+                  className="mt-3 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Try next weekday
+                </button>
+              )}
             </div>
           )}
         </div>
