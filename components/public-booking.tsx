@@ -3,7 +3,8 @@
 import type { Route } from "next";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { io } from "socket.io-client";
 import { CalendarDays, CheckCircle2, Clock3, LayoutDashboard, Loader2, LogIn, ShieldCheck } from "lucide-react";
 import { getTodayIso } from "@/lib/timezone";
 
@@ -11,7 +12,13 @@ type Type = { id: string; name: string; description?: string; durationOptionsMin
 type Slot = { startAt: string; endAt: string };
 type Access = "anonymous" | "company-member" | "customer";
 
+function getSocketUrl() {
+  if (process.env.NEXT_PUBLIC_SOCKET_URL) return process.env.NEXT_PUBLIC_SOCKET_URL;
+  return window.location.origin;
+}
+
 export default function PublicBooking({
+  companyId,
   companySlug,
   types,
   access,
@@ -19,6 +26,7 @@ export default function PublicBooking({
   employeeLoginUrl,
   timezone
 }: {
+  companyId: string;
   companySlug: string;
   types: Type[];
   access: Access;
@@ -38,6 +46,7 @@ export default function PublicBooking({
   const [expiresAt, setExpiresAt] = useState("");
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [error, setError] = useState("");
+  const availabilityLoaderRef = useRef<(silent?: boolean) => Promise<void>>(async () => undefined);
 
   const loadAvailability = useCallback(async (silent = false) => {
     if (!typeId || access !== "customer") return;
@@ -63,6 +72,10 @@ export default function PublicBooking({
       if (!silent) setLoading(false);
     }
   }, [access, companySlug, date, duration, typeId]);
+
+  useEffect(() => {
+    availabilityLoaderRef.current = loadAvailability;
+  }, [loadAvailability]);
 
   useEffect(() => {
     if (!typeId || access !== "customer") return;
@@ -92,6 +105,26 @@ export default function PublicBooking({
     setDuration(nextType?.durationOptionsMinutes[0] ?? 20);
     setSelected(null);
   }
+
+  useEffect(() => {
+    if (access !== "customer" || !companyId) return;
+
+    const socket = io(getSocketUrl(), {
+      auth: { public: true, companyId },
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 500
+    });
+
+    socket.on("availability:changed", () => {
+      void availabilityLoaderRef.current(true);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [access, companyId]);
 
   useEffect(() => {
     if (!bookingId) return;
