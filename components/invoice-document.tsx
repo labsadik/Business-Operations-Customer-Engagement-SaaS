@@ -202,7 +202,7 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentD
                 <p className="font-semibold text-slate-900">{invoice.serviceDescription}</p>
                 <p className="mt-1 text-xs text-slate-500">One month subscription · {invoice.plan.name}</p>
               </div>
-              <p className="font-semibold text-slate-900">{money(total, invoice.currency)}</p>
+              <p className="font-semibold text-slate-900">{money(subtotal, invoice.currency)}</p>
             </div>
           </section>
 
