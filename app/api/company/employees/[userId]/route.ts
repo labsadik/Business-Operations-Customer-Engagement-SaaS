@@ -8,7 +8,6 @@ import { AvailabilityRule } from "@/models/availability-rule";
 import { BookingRequest } from "@/models/booking-request";
 import { Company } from "@/models/company";
 import { GoogleAccount } from "@/models/google-account";
-import { setEmployeePresence } from "@/lib/employee-presence";
 import { Types } from "mongoose";
 import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
 
@@ -90,12 +89,6 @@ export async function DELETE(
       invitedEmail: employee.email,
       acceptedAt: null
     });
-
-    try {
-      await setEmployeePresence(session.companyId!, userId, "NOT_AVAILABLE");
-    } catch (error) {
-      console.error("Conventus employee presence cleanup failed", error);
-    }
 
     const activeMembers = await Membership.find({
       companyId: session.companyId,
