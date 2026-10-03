@@ -33,17 +33,19 @@ export default function UserAvatar({
       title={email || name}
       aria-label={name}
     >
-      <Image
-        src={image || "/api/profile/avatar"}
-        alt=""
-        fill
-        sizes={String(size) + "px"}
-        className="object-cover"
-        unoptimized
-        onError={(event) => {
-          event.currentTarget.style.display = "none";
-        }}
-      />
+      {image ? (
+        <Image
+          src={image}
+          alt=""
+          fill
+          sizes={String(size) + "px"}
+          className="object-cover"
+          unoptimized
+          onError={(event) => {
+            event.currentTarget.style.display = "none";
+          }}
+        />
+      ) : null}
       <span className="absolute inset-0 grid place-items-center">{initials}</span>
     </div>
   );
