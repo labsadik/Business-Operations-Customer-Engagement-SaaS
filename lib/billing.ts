@@ -205,9 +205,6 @@ export async function ensureInvoicesForCapturedPayments(companyId: string) {
           merchantSnapshot: snapshots.merchantSnapshot,
           companySnapshot: snapshots.companySnapshot,
           taxSnapshot: snapshots.taxSnapshot
-        },
-        $setOnInsert: {
-          invoiceNumber
         }
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
