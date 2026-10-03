@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { clearSession } from "@/lib/session";
-import { markEmployeeNotAvailable } from "@/lib/employee-presence";
 
 export const runtime = "nodejs";
 
