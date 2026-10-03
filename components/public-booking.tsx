@@ -116,7 +116,7 @@ export default function PublicBooking({
   const [duration, setDuration] = useState(type?.durationOptionsMinutes[0] ?? 20);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [selected, setSelected] = useState<Slot | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(access === "customer");
   const [bookingId, setBookingId] = useState("");
   const [status, setStatus] = useState("");
   const [meetingUri, setMeetingUri] = useState("");
@@ -349,35 +349,6 @@ export default function PublicBooking({
     void loadAvailability(true);
   }
 
-  if (access === "anonymous") {
-    return (
-      <section className="mx-auto max-w-lg rounded-[2rem] border border-white/10 bg-white p-7 shadow-2xl sm:p-9">
-        <div className="grid size-12 place-items-center rounded-2xl bg-white text-slate-950">
-          <LogIn className="size-5" />
-        </div>
-        <p className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
-          Secure scheduling
-        </p>
-        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-          Sign in to book
-        </h2>
-        <p className="mt-3 text-sm leading-6 text-slate-600">
-          Your account is used to identify the customer and protect the booking request.
-        </p>
-        <button
-          type="button"
-          onClick={() => window.open(loginUrl, "_self")}
-          className="mt-7 flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3.5 text-sm font-semibold text-white hover:bg-blue-700"
-        >
-          <span className="grid size-6 place-items-center rounded-full bg-white/10 text-xs font-bold">
-            G
-          </span>
-          Continue securely
-        </button>
-      </section>
-    );
-  }
-
   const currentMonth = monthStartForIso(todayIso);
   const calendarMonthKey =
     calendarMonth.getUTCFullYear() * 12 + calendarMonth.getUTCMonth();
@@ -586,7 +557,34 @@ export default function PublicBooking({
               </div>
             )}
 
-            {!loading && slots.length === 0 ? (
+            {access === "anonymous" ? (
+              <div className="mt-6 grid min-h-[480px] place-items-center rounded-3xl border border-slate-200 bg-slate-50 p-8 text-center">
+                <div className="max-w-sm">
+                  <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-white text-slate-950 shadow-sm ring-1 ring-slate-200">
+                    <LogIn className="size-5" />
+                  </div>
+                  <p className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Customer access</p>
+                  <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Sign in to see available times</h3>
+                  <p className="mt-3 text-sm leading-6 text-slate-500">Your Google account identifies the customer who creates the meeting request.</p>
+                  <a
+                    href={loginUrl}
+                    className="mt-7 inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
+                  >
+                    <LogIn className="size-4" />
+                    Continue with Google
+                  </a>
+                </div>
+              </div>
+            ) : loading ? (
+              <div className="mt-6 grid max-h-[620px] grid-cols-2 gap-2.5 overflow-hidden sm:grid-cols-3 xl:grid-cols-4" aria-label="Loading availability">
+                {Array.from({ length: 16 }, (_, index) => (
+                  <div key={index} className="h-[72px] animate-pulse rounded-2xl border border-slate-200 bg-slate-50">
+                    <div className="mx-4 mt-4 h-3 w-16 rounded bg-slate-200" />
+                    <div className="mx-4 mt-3 h-2 w-20 rounded bg-slate-100" />
+                  </div>
+                ))}
+              </div>
+            ) : slots.length === 0 ? (
               <div className="mt-6 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
                 <Clock3 className="mx-auto size-7 text-slate-300" />
                 <p className="mt-3 text-sm font-semibold text-slate-900">
