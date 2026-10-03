@@ -18,6 +18,10 @@ export async function GET() {
   if (!session) return jsonError("UNAUTHENTICATED", 401);
 
   await getMongo();
+  if (session.companyId && ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"].includes(session.role)) {
+    const membership = await Membership.findOne({ companyId: session.companyId, userId: session.userId, active: true }).lean();
+    if (!membership) return jsonError("FORBIDDEN", 403);
+  }
   const company = session.companyId ? await Company.findById(session.companyId).lean() : await Company.findOne({ ownerUserId: session.userId }).lean();
   if (!company) return jsonOk(null);
 
@@ -95,6 +99,10 @@ export async function PATCH(request: Request) {
   await getMongo();
   const body = await request.json().catch(() => null) as { publicBookingEnabled?: boolean; description?: string } | null;
   if (!session.companyId) return jsonError("COMPANY_NOT_CONFIGURED", 400);
+  if (["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"].includes(session.role)) {
+    const membership = await Membership.findOne({ companyId: session.companyId, userId: session.userId, active: true }).lean();
+    if (!membership) return jsonError("FORBIDDEN", 403);
+  }
 
   const update: Record<string, unknown> = {};
   if (typeof body?.publicBookingEnabled === "boolean") {
