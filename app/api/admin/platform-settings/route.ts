@@ -66,12 +66,12 @@ export async function PATCH(request: Request) {
       gstin: clean(input.gstin, 80),
       sacCode: clean(input.sacCode, 40),
       address: {
-        line1: clean(input.address?.line1, 200),
-        line2: clean(input.address?.line2, 200),
-        city: clean(input.address?.city, 100),
-        state: clean(input.address?.state, 100),
-        postalCode: clean(input.address?.postalCode, 30),
-        country: clean(input.address?.country, 100) || "India"
+        line1: clean(address.line1, 200),
+        line2: clean(address.line2, 200),
+        city: clean(address.city, 100),
+        state: clean(address.state, 100),
+        postalCode: clean(address.postalCode, 30),
+        country: clean(address.country, 100) || "India"
       },
       gst: {
         enabled: gst.enabled !== false,
