@@ -4,6 +4,7 @@ import { getMongo } from "@/lib/mongodb";
 import { Membership } from "@/models/membership";
 import { User } from "@/models/user";
 import { GoogleAccount } from "@/models/google-account";
+import { getEmployeePresenceMap } from "@/lib/employee-presence";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,9 +17,12 @@ export async function GET() {
     const users = await User.find({ _id: { $in: members.map((m) => m.userId) } }).lean();
     const connections = await GoogleAccount.find({ userId: { $in: users.map((u) => u._id) }, status: "CONNECTED" }).select("userId status").lean();
     const connected = new Set(connections.map((item) => String(item.userId)));
+    const presence = await getEmployeePresenceMap(session.companyId!, users.map((user) => String(user._id)));
 
     return jsonOk(users.map((user) => ({
-      id: String(user._id), name: user.name, email: user.email, role: user.role, googleConnected: connected.has(String(user._id))
+      id: String(user._id), name: user.name, email: user.email, role: user.role,
+      googleConnected: connected.has(String(user._id)),
+      presence: presence.result.get(String(user._id)) ?? "NOT_AVAILABLE"
     })));
   } catch (error) {
     const code = error instanceof Error ? error.message : "FORBIDDEN";
