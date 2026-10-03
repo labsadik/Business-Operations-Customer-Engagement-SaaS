@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getMongo } from "@/lib/mongodb";
 import { getSession } from "@/lib/session";
 import { Company } from "@/models/company";
+import { Workspace } from "@/models/workspace";
 import { MeetingType } from "@/models/meeting-type";
 import { Membership } from "@/models/membership";
 import { User } from "@/models/user";
