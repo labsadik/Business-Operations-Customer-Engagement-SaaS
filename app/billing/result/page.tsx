@@ -10,8 +10,8 @@ import { Invoice } from "@/models/invoice";
 import { Subscription } from "@/models/subscription";
 import { getPlan } from "@/lib/plans";
 import { ensureInvoicesForCapturedPayments } from "@/lib/billing";
-import { calculateInvoiceTax, invoiceTaxConfig } from "@/lib/invoicing";
-import { platformLegalProfile, platformLogoUrl, PLATFORM_BRAND } from "@/lib/platform";
+import { calculateInvoiceTax } from "@/lib/invoicing";
+import { platformLegalProfile, PLATFORM_BRAND } from "@/lib/platform";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
