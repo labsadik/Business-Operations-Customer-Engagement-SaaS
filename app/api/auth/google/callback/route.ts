@@ -11,6 +11,7 @@ import { Membership } from "@/models/membership";
 import { Workspace } from "@/models/workspace";
 import { Invitation } from "@/models/invitation";
 import { AvailabilityRule } from "@/models/availability-rule";
+import { ensureEmployeePresence } from "@/lib/employee-presence";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,6 +46,14 @@ function errorPathForOAuth(
 function safeInternalPath(path: string | undefined, fallback: string) {
   if (!path || !path.startsWith("/") || path.startsWith("//")) return fallback;
   return path;
+}
+
+async function initializeEmployeePresence(companyId: string, userId: string) {
+  try {
+    await ensureEmployeePresence(companyId, userId);
+  } catch (error) {
+    console.error("Conventus employee presence initialization failed", error);
+  }
 }
 
 async function acceptPendingEmployeeInvitation(
@@ -248,6 +257,7 @@ export async function GET(request: Request) {
           companyId: String(company._id),
           workspaceId: String(membership.workspaceId)
         });
+        await initializeEmployeePresence(String(company._id), String(user!._id));
 
         const response = NextResponse.redirect(new URL("/dashboard", request.url));
         response.cookies.delete("conventus_oauth_state");
@@ -262,6 +272,7 @@ export async function GET(request: Request) {
           companyId: String(company._id),
           workspaceId: pendingEmployee.workspaceId
         });
+        await initializeEmployeePresence(String(company._id), String(pendingEmployee.user._id));
 
         const response = NextResponse.redirect(new URL("/dashboard", request.url));
         response.cookies.delete("conventus_oauth_state");
@@ -395,6 +406,7 @@ export async function GET(request: Request) {
         companyId: String(invite.companyId),
         workspaceId: String(invite.workspaceId)
       });
+      await initializeEmployeePresence(String(invite.companyId), String(user._id));
 
       const response = NextResponse.redirect(new URL(returnTo, request.url));
       response.cookies.delete("conventus_oauth_state");
