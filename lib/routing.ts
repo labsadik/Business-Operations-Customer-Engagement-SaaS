@@ -2,7 +2,6 @@ import { AvailabilityRule } from "@/models/availability-rule";
 import { Membership } from "@/models/membership";
 import { GoogleAccount } from "@/models/google-account";
 import { queryFreeBusy } from "@/lib/google-calendar";
-import { getEmployeePresence } from "@/lib/employee-presence";
 import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
 
 function localParts(date: Date, timezone: string) {
@@ -56,9 +55,6 @@ export async function eligibleEmployees(
       status: "CONNECTED"
     }).lean();
     if (!isGoogleSchedulingReady(account)) continue;
-
-    const presence = await getEmployeePresence(companyId, userId);
-    if (presence.status !== "AVAILABLE") continue;
 
     const rules = await AvailabilityRule.find({
       companyId,
