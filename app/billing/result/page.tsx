@@ -106,7 +106,7 @@ export default async function BillingResultPage({
     amount: invoice.amount,
     currency: invoice.currency,
     status: invoice.source === "PAID" ? "PAID / CAPTURED" : invoice.source === "ADMIN_GRANTED" ? "ADMIN GRANTED" : "FREE ACCESS",
-    source: invoice.source,
+    source: invoice.source ?? "PAID",
     providerPaymentId: invoice.providerPaymentId || "",
     serviceDescription: invoice.serviceDescription,
     plan: {
