@@ -182,6 +182,17 @@ export async function GET(
     drawText(page, merchant.name, 94, PAGE_HEIGHT - 43, bold, 15);
     drawWrapped(page, merchant.description, 94, PAGE_HEIGHT - 58, 230, regular, 8.5, 2, MUTED);
 
+    const accessLabel = invoice.source === "PAID" ? "PAID" : invoice.source === "ADMIN_GRANTED" ? "ADMIN GRANTED" : "FREE";
+    const accessColor = invoice.source === "PAID" ? GREEN : invoice.source === "ADMIN_GRANTED" ? BLUE : MUTED;
+    const badgeWidth = bold.widthOfTextAtSize(accessLabel, 7) + 18;
+    page.drawRectangle({
+      x: PAGE_WIDTH - 42 - badgeWidth,
+      y: PAGE_HEIGHT - 79,
+      width: badgeWidth,
+      height: 16,
+      color: accessColor
+    });
+    drawText(page, accessLabel, PAGE_WIDTH - 33 - badgeWidth / 2, PAGE_HEIGHT - 74, bold, 7, WHITE);
     drawRight(page, tax.enabled ? "TAX INVOICE" : "INVOICE", PAGE_WIDTH - 42, PAGE_HEIGHT - 38, bold, 8, BLUE);
     drawRight(page, invoice.invoiceNumber, PAGE_WIDTH - 42, PAGE_HEIGHT - 54, bold, 14, INK);
     drawRight(page, `Issued ${dateLabel(invoice.issuedAt)}`, PAGE_WIDTH - 42, PAGE_HEIGHT - 68, regular, 8.5, MUTED);
@@ -266,8 +277,17 @@ export async function GET(
 
     const paymentY = summaryTop - 103;
     drawText(page, "PAYMENT DETAILS", 42, paymentY, bold, 7, BLUE);
-    drawLabelValue(page, "Status", "PAID / CAPTURED", 42, paymentY - 13, 150, regular, bold);
-    drawLabelValue(page, "Payment ID", invoice.providerPaymentId, 205, paymentY - 13, 175, regular, bold);
+    drawLabelValue(page, "Status", invoice.source === "PAID" ? "PAID / CAPTURED" : invoice.source === "ADMIN_GRANTED" ? "ADMIN GRANTED" : "FREE ACCESS", 42, paymentY - 13, 150, regular, bold);
+    drawLabelValue(
+      page,
+      invoice.source === "PAID" ? "Payment ID" : "Access",
+      invoice.source === "PAID" ? invoice.providerPaymentId : invoice.source === "ADMIN_GRANTED" ? "Granted by platform admin" : "Free plan",
+      205,
+      paymentY - 13,
+      175,
+      regular,
+      bold
+    );
     drawLabelValue(page, "Currency", invoice.currency, 395, paymentY - 13, 120, regular, bold);
 
     drawText(page, "PLAN ENTITLEMENTS", 42, paymentY - 65, bold, 7, BLUE);
@@ -275,7 +295,9 @@ export async function GET(
       `${planSnapshot.maxEmployees} employees`,
       `${planSnapshot.monthlyMeetingLimit} meetings / month`,
       `${planSnapshot.maxMeetingDurationMinutes} min max duration`,
-      `${planSnapshot.maxConcurrentMeetings} concurrent meetings`
+      `${planSnapshot.maxConcurrentMeetings} concurrent meetings`,
+      `${planSnapshot.validityDays ?? 30} days validity`,
+      ...(planSnapshot.freeFeatureDays ? [`${planSnapshot.freeFeatureDays} active feature days`] : [])
     ];
     entitlements.forEach((item, index) => {
       const x = 42 + (index % 2) * 255;
