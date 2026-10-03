@@ -301,7 +301,7 @@ export async function GET(
     drawRight(page, "No signature required", PAGE_WIDTH - 42, footerY - 5, regular, 7.2, MUTED);
 
     const bytes = await pdfDoc.save();
-    return new Response(bytes, {
+    return new Response(Buffer.from(bytes), {
       status: 200,
       headers: {
         "content-type": "application/pdf",
