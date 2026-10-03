@@ -1,37 +1,7 @@
-import { AvailabilityRule } from "@/models/availability-rule";
 import { Membership } from "@/models/membership";
 import { GoogleAccount } from "@/models/google-account";
 import { queryFreeBusy } from "@/lib/google-calendar";
 import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
-
-function localParts(date: Date, timezone: string) {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    weekday: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false
-  });
-  const parts = Object.fromEntries(
-    formatter
-      .formatToParts(date)
-      .filter((part) => part.type !== "literal")
-      .map((part) => [part.type, part.value])
-  );
-  const days: Record<string, number> = {
-    Sun: 0,
-    Mon: 1,
-    Tue: 2,
-    Wed: 3,
-    Thu: 4,
-    Fri: 5,
-    Sat: 6
-  };
-  return {
-    dayOfWeek: days[parts.weekday],
-    minute: Number(parts.hour) * 60 + Number(parts.minute)
-  };
-}
 
 export async function eligibleEmployees(
   companyId: string,
@@ -46,44 +16,30 @@ export async function eligibleEmployees(
     userId: { $nin: excludedIds }
   }).lean();
 
+  const durationMinutes = Math.round(
+    (endAt.getTime() - startAt.getTime()) / 60000
+  );
+
+  if (durationMinutes <= 0) return [];
+
   const results: string[] = [];
 
   for (const membership of memberships) {
     const userId = String(membership.userId);
+
     const account = await GoogleAccount.findOne({
       userId,
       status: "CONNECTED"
     }).lean();
+
     if (!isGoogleSchedulingReady(account)) continue;
-
-    const rules = await AvailabilityRule.find({
-      companyId,
-      employeeId: userId,
-      active: true
-    }).lean();
-
-    const durationMinutes = Math.round(
-      (endAt.getTime() - startAt.getTime()) / 60000
-    );
-
-    const hasRule = rules.some((rule) => {
-      const timezone = rule.timezone || "Asia/Kolkata";
-      const parts = localParts(startAt, timezone);
-      return (
-        rule.dayOfWeek === parts.dayOfWeek &&
-        parts.minute >= rule.startMinute &&
-        parts.minute + durationMinutes <= rule.endMinute
-      );
-    });
-    if (!hasRule) continue;
 
     try {
       const freeBusy = await queryFreeBusy(userId, startAt, endAt);
       const busy = freeBusy.calendars?.primary?.busy ?? [];
       if (busy.length === 0) results.push(userId);
     } catch {
-      // A single employee's expired/revoked Google connection must not
-      // prevent other healthy employees from accepting the booking.
+      // A failed/revoked Google connection must not block other employees.
       continue;
     }
   }
