@@ -210,10 +210,37 @@ export async function GET(request: Request) {
         { upsert: true, new: true }
       );
 
+      await User.findByIdAndUpdate(
+        current.userId,
+        {
+          $set: {
+            name: googleUser.name || current.name,
+            email: email,
+            image: googleUser.picture || current.image || "",
+            googleSubject: googleUser.sub,
+            googleEmail: email,
+            lastLoginAt: new Date()
+          }
+        }
+      );
+
+      const connectedCompanyIds = await Membership.find({
+        userId: current.userId,
+        active: true
+      }).distinct("companyId");
+
       await Membership.updateMany(
-        { userId: current.userId },
+        { userId: current.userId, active: true },
         { $set: { googleConnectionStatus: "CONNECTED" } }
       );
+
+      // A connected scheduling account is enough to make a workspace publishable.
+      if (connectedCompanyIds.length) {
+        await Company.updateMany(
+          { _id: { $in: connectedCompanyIds } },
+          { $set: { publicBookingEnabled: true } }
+        );
+      }
 
       // A reconnect may have replaced the refresh token/scopes while Redis still
       // contains an access token from the previous Google authorization.
