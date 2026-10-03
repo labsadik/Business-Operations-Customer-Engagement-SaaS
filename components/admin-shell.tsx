@@ -8,7 +8,6 @@ import {
   Building2,
   ChevronRight,
   CircleDollarSign,
-  Command,
   LogOut,
   ShieldCheck,
   UsersRound,
@@ -51,8 +50,8 @@ export default function AdminShell({
     <div className="min-h-screen bg-[#f5f7fb] text-slate-950">
       <aside className="fixed inset-y-0 left-0 z-50 hidden w-72 flex-col border-r border-slate-200 bg-white lg:flex">
         <div className="flex h-20 items-center gap-3 border-b border-slate-200 px-6">
-          <span className="grid size-10 place-items-center rounded-xl bg-slate-950 text-white shadow-sm">
-            <Command className="size-5" />
+          <span className="grid size-10 place-items-center overflow-hidden rounded-xl bg-slate-950 text-white shadow-sm">
+            <img src="/favicon.svg" alt="" className="size-full object-cover" />
           </span>
           <div>
             <p className="text-sm font-semibold tracking-tight">Conventus</p>

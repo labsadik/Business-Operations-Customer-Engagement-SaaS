@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Check, Command, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Check, ShieldCheck } from "lucide-react";
 
 export const metadata = { title: "Sign in" };
 
@@ -16,7 +16,7 @@ export default async function LoginPage({
         <section className="hidden lg:block">
           <Link href="/" className="inline-flex items-center gap-2 font-semibold text-slate-950">
             <span className="grid size-9 place-items-center rounded-xl bg-slate-950 text-white">
-              <Command className="size-4" />
+              <img src="/favicon.svg" alt="" className="size-6" />
             </span>
             Conventus
           </Link>

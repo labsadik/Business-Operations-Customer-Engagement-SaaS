@@ -110,7 +110,7 @@ export default function RazorpayPlanButton({
         amount: body.data.amount,
         currency: body.data.currency,
         name: body.data.merchant?.name || "Conventus",
-        image: body.data.logoUrl,
+        image: new URL("/favicon.svg", window.location.origin).toString(),
         description:
           plan.name +
           " · " +

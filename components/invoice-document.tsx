@@ -129,7 +129,7 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentD
             <div className="flex min-w-0 items-start gap-4">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={invoice.merchant.logoUrl}
+                src="/favicon.svg"
                 alt={invoice.merchant.name}
                 className="size-14 shrink-0 rounded-2xl border border-slate-200 bg-slate-50 object-contain p-2"
                 referrerPolicy="no-referrer"

@@ -145,7 +145,7 @@ export default async function BillingResultPage({
         <div className="mx-auto flex min-h-18 max-w-6xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
           <Link href="/dashboard" className="flex items-center gap-3">
             <img
-              src={merchant.logoUrl}
+              src="/favicon.svg"
               alt={PLATFORM_BRAND.name}
               className="size-9 rounded-xl object-contain"
               referrerPolicy="no-referrer"
