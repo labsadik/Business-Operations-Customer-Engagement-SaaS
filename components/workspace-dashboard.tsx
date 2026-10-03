@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Activity,
   ArrowUpRight,
@@ -19,7 +19,6 @@ import {
   RefreshCw,
   Save,
   Settings2,
-  ShieldCheck,
   Trash2,
   UsersRound,
   Video,
