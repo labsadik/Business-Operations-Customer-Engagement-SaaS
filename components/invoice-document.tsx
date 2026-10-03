@@ -179,6 +179,7 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentD
               </div>
               <p className="mt-2 text-xs leading-5 text-slate-600">{invoice.serviceDescription}</p>
               <div className="mt-4 grid grid-cols-2 gap-2 text-[11px] text-slate-600">
+                <span>List price: {money(Math.round(invoice.plan.priceInr * 100), invoice.currency)} {invoice.tax.inclusive ? "incl. GST" : "before GST"}</span>
                 <span>{invoice.plan.maxEmployees} employees</span>
                 <span>{invoice.plan.monthlyMeetingLimit} meetings / month</span>
                 <span>{invoice.plan.maxMeetingDurationMinutes} min max</span>
