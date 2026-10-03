@@ -8,8 +8,8 @@ import { ensureInvoicesForCapturedPayments } from "@/lib/billing";
 import { Invoice } from "@/models/invoice";
 import { Subscription } from "@/models/subscription";
 import { getPlan } from "@/lib/plans";
-import { calculateInvoiceTax, invoiceTaxConfig } from "@/lib/invoicing";
-import { platformLegalProfile, platformLogoUrl } from "@/lib/platform";
+import { calculateInvoiceTax } from "@/lib/invoicing";
+import { platformLegalProfile } from "@/lib/platform";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Invoice · Conventus" };
@@ -40,13 +40,12 @@ export default async function InvoicePage({
   const plan = invoice.planSnapshot ?? fallbackPlan;
   if (!plan) notFound();
 
-  const legal = platformLegalProfile();
-  const taxConfig = invoiceTaxConfig();
-  const tax = invoice.taxSnapshot ?? calculateInvoiceTax(invoice.amount, taxConfig.ratePercent, taxConfig.inclusive);
+  const legal = await platformLegalProfile();
+  const tax = invoice.taxSnapshot ?? calculateInvoiceTax(invoice.amount, legal.gst.ratePercent, legal.gst.inclusive, legal.gst.enabled);
   const merchantSnapshot = invoice.merchantSnapshot ?? {
     name: legal.legalName,
     description: "Company scheduling infrastructure for customer meetings.",
-    logoUrl: platformLogoUrl(),
+    logoUrl: legal.logoUrl,
     websiteUrl: legal.websiteUrl,
     email: legal.email,
     phone: legal.phone,

@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && npm run lint && npm run build"
+    "check": "npm run typecheck && npm run lint && npm run build",
+    "admin:create": "node scripts/create-platform-admin.mjs"
   },
   "dependencies": {
     "lucide-react": "1.51.0",

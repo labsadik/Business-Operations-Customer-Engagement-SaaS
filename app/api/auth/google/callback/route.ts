@@ -12,7 +12,6 @@ import { Workspace } from "@/models/workspace";
 import { Invitation } from "@/models/invitation";
 import { AvailabilityRule } from "@/models/availability-rule";
 import { clearGoogleAccessTokenCache } from "@/lib/google-calendar";
-import { isPlatformAdminEmail } from "@/lib/platform";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -182,19 +181,6 @@ export async function GET(request: Request) {
     }
 
     const email = googleUser.email.toLowerCase();
-    const bootstrapPlatformAdmin = isPlatformAdminEmail(email);
-
-    // Bootstrap configured platform admins before any tenant-specific login
-    // branch runs. This matters when the admin already has a company membership:
-    // the old flow could otherwise create a company-scoped session first.
-    if (bootstrapPlatformAdmin) {
-      const configuredAdmin = await User.findOne({ email });
-      if (configuredAdmin && configuredAdmin.role !== "PLATFORM_ADMIN") {
-        configuredAdmin.platformAdminPreviousRole = configuredAdmin.role;
-        configuredAdmin.role = "PLATFORM_ADMIN";
-        await configuredAdmin.save();
-      }
-    }
 
     if (oauth.intent === "connect") {
       const current = await getSession();
@@ -266,8 +252,8 @@ export async function GET(request: Request) {
         await createSession({
           userId: String(user!._id),
           role: platformAdminSession ? "PLATFORM_ADMIN" : String(membership.role),
-          companyId: platformAdminSession ? undefined : String(company._id),
-          workspaceId: platformAdminSession ? undefined : String(membership.workspaceId)
+          companyId: String(company._id),
+          workspaceId: String(membership.workspaceId)
         });
 
         const response = NextResponse.redirect(
@@ -283,8 +269,8 @@ export async function GET(request: Request) {
         await createSession({
           userId: String(pendingEmployee.user._id),
           role: platformAdminSession ? "PLATFORM_ADMIN" : "EMPLOYEE",
-          companyId: platformAdminSession ? undefined : String(company._id),
-          workspaceId: platformAdminSession ? undefined : pendingEmployee.workspaceId
+          companyId: String(company._id),
+          workspaceId: pendingEmployee.workspaceId
         });
 
         const response = NextResponse.redirect(
@@ -303,7 +289,7 @@ export async function GET(request: Request) {
           email,
           name: googleUser.name || email.split("@")[0],
           image: googleUser.picture,
-          role: bootstrapPlatformAdmin ? "PLATFORM_ADMIN" : "CUSTOMER",
+          role: "CUSTOMER",
           googleSubject: googleUser.sub,
           googleEmail: email,
           lastLoginAt: new Date()
@@ -314,7 +300,7 @@ export async function GET(request: Request) {
           image: googleUser.picture || user.image,
           googleSubject: googleUser.sub,
           googleEmail: email,
-          role: bootstrapPlatformAdmin ? "PLATFORM_ADMIN" : user.role,
+          role: user.role,
           lastLoginAt: new Date()
         });
         await user.save();
@@ -363,7 +349,7 @@ export async function GET(request: Request) {
           email,
           name: googleUser.name || email.split("@")[0],
           image: googleUser.picture,
-          role: bootstrapPlatformAdmin ? "PLATFORM_ADMIN" : "EMPLOYEE",
+          role: "EMPLOYEE",
           googleSubject: googleUser.sub,
           googleEmail: email,
           lastLoginAt: new Date()
@@ -374,7 +360,7 @@ export async function GET(request: Request) {
           image: googleUser.picture || user.image,
           googleSubject: googleUser.sub,
           googleEmail: email,
-          role: (bootstrapPlatformAdmin || user.role === "PLATFORM_ADMIN") ? "PLATFORM_ADMIN" : "EMPLOYEE",
+          role: user.role === "PLATFORM_ADMIN" ? "PLATFORM_ADMIN" : "EMPLOYEE",
           lastLoginAt: new Date()
         });
         await user.save();
@@ -423,8 +409,8 @@ export async function GET(request: Request) {
       await createSession({
         userId: String(user._id),
         role: platformAdminSession ? "PLATFORM_ADMIN" : String(membership.role),
-        companyId: platformAdminSession ? undefined : String(invite.companyId),
-        workspaceId: platformAdminSession ? undefined : String(invite.workspaceId)
+        companyId: String(invite.companyId),
+        workspaceId: String(invite.workspaceId)
       });
 
       const response = NextResponse.redirect(
@@ -440,7 +426,7 @@ export async function GET(request: Request) {
         email,
         name: googleUser.name || email.split("@")[0],
         image: googleUser.picture,
-        role: bootstrapPlatformAdmin ? "PLATFORM_ADMIN" : "COMPANY_OWNER",
+        role: "COMPANY_OWNER",
         googleSubject: googleUser.sub,
         googleEmail: email,
         lastLoginAt: new Date()
@@ -451,7 +437,7 @@ export async function GET(request: Request) {
         image: googleUser.picture || user.image,
         googleSubject: googleUser.sub,
         googleEmail: email,
-        role: bootstrapPlatformAdmin ? "PLATFORM_ADMIN" : user.role,
+        role: user.role,
         lastLoginAt: new Date()
       });
       await user.save();
@@ -473,16 +459,8 @@ export async function GET(request: Request) {
         : scopedMembership
           ? String(scopedMembership.role)
           : String(user.role),
-      companyId: platformAdminSession
-        ? undefined
-        : scopedMembership
-          ? String(scopedMembership.companyId)
-          : undefined,
-      workspaceId: platformAdminSession
-        ? undefined
-        : scopedMembership
-          ? String(scopedMembership.workspaceId)
-          : undefined
+      companyId: scopedMembership ? String(scopedMembership.companyId) : undefined,
+      workspaceId: scopedMembership ? String(scopedMembership.workspaceId) : undefined
     });
 
     const finalReturnTo = oauth.intent === "workspace" && platformAdminSession && !companySlug ? "/admin" : returnTo;

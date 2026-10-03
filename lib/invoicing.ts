@@ -1,4 +1,4 @@
-import { PLATFORM_BRAND, platformLegalProfile, platformLogoUrl } from "@/lib/platform";
+import { PLATFORM_BRAND, platformLegalProfile } from "@/lib/platform";
 import type { PlanEntitlements } from "@/lib/plans";
 
 export type InvoiceTaxSnapshot = {
@@ -9,20 +9,23 @@ export type InvoiceTaxSnapshot = {
   gstAmount: number;
 };
 
-export function invoiceTaxConfig() {
-  const enabled = process.env.CONVENTUS_GST_ENABLED !== "false";
-  const inclusive = process.env.CONVENTUS_GST_INCLUSIVE !== "false";
-  const parsedRate = Number(process.env.CONVENTUS_GST_RATE ?? "18");
-  const ratePercent = Number.isFinite(parsedRate) && parsedRate >= 0 && parsedRate <= 100
-    ? parsedRate
-    : 18;
-
-  return { enabled, inclusive, ratePercent };
+export async function invoiceTaxConfig() {
+  const legal = await platformLegalProfile();
+  return {
+    enabled: legal.gst.enabled,
+    inclusive: legal.gst.inclusive,
+    ratePercent: legal.gst.ratePercent
+  };
 }
 
-export function calculateInvoiceTax(totalMinor: number, ratePercent = invoiceTaxConfig().ratePercent, inclusive = true): InvoiceTaxSnapshot {
+export function calculateInvoiceTax(
+  totalMinor: number,
+  ratePercent = 18,
+  inclusive = true,
+  enabled = true
+): InvoiceTaxSnapshot {
   const safeTotal = Math.max(0, Math.round(totalMinor));
-  if (!invoiceTaxConfig().enabled || ratePercent <= 0) {
+  if (!enabled || ratePercent <= 0) {
     return {
       enabled: false,
       ratePercent: 0,
@@ -53,7 +56,7 @@ export function calculateInvoiceTax(totalMinor: number, ratePercent = invoiceTax
   };
 }
 
-export function buildInvoiceSnapshots(input: {
+export async function buildInvoiceSnapshots(input: {
   company: {
     name: string;
     email?: string;
@@ -74,19 +77,19 @@ export function buildInvoiceSnapshots(input: {
   plan: PlanEntitlements;
   amount: number;
 }) {
-  const legal = platformLegalProfile();
-  const taxConfig = invoiceTaxConfig();
+  const legal = await platformLegalProfile();
   const taxSnapshot = calculateInvoiceTax(
     input.amount,
-    taxConfig.ratePercent,
-    taxConfig.inclusive
+    legal.gst.ratePercent,
+    legal.gst.inclusive,
+    legal.gst.enabled
   );
 
   return {
     merchantSnapshot: {
       name: legal.legalName || PLATFORM_BRAND.name,
-      description: PLATFORM_BRAND.description,
-      logoUrl: platformLogoUrl(),
+      description: legal.description || PLATFORM_BRAND.description,
+      logoUrl: legal.logoUrl,
       websiteUrl: legal.websiteUrl,
       email: legal.email,
       phone: legal.phone,

@@ -4,8 +4,8 @@ import { getMongo } from "@/lib/mongodb";
 import { getSession } from "@/lib/session";
 import { Invoice } from "@/models/invoice";
 import { getPlan } from "@/lib/plans";
-import { calculateInvoiceTax, invoiceTaxConfig, type InvoiceTaxSnapshot } from "@/lib/invoicing";
-import { platformLegalProfile, platformLogoUrl } from "@/lib/platform";
+import { calculateInvoiceTax, type InvoiceTaxSnapshot } from "@/lib/invoicing";
+import { platformLegalProfile } from "@/lib/platform";
 import { jsonError } from "@/lib/http";
 
 export const runtime = "nodejs";
@@ -122,8 +122,8 @@ export async function GET(
     }).lean();
     if (!invoice) return jsonError("INVOICE_NOT_FOUND", 404);
 
-    const legacyMerchant = platformLegalProfile();
-    const legacyTax = calculateInvoiceTax(invoice.amount, invoiceTaxConfig().ratePercent, invoiceTaxConfig().inclusive);
+    const legacyMerchant = await platformLegalProfile();
+    const legacyTax = calculateInvoiceTax(invoice.amount, legacyMerchant.gst.ratePercent, legacyMerchant.gst.inclusive, legacyMerchant.gst.enabled);
     const tax: InvoiceTaxSnapshot = invoice.taxSnapshot
       ? {
           enabled: invoice.taxSnapshot.enabled,
@@ -136,8 +136,8 @@ export async function GET(
 
     const merchant = {
       name: invoice.merchantSnapshot?.name || legacyMerchant.legalName,
-      description: invoice.merchantSnapshot?.description || "Company scheduling infrastructure for customer meetings.",
-      logoUrl: invoice.merchantSnapshot?.logoUrl || platformLogoUrl(),
+      description: invoice.merchantSnapshot?.description || legacyMerchant.description,
+      logoUrl: invoice.merchantSnapshot?.logoUrl || legacyMerchant.logoUrl,
       websiteUrl: invoice.merchantSnapshot?.websiteUrl || legacyMerchant.websiteUrl,
       email: invoice.merchantSnapshot?.email || legacyMerchant.email,
       phone: invoice.merchantSnapshot?.phone || legacyMerchant.phone,

@@ -11,14 +11,16 @@ import {
   Command,
   LogOut,
   ShieldCheck,
-  UsersRound
+  UsersRound,
+  SlidersHorizontal
 } from "lucide-react";
 
 const nav = [
   { href: "/admin", label: "Overview", icon: BarChart3 },
   { href: "/admin/companies", label: "Companies", icon: Building2 },
   { href: "/admin/users", label: "Public users", icon: UsersRound },
-  { href: "/admin/access", label: "Admin access", icon: ShieldCheck }
+  { href: "/admin/access", label: "Admin access", icon: ShieldCheck },
+  { href: "/admin/platform-settings", label: "Platform settings", icon: SlidersHorizontal }
 ] as const;
 
 function activePath(pathname: string, href: string) {
@@ -31,6 +33,7 @@ function pageTitle(pathname: string) {
   if (pathname.startsWith("/admin/companies")) return "Companies";
   if (pathname.startsWith("/admin/users")) return "Public users";
   if (pathname.startsWith("/admin/access")) return "Admin access";
+  if (pathname.startsWith("/admin/platform-settings")) return "Platform settings";
   return "Overview";
 }
 

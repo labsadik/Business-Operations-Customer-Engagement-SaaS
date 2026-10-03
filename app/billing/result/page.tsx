@@ -10,8 +10,8 @@ import { Invoice } from "@/models/invoice";
 import { Subscription } from "@/models/subscription";
 import { getPlan } from "@/lib/plans";
 import { ensureInvoicesForCapturedPayments } from "@/lib/billing";
-import { calculateInvoiceTax, invoiceTaxConfig } from "@/lib/invoicing";
-import { platformLegalProfile, platformLogoUrl, PLATFORM_BRAND } from "@/lib/platform";
+import { calculateInvoiceTax } from "@/lib/invoicing";
+import { platformLegalProfile, PLATFORM_BRAND } from "@/lib/platform";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -61,13 +61,14 @@ export default async function BillingResultPage({
   const plan = getPlan(payment?.planId ?? subscription?.planId);
   const validPayment = Boolean(payment && company && invoice && plan);
 
-  const legal = platformLegalProfile();
+  const legal = await platformLegalProfile();
   const tax = invoice?.taxSnapshot ?? (
     payment
       ? calculateInvoiceTax(
           payment.amount,
-          invoiceTaxConfig().ratePercent,
-          invoiceTaxConfig().inclusive
+          legal.gst.ratePercent,
+          legal.gst.inclusive,
+          legal.gst.enabled
         )
       : null
   );
@@ -75,7 +76,7 @@ export default async function BillingResultPage({
   const merchant = invoice?.merchantSnapshot ?? {
     name: legal.legalName,
     description: PLATFORM_BRAND.description,
-    logoUrl: platformLogoUrl(),
+    logoUrl: legal.logoUrl,
     websiteUrl: legal.websiteUrl,
     email: legal.email,
     phone: legal.phone,
@@ -123,7 +124,7 @@ export default async function BillingResultPage({
         <div className="mx-auto flex min-h-18 max-w-6xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
           <Link href="/dashboard" className="flex items-center gap-3">
             <img
-              src={platformLogoUrl()}
+              src={legal.logoUrl}
               alt={PLATFORM_BRAND.name}
               className="size-9 rounded-xl object-contain"
               referrerPolicy="no-referrer"
