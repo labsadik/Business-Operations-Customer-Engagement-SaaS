@@ -122,6 +122,7 @@ export default async function CompanyPublicPage({ params }: { params: Promise<{ 
           </section>
 
           <PublicBooking
+            companyId={String(company._id)}
             companySlug={company.slug}
             types={types}
             access={access}
