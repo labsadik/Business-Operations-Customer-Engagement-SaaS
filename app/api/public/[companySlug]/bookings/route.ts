@@ -27,7 +27,7 @@ export async function POST(
   const company = await Company.findOne({ slug: companySlug.toLowerCase(), publicBookingEnabled: true }).lean();
   if (!company) return jsonError("COMPANY_NOT_FOUND", 404);
 
-  const existing = await BookingRequest.findOne({ idempotencyKey }).lean();
+  const existing = await BookingRequest.findOne({ idempotencyKey, companyId: company._id, customerId: session.userId }).lean();
   if (existing) return jsonOk({ bookingId: String(existing._id), status: existing.status, expiresAt: existing.expiresAt });
 
   const body = await request.json().catch(() => null) as {
