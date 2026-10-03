@@ -34,7 +34,7 @@ async function createOrUpdateAccessInvoice({
     currentPeriodStart: Date;
     currentPeriodEnd: Date;
   };
-  plan: NonNullable<ReturnType<typeof PLANS[PlanId]>>;
+  plan: PlanEntitlements;
   source: "FREE" | "ADMIN_GRANTED";
   grantedByUserId?: string;
 }) {
