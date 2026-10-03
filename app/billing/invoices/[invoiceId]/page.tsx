@@ -52,6 +52,7 @@ export default async function InvoicePage({
     phone: legal.phone,
     taxId: legal.taxId,
     gstin: legal.gstin,
+    sacCode: legal.sacCode,
     address: legal.address
   };
 
