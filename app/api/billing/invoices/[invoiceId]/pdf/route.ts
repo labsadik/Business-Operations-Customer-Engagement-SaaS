@@ -207,7 +207,8 @@ export async function GET(
       merchant.phone,
       merchant.websiteUrl,
       merchant.gstin ? `GSTIN: ${merchant.gstin}` : "",
-      merchant.taxId && merchant.taxId !== merchant.gstin ? `Tax ID: ${merchant.taxId}` : ""
+      merchant.taxId && merchant.taxId !== merchant.gstin ? `Tax ID: ${merchant.taxId}` : "",
+      merchant.sacCode ? `SAC: ${merchant.sacCode}` : ""
     ].filter(Boolean);
 
     let yLeft = fromY - 39;
