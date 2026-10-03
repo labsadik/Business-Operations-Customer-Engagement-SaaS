@@ -50,7 +50,7 @@ export async function POST(
       }
 
       const isAssignedEmployee = String(meeting.employeeId) === session.userId;
-      const isManager = ["COMPANY_OWNER", "COMPANY_ADMIN"].includes(session.role);
+      const isManager = ["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role);
       if (!isAssignedEmployee && !isManager) throw new Error("FORBIDDEN");
 
       const endedAt = new Date();
