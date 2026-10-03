@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import Link from "next/link";
 import { Command, ShieldCheck, UsersRound } from "lucide-react";
 import { getMongo } from "@/lib/mongodb";
@@ -28,7 +29,7 @@ export default async function InvitationPage({ params }: { params: Promise<{ tok
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Join {company.name}</h1>
         <p className="mt-3 text-sm leading-6 text-slate-600">This secure invite is for <strong className="font-semibold text-slate-900">{invite.invitedEmail}</strong>. Continue with that Google account to join the workspace.</p>
 
-        <Link href={loginUrl} className="mt-7 flex w-full items-center justify-center gap-3 rounded-2xl bg-slate-950 px-4 py-3.5 text-sm font-semibold text-white hover:bg-slate-800"><span className="grid size-6 place-items-center rounded-full bg-white/10 text-xs font-bold">G</span>Continue with Google</Link>
+        <Link href={loginUrl as Route} className="mt-7 flex w-full items-center justify-center gap-3 rounded-2xl bg-slate-950 px-4 py-3.5 text-sm font-semibold text-white hover:bg-slate-800"><span className="grid size-6 place-items-center rounded-full bg-white/10 text-xs font-bold">G</span>Continue with Google</Link>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           <div className="rounded-2xl border border-slate-200 p-4"><UsersRound className="size-5 text-blue-600" /><p className="mt-3 text-sm font-semibold text-slate-900">Employee access</p><p className="mt-1 text-xs leading-5 text-slate-500">Requests, availability, and meeting actions.</p></div>
