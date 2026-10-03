@@ -22,6 +22,14 @@ const paymentSchema = new Schema(
 );
 
 paymentSchema.index({ companyId: 1, createdAt: -1 });
+paymentSchema.index({
+  companyId: 1,
+  merchantAccount: 1,
+  status: 1,
+  paidAt: -1,
+  activatedAt: -1,
+  createdAt: -1
+});
 paymentSchema.index({ providerPaymentId: 1 }, { unique: true, sparse: true });
 
 export const Payment = models.Payment ?? model("Payment", paymentSchema);
