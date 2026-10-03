@@ -92,6 +92,7 @@ export function buildInvoiceSnapshots(input: {
       phone: legal.phone,
       taxId: legal.taxId,
       gstin: legal.gstin,
+      sacCode: legal.sacCode,
       address: legal.address
     },
     companySnapshot: {
