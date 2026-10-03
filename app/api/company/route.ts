@@ -96,6 +96,10 @@ async function getScopedCompany(session: Awaited<ReturnType<typeof getSession>>)
     }).lean();
     if (!membership) return null;
   }
+  if (session.role === "PLATFORM_ADMIN" && session.companyId) {
+    return Company.findById(session.companyId).lean();
+  }
+
   return session.companyId
     ? Company.findById(session.companyId).lean()
     : Company.findOne({ ownerUserId: session.userId }).lean();
