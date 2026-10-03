@@ -10,6 +10,12 @@ import { getTodayIso } from "@/lib/timezone";
 type Type = { id: string; name: string; description?: string; durationOptionsMinutes: number[] };
 type Slot = { startAt: string; endAt: string };
 type Access = "anonymous" | "company-member" | "customer";
+type AvailabilityReason =
+  | "AVAILABLE"
+  | "NO_ACTIVE_MEMBERS"
+  | "NO_GOOGLE_SCHEDULING_MEMBER"
+  | "NO_WORKING_HOURS"
+  | "NO_FREE_SLOTS";
 
 export default function PublicBooking({
   companySlug,
@@ -38,6 +44,7 @@ export default function PublicBooking({
   const [expiresAt, setExpiresAt] = useState("");
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [error, setError] = useState("");
+  const [availabilityReason, setAvailabilityReason] = useState<AvailabilityReason | null>(null);
   const [outcomeModal, setOutcomeModal] = useState<"EXPIRED" | "UNAVAILABLE" | null>(null);
 
   const loadAvailability = useCallback(async (silent = false) => {
@@ -53,12 +60,17 @@ export default function PublicBooking({
       if (!response.ok) throw new Error(body.error || "AVAILABILITY_FAILED");
       const nextSlots = Array.isArray(body.data?.slots) ? body.data.slots as Slot[] : [];
       setSlots(nextSlots);
+      setAvailabilityReason(
+        (body.data?.availability?.reason as AvailabilityReason | undefined) ??
+          (nextSlots.length > 0 ? "AVAILABLE" : "NO_FREE_SLOTS")
+      );
       setSelected((current) =>
         current && nextSlots.some((slot) => slot.startAt === current.startAt) ? current : null
       );
     } catch (err) {
       setSlots([]);
       setSelected(null);
+      setAvailabilityReason(null);
       setError(err instanceof Error ? err.message : "AVAILABILITY_FAILED");
     } finally {
       if (!silent) setLoading(false);
@@ -259,6 +271,20 @@ export default function PublicBooking({
       </div>
   );
 
+  const emptyAvailabilityMessage = useMemo(() => {
+    switch (availabilityReason) {
+      case "NO_GOOGLE_SCHEDULING_MEMBER":
+        return "No employee is currently connected to the required Google Calendar and Meet services. Please contact the company and ask them to connect Google.";
+      case "NO_WORKING_HOURS":
+        return "No working hours are configured for this date. Choose another date.";
+      case "NO_ACTIVE_MEMBERS":
+        return "There are no active employees available for scheduling right now.";
+      case "NO_FREE_SLOTS":
+      default:
+        return "Every connected employee calendar is busy for the selected duration. Choose another time or another date.";
+    }
+  }, [availabilityReason]);
+
   if (bookingId) {
 
     const minutes = Math.floor(remainingSeconds / 60);
@@ -348,7 +374,11 @@ export default function PublicBooking({
               </button>
             ))}
           </div>
-          {!loading && slots.length === 0 && <div className="mt-3 rounded-2xl bg-slate-50 p-4 text-xs leading-5 text-slate-500">No matching time is currently free on the connected employee calendars for this date. Try another time or another date.</div>}
+          {!loading && slots.length === 0 && (
+            <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs leading-5 text-slate-600">
+              {emptyAvailabilityMessage}
+            </div>
+          )}
         </div>
         <button type="button" disabled={!selected || loading} onClick={() => void submit()} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3.5 text-sm font-semibold text-white disabled:opacity-40">
           <CheckCircle2 className="size-4" /> Request meeting
