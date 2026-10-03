@@ -143,7 +143,7 @@ export default function PublicBooking({
           <span className="grid size-6 place-items-center rounded-full bg-white/10 text-xs font-bold">G</span>
           Continue with Google
         </button>
-        <Link href={employeeLoginUrl} className="mt-4 block text-center text-xs font-semibold text-blue-700">Employee? Open company login</Link>
+        <Link href={employeeLoginUrl as Route} className="mt-4 block text-center text-xs font-semibold text-blue-700">Employee? Open company login</Link>
         <div className="mt-5 flex gap-2 text-[11px] leading-5 text-slate-500">
           <ShieldCheck className="size-4 shrink-0 text-blue-600" />Employee authorization is checked server-side using the company email list.
         </div>
