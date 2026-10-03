@@ -33,9 +33,9 @@ type Access = "anonymous" | "customer";
 type AvailabilityReason =
   | "AVAILABLE"
   | "NO_ACTIVE_MEMBERS"
-  | "NO_GOOGLE_SCHEDULING_MEMBER"
+  | "NO_SCHEDULING_MEMBER"
   | "NO_FREE_SLOTS"
-  | "GOOGLE_CALENDAR_ERROR";
+  | "AVAILABILITY_SERVICE_ERROR";
 
 function isoFromUtc(date: Date) {
   return [
@@ -359,10 +359,10 @@ export default function PublicBooking({
           Secure scheduling
         </p>
         <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-          Sign in with Google to book
+          Sign in to book
         </h2>
         <p className="mt-3 text-sm leading-6 text-slate-600">
-          Your Google account is used to identify the customer and protect the booking request.
+          Your account is used to identify the customer and protect the booking request.
         </p>
         <button
           type="button"
@@ -372,7 +372,7 @@ export default function PublicBooking({
           <span className="grid size-6 place-items-center rounded-full bg-white/10 text-xs font-bold">
             G
           </span>
-          Continue with Google
+          Continue securely
         </button>
       </section>
     );
@@ -410,7 +410,7 @@ export default function PublicBooking({
                   Pick your date
                 </h2>
                 <p className="mt-1 text-xs leading-5 text-slate-500">
-                  Calendar availability is checked against connected Google Calendars.
+                  Live availability is checked before each request.
                 </p>
               </div>
               <CalendarDays className="mt-1 size-5 text-blue-600" />
@@ -602,14 +602,14 @@ export default function PublicBooking({
               <div className="mt-6 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
                 <Clock3 className="mx-auto size-7 text-slate-300" />
                 <p className="mt-3 text-sm font-semibold text-slate-900">
-                  {availabilityReason === "GOOGLE_CALENDAR_ERROR"
+                  {availabilityReason === "AVAILABILITY_SERVICE_ERROR"
                     ? "Calendar availability could not be checked"
-                    : availabilityReason === "NO_GOOGLE_SCHEDULING_MEMBER"
+                    : availabilityReason === "NO_SCHEDULING_MEMBER"
                       ? "No scheduling-ready employee is available"
                       : "Employees are busy for this time"}
                 </p>
                 <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-slate-500">
-                  {availabilityReason === "GOOGLE_CALENDAR_ERROR"
+                  {availabilityReason === "AVAILABILITY_SERVICE_ERROR"
                     ? "Please try another date or ask the company to reconnect Google Calendar."
                     : "Choose another date or check back later for an available meeting time."}
                 </p>
@@ -714,7 +714,7 @@ export default function PublicBooking({
               <div className="flex gap-2 rounded-2xl border border-blue-100 bg-blue-50 p-4">
                 <ShieldCheck className="mt-0.5 size-4 shrink-0 text-blue-600" />
                 <p className="text-xs leading-5 text-blue-950/70">
-                  After you create the request, a company employee must accept it. When accepted, Conventus creates the Google Meet and shows the Join button here.
+                  After you create the request, a company employee must accept it. When accepted, your meeting link becomes available here.
                 </p>
               </div>
 
@@ -755,7 +755,7 @@ export default function PublicBooking({
                 </p>
                 <h2 className="mt-1 text-xl font-semibold text-slate-950">
                   {confirmed
-                    ? "Your Google Meet is ready"
+                    ? "Your meeting is ready"
                     : status === "EXPIRED"
                       ? "Request expired"
                       : status === "RETRYING"
@@ -818,7 +818,7 @@ export default function PublicBooking({
                         Meeting accepted and created.
                       </p>
                       <p className="mt-1 text-xs leading-5 text-emerald-900/70">
-                        Your Google Calendar invitation and Meet are ready.
+                        Your meeting details are ready.
                       </p>
                     </div>
                   </div>
@@ -829,7 +829,7 @@ export default function PublicBooking({
                     className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-4 text-sm font-semibold text-white hover:bg-emerald-700"
                   >
                     <Video className="size-4" />
-                    Join Google Meet
+                    Join meeting
                   </a>
                 </div>
               )}
