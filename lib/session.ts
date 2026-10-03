@@ -145,8 +145,23 @@ export async function getSession(): Promise<AuthSession | null> {
     }
 
     const managed = await getManagedCompanyScope(user._id, true, store);
-    const scopedCompanyId = managed?.companyId ?? (session.companyId ? String(session.companyId) : undefined);
-    const scopedWorkspaceId = managed?.workspaceId ?? (session.workspaceId ? String(session.workspaceId) : undefined);
+    let scopedCompanyId = managed?.companyId ?? (session.companyId ? String(session.companyId) : undefined);
+    let scopedWorkspaceId = managed?.workspaceId ?? (session.workspaceId ? String(session.workspaceId) : undefined);
+
+    // Preserve a platform admin's existing tenant membership as their default
+    // workspace scope. This makes older admin sessions compatible too.
+    if (!managed && !scopedCompanyId) {
+      const defaultMembership = await Membership.findOne({
+        userId: user._id,
+        active: true,
+        role: { $in: COMPANY_ROLES }
+      }).sort({ createdAt: -1 }).select("companyId workspaceId").lean();
+
+      if (defaultMembership) {
+        scopedCompanyId = String(defaultMembership.companyId);
+        scopedWorkspaceId = String(defaultMembership.workspaceId);
+      }
+    }
 
     if (scopedCompanyId && (!Types.ObjectId.isValid(scopedCompanyId) || !scopedWorkspaceId || !Types.ObjectId.isValid(scopedWorkspaceId))) {
       return {
