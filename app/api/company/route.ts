@@ -113,9 +113,12 @@ export async function GET() {
   const company = await getScopedCompany(session);
   if (!company) return jsonOk(null);
 
+  const subscriptionPromise = import("@/lib/plans-server").then(({ getCompanySubscription }) =>
+    getCompanySubscription(String(company._id))
+  );
   const [workspace, subscription, activeMembers, owner] = await Promise.all([
     Workspace.findOne({ companyId: company._id }).lean(),
-    Subscription.findOne({ companyId: company._id }).lean(),
+    subscriptionPromise,
     Membership.find({
       companyId: company._id,
       active: true,
@@ -142,6 +145,8 @@ export async function GET() {
           planId: subscription.planId,
           status: subscription.status,
           monthlyMeetingsUsed: subscription.monthlyMeetingsUsed,
+          source: subscription.source,
+          freeUsageDates: subscription.freeUsageDates ?? [],
           periodEnd: subscription.currentPeriodEnd
         }
       : null,
@@ -189,7 +194,7 @@ export async function POST(request: Request) {
 
   const now = new Date();
   const periodEnd = new Date(now);
-  periodEnd.setMonth(periodEnd.getMonth() + 1);
+  periodEnd.setDate(periodEnd.getDate() + 30);
 
   const db = await getMongo();
   const tx = await db.startSession();
