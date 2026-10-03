@@ -21,7 +21,10 @@ const meetingSchema = new Schema(
       type: String,
       enum: ["PENDING", "SYNCED", "FAILED"],
       default: "PENDING"
-    }
+    },
+    endedAt: { type: Date },
+    endedByUserId: { type: Schema.Types.ObjectId, ref: "User" },
+    endReason: { type: String, enum: ["MANUAL", "SCHEDULED", "NO_PARTICIPANTS"] }
   },
   { timestamps: true }
 );
