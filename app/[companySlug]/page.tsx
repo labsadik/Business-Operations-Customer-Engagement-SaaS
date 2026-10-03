@@ -90,7 +90,7 @@ export default async function CompanyPublicPage({
         <PublicBooking
           companySlug={company.slug}
           types={types}
-          access={session ? "customer" : "anonymous"}
+          access={session?.role === "CUSTOMER" ? "customer" : "anonymous"}
           timezone={workspace?.timezone || "Asia/Kolkata"}
           companyName={company.name}
           companyDescription={company.description || ""}
