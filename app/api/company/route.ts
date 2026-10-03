@@ -136,6 +136,10 @@ export async function GET() {
 
   const connectedMemberCount = connectedAccounts.filter(isGoogleSchedulingReady).length;
   const memberCount = activeMembers.length;
+  const freeFeatureEndsAt = subscription.planId === "free"
+    ? new Date(subscription.currentPeriodStart.getTime() + 14 * 24 * 60 * 60 * 1000)
+    : null;
+  const featureLocked = Boolean(freeFeatureEndsAt && freeFeatureEndsAt.getTime() <= Date.now());
 
   return jsonOk({
     company: profilePayload(company, owner ?? undefined),
@@ -159,6 +163,8 @@ export async function GET() {
     gstRatePercent: taxConfig.ratePercent,
     gstEnabled: taxConfig.enabled,
     gstInclusive: taxConfig.inclusive,
+    featureLocked,
+    freeFeatureEndsAt,
     currentRole: session.role
   });
 }
