@@ -230,68 +230,184 @@ export default function WorkspaceDashboard() {
       </div>
 
       <div className="mt-7 grid gap-5 lg:grid-cols-[1.25fr_0.75fr]">
-        <section className="rounded-3xl border border-slate-200 bg-white shadow-sm"><div className="border-b border-slate-200 px-6 py-5"><div className="flex items-center justify-between"><div><h2 className="text-base font-semibold text-slate-950">Incoming requests</h2><p className="mt-1 text-xs text-slate-500">The server checks Google Calendar, acceptance, plan limits, and expiration for every request.</p></div><span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{requests.length} pending</span></div></div><div className="divide-y divide-slate-100">{requests.length === 0 ? <div className="px-6 py-14 text-center"><Video className="mx-auto size-7 text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-900">No active requests</p><p className="mt-1 text-xs text-slate-500">Customer booking requests will appear here.</p></div> : requests.map((item) => {
-              const remaining = Math.max(0, Math.ceil((new Date(item.expiresAt).getTime() - now) / 1000));
-              const actionable = item.status === "REQUESTED" || item.status === "RETRYING";
-              const creating = item.status === "ASSIGNED" || item.status === "CREATING_MEETING";
-              const ready = item.meeting?.status === "READY" && Boolean(item.meeting.joinToken);
-              const scheduled = item.status === "CONFIRMED" || item.status === "IN_PROGRESS";
-              const urgent = remaining <= 60;
-              const pendingTimer = !ready && !scheduled;
-              return <div key={item.id} className="px-6 py-5">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold text-slate-950">{item.customer?.name ?? "Customer"}</p>
-                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${ready ? "bg-emerald-50 text-emerald-700" : creating ? "bg-blue-50 text-blue-700" : item.status === "RETRYING" ? "bg-amber-50 text-amber-700" : scheduled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
-                        {ready ? "Meeting ready" : creating ? "Creating meeting" : item.status === "RETRYING" ? "Retrying" : scheduled ? "Confirmed" : "Waiting for acceptance"}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xs text-slate-500">{new Date(item.startAt).toLocaleString()} · {item.durationMinutes} min</p>
-                    {pendingTimer && (
-                      <>
-                        <div className="mt-3 flex items-center gap-3">
-                          <span className={`rounded-xl border px-3 py-1.5 font-mono text-sm font-bold ${urgent ? "border-rose-200 bg-rose-50 text-rose-700" : "border-slate-200 bg-slate-50 text-slate-950"}`}>
-                            {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
-                          </span>
-                          <span className="text-[11px] font-medium text-slate-500">{creating ? "Meeting setup in progress" : "Acceptance timer"}</span>
-                        </div>
-                        <div className="mt-2 h-1.5 max-w-sm overflow-hidden rounded-full bg-slate-100">
-                          <div className={`h-full transition-all duration-1000 ${urgent ? "bg-rose-500" : "bg-blue-600"}`} style={{ width: `${Math.min(100, Math.max(0, (remaining / 300) * 100))}%` }} />
-                        </div>
-                      </>
-                    )}
-                  </div>
-                                    <div className="flex flex-wrap gap-2">
-                    {ready && item.meeting?.joinToken && (
-                      <>
-                        <Link
-                          href={`/${data!.company.slug}/meet/${item.meeting.joinToken}`}
-                          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700"
-                        >
-                          <Video className="size-4" /> Join meeting
-                        </Link>
-                        <button
-                          type="button"
-                          disabled={endingRequestId === item.id}
-                          onClick={() => void endMeeting(item.id)}
-                          className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          <XCircle className="size-4" />
-                          {endingRequestId === item.id ? "Ending..." : "End meeting"}
-                        </button>
-                      </>
-                    )}
-                    {actionable && (
-                      <>
-                        <button disabled={actingRequestId === item.id} onClick={() => void act(item.id, "decline")} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3.5 py-2.5 text-xs font-semibold text-slate-700 disabled:opacity-50"><XCircle className="size-4" /> Decline</button>
-                        <button disabled={actingRequestId === item.id} onClick={() => void act(item.id, "accept")} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3.5 py-2.5 text-xs font-semibold text-white disabled:opacity-50"><CheckCircle2 className="size-4" /> {actingRequestId === item.id ? "Accepting..." : "Accept"}</button>
-                      </>
-                    )}
-                  </div>
+        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 px-6 py-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="size-4 text-blue-600" />
+                  <h2 className="text-base font-semibold text-slate-950">Meetings</h2>
                 </div>
-              </div>;
-            })}</div></section>
+                <p className="mt-1 text-xs text-slate-500">
+                  New meetings are active bookings. Old meetings are closed records only.
+                </p>
+              </div>
+              <div className="inline-flex w-full rounded-xl border border-slate-200 bg-slate-50 p-1 sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setMeetingView("new")}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition sm:flex-none ${meetingView === "new" ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-800"}`}
+                >
+                  New meetings
+                  <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] text-blue-700">{requests.length}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMeetingView("old")}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition sm:flex-none ${meetingView === "old" ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-800"}`}
+                >
+                  Old meetings
+                  <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] text-slate-600">{meetingHistory.length}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {meetingView === "new" ? (
+            <div className="divide-y divide-slate-100">
+              {requests.length === 0 ? (
+                <div className="px-6 py-14 text-center">
+                  <Video className="mx-auto size-7 text-slate-300" />
+                  <p className="mt-3 text-sm font-semibold text-slate-900">No new meetings</p>
+                  <p className="mt-1 text-xs text-slate-500">New customer requests and confirmed meetings will appear here.</p>
+                </div>
+              ) : requests.map((item) => {
+                const remaining = Math.max(0, Math.ceil((new Date(item.expiresAt).getTime() - now) / 1000));
+                const actionable = item.status === "REQUESTED" || item.status === "RETRYING";
+                const creating = item.status === "ASSIGNED" || item.status === "CREATING_MEETING";
+                const ready = item.meeting?.status === "READY" && Boolean(item.meeting.joinToken);
+                const scheduled = item.status === "CONFIRMED" || item.status === "IN_PROGRESS";
+                const urgent = remaining <= 60;
+                const pendingTimer = !ready && !scheduled;
+                return (
+                  <div key={item.id} className="px-6 py-5">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-slate-950">{item.customer?.name ?? "Customer"}</p>
+                          <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${ready ? "bg-emerald-50 text-emerald-700" : creating ? "bg-blue-50 text-blue-700" : item.status === "RETRYING" ? "bg-amber-50 text-amber-700" : scheduled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                            {ready ? "Meeting ready" : creating ? "Creating meeting" : item.status === "RETRYING" ? "Retrying" : scheduled ? "Confirmed" : "Waiting for acceptance"}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-slate-500">{new Date(item.startAt).toLocaleString()} · {item.durationMinutes} min</p>
+                        {pendingTimer && (
+                          <>
+                            <div className="mt-3 flex items-center gap-3">
+                              <span className={`rounded-xl border px-3 py-1.5 font-mono text-sm font-bold ${urgent ? "border-rose-200 bg-rose-50 text-rose-700" : "border-slate-200 bg-slate-50 text-slate-950"}`}>
+                                {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
+                              </span>
+                              <span className="text-[11px] font-medium text-slate-500">{creating ? "Meeting setup in progress" : "Acceptance timer"}</span>
+                            </div>
+                            <div className="mt-2 h-1.5 max-w-sm overflow-hidden rounded-full bg-slate-100">
+                              <div className={`h-full transition-all duration-1000 ${urgent ? "bg-rose-500" : "bg-blue-600"}`} style={{ width: `${Math.min(100, Math.max(0, (remaining / 300) * 100))}%` }} />
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {ready && item.meeting?.joinToken && (
+                          <>
+                            <Link
+                              href={`/${data!.company.slug}/meet/${item.meeting.joinToken}`}
+                              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                            >
+                              <Video className="size-4" /> Join meeting
+                            </Link>
+                            <button
+                              type="button"
+                              disabled={endingRequestId === item.id}
+                              onClick={() => void endMeeting(item.id)}
+                              className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <XCircle className="size-4" />
+                              {endingRequestId === item.id ? "Ending..." : "End meeting"}
+                            </button>
+                          </>
+                        )}
+                        {actionable && (
+                          <>
+                            <button disabled={actingRequestId === item.id} onClick={() => void act(item.id, "decline")} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3.5 py-2.5 text-xs font-semibold text-slate-700 disabled:opacity-50"><XCircle className="size-4" /> Decline</button>
+                            <button disabled={actingRequestId === item.id} onClick={() => void act(item.id, "accept")} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3.5 py-2.5 text-xs font-semibold text-white disabled:opacity-50"><CheckCircle2 className="size-4" /> {actingRequestId === item.id ? "Accepting..." : "Accept"}</button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {meetingHistory.length === 0 ? (
+                <div className="px-6 py-14 text-center">
+                  <CalendarDays className="mx-auto size-7 text-slate-300" />
+                  <p className="mt-3 text-sm font-semibold text-slate-900">No old meetings</p>
+                  <p className="mt-1 text-xs text-slate-500">Ended meeting records will appear here after the meeting is closed.</p>
+                </div>
+              ) : (
+                meetingHistory.map((meeting, index) => {
+                  const timeZone = data.workspace?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+                  const start = new Date(meeting.startAt);
+                  const scheduledEnd = new Date(meeting.endAt);
+                  const ended = new Date(meeting.endedAt || meeting.endAt);
+                  const dateLabel = start.toLocaleDateString(undefined, {
+                    timeZone,
+                    weekday: "short",
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric"
+                  });
+                  const startLabel = start.toLocaleTimeString(undefined, {
+                    timeZone,
+                    hour: "numeric",
+                    minute: "2-digit"
+                  });
+                  const endLabel = ended.toLocaleTimeString(undefined, {
+                    timeZone,
+                    hour: "numeric",
+                    minute: "2-digit"
+                  });
+                  const scheduledEndLabel = scheduledEnd.toLocaleTimeString(undefined, {
+                    timeZone,
+                    hour: "numeric",
+                    minute: "2-digit"
+                  });
+                  const statusLabel = meeting.status === "CANCELLED" ? "Cancelled" : meeting.status === "COMPLETED" ? "Completed" : "Ended";
+                  const scheduledBy = meeting.customer?.name ?? "Customer";
+                  return (
+                    <div key={`${meeting.startAt}-${meeting.customer?.email ?? index}`} className="px-6 py-5">
+                      <div className="grid gap-4 lg:grid-cols-[1.15fr_1fr]">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="truncate text-sm font-semibold text-slate-950">{scheduledBy}</p>
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">{statusLabel}</span>
+                          </div>
+                          <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Scheduled by</p>
+                          <p className="mt-1 truncate text-xs text-slate-500">{meeting.customer?.email ?? "Customer email unavailable"}</p>
+                          {meeting.employee && (
+                            <p className="mt-2 text-xs text-slate-500">
+                              Employee: <span className="font-medium text-slate-700">{meeting.employee.name}</span>
+                            </p>
+                          )}
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                          <p className="text-xs font-semibold text-slate-950">{dateLabel}</p>
+                          <p className="mt-1 text-xs text-slate-700">
+                            {startLabel} – {endLabel} · {meeting.durationMinutes} min
+                          </p>
+                          {ended.getTime() !== scheduledEnd.getTime() && (
+                            <p className="mt-1 text-[11px] text-slate-500">Scheduled end: {scheduledEndLabel}</p>
+                          )}
+                          <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400">{timeZone}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+        </section>
 
         <div className="space-y-5">
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -349,92 +465,9 @@ export default function WorkspaceDashboard() {
         </div>
       </div>
 
-      <section className="mt-5 rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-slate-200 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <CalendarDays className="size-4 text-blue-600" />
-              <h2 className="text-base font-semibold text-slate-950">Past meeting history</h2>
-            </div>
-            <p className="mt-1 text-xs leading-5 text-slate-500">
-              Completed meeting records with the exact scheduled date and start/end time from Conventus.
-            </p>
-          </div>
-          <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">
-            {meetingHistory.length} recorded
-          </span>
-        </div>
 
-        {meetingHistory.length === 0 ? (
-          <div className="px-6 py-14 text-center">
-            <CalendarDays className="mx-auto size-7 text-slate-300" />
-            <p className="mt-3 text-sm font-semibold text-slate-900">No past meetings yet</p>
-            <p className="mt-1 text-xs text-slate-500">Created meetings will appear here after their scheduled end time.</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-slate-100">
-            {meetingHistory.map((meeting, index) => {
-              const timeZone = data.workspace?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-              const start = new Date(meeting.startAt);
-              const end = new Date(meeting.endAt);
-              const dateLabel = start.toLocaleDateString(undefined, {
-                timeZone,
-                weekday: "short",
-                year: "numeric",
-                month: "short",
-                day: "numeric"
-              });
-              const startLabel = start.toLocaleTimeString(undefined, {
-                timeZone,
-                hour: "numeric",
-                minute: "2-digit"
-              });
-              const endLabel = end.toLocaleTimeString(undefined, {
-                timeZone,
-                hour: "numeric",
-                minute: "2-digit"
-              });
-              const statusLabel = meeting.status === "COMPLETED" ? "Completed" : "Ended";
-              return (
-                <div key={`${meeting.startAt}-${meeting.customer?.email ?? index}`} className="px-6 py-5">
-                  <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr_auto] lg:items-center">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="truncate text-sm font-semibold text-slate-950">
-                          {meeting.customer?.name ?? "Customer"}
-                        </p>
-                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
-                          {statusLabel}
-                        </span>
-                      </div>
-                      <p className="mt-1 truncate text-xs text-slate-500">
-                        {meeting.customer?.email ?? "Customer details unavailable"}
-                      </p>
-                    </div>
+      </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                      <p className="text-xs font-semibold text-slate-900">{dateLabel}</p>
-                      <p className="mt-1 text-xs text-slate-600">
-                        {startLabel} – {endLabel} · {meeting.durationMinutes} min
-                      </p>
-                      <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400">
-                        {timeZone}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2 lg:justify-end">
-                      <CheckCircle2 className="size-4 text-emerald-600" />
-                      <span className="text-xs font-medium text-slate-600">
-                        {meeting.calendarSyncStatus === "SYNCED" ? "Calendar synced" : "Meeting recorded"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
 
     </div>
   </main>;
