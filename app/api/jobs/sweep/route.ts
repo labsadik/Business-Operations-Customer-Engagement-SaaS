@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   const now = new Date();
 
   const expired = await BookingRequest.updateMany(
-    { status: { $in: ["REQUESTED", "RETRYING", "ASSIGNED", "CREATING_MEETING"] }, expiresAt: { $lte: now } },
+    { status: { $in: ["REQUESTED", "RETRYING"] }, expiresAt: { $lte: now } },
     { $set: { status: "EXPIRED", assignedEmployeeId: null } }
   );
 
