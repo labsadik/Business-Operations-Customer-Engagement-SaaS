@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 
 declare global {
-  // eslint-disable-next-line no-var
   var __conventusMongo: Promise<typeof mongoose> | undefined;
 }
 
