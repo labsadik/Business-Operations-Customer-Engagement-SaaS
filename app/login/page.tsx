@@ -3,7 +3,12 @@ import { ArrowLeft, Check, Command, ShieldCheck } from "lucide-react";
 
 export const metadata = { title: "Sign in" };
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
   return (
     <main className="min-h-screen bg-[#f7f8fb]">
       <div className="mx-auto grid min-h-screen max-w-6xl items-stretch lg:grid-cols-2">
@@ -30,6 +35,12 @@ export default function LoginPage() {
                 <span className="grid size-6 place-items-center rounded-full bg-slate-100 text-xs font-bold">G</span>
                 Continue with Google
               </Link>
+              {error && (
+                <div role="alert" className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-800">
+                  Google sign-in is not ready for this workspace yet ({error.replaceAll("_", " ")}).
+                </div>
+              )}
+
               <div className="mt-6 flex gap-3 rounded-2xl bg-slate-50 p-4"><ShieldCheck className="mt-0.5 size-5 shrink-0 text-blue-600" /><p className="text-xs leading-5 text-slate-600">OAuth secrets and refresh tokens stay server-side and will never be exposed to browser JavaScript.</p></div>
             </div>
           </div>
