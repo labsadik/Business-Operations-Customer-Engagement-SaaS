@@ -303,6 +303,14 @@ export async function GET(request: Request) {
       return response;
     }
 
+    if (oauth.intent === "employee" && !oauth.invitationToken) {
+      throw new Error("INVITATION_REQUIRED");
+    }
+
+    if (oauth.intent === "company" && !companySlug) {
+      throw new Error("COMPANY_NOT_CONFIGURED");
+    }
+
     if (oauth.intent === "employee" && oauth.invitationToken) {
       if (!companySlug) throw new Error("COMPANY_NOT_CONFIGURED");
 
