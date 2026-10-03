@@ -29,6 +29,7 @@ export type PlatformLegalProfile = {
   phone: string;
   taxId: string;
   gstin: string;
+  sacCode: string;
   address: PlatformAddress;
 };
 
@@ -50,6 +51,7 @@ export function platformLegalProfile(): PlatformLegalProfile {
     phone: envValue("CONVENTUS_PHONE"),
     taxId,
     gstin: envValue("CONVENTUS_GSTIN") || taxId,
+    sacCode: envValue("CONVENTUS_SAC_CODE"),
     address: {
       line1: envValue("CONVENTUS_ADDRESS_LINE1"),
       line2: envValue("CONVENTUS_ADDRESS_LINE2"),
