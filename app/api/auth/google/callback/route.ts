@@ -184,6 +184,18 @@ export async function GET(request: Request) {
     const email = googleUser.email.toLowerCase();
     const bootstrapPlatformAdmin = isPlatformAdminEmail(email);
 
+    // Bootstrap configured platform admins before any tenant-specific login
+    // branch runs. This matters when the admin already has a company membership:
+    // the old flow could otherwise create a company-scoped session first.
+    if (bootstrapPlatformAdmin) {
+      const configuredAdmin = await User.findOne({ email });
+      if (configuredAdmin && configuredAdmin.role !== "PLATFORM_ADMIN") {
+        configuredAdmin.platformAdminPreviousRole = configuredAdmin.role;
+        configuredAdmin.role = "PLATFORM_ADMIN";
+        await configuredAdmin.save();
+      }
+    }
+
     if (oauth.intent === "connect") {
       const current = await getSession();
       if (!current) throw new Error("SESSION_EXPIRED");
@@ -250,28 +262,34 @@ export async function GET(request: Request) {
         });
         await user!.save();
 
+        const platformAdminSession = user!.role === "PLATFORM_ADMIN";
         await createSession({
           userId: String(user!._id),
-          role: String(membership.role),
-          companyId: String(company._id),
-          workspaceId: String(membership.workspaceId)
+          role: platformAdminSession ? "PLATFORM_ADMIN" : String(membership.role),
+          companyId: platformAdminSession ? undefined : String(company._id),
+          workspaceId: platformAdminSession ? undefined : String(membership.workspaceId)
         });
 
-        const response = NextResponse.redirect(new URL("/dashboard", request.url));
+        const response = NextResponse.redirect(
+          new URL(platformAdminSession ? "/admin" : "/dashboard", request.url)
+        );
         response.cookies.delete("conventus_oauth_state");
         return response;
       }
 
       const pendingEmployee = await acceptPendingEmployeeInvitation(company._id, email, googleUser);
       if (pendingEmployee) {
+        const platformAdminSession = pendingEmployee.user.role === "PLATFORM_ADMIN";
         await createSession({
           userId: String(pendingEmployee.user._id),
-          role: "EMPLOYEE",
-          companyId: String(company._id),
-          workspaceId: pendingEmployee.workspaceId
+          role: platformAdminSession ? "PLATFORM_ADMIN" : "EMPLOYEE",
+          companyId: platformAdminSession ? undefined : String(company._id),
+          workspaceId: platformAdminSession ? undefined : pendingEmployee.workspaceId
         });
 
-        const response = NextResponse.redirect(new URL("/dashboard", request.url));
+        const response = NextResponse.redirect(
+          new URL(platformAdminSession ? "/admin" : "/dashboard", request.url)
+        );
         response.cookies.delete("conventus_oauth_state");
         return response;
       }
@@ -302,12 +320,15 @@ export async function GET(request: Request) {
         await user.save();
       }
 
+      const platformAdminSession = user.role === "PLATFORM_ADMIN";
       await createSession({
         userId: String(user._id),
-        role: "CUSTOMER"
+        role: platformAdminSession ? "PLATFORM_ADMIN" : "CUSTOMER"
       });
 
-      const response = NextResponse.redirect(new URL(returnTo, request.url));
+      const response = NextResponse.redirect(
+        new URL(platformAdminSession ? "/admin" : returnTo, request.url)
+      );
       response.cookies.delete("conventus_oauth_state");
       return response;
     }
@@ -398,14 +419,17 @@ export async function GET(request: Request) {
         { $set: { acceptedAt: new Date(), acceptedUserId: user._id } }
       );
 
+      const platformAdminSession = user.role === "PLATFORM_ADMIN";
       await createSession({
         userId: String(user._id),
-        role: String(membership.role),
-        companyId: String(invite.companyId),
-        workspaceId: String(invite.workspaceId)
+        role: platformAdminSession ? "PLATFORM_ADMIN" : String(membership.role),
+        companyId: platformAdminSession ? undefined : String(invite.companyId),
+        workspaceId: platformAdminSession ? undefined : String(invite.workspaceId)
       });
 
-      const response = NextResponse.redirect(new URL(returnTo, request.url));
+      const response = NextResponse.redirect(
+        new URL(platformAdminSession ? "/admin" : returnTo, request.url)
+      );
       response.cookies.delete("conventus_oauth_state");
       return response;
     }
