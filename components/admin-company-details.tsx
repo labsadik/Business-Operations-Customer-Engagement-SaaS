@@ -14,6 +14,7 @@ import {
   UsersRound
 } from "lucide-react";
 import type { AdminCompanyDetails } from "@/lib/admin";
+import AdminManageCompanyButton from "@/components/admin-manage-company-button";
 
 function dateLabel(value: Date | null, withTime = false) {
   if (!value) return "—";
@@ -46,11 +47,12 @@ export default function AdminCompanyDetailsView({ company }: { company: AdminCom
               <p className="mt-2 text-sm text-slate-500">/{company.slug} · created {dateLabel(company.createdAt)}</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">{company.planName}</span>
             <span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${company.publicBookingEnabled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
               {company.publicBookingEnabled ? "Public scheduling live" : "Public page draft"}
             </span>
+            <AdminManageCompanyButton companyId={company.id} />
           </div>
         </div>
       </section>
