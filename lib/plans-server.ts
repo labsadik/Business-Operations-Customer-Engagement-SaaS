@@ -1,5 +1,7 @@
 import { getPlan, type PlanEntitlements } from "@/lib/plans";
 import { Subscription } from "@/models/subscription";
+import { Payment } from "@/models/payment";
+import { Workspace } from "@/models/workspace";
 import { getMongo } from "@/lib/mongodb";
 
 const FREE_USAGE_LIMIT_DAYS = 14;
@@ -16,6 +18,100 @@ function periodFor(plan: PlanEntitlements, start: Date) {
 
 function utcDayKey(date = new Date()) {
   return date.toISOString().slice(0, 10);
+}
+
+export async function reconcileLatestPaidAccess(companyId: string) {
+  const [subscription, latestPayment] = await Promise.all([
+    Subscription.findOne({ companyId }).lean(),
+    Payment.findOne({
+      companyId,
+      merchantAccount: "CONVENTUS",
+      status: { $in: ["CAPTURED", "PENDING", "FAILED"] },
+      providerPaymentId: { $exists: true, $ne: "" },
+      $or: [
+        { paidAt: { $exists: true, $ne: null } },
+        { activatedAt: { $exists: true, $ne: null } }
+      ]
+    })
+      .sort({ paidAt: -1, activatedAt: -1, createdAt: -1 })
+      .lean()
+  ]);
+
+  if (!latestPayment) return subscription;
+
+  const plan = getPlan(latestPayment.planId);
+  if (!plan?.requiresPayment) return subscription;
+
+  const activationStart = new Date(
+    latestPayment.paidAt ??
+    latestPayment.activatedAt ??
+    latestPayment.createdAt ??
+    new Date()
+  );
+  const periodEnd = addValidityDays(activationStart, plan.validityDays);
+  const now = Date.now();
+
+  if (periodEnd.getTime() <= now) return subscription;
+
+  const currentStart = subscription?.currentPeriodStart?.getTime() ?? 0;
+  const currentEnd = subscription?.currentPeriodEnd?.getTime() ?? 0;
+  const currentAccessIsActive = Boolean(
+    subscription &&
+    subscription.status === "ACTIVE" &&
+    currentEnd > now
+  );
+  const currentAccessIsPaidOrGranted = Boolean(
+    currentAccessIsActive &&
+    subscription &&
+    ["PAID", "ADMIN_GRANTED"].includes(subscription.source)
+  );
+  const paymentIsNewer = activationStart.getTime() > currentStart;
+  const planNeedsRepair = !subscription ||
+    !currentAccessIsPaidOrGranted ||
+    paymentIsNewer;
+
+  if (planNeedsRepair) {
+    await Subscription.findOneAndUpdate(
+      { companyId },
+      {
+        $set: {
+          planId: plan.id,
+          source: "PAID",
+          status: "ACTIVE",
+          currentPeriodStart: activationStart,
+          currentPeriodEnd: periodEnd,
+          monthlyMeetingsUsed: 0,
+          freeUsageDates: [],
+          grantedByUserId: undefined,
+          grantedAt: undefined
+        },
+        $setOnInsert: { companyId }
+      },
+      { upsert: true, new: true }
+    );
+
+    await Workspace.updateOne(
+      { companyId },
+      { $set: { planId: plan.id } }
+    );
+  }
+
+  if (latestPayment.status !== "CAPTURED") {
+    await Payment.updateOne(
+      {
+        _id: latestPayment._id,
+        status: { $in: ["PENDING", "FAILED"] }
+      },
+      {
+        $set: {
+          status: "CAPTURED",
+          activatedAt: latestPayment.activatedAt ?? new Date()
+        }
+      }
+    );
+  }
+
+  return Subscription.findOne({ companyId });
 }
 
 async function ensureSubscription(companyId: string) {
@@ -57,17 +153,20 @@ async function ensureSubscription(companyId: string) {
 
 export async function getCompanySubscription(companyId: string) {
   await getMongo();
+  await reconcileLatestPaidAccess(companyId);
   return ensureSubscription(companyId);
 }
 
 export async function getCompanyEntitlements(companyId: string): Promise<PlanEntitlements> {
   await getMongo();
+  await reconcileLatestPaidAccess(companyId);
   const subscription = await ensureSubscription(companyId);
   return getPlan(subscription.planId) ?? getPlan("free")!;
 }
 
 export async function assertFeatureAccess(companyId: string) {
   await getMongo();
+  await reconcileLatestPaidAccess(companyId);
   const subscription = await ensureSubscription(companyId);
   const plan = getPlan(subscription.planId) ?? getPlan("free")!;
 

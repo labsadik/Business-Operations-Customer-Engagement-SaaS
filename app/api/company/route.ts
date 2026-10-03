@@ -144,7 +144,13 @@ export async function GET() {
   return jsonOk({
     company: profilePayload(company, owner ?? undefined),
     workspace: workspace
-      ? { id: String(workspace._id), name: workspace.name, timezone: workspace.timezone, planId: workspace.planId }
+      ? {
+          id: String(workspace._id),
+          name: workspace.name,
+          timezone: workspace.timezone,
+          // Subscription is the source of truth for entitlement state.
+          planId: subscription.planId
+        }
       : null,
     subscription: subscription
       ? {
