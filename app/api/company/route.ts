@@ -149,6 +149,7 @@ export async function GET() {
           monthlyMeetingsUsed: subscription.monthlyMeetingsUsed,
           source: subscription.source,
           freeUsageDates: subscription.freeUsageDates ?? [],
+          periodStart: subscription.currentPeriodStart,
           periodEnd: subscription.currentPeriodEnd
         }
       : null,
@@ -157,6 +158,7 @@ export async function GET() {
     canPublish: connectedMemberCount > 0,
     gstRatePercent: taxConfig.ratePercent,
     gstEnabled: taxConfig.enabled,
+    gstInclusive: taxConfig.inclusive,
     currentRole: session.role
   });
 }
@@ -359,6 +361,12 @@ export async function PATCH(request: Request) {
 
   if (typeof body?.publicBookingEnabled === "boolean") {
     if (body.publicBookingEnabled) {
+      const { assertFeatureAccess } = await import("@/lib/plans-server");
+      try {
+        await assertFeatureAccess(session.companyId);
+      } catch (error) {
+        return jsonError(error instanceof Error ? error.message : "FREE_FEATURE_DAYS_EXHAUSTED", 409);
+      }
       const members = await Membership.find({
         companyId: session.companyId,
         active: true,
