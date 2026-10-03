@@ -53,57 +53,89 @@ export async function POST(
         throw new Error("BOOKING_NO_LONGER_AVAILABLE");
       }
 
-      const plan = await getCompanyEntitlements(session.companyId!);
-      if (booking.requestedDurationMinutes > plan.maxMeetingDurationMinutes) throw new Error("MEETING_DURATION_LIMIT");
-
-      const employeeEligible = await eligibleEmployees(
-        session.companyId!,
-        booking.requestedStartAt,
-        booking.requestedEndAt,
-        booking.declinedBy?.map(String) ?? []
-      );
-      if (!employeeEligible.includes(session.userId)) {
-        await BookingRequest.updateOne(
-          { _id: booking._id, status: "ASSIGNED", assignedEmployeeId: session.userId },
-          {
-            $set: {
-              status: "RETRYING",
-              assignedEmployeeId: null,
-              nextRetryAt: new Date(Date.now() + 20_000)
-            }
-          }
-        );
-        throw new Error("EMPLOYEE_NOT_AVAILABLE");
-      }
-
-      const concurrent = await Meeting.countDocuments({
-        companyId: session.companyId,
-        status: { $in: ["CREATING", "READY", "LIVE"] },
-        startAt: { $lt: booking.requestedEndAt },
-        endAt: { $gt: booking.requestedStartAt }
-      });
-      if (concurrent >= plan.maxConcurrentMeetings) throw new Error("CONCURRENT_MEETING_LIMIT");
-
-      const usage = await Subscription.findOneAndUpdate(
-        { companyId: session.companyId, status: "ACTIVE", monthlyMeetingsUsed: { $lt: plan.monthlyMeetingLimit } },
-        { $inc: { monthlyMeetingsUsed: 1 } },
-        { new: true }
-      );
-      if (!usage) throw new Error("MONTHLY_MEETING_LIMIT");
-
       try {
-        const meeting = await createMeetingForBooking(String(booking._id));
-        return { bookingId: String(booking._id), status: "CONFIRMED", meetingUri: meeting.googleMeetingUri ?? null };
+        const plan = await getCompanyEntitlements(session.companyId!);
+        if (booking.requestedDurationMinutes > plan.maxMeetingDurationMinutes) throw new Error("MEETING_DURATION_LIMIT");
+
+        const employeeEligible = await eligibleEmployees(
+          session.companyId!,
+          booking.requestedStartAt,
+          booking.requestedEndAt,
+          booking.declinedBy?.map(String) ?? []
+        );
+        if (!employeeEligible.includes(session.userId)) {
+          await BookingRequest.updateOne(
+            { _id: booking._id, status: "ASSIGNED", assignedEmployeeId: session.userId },
+            {
+              $set: {
+                status: "RETRYING",
+                assignedEmployeeId: null,
+                nextRetryAt: new Date(Date.now() + 20_000)
+              }
+            }
+          );
+          throw new Error("EMPLOYEE_NOT_AVAILABLE");
+        }
+
+        const concurrent = await Meeting.countDocuments({
+          companyId: session.companyId,
+          status: { $in: ["CREATING", "READY", "LIVE"] },
+          startAt: { $lt: booking.requestedEndAt },
+          endAt: { $gt: booking.requestedStartAt }
+        });
+        if (concurrent >= plan.maxConcurrentMeetings) throw new Error("CONCURRENT_MEETING_LIMIT");
+
+        const usage = await Subscription.findOneAndUpdate(
+          { companyId: session.companyId, status: "ACTIVE", monthlyMeetingsUsed: { $lt: plan.monthlyMeetingLimit } },
+          { $inc: { monthlyMeetingsUsed: 1 } },
+          { new: true }
+        );
+        if (!usage) throw new Error("MONTHLY_MEETING_LIMIT");
+
+        try {
+          const meeting = await createMeetingForBooking(String(booking._id));
+          return { bookingId: String(booking._id), status: "CONFIRMED", meetingUri: meeting.googleMeetingUri ?? null };
+        } catch (error) {
+          await Subscription.updateOne(
+            { companyId: session.companyId, monthlyMeetingsUsed: { $gt: 0 } },
+            { $inc: { monthlyMeetingsUsed: -1 } }
+          );
+          throw error;
+        }
       } catch (error) {
-        await Subscription.updateOne({ companyId: session.companyId, monthlyMeetingsUsed: { $gt: 0 } }, { $inc: { monthlyMeetingsUsed: -1 } });
+        const stillActive = booking.expiresAt.getTime() > Date.now();
+        const current = await BookingRequest.findById(booking._id).lean();
+        if (current?.status === "ASSIGNED" && String(current.assignedEmployeeId) === session.userId) {
+          await BookingRequest.updateOne(
+            { _id: booking._id, status: "ASSIGNED", assignedEmployeeId: session.userId },
+            {
+              $set: {
+                status: stillActive ? "RETRYING" : "EXPIRED",
+                assignedEmployeeId: null,
+                nextRetryAt: stillActive ? new Date(Date.now() + 20_000) : null
+              }
+            }
+          );
+        }
         throw error;
-      }
-    });
+      }    });
 
     return jsonOk(result);
   } catch (error) {
     const code = error instanceof Error ? error.message : "BOOKING_ACCEPT_FAILED";
-    const status = ["BOOKING_NO_LONGER_AVAILABLE", "MEETING_DURATION_LIMIT", "EMPLOYEE_NOT_AVAILABLE", "CONCURRENT_MEETING_LIMIT", "MONTHLY_MEETING_LIMIT", "RESOURCE_BUSY"].includes(code) ? 409 : 500;
+    const status = [
+      "BOOKING_NO_LONGER_AVAILABLE",
+      "MEETING_DURATION_LIMIT",
+      "EMPLOYEE_NOT_AVAILABLE",
+      "CONCURRENT_MEETING_LIMIT",
+      "MONTHLY_MEETING_LIMIT",
+      "RESOURCE_BUSY",
+      "BOOKING_NO_LONGER_AVAILABLE"
+    ].includes(code)
+      ? 409
+      : code.startsWith("GOOGLE_API_") || code.startsWith("GOOGLE_")
+        ? 502
+        : 500;
     return jsonError(code, status);
   }
 }
