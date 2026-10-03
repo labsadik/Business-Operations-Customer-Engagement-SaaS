@@ -9,6 +9,7 @@ import { MeetingType } from "@/models/meeting-type";
 import { AvailabilityRule } from "@/models/availability-rule";
 import { slugify } from "@/lib/slug";
 import { jsonError, jsonOk } from "@/lib/http";
+import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,13 +28,26 @@ export async function GET() {
 
   const workspace = await Workspace.findOne({ companyId: company._id }).lean();
   const subscription = await Subscription.findOne({ companyId: company._id }).lean();
-  const memberCount = await Membership.countDocuments({ companyId: company._id, active: true, role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] } });
+  const activeMembers = await Membership.find({
+    companyId: company._id,
+    active: true,
+    role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] }
+  }).select("userId").lean();
+  const { GoogleAccount } = await import("@/models/google-account");
+  const connectedAccounts = await GoogleAccount.find({
+    userId: { $in: activeMembers.map((member) => member.userId) },
+    status: "CONNECTED"
+  }).select("userId status scopes").lean();
+  const connectedMemberCount = connectedAccounts.filter(isGoogleSchedulingReady).length;
+  const memberCount = activeMembers.length;
 
   return jsonOk({
     company: { id: String(company._id), name: company.name, slug: company.slug, description: company.description, publicBookingEnabled: company.publicBookingEnabled },
     workspace: workspace ? { id: String(workspace._id), name: workspace.name, timezone: workspace.timezone, planId: workspace.planId } : null,
     subscription: subscription ? { planId: subscription.planId, status: subscription.status, monthlyMeetingsUsed: subscription.monthlyMeetingsUsed, periodEnd: subscription.currentPeriodEnd } : null,
-    memberCount
+    memberCount,
+    connectedMemberCount,
+    canPublish: connectedMemberCount > 0
   });
 }
 
@@ -106,13 +120,18 @@ export async function PATCH(request: Request) {
   if (typeof body?.publicBookingEnabled === "boolean") {
     if (body.publicBookingEnabled) {
       const { GoogleAccount } = await import("@/models/google-account");
-      const { Membership } = await import("@/models/membership");
-      const members = await Membership.find({ companyId: session.companyId, active: true }).select("userId").lean();
-      const connected = await GoogleAccount.countDocuments({
+      const members = await Membership.find({
+        companyId: session.companyId,
+        active: true,
+        role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] }
+      }).select("userId").lean();
+      const accounts = await GoogleAccount.find({
         userId: { $in: members.map((member) => member.userId) },
         status: "CONNECTED"
-      });
-      if (connected === 0) return jsonError("GOOGLE_EMPLOYEE_REQUIRED", 409);
+      }).select("userId status scopes").lean();
+      if (!accounts.some(isGoogleSchedulingReady)) {
+        return jsonError("GOOGLE_SCHEDULING_CONNECTION_REQUIRED", 409);
+      }
     }
     update.publicBookingEnabled = body.publicBookingEnabled;
   }
