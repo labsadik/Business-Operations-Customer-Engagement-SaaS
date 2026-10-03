@@ -73,6 +73,7 @@ export default async function CompanyMeetingPage({ params }: { params: Promise<{
   const duration = Math.max(1, Math.round((meeting.endAt.getTime() - meeting.startAt.getTime()) / 60000));
   const meetingUri = meeting.googleMeetingUri ?? null;
   const googleMeetCode = extractGoogleMeetCode(meetingUri);
+  const meetingIsActive = ["READY", "LIVE"].includes(meeting.status) && meeting.endAt.getTime() > Date.now();
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
@@ -100,7 +101,7 @@ export default async function CompanyMeetingPage({ params }: { params: Promise<{
         </div>
 
         <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-black shadow-2xl">
-          {meetingUri ? (
+          {meetingUri && meetingIsActive ? (
             <div className="relative h-[72vh] min-h-[620px] bg-black">
               <div className="pointer-events-none absolute left-4 top-4 z-10 flex items-center gap-2 rounded-full border border-white/10 bg-slate-950/85 px-3 py-2 text-xs text-white/70 backdrop-blur">
                 <Video className="size-3.5 text-blue-300" />
