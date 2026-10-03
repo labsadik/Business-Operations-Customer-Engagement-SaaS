@@ -185,7 +185,7 @@ export async function ensureInvoicesForCapturedPayments(companyId: string) {
       return end;
     })();
 
-    const snapshots = buildInvoiceSnapshots({
+    const snapshots = await buildInvoiceSnapshots({
       company: {
         name: company.name,
         email: company.email ?? "",
