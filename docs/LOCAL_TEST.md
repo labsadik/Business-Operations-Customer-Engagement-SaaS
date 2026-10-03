@@ -36,6 +36,7 @@ After Google OAuth is configured:
 
 Set these in .env.local:
 - MONGODB_URI
+- MONGODB_DB_NAME=Conventus
 - REDIS_URL
 - GOOGLE_CLIENT_ID
 - GOOGLE_CLIENT_SECRET
@@ -44,6 +45,8 @@ Set these in .env.local:
 - ENCRYPTION_KEY
 
 Generate a 32-byte base64url ENCRYPTION_KEY and a long AUTH_SECRET. Do not commit .env.local.
+
+MongoDB database: `MONGODB_DB_NAME=Conventus` keeps the application out of the `test` database.
 
 ## Health check
 
@@ -74,3 +77,7 @@ The page renders the company member/employee email list. Google sign-in is accep
 The public page `/<company-slug>` uses the same Google entry point but resolves access server-side:
 - company member/employee → `/dashboard`
 - non-member Google account → customer booking flow
+
+## Company owner employee management
+
+The company owner can add employees by email and remove active employee memberships from the dashboard. Removal deactivates the membership and availability rules, marks the employee unavailable, and releases pending assigned requests for retry. The user account and Google credentials are retained for a future invitation.
