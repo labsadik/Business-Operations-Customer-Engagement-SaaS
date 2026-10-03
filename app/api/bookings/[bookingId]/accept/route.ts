@@ -33,6 +33,9 @@ export async function POST(
     return jsonError(code, code === "UNAUTHENTICATED" ? 401 : 403);
   }
   if (!session.companyId) return jsonError("COMPANY_NOT_CONFIGURED", 403);
+  if (session.role === "PLATFORM_ADMIN") {
+    return jsonError("PLATFORM_ADMIN_CANNOT_ACCEPT_AS_EMPLOYEE", 403);
+  }
 
   await getMongo();
   const { bookingId } = await params;
