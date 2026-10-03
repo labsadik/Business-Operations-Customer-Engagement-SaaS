@@ -8,6 +8,8 @@ import { Workspace } from "@/models/workspace";
 import { MeetingType } from "@/models/meeting-type";
 import { Membership } from "@/models/membership";
 import { User } from "@/models/user";
+import { getCompanyEntitlements } from "@/lib/plans-server";
+import { getMeetingDurationOptions } from "@/lib/plans";
 import PublicBooking from "@/components/public-booking";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +23,7 @@ export default async function CompanyPublicPage({ params }: { params: Promise<{ 
 
   const meetingTypes = await MeetingType.find({ companyId: company._id, active: true }).lean();
   const workspace = await Workspace.findOne({ companyId: company._id, active: true }).select("timezone").lean();
+  const plan = await getCompanyEntitlements(String(company._id));
   const session = await getSession();
 
   let access: "anonymous" | "company-member" | "customer" = "anonymous";
@@ -58,7 +61,7 @@ export default async function CompanyPublicPage({ params }: { params: Promise<{ 
     id: String(type._id),
     name: type.name,
     description: type.description ?? "",
-    durationOptionsMinutes: type.durationOptionsMinutes
+    durationOptionsMinutes: getMeetingDurationOptions(plan.maxMeetingDurationMinutes, type.durationOptionsMinutes)
   }));
 
   return (
