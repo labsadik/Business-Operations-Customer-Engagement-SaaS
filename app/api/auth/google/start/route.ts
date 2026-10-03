@@ -8,7 +8,7 @@ import { randomToken } from "@/lib/security";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ALLOWED_INTENTS = ["workspace", "customer", "employee", "connect"] as const;
+const ALLOWED_INTENTS = ["workspace", "customer", "employee", "company", "connect"] as const;
 type Intent = (typeof ALLOWED_INTENTS)[number];
 
 export async function GET(request: Request) {
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   const invitationToken = url.searchParams.get("invitationToken") || undefined;
   const requestedReturnTo = url.searchParams.get("returnTo") || undefined;
 
-  if ((intent === "customer" || intent === "employee") && !companySlug && !invitationToken) {
+  if (["customer", "employee", "company"].includes(intent) && !companySlug && !invitationToken) {
     return NextResponse.redirect(new URL("/login?error=missing_company_context", request.url));
   }
 
@@ -34,11 +34,18 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/login?error=google_not_configured", request.url));
   }
 
+  const defaultReturnTo =
+    intent === "customer" && companySlug ? `/${companySlug}` :
+    intent === "company" ? "/dashboard" :
+    intent === "employee" ? "/dashboard?employee=connected" :
+    intent === "connect" ? "/dashboard?google=connected" : "/dashboard";
+
   const returnTo =
-    requestedReturnTo ||
-    (intent === "customer" && companySlug ? `/${companySlug}` :
-      intent === "employee" ? "/dashboard?employee=connected" :
-      intent === "connect" ? "/dashboard?google=connected" : "/dashboard");
+    requestedReturnTo &&
+    requestedReturnTo.startsWith("/") &&
+    !requestedReturnTo.startsWith("//")
+      ? requestedReturnTo
+      : defaultReturnTo;
 
   const state = randomToken(24);
   await getMongo();
