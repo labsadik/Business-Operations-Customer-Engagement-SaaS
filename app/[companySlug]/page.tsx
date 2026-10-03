@@ -19,6 +19,7 @@ export default async function CompanyPublicPage({ params }: { params: Promise<{ 
   if (!company) notFound();
 
   const meetingTypes = await MeetingType.find({ companyId: company._id, active: true }).lean();
+  const workspace = await Workspace.findOne({ companyId: company._id, active: true }).select("timezone").lean();
   const session = await getSession();
 
   let access: "anonymous" | "company-member" | "customer" = "anonymous";
@@ -125,6 +126,7 @@ export default async function CompanyPublicPage({ params }: { params: Promise<{ 
             access={access}
             sessionName={sessionName}
             employeeLoginUrl={`/${company.slug}/login`}
+            timezone={workspace?.timezone || "Asia/Kolkata"}
           />
         </div>
       </div>
