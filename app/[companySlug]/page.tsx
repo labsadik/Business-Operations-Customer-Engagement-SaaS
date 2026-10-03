@@ -65,6 +65,20 @@ export default async function CompanyPublicPage({
         authenticated={session?.role === "CUSTOMER"}
       />
 
+      {announcement && (
+        <div className="border-b border-blue-100 bg-blue-50/70">
+          <div className="mx-auto flex max-w-7xl items-start gap-3 px-4 py-3.5 sm:px-6 lg:px-8">
+            <div className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-xl bg-blue-600 text-white">
+              <CalendarDays className="size-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">{announcement.title}</p>
+              <p className="mt-1 text-sm leading-6 text-blue-950">{announcement.message}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div className="min-w-0">
