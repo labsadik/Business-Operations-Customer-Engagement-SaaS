@@ -73,7 +73,7 @@ export default async function CompanyMeetingPage({ params }: { params: Promise<{
   const duration = Math.max(1, Math.round((meeting.endAt.getTime() - meeting.startAt.getTime()) / 60000));
   const meetingUri = meeting.googleMeetingUri ?? null;
   const googleMeetCode = extractGoogleMeetCode(meetingUri);
-  const meetingIsActive = ["READY", "LIVE"].includes(meeting.status) && meeting.endAt.getTime() > Date.now();
+  const meetingIsActive = ["READY", "LIVE"].includes(meeting.status);
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
