@@ -1,9 +1,11 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Loader2, Settings2 } from "lucide-react";
 
 export default function AdminManageCompanyButton({ companyId }: { companyId: string }) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   async function manage() {
@@ -15,7 +17,7 @@ export default function AdminManageCompanyButton({ companyId }: { companyId: str
         headers: { "content-type": "application/json" }
       });
       if (!response.ok) throw new Error("ADMIN_COMPANY_MANAGE_FAILED");
-      window.location.assign("/dashboard");
+      router.push("/dashboard");
     } finally {
       setLoading(false);
     }
