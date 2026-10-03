@@ -92,6 +92,27 @@ export async function getCalendarEvent(userId: string, eventId: string) {
   );
 }
 
+export async function deleteCalendarEvent(userId: string, eventId: string) {
+  const { accessToken } = await getGoogleAccessToken(userId);
+  const response = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}?sendUpdates=all`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "content-type": "application/json"
+      },
+      cache: "no-store"
+    }
+  );
+
+  if (response.status === 404) return;
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`GOOGLE_API_${response.status}:${body.slice(0, 500)}`);
+  }
+}
+
 export async function createCalendarEvent(userId: string, input: {
   eventId?: string;
   conferenceRequestId?: string;
