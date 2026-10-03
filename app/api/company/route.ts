@@ -10,6 +10,8 @@ import { AvailabilityRule } from "@/models/availability-rule";
 import { slugify } from "@/lib/slug";
 import { jsonError, jsonOk } from "@/lib/http";
 import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
+import { GoogleAccount } from "@/models/google-account";
+import { setEmployeePresence } from "@/lib/employee-presence";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,7 +49,8 @@ export async function GET() {
     subscription: subscription ? { planId: subscription.planId, status: subscription.status, monthlyMeetingsUsed: subscription.monthlyMeetingsUsed, periodEnd: subscription.currentPeriodEnd } : null,
     memberCount,
     connectedMemberCount,
-    canPublish: connectedMemberCount > 0
+    canPublish: connectedMemberCount > 0,
+    currentRole: session.role
   });
 }
 
@@ -94,6 +97,24 @@ export async function POST(request: Request) {
 
     if (!createdIds) throw new Error("COMPANY_CREATE_FAILED");
     await updateSessionScope(session.userId, createdIds);
+
+    const ownerGoogleAccount = await GoogleAccount.findOne({
+      userId: session.userId,
+      status: "CONNECTED"
+    }).select("status scopes").lean();
+
+    if (isGoogleSchedulingReady(ownerGoogleAccount)) {
+      await Membership.updateOne(
+        { companyId: createdIds.companyId, userId: session.userId, active: true },
+        { $set: { googleConnectionStatus: "CONNECTED" } }
+      );
+      try {
+        await setEmployeePresence(createdIds.companyId, session.userId, "AVAILABLE");
+      } catch (error) {
+        console.error("Conventus owner presence initialization failed", error);
+      }
+    }
+
     return jsonOk({ companyId: createdIds.companyId, workspaceId: createdIds.workspaceId, slug }, 201);
   } catch (error) {
     const message = error instanceof Error ? error.message : "COMPANY_CREATE_FAILED";
