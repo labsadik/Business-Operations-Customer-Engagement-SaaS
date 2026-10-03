@@ -92,5 +92,5 @@ if (previousRole) {
   );
 }
 
-console.log(\`Platform admin ready: \${result.email} (\${result._id})\`);
+console.log("Platform admin ready: " + result.email + " (" + result._id + ")");
 await mongoose.disconnect();
