@@ -339,7 +339,7 @@ export async function GET(request: Request) {
           email,
           name: googleUser.name || email.split("@")[0],
           image: googleUser.picture,
-          role: "EMPLOYEE",
+          role: bootstrapPlatformAdmin ? "PLATFORM_ADMIN" : "EMPLOYEE",
           googleSubject: googleUser.sub,
           googleEmail: email,
           lastLoginAt: new Date()
@@ -350,7 +350,7 @@ export async function GET(request: Request) {
           image: googleUser.picture || user.image,
           googleSubject: googleUser.sub,
           googleEmail: email,
-          role: user.role === "PLATFORM_ADMIN" ? user.role : "EMPLOYEE",
+          role: (bootstrapPlatformAdmin || user.role === "PLATFORM_ADMIN") ? "PLATFORM_ADMIN" : "EMPLOYEE",
           lastLoginAt: new Date()
         });
         await user.save();
@@ -424,6 +424,7 @@ export async function GET(request: Request) {
         image: googleUser.picture || user.image,
         googleSubject: googleUser.sub,
         googleEmail: email,
+        role: bootstrapPlatformAdmin ? "PLATFORM_ADMIN" : user.role,
         lastLoginAt: new Date()
       });
       await user.save();
