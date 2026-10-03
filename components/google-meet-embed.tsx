@@ -12,6 +12,7 @@ export default function GoogleMeetEmbed({
   return (
     <div className="relative min-h-[68vh] overflow-hidden bg-[#05070b]">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(37,99,235,0.2),transparent_45%)]" />
+
       <div className="relative flex min-h-[68vh] items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-4xl overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/90 shadow-2xl backdrop-blur">
           <div className="flex flex-col gap-4 border-b border-white/10 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
@@ -27,9 +28,7 @@ export default function GoogleMeetEmbed({
 
             {meetingCode && (
               <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2">
-                <p className="text-[10px] uppercase tracking-[0.15em] text-white/35">
-                  Meeting code
-                </p>
+                <p className="text-[10px] uppercase tracking-[0.15em] text-white/35">Meeting code</p>
                 <p className="mt-1 font-mono text-sm font-semibold tracking-wide text-white/80">
                   {meetingCode}
                 </p>
@@ -52,10 +51,10 @@ export default function GoogleMeetEmbed({
               </h2>
 
               <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-white/55">
-                The actual Google Meet application must run on Google&apos;s
-                meeting surface. Google prevents the normal
-                <span className="font-mono text-white/65"> meet.google.com </span>
-                page from being loaded inside a third-party iframe.
+                The live Google Meet application is hosted by Google and cannot
+                be framed by Conventus. This page keeps the secure Conventus
+                authorization around the meeting while Google hosts the
+                audio/video session.
               </p>
 
               {meetingCode && (
@@ -76,13 +75,13 @@ export default function GoogleMeetEmbed({
                 className="mt-8 inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-7 py-4 text-sm font-semibold text-slate-950 shadow-xl transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-white/50"
               >
                 <Video className="size-4" />
-                Open Google Meet
+                Join Google Meet
                 <ExternalLink className="size-4" />
               </a>
 
               <p className="mt-4 text-[11px] text-white/30">
-                Conventus keeps the secure meeting URL. Google hosts the live
-                audio/video session.
+                Only the authenticated Conventus customer, assigned employee,
+                or authorized company manager can open this page.
               </p>
             </div>
           </div>
