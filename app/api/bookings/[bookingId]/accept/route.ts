@@ -35,9 +35,13 @@ export async function POST(
         {
           _id: bookingId,
           companyId: session.companyId,
-          status: "REQUESTED",
+          status: { $in: ["REQUESTED", "RETRYING"] },
           expiresAt: { $gt: new Date() },
-          assignedEmployeeId: { $exists: false },
+          $or: [
+            { assignedEmployeeId: { $exists: false } },
+            { assignedEmployeeId: null },
+            { assignedEmployeeId: session.userId }
+          ],
           declinedBy: { $ne: session.userId }
         },
         { $set: { assignedEmployeeId: session.userId, status: "ASSIGNED", acceptedAt: new Date() } },
