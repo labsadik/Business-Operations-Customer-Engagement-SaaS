@@ -106,13 +106,14 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentD
           Tax invoice
         </div>
         <div className="flex items-center gap-2">
-          <Link
+          <a
             href={invoice.pdfHref}
+            download
             className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-slate-800"
           >
             <Download className="size-3.5" />
             Download PDF
-          </Link>
+          </a>
         </div>
       </div>
 
