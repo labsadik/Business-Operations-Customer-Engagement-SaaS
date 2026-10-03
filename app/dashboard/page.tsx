@@ -14,6 +14,8 @@ export default async function DashboardPage() {
     redirect("/login?error=workspace_access_required");
   }
 
+  if (session.role === "PLATFORM_ADMIN") redirect("/admin");
+
   if (["COMPANY_ADMIN", "EMPLOYEE"].includes(session.role) && !session.companyId) {
     redirect("/login?error=workspace_access_required");
   }
