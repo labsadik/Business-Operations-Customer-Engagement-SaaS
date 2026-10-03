@@ -5,7 +5,7 @@ import { User } from "@/models/user";
 import { randomToken, sha256 } from "@/lib/security";
 
 const COOKIE_NAME = "conventus_session";
-const SESSION_DAYS = 14;
+const SESSION_DAYS = 30;
 
 export type AuthSession = {
   userId: string;
