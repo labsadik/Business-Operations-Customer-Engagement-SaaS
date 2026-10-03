@@ -9,6 +9,7 @@ import { BookingRequest } from "@/models/booking-request";
 import { Company } from "@/models/company";
 import { GoogleAccount } from "@/models/google-account";
 import { setEmployeePresence } from "@/lib/employee-presence";
+import { Types } from "mongoose";
 import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
 
 export const runtime = "nodejs";
@@ -23,7 +24,11 @@ export async function DELETE(
     await getMongo();
     const { userId } = await params;
 
-    if (!userId || userId === session.userId) {
+    if (!Types.ObjectId.isValid(userId)) {
+      return jsonError("INVALID_EMPLOYEE_ID", 400);
+    }
+
+    if (userId === session.userId) {
       return jsonError("CANNOT_REMOVE_SELF", 400);
     }
 
@@ -118,6 +123,15 @@ export async function DELETE(
     });
   } catch (error) {
     const code = error instanceof Error ? error.message : "EMPLOYEE_REMOVE_FAILED";
-    return jsonError(code, code === "UNAUTHENTICATED" ? 401 : code === "EMPLOYEE_NOT_FOUND" ? 404 : 409);
+    const status = code === "UNAUTHENTICATED"
+      ? 401
+      : code === "FORBIDDEN"
+        ? 403
+        : code === "EMPLOYEE_NOT_FOUND"
+          ? 404
+          : code === "INVALID_EMPLOYEE_ID"
+            ? 400
+            : 409;
+    return jsonError(code, status);
   }
 }
