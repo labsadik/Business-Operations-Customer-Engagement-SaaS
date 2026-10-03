@@ -2,21 +2,63 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { CalendarDays, CheckCircle2, Copy, Globe2, LogOut, Plus, RefreshCw, Settings2, ShieldCheck, Trash2, UsersRound, Video, XCircle, Volume2, VolumeX } from "lucide-react";
+import {
+  Activity,
+  ArrowUpRight,
+  CalendarDays,
+  CheckCircle2,
+  ChevronRight,
+  Copy,
+  Globe2,
+  LogOut,
+  MoreHorizontal,
+  Plus,
+  RefreshCw,
+  Settings2,
+  ShieldCheck,
+  Trash2,
+  UsersRound,
+  Video,
+  XCircle
+} from "lucide-react";
 import ConfirmDialog from "@/components/confirm-dialog";
+import UserAvatar from "@/components/user-avatar";
 import { playMeetingSound, unlockMeetingSound } from "@/lib/client-meeting-sound";
 
 type CompanyData = {
-  company: { id: string; name: string; slug: string; description?: string; publicBookingEnabled: boolean };
-  workspace: { id: string; name: string; timezone: string; planId: string } | null;
-  subscription: { planId: string; status: string; monthlyMeetingsUsed: number; periodEnd: string } | null;
+  company: {
+    id: string;
+    name: string;
+    slug: string;
+    description?: string;
+    publicBookingEnabled: boolean;
+  };
+  workspace: {
+    id: string;
+    name: string;
+    timezone: string;
+    planId: string;
+  } | null;
+  subscription: {
+    planId: string;
+    status: string;
+    monthlyMeetingsUsed: number;
+    periodEnd: string;
+  } | null;
   memberCount: number;
   connectedMemberCount: number;
   canPublish: boolean;
   currentRole: string;
 };
 
-type Employee = { id: string; name: string; email: string; role: string; googleConnected: boolean };
+type Employee = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  googleConnected: boolean;
+};
+
 type RequestItem = {
   id: string;
   startAt: string;
@@ -25,7 +67,7 @@ type RequestItem = {
   status: string;
   assignedEmployeeId: string | null;
   expiresAt: string;
-  customer: { name: string; email: string } | null;
+  customer: { name: string; email: string; image?: string | null } | null;
   meeting: { status: string; meetingUri: string | null } | null;
 };
 
@@ -35,27 +77,68 @@ type MeetingHistoryItem = {
   endedAt: string;
   durationMinutes: number;
   status: string;
-  calendarSyncStatus: string;
   employee: { name: string; email: string; image: string | null } | null;
   customer: { name: string; email: string; image: string | null } | null;
   scheduledBy: { name: string; email: string; image: string | null } | null;
 };
 
-const INITIAL_NOW = Date.now();
+type DashboardUser = { name: string; email: string; image?: string };
 
 type Confirmation =
   | { kind: "remove-employee"; id: string; name: string }
   | { kind: "end-meeting"; id: string }
   | null;
 
+const INITIAL_NOW = Date.now();
+
 async function api<T>(url: string, init?: RequestInit) {
-  const response = await fetch(url, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) }, cache: "no-store" });
+  const response = await fetch(url, {
+    ...init,
+    headers: {
+      "content-type": "application/json",
+      ...(init?.headers ?? {})
+    },
+    cache: "no-store"
+  });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error || "REQUEST_FAILED");
   return body.data as T;
 }
 
-type DashboardUser = { name: string; email: string; image?: string };
+function initials(name: string) {
+  return (
+    name
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part[0] ?? "")
+      .join("")
+      .toUpperCase() || "?"
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <main className="min-h-screen bg-[#f7f8fb]">
+      <div className="mx-auto max-w-7xl px-5 py-6 sm:px-6 lg:px-8">
+        <div className="h-16 animate-pulse rounded-2xl border border-slate-200 bg-white" />
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="h-32 animate-pulse rounded-3xl border border-slate-200 bg-white" />
+          ))}
+        </div>
+        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.45fr)_360px]">
+          <div className="h-[520px] animate-pulse rounded-3xl border border-slate-200 bg-white" />
+          <div className="space-y-6">
+            <div className="h-56 animate-pulse rounded-3xl border border-slate-200 bg-white" />
+            <div className="h-60 animate-pulse rounded-3xl border border-slate-200 bg-white" />
+          </div>
+        </div>
+        <div className="mt-6 h-72 animate-pulse rounded-3xl border border-slate-200 bg-white" />
+      </div>
+    </main>
+  );
+}
 
 export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
   const [data, setData] = useState<CompanyData | null>(null);
@@ -70,9 +153,9 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
   const [slug, setSlug] = useState("");
   const [email, setEmail] = useState("");
   const [invite, setInvite] = useState("");
-  const [deletingEmployeeId, setDeletingEmployeeId] = useState("");
   const [actingRequestId, setActingRequestId] = useState("");
   const [endingRequestId, setEndingRequestId] = useState("");
+  const [deletingEmployeeId, setDeletingEmployeeId] = useState("");
   const [now, setNow] = useState(INITIAL_NOW);
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
@@ -102,17 +185,24 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
   }
 
   useEffect(() => {
-    const initial = window.setTimeout(() => { void refresh(); }, 0);
-    const id = window.setInterval(() => void refresh(), 3000);
+    const initial = window.setTimeout(() => {
+      void refresh();
+    }, 0);
+    const timer = window.setInterval(() => {
+      void refresh();
+    }, 3000);
     return () => {
       window.clearTimeout(initial);
-      window.clearInterval(id);
+      window.clearInterval(timer);
     };
   }, []);
 
   useEffect(() => {
     const ids = requests.map((item) => item.id);
-    if (initializedRequestsRef.current && ids.some((id) => !seenRequestIdsRef.current.has(id))) {
+    if (
+      initializedRequestsRef.current &&
+      ids.some((id) => !seenRequestIdsRef.current.has(id))
+    ) {
       void playMeetingSound("incoming");
     }
     for (const id of ids) seenRequestIdsRef.current.add(id);
@@ -133,15 +223,19 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
   }, []);
 
   useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
   }, []);
 
   async function createCompany(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
+    setError("");
     try {
-      await api("/api/company", { method: "POST", body: JSON.stringify({ name, slug }) });
+      await api("/api/company", {
+        method: "POST",
+        body: JSON.stringify({ name, slug })
+      });
       setName("");
       setSlug("");
       await refresh();
@@ -155,13 +249,18 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
   async function publish() {
     if (!data) return;
     if (!data.company.publicBookingEnabled && !data.canPublish) {
-      setError("CONNECT_GOOGLE_FOR_AT_LEAST_ONE_ACTIVE_MEMBER");
+      setError("PUBLISH_REQUIRES_READY_MEMBER");
       return;
     }
     setBusy(true);
     setError("");
     try {
-      await api("/api/company", { method: "PATCH", body: JSON.stringify({ publicBookingEnabled: !data.company.publicBookingEnabled }) });
+      await api("/api/company", {
+        method: "PATCH",
+        body: JSON.stringify({
+          publicBookingEnabled: !data.company.publicBookingEnabled
+        })
+      });
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "PUBLISH_FAILED");
@@ -174,7 +273,13 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
     event.preventDefault();
     setError("");
     try {
-      const result = await api<{ inviteUrl: string }>("/api/company/employees", { method: "POST", body: JSON.stringify({ email }) });
+      const result = await api<{ inviteUrl: string }>(
+        "/api/company/employees",
+        {
+          method: "POST",
+          body: JSON.stringify({ email })
+        }
+      );
       setInvite(result.inviteUrl);
       setEmail("");
       await refresh();
@@ -183,11 +288,11 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
     }
   }
 
-  async function removeEmployee(employeeId: string) {
-    setDeletingEmployeeId(employeeId);
+  async function removeEmployee(id: string) {
+    setDeletingEmployeeId(id);
     setError("");
     try {
-      await api(`/api/company/employees/${employeeId}`, { method: "DELETE" });
+      await api(`/api/company/employees/${id}`, { method: "DELETE" });
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "EMPLOYEE_REMOVE_FAILED");
@@ -210,17 +315,6 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
     }
   }
 
-  async function confirmDialogAction() {
-    if (!confirmation) return;
-    const action = confirmation;
-    setConfirmation(null);
-    if (action.kind === "remove-employee") {
-      await removeEmployee(action.id);
-    } else {
-      await endMeeting(action.id);
-    }
-  }
-
   async function act(id: string, action: "accept" | "decline") {
     setActingRequestId(id);
     setError("");
@@ -235,322 +329,653 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
     }
   }
 
-  if (loading) return <main className="min-h-screen bg-[#f7f8fb]"><div className="mx-auto max-w-7xl px-5 py-10 sm:px-6 lg:px-8"><div className="h-48 animate-pulse rounded-[2rem] border border-slate-200 bg-white" /></div></main>;
-
-  if (!data) {
-
-  return <main className="min-h-screen bg-[#f7f8fb]"><header className="border-b border-slate-200 bg-white"><div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-5"><Link href="/" className="font-semibold tracking-tight text-slate-950">Conventus</Link><form action="/api/auth/logout" method="post"><button className="text-sm font-medium text-slate-500">Sign out</button></form></div></header><div className="mx-auto max-w-2xl px-5 py-14 sm:px-6"><section className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm sm:p-10"><p className="text-sm font-semibold text-blue-600">Create workspace</p><h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Start your Conventus company.</h1><p className="mt-3 text-sm leading-6 text-slate-600">Your account is ready. Give your company a name and a public URL slug, then connect Google for Calendar and Meet.</p><form onSubmit={createCompany} className="mt-8 grid gap-4"><label className="grid gap-2 text-sm font-semibold text-slate-800">Company name<input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Acme Corporation" className="focus-ring rounded-xl border border-slate-300 px-4 py-3 font-normal outline-none focus:border-blue-500" /></label><label className="grid gap-2 text-sm font-semibold text-slate-800">Public slug<input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="acme" className="focus-ring rounded-xl border border-slate-300 px-4 py-3 font-normal outline-none focus:border-blue-500" /></label>{error && <p role="alert" className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800">{error.replaceAll("_", " ")}</p>}<button disabled={busy} className="mt-2 rounded-xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white disabled:opacity-50">{busy ? "Creating..." : "Create workspace"}</button></form></section></div></main>;
+  async function confirmDialogAction() {
+    if (!confirmation) return;
+    const action = confirmation;
+    setConfirmation(null);
+    if (action.kind === "remove-employee") {
+      await removeEmployee(action.id);
+    } else {
+      await endMeeting(action.id);
+    }
   }
 
-  const canManageEmployees = data.currentRole === "COMPANY_OWNER" || data.currentRole === "COMPANY_ADMIN";
-  const planMax = data.subscription?.planId === "business" ? 350 : 100;
-  const usage = Math.min(100, Math.round(((data.subscription?.monthlyMeetingsUsed ?? 0) / planMax) * 100));
+  if (loading) return <DashboardSkeleton />;
 
-  return <main className="min-h-screen bg-[#f7f8fb]">
-    <header className="border-b border-slate-200 bg-white"><div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-8"><Link href="/" className="flex items-center gap-2 font-semibold tracking-tight text-slate-950"><span className="grid size-8 place-items-center rounded-xl bg-slate-950 text-white"><Video className="size-4" /></span>Conventus</Link><div className="flex items-center gap-2">
-        <Link href={`/${data.company.slug}`} className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 sm:inline-flex"><Globe2 className="mr-2 size-4" /> Public page</Link>
-        <button type="button" onClick={() => window.open("/api/auth/google/start?intent=connect&returnTo=/dashboard", "_self")} className="hidden items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 md:inline-flex"><ShieldCheck className="size-4 text-blue-600" /> Connect Google</button>
-        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-2 py-1.5">
-          <div
-            className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full border border-slate-200 bg-white text-[10px] font-bold text-slate-700"
-            title={user.email}
-          >
-            {user.image ? (
-              <span
-                aria-label={user.name}
-                className="block size-full bg-cover bg-center"
-                style={{ backgroundImage: `url("${user.image}")` }}
-              />
-            ) : (
-              user.name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()
-            )}
-          </div>
-          <div className="hidden max-w-36 sm:block">
-            <p className="truncate text-xs font-semibold text-slate-900">{user.name}</p>
-            <p className="truncate text-[10px] text-slate-500">{user.email}</p>
+  if (!data) {
+    return (
+      <main className="min-h-screen bg-[#f7f8fb]">
+        <div className="mx-auto flex min-h-screen max-w-2xl items-center px-5 py-10">
+          <section className="w-full rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm sm:p-10">
+            <div className="flex items-center gap-3">
+              <div className="grid size-11 place-items-center rounded-2xl bg-slate-950 text-white">
+                <Video className="size-5" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
+                  Workspace setup
+                </p>
+                <p className="mt-1 text-sm text-slate-500">Step 1 of 1</p>
+              </div>
+            </div>
+            <h1 className="mt-7 text-3xl font-semibold tracking-tight text-slate-950">
+              Create your company workspace.
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              Set up the company identity first. Team access, booking and publishing controls become available as soon as the workspace is created.
+            </p>
+            <form onSubmit={createCompany} className="mt-8 grid gap-4">
+              <label className="grid gap-2 text-sm font-semibold text-slate-800">
+                Company name
+                <input
+                  required
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Acme Corporation"
+                  className="focus-ring rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:border-blue-500"
+                />
+              </label>
+              <label className="grid gap-2 text-sm font-semibold text-slate-800">
+                Public address
+                <input
+                  value={slug}
+                  onChange={(event) => setSlug(event.target.value)}
+                  placeholder="acme"
+                  className="focus-ring rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none focus:border-blue-500"
+                />
+              </label>
+              {error && (
+                <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
+                  {error.replaceAll("_", " ")}
+                </div>
+              )}
+              <button
+                disabled={busy}
+                className="mt-2 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+              >
+                {busy ? "Creating..." : "Create workspace"}
+                <ChevronRight className="size-4" />
+              </button>
+            </form>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
+  const canManageEmployees =
+    data.currentRole === "COMPANY_OWNER" ||
+    data.currentRole === "COMPANY_ADMIN";
+  const planMax = data.subscription?.planId === "business" ? 350 : 100;
+  const usagePercent = Math.min(
+    100,
+    Math.round(
+      ((data.subscription?.monthlyMeetingsUsed ?? 0) / planMax) * 100
+    )
+  );
+  const readyCount = requests.filter(
+    (item) => item.meeting?.status === "READY" && item.meeting.meetingUri
+  ).length;
+
+  return (
+    <main className="min-h-screen bg-[#f7f8fb] text-slate-950">
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur-xl">
+        <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
+          <Link href="/" className="flex items-center gap-3">
+            <span className="grid size-9 place-items-center rounded-xl bg-slate-950 text-white shadow-sm">
+              <Video className="size-4" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold tracking-tight">Conventus</p>
+              <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-400">
+                Workspace
+              </p>
+            </div>
+          </Link>
+
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/${data.company.slug}`}
+              className="hidden items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 sm:inline-flex"
+            >
+              <Globe2 className="size-4" />
+              Public page
+            </Link>
+            <button
+              type="button"
+              onClick={() =>
+                window.open(
+                  "/api/auth/google/start?intent=connect&returnTo=/dashboard",
+                  "_self"
+                )
+              }
+              className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 md:inline-flex"
+            >
+              <ShieldCheck className="size-4 text-blue-600" />
+              Connection
+            </button>
+            <UserAvatar name={user.name} email={user.email} size={38} />
+            <form action="/api/auth/logout" method="post">
+              <button
+                aria-label="Sign out"
+                className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+              >
+                <LogOut className="size-4" />
+              </button>
+            </form>
           </div>
         </div>
-        <form action="/api/auth/logout" method="post"><button aria-label="Sign out" className="grid size-10 place-items-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50"><LogOut className="size-4" /></button></form>
-      </div></div></header>
+      </header>
 
-    <div className="mx-auto max-w-7xl px-5 py-8 sm:px-6 lg:px-8">
-      {error && <div role="alert" className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        {error === "CONNECT_GOOGLE_FOR_AT_LEAST_ONE_ACTIVE_MEMBER"
-          ? "Connect Google for at least one active company member before publishing the public page."
-          : error === "INVITATION_ALREADY_PENDING"
-            ? "An active invitation already exists for this email."
-            : error === "EMPLOYEE_HAS_ACTIVE_MEETING_CREATION"
-              ? "This employee is currently creating a meeting. Remove them after that operation finishes."
-              : error === "MEETING_ALREADY_ENDED"
-                ? "This meeting has already ended and cannot be joined or reused."
-                : error === "MEETING_NOT_READY"
-                  ? "This meeting is not ready to be ended."
-                  : error.replaceAll("_", " ")}
-      </div>}
-      <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end"><div><p className="text-sm font-semibold text-blue-600">Company workspace</p><h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{data.company.name}</h1><p className="mt-2 text-sm text-slate-500">/{data.company.slug} · {data.workspace?.timezone}</p></div><div className="flex items-center gap-2">
-          <button type="button" onClick={() => { void unlockMeetingSound(); setSoundEnabled(true); }} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50" title={soundEnabled ? "Meeting sounds enabled" : "Enable meeting sounds"}>
-            {soundEnabled ? <Volume2 className="size-4 text-blue-600" /> : <VolumeX className="size-4 text-slate-400" />}
-            <span className="hidden sm:inline">{soundEnabled ? "Sound on" : "Enable sound"}</span>
-          </button>
-          <button onClick={() => void refresh()} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"><RefreshCw className="size-4" /> Refresh</button>
-        </div></div>
+      <div className="mx-auto max-w-7xl px-5 py-7 sm:px-6 lg:px-8 lg:py-9">
+        {error && (
+          <div role="alert" className="mb-6 flex items-start justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <span>
+              {error === "PUBLISH_REQUIRES_READY_MEMBER"
+                ? "At least one active team member must finish setup before the public page can be published."
+                : error === "MEETING_ALREADY_ENDED"
+                  ? "This meeting has already ended and cannot be reused."
+                  : error === "MEETING_NOT_READY"
+                    ? "This meeting is not ready to be ended."
+                    : error.replaceAll("_", " ")}
+            </span>
+            <button
+              type="button"
+              onClick={() => setError("")}
+              className="shrink-0 text-amber-700 hover:text-amber-950"
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+        )}
 
-      <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          ["Plan", data.subscription?.planId === "business" ? "Business" : "Starter", Settings2],
-          ["Members", String(data.memberCount), UsersRound],
-          ["Monthly meetings", `${data.subscription?.monthlyMeetingsUsed ?? 0} / ${planMax}`, CalendarDays],
-          ["Public page", data.company.publicBookingEnabled ? "Published" : "Draft", Globe2]
-        ].map(([title, value, Icon]) => { const I = Icon as typeof Globe2; return <article key={title as string} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"><div className="grid size-10 place-items-center rounded-xl bg-blue-50 text-blue-700"><I className="size-5" /></div><p className="mt-4 text-xs font-medium text-slate-500">{title as string}</p><p className="mt-1 text-xl font-semibold text-slate-950">{value as string}</p></article>; })}
-      </div>
-
-      <div className="mt-7 grid gap-5 lg:grid-cols-[1.25fr_0.75fr]">
-        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 px-6 py-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <CalendarDays className="size-4 text-blue-600" />
-                  <h2 className="text-base font-semibold text-slate-950">Meetings</h2>
-                </div>
-                <p className="mt-1 text-xs text-slate-500">
-                  New meetings are active bookings. Old meetings are closed records only.
-                </p>
+        <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
+          <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-blue-700">
+                  {data.currentRole.replaceAll("_", " ")}
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400">
+                  <span className="size-1.5 rounded-full bg-emerald-500" />
+                  Operational
+                </span>
               </div>
-              <div className="inline-flex w-full rounded-xl border border-slate-200 bg-slate-50 p-1 sm:w-auto">
+              <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] text-slate-950 sm:text-4xl">
+                {data.company.name}
+              </h1>
+              <p className="mt-2 text-sm text-slate-500">
+                {data.company.description || "A central workspace for customer requests, team coordination and meeting delivery."}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  void unlockMeetingSound();
+                  setSoundEnabled(true);
+                }}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                {soundEnabled ? "Notifications on" : "Enable notifications"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void refresh()}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                <RefreshCw className="size-3.5" />
+                Refresh
+              </button>
+              {canManageEmployees && (
                 <button
                   type="button"
-                  onClick={() => setMeetingView("new")}
-                  className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition sm:flex-none ${meetingView === "new" ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-800"}`}
+                  onClick={() => void publish()}
+                  disabled={busy || (!data.company.publicBookingEnabled && !data.canPublish)}
+                  className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  New meetings
-                  <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] text-blue-700">{requests.length}</span>
+                  {data.company.publicBookingEnabled ? "Published" : "Publish page"}
+                  <ArrowUpRight className="size-3.5" />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setMeetingView("old")}
-                  className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition sm:flex-none ${meetingView === "old" ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-800"}`}
-                >
-                  Old meetings
-                  <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] text-slate-600">{meetingHistory.length}</span>
-                </button>
-              </div>
+              )}
             </div>
           </div>
 
-          {meetingView === "new" ? (
-            <div className="divide-y divide-slate-100">
-              {requests.length === 0 ? (
-                <div className="px-6 py-14 text-center">
-                  <Video className="mx-auto size-7 text-slate-300" />
-                  <p className="mt-3 text-sm font-semibold text-slate-900">No new meetings</p>
-                  <p className="mt-1 text-xs text-slate-500">New customer requests and confirmed meetings will appear here.</p>
-                </div>
-              ) : requests.map((item) => {
-                const remaining = Math.max(0, Math.ceil((new Date(item.expiresAt).getTime() - now) / 1000));
-                const actionable = item.status === "REQUESTED" || item.status === "RETRYING";
-                const creating = item.status === "ASSIGNED" || item.status === "CREATING_MEETING";
-                const ready = item.meeting?.status === "READY" && Boolean(item.meeting.meetingUri);
-                const scheduled = item.status === "CONFIRMED" || item.status === "IN_PROGRESS";
-                const urgent = remaining <= 60;
-                const pendingTimer = !ready && !scheduled;
-                return (
-                  <div key={item.id} className="px-6 py-5">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-semibold text-slate-950">{item.customer?.name ?? "Customer"}</p>
-                          <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${ready ? "bg-emerald-50 text-emerald-700" : creating ? "bg-blue-50 text-blue-700" : item.status === "RETRYING" ? "bg-amber-50 text-amber-700" : scheduled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
-                            {ready ? "Meeting ready" : creating ? "Creating meeting" : item.status === "RETRYING" ? "Employees busy · retrying" : scheduled ? "Confirmed" : "Waiting for acceptance"}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-xs text-slate-500">{new Date(item.startAt).toLocaleString()} · {item.durationMinutes} min</p>
-                        {pendingTimer && (
-                          <>
-                            <div className="mt-3 flex items-center gap-3">
-                              <span className={`rounded-xl border px-3 py-1.5 font-mono text-sm font-bold ${urgent ? "border-rose-200 bg-rose-50 text-rose-700" : "border-slate-200 bg-slate-50 text-slate-950"}`}>
-                                {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
-                              </span>
-                              <span className="text-[11px] font-medium text-slate-500">{creating ? "Meeting setup in progress" : item.status === "RETRYING" ? "Looking for another available employee" : "Acceptance timer"}</span>
-                            </div>
-                            <div className="mt-2 h-1.5 max-w-sm overflow-hidden rounded-full bg-slate-100">
-                              <div className={`h-full transition-all duration-1000 ${urgent ? "bg-rose-500" : "bg-blue-600"}`} style={{ width: `${Math.min(100, Math.max(0, (remaining / 300) * 100))}%` }} />
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {ready && item.meeting?.meetingUri && (
-                          <>
-                            <a
-                              href={item.meeting.meetingUri}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700"
-                            >
-                              <Video className="size-4" /> Join Google Meet
-                            </a>
-                            <button
-                              type="button"
-                              disabled={endingRequestId === item.id}
-                              onClick={() => setConfirmation({ kind: "end-meeting", id: item.id })}
-                              className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              <XCircle className="size-4" />
-                              {endingRequestId === item.id ? "Ending..." : "End meeting"}
-                            </button>
-                          </>
-                        )}
-                        {actionable && (
-                          <>
-                            <button disabled={actingRequestId === item.id} onClick={() => void act(item.id, "decline")} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3.5 py-2.5 text-xs font-semibold text-slate-700 disabled:opacity-50"><XCircle className="size-4" /> Decline</button>
-                            <button disabled={actingRequestId === item.id} onClick={() => void act(item.id, "accept")} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3.5 py-2.5 text-xs font-semibold text-white disabled:opacity-50"><CheckCircle2 className="size-4" /> {actingRequestId === item.id ? "Accepting..." : "Accept"}</button>
-                          </>
-                        )}
-                      </div>
-                    </div>
+          <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              ["Plan", data.subscription?.planId === "business" ? "Business" : "Starter", Settings2],
+              ["Team", String(data.memberCount), UsersRound],
+              ["Monthly volume", `${data.subscription?.monthlyMeetingsUsed ?? 0} / ${planMax}`, Activity],
+              ["Ready now", String(readyCount), Video]
+            ].map(([title, value, Icon]) => {
+              const StatIcon = Icon as typeof Activity;
+              return (
+                <article key={title as string} className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                      {title as string}
+                    </span>
+                    <StatIcon className="size-4 text-slate-400" />
                   </div>
-                );
-              })}
+                  <p className="mt-3 text-xl font-semibold tracking-tight text-slate-950">
+                    {value as string}
+                  </p>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.45fr)_360px]">
+          <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 px-6 py-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CalendarDays className="size-4 text-blue-600" />
+                    <h2 className="text-base font-semibold">Meetings</h2>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Active work stays here. Closed records live in history.
+                  </p>
+                </div>
+                <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setMeetingView("new")}
+                    className={`rounded-lg px-3.5 py-2 text-xs font-semibold ${meetingView === "new" ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-800"}`}
+                  >
+                    New <span className="ml-1 text-slate-400">{requests.length}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMeetingView("old")}
+                    className={`rounded-lg px-3.5 py-2 text-xs font-semibold ${meetingView === "old" ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-800"}`}
+                  >
+                    Old <span className="ml-1 text-slate-400">{meetingHistory.length}</span>
+                  </button>
+                </div>
+              </div>
             </div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {meetingHistory.length === 0 ? (
-                <div className="px-6 py-14 text-center">
-                  <CalendarDays className="mx-auto size-7 text-slate-300" />
-                  <p className="mt-3 text-sm font-semibold text-slate-900">No old meetings</p>
-                  <p className="mt-1 text-xs text-slate-500">Ended meeting records will appear here after the meeting is closed.</p>
+
+            {meetingView === "new" ? (
+              requests.length === 0 ? (
+                <div className="px-6 py-16 text-center">
+                  <div className="mx-auto grid size-11 place-items-center rounded-2xl bg-slate-100 text-slate-400">
+                    <Video className="size-5" />
+                  </div>
+                  <p className="mt-4 text-sm font-semibold">No active meetings</p>
+                  <p className="mt-1 text-xs text-slate-500">New requests and confirmed meetings will appear here.</p>
                 </div>
               ) : (
-                meetingHistory.map((meeting, index) => {
-                  const timeZone = data.workspace?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+                <div className="divide-y divide-slate-100">
+                  {requests.map((item) => {
+                    const remaining = Math.max(
+                      0,
+                      Math.ceil(
+                        (new Date(item.expiresAt).getTime() - now) / 1000
+                      )
+                    );
+                    const actionable =
+                      item.status === "REQUESTED" ||
+                      item.status === "RETRYING";
+                    const creating =
+                      item.status === "ASSIGNED" ||
+                      item.status === "CREATING_MEETING";
+                    const ready =
+                      item.meeting?.status === "READY" &&
+                      Boolean(item.meeting.meetingUri);
+                    const scheduled =
+                      item.status === "CONFIRMED" ||
+                      item.status === "IN_PROGRESS";
+                    const urgent = remaining <= 60;
+                    return (
+                      <div key={item.id} className="px-6 py-5">
+                        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                          <div className="flex min-w-0 items-start gap-3">
+                            {item.customer ? (
+                              <UserAvatar
+                                name={item.customer.name}
+                                email={item.customer.email}
+                                size={40}
+                              />
+                            ) : (
+                              <div className="grid size-10 shrink-0 place-items-center rounded-full bg-slate-100 text-xs font-semibold text-slate-500">
+                                ?
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="truncate text-sm font-semibold">{item.customer?.name ?? "Customer"}</p>
+                                <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${ready ? "bg-emerald-50 text-emerald-700" : creating ? "bg-blue-50 text-blue-700" : item.status === "RETRYING" ? "bg-amber-50 text-amber-700" : scheduled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                                  {ready ? "Ready" : creating ? "Preparing" : item.status === "RETRYING" ? "Retrying" : scheduled ? "Confirmed" : "Awaiting response"}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-xs text-slate-500">{new Date(item.startAt).toLocaleString()} · {item.durationMinutes} min</p>
+                              {item.customer?.email && <p className="mt-1 truncate text-[11px] text-slate-400">{item.customer.email}</p>}
+                              {!ready && !scheduled && (
+                                <div className="mt-3 flex max-w-sm items-center gap-3">
+                                  <span className={`rounded-lg border px-2.5 py-1.5 font-mono text-xs font-bold ${urgent ? "border-rose-200 bg-rose-50 text-rose-700" : "border-slate-200 bg-slate-50 text-slate-800"}`}>
+                                    {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
+                                  </span>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-[11px] font-medium text-slate-500">{creating ? "Preparing the meeting" : item.status === "RETRYING" ? "Finding the next available team member" : "Response window"}</p>
+                                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                                      <div
+                                        className={`h-full ${urgent ? "bg-rose-500" : "bg-blue-600"}`}
+                                        style={{ width: `${Math.min(100, Math.max(0, (remaining / 300) * 100))}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2 xl:justify-end">
+                            {ready && item.meeting?.meetingUri && (
+                              <>
+                                <a
+                                  href={item.meeting.meetingUri}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                                >
+                                  <Video className="size-4" />
+                                  Join meeting
+                                </a>
+                                <button
+                                  type="button"
+                                  disabled={endingRequestId === item.id}
+                                  onClick={() =>
+                                    setConfirmation({
+                                      kind: "end-meeting",
+                                      id: item.id
+                                    })
+                                  }
+                                  className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+                                >
+                                  <XCircle className="size-4" />
+                                  {endingRequestId === item.id ? "Ending..." : "End"}
+                                </button>
+                              </>
+                            )}
+                            {actionable && (
+                              <>
+                                <button
+                                  type="button"
+                                  disabled={actingRequestId === item.id}
+                                  onClick={() => void act(item.id, "decline")}
+                                  className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                                >
+                                  Decline
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={actingRequestId === item.id}
+                                  onClick={() => void act(item.id, "accept")}
+                                  className="rounded-xl bg-blue-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                                >
+                                  {actingRequestId === item.id ? "Accepting..." : "Accept"}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            ) : meetingHistory.length === 0 ? (
+              <div className="px-6 py-16 text-center">
+                <div className="mx-auto grid size-11 place-items-center rounded-2xl bg-slate-100 text-slate-400">
+                  <CalendarDays className="size-5" />
+                </div>
+                <p className="mt-4 text-sm font-semibold">No closed meetings</p>
+                <p className="mt-1 text-xs text-slate-500">Completed meeting records will appear here.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {meetingHistory.map((meeting, index) => {
+                  const timeZone =
+                    data.workspace?.timezone ||
+                    Intl.DateTimeFormat().resolvedOptions().timeZone;
                   const start = new Date(meeting.startAt);
                   const scheduledEnd = new Date(meeting.endAt);
-                  const ended = new Date(meeting.endedAt || meeting.endAt);
-                  const dateLabel = start.toLocaleDateString(undefined, {
+                  const ended = new Date(
+                    meeting.endedAt || meeting.endAt
+                  );
+                  const dateLabel = new Intl.DateTimeFormat(undefined, {
                     timeZone,
                     weekday: "short",
                     year: "numeric",
                     month: "short",
                     day: "numeric"
-                  });
-                  const startLabel = start.toLocaleTimeString(undefined, {
+                  }).format(start);
+                  const startLabel = new Intl.DateTimeFormat(undefined, {
                     timeZone,
                     hour: "numeric",
                     minute: "2-digit"
-                  });
-                  const scheduledEndLabel = scheduledEnd.toLocaleTimeString(undefined, {
+                  }).format(start);
+                  const scheduledEndLabel = new Intl.DateTimeFormat(undefined, {
                     timeZone,
                     hour: "numeric",
                     minute: "2-digit"
-                  });
-                  const endedLabel = ended.toLocaleTimeString(undefined, {
+                  }).format(scheduledEnd);
+                  const endedLabel = new Intl.DateTimeFormat(undefined, {
                     timeZone,
                     hour: "numeric",
                     minute: "2-digit"
-                  });
-                  const statusLabel = meeting.status === "CANCELLED" ? "Cancelled" : meeting.status === "COMPLETED" ? "Completed" : "Ended";
+                  }).format(ended);
                   const scheduledBy = meeting.scheduledBy ?? meeting.customer;
+
                   return (
                     <div key={`${meeting.startAt}-${meeting.customer?.email ?? index}`} className="px-6 py-5">
-                      <div className="grid gap-4 lg:grid-cols-[1.15fr_1fr]">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="truncate text-sm font-semibold text-slate-950">{scheduledBy?.name ?? "Customer"}</p>
-                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">{statusLabel}</span>
+                      <div className="grid gap-5 xl:grid-cols-[1fr_1.1fr_auto] xl:items-center">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <UserAvatar
+                            name={scheduledBy?.name ?? "Customer"}
+                            email={scheduledBy?.email}
+                            size={40}
+                          />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="truncate text-sm font-semibold">{scheduledBy?.name ?? "Customer"}</p>
+                              <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">
+                                {meeting.status === "CANCELLED" ? "Cancelled" : "Completed"}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-[11px] text-slate-400">Scheduled by</p>
+                            <p className="truncate text-xs text-slate-500">{scheduledBy?.email ?? "Email unavailable"}</p>
                           </div>
-                          <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">Scheduled by</p>
-                          <p className="mt-1 truncate text-xs text-slate-500">{scheduledBy?.email ?? "Customer email unavailable"}</p>
-                          {meeting.employee && (
-                            <p className="mt-2 text-xs text-slate-500">
-                              Employee: <span className="font-medium text-slate-700">{meeting.employee.name}</span>
-                            </p>
-                          )}
                         </div>
+
                         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                          <p className="text-xs font-semibold text-slate-950">{dateLabel}</p>
+                          <p className="text-xs font-semibold text-slate-900">{dateLabel}</p>
                           <p className="mt-1 text-xs text-slate-700">
-                            Scheduled {startLabel} – {scheduledEndLabel} · {meeting.durationMinutes} min
+                            {startLabel} – {scheduledEndLabel} · {meeting.durationMinutes} min
                           </p>
                           {ended.getTime() !== scheduledEnd.getTime() && (
                             <p className="mt-1 text-[11px] font-medium text-slate-600">Ended at {endedLabel}</p>
                           )}
                           <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400">{timeZone}</p>
                         </div>
+
+                        <div className="flex items-center gap-2 xl:justify-end">
+                          <div className="text-right">
+                            <p className="text-xs font-semibold text-slate-700">{meeting.employee?.name ?? "Team member"}</p>
+                            <p className="mt-1 text-[10px] text-slate-400">Handled by</p>
+                          </div>
+                          <CheckCircle2 className="size-4 text-emerald-600" />
+                        </div>
                       </div>
                     </div>
                   );
-                })
-              )}
-            </div>
-          )}
-        </section>
-
-        <div className="space-y-5">
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-base font-semibold text-slate-950">Company access links</h2>
-                <p className="mt-1 text-xs leading-5 text-slate-500">Publish the customer page and share the company-scoped employee login separately.</p>
+                })}
               </div>
-              <Globe2 className="size-5 text-blue-600" />
-            </div>
-            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <div className="flex items-center gap-3">
-                <span className={`size-2 rounded-full ${data.company.publicBookingEnabled ? "bg-emerald-500" : "bg-slate-300"}`} />
+            )}
+          </section>
+
+          <div className="space-y-6">
+            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-xs font-semibold text-slate-700">{data.company.publicBookingEnabled ? "Public page published" : "Public page draft"}</p>
-                  <p className="mt-1 text-[11px] text-slate-500">{data.connectedMemberCount} active member{data.connectedMemberCount === 1 ? "" : "s"} ready for Google Calendar + Meet.</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Workspace access</p>
+                  <h2 className="mt-2 text-base font-semibold">Public page</h2>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Share one company address for customer scheduling.
+                  </p>
                 </div>
-                {canManageEmployees && <button onClick={() => void publish()} disabled={busy || (!data.company.publicBookingEnabled && !data.canPublish)} className="ml-auto rounded-xl bg-slate-950 px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">{data.company.publicBookingEnabled ? "Unpublish" : "Publish"}</button>}
+                <Globe2 className="size-5 text-blue-600" />
               </div>
-              {canManageEmployees && !data.company.publicBookingEnabled && !data.canPublish && <p className="mt-3 text-[11px] leading-5 text-amber-700">Connect Google for at least one active member before publishing.</p>}
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <Link href={`/${data.company.slug}`} className="block break-all rounded-2xl border border-slate-200 bg-white p-3 font-mono text-xs text-slate-700 hover:border-slate-300"><span className="mb-1 block font-sans text-[11px] font-semibold text-slate-500">Customer booking</span>/{data.company.slug}</Link>
-              <Link href={`/${data.company.slug}/login`} className="block break-all rounded-2xl border border-slate-200 bg-white p-3 font-mono text-xs text-slate-700 hover:border-slate-300"><span className="mb-1 block font-sans text-[11px] font-semibold text-slate-500">Employee login</span>/{data.company.slug}/login</Link>
-            </div>
-          </section>
 
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h2 className="text-base font-semibold text-slate-950">Employees</h2>
-                <p className="mt-1 text-xs text-slate-500">{employees.length} active member{employees.length === 1 ? "" : "s"} · Google Calendar scheduling</p>
-              </div>
-              <UsersRound className="size-5 text-blue-600" />
-            </div>
-            <div className="mt-5 space-y-3">
-              {employees.map((employee) => (
-                <div key={employee.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 p-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-900">{employee.name}</p>
-                    <p className="truncate text-xs text-slate-500">{employee.email}</p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700">{employee.googleConnected ? "Calendar connected" : "Connect Google"}</span>
-                    {canManageEmployees && employee.role === "EMPLOYEE" && <button type="button" onClick={() => setConfirmation({ kind: "remove-employee", id: employee.id, name: employee.name })} disabled={deletingEmployeeId === employee.id} className="grid size-8 place-items-center rounded-lg border border-rose-200 bg-white text-rose-600 hover:bg-rose-50 disabled:opacity-50" aria-label={"Remove " + employee.name} title={"Remove " + employee.name}><Trash2 className="size-3.5" /></button>}
+              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center gap-3">
+                  <span className={`size-2 rounded-full ${data.company.publicBookingEnabled ? "bg-emerald-500" : "bg-slate-300"}`} />
+                  <div>
+                    <p className="text-xs font-semibold text-slate-800">
+                      {data.company.publicBookingEnabled ? "Published" : "Draft"}
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      {data.connectedMemberCount} ready team member{data.connectedMemberCount === 1 ? "" : "s"}.
+                    </p>
                   </div>
                 </div>
-              ))}
-            </div>
-          </section>
+              </div>
 
-          {canManageEmployees && (<section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="text-base font-semibold text-slate-950">Invite employee</h2><p className="mt-1 text-xs leading-5 text-slate-500">Generate a secure invite link for the employee.</p><form onSubmit={inviteEmployee} className="mt-4 flex gap-2"><input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="employee@company.com" className="focus-ring min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-500" /><button className="grid size-11 place-items-center rounded-xl bg-slate-950 text-white"><Plus className="size-4" /></button></form>{invite && <div className="mt-4 rounded-2xl bg-slate-50 p-3"><p className="break-all text-xs text-slate-600">{invite}</p><button type="button" onClick={() => void navigator.clipboard.writeText(invite)} className="mt-2 inline-flex items-center gap-2 text-xs font-semibold text-blue-700"><Copy className="size-3.5" /> Copy invite link</button></div>}</section>)}
+              <Link
+                href={`/${data.company.slug}`}
+                className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              >
+                <span className="truncate">/{data.company.slug}</span>
+                <ArrowUpRight className="size-4 shrink-0 text-slate-400" />
+              </Link>
+            </section>
 
-          <div className="h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${usage}%` }} /></div>
+            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Team</p>
+                  <h2 className="mt-2 text-base font-semibold">Members</h2>
+                </div>
+                <UsersRound className="size-5 text-blue-600" />
+              </div>
+
+              <div className="mt-5 space-y-2.5">
+                {employees.length === 0 ? (
+                  <p className="rounded-2xl bg-slate-50 p-4 text-xs text-slate-500">No team members yet.</p>
+                ) : (
+                  employees.slice(0, 5).map((employee) => (
+                    <div key={employee.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 p-3">
+                      <UserAvatar name={employee.name} email={employee.email} size={34} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-semibold">{employee.name}</p>
+                        <p className="truncate text-[11px] text-slate-500">{employee.email}</p>
+                      </div>
+                      <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${employee.googleConnected ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                        {employee.googleConnected ? "Ready" : "Needs setup"}
+                      </span>
+                      {canManageEmployees && employee.role === "EMPLOYEE" && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setConfirmation({
+                              kind: "remove-employee",
+                              id: employee.id,
+                              name: employee.name
+                            })
+                          }
+                          disabled={deletingEmployeeId === employee.id}
+                          className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40"
+                          aria-label={`Remove ${employee.name}`}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+              {employees.length > 5 && (
+                <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
+                  <span>{employees.length - 5} more members</span>
+                  <MoreHorizontal className="size-4" />
+                </div>
+              )}
+            </section>
+
+            {canManageEmployees && (
+              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Access management</p>
+                  <h2 className="mt-2 text-base font-semibold">Invite member</h2>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">Create a secure access invitation.</p>
+                </div>
+                <form onSubmit={inviteEmployee} className="mt-5 flex gap-2">
+                  <input
+                    required
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="name@company.com"
+                    className="focus-ring min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                  />
+                  <button
+                    type="submit"
+                    className="grid size-11 shrink-0 place-items-center rounded-xl bg-slate-950 text-white hover:bg-slate-800"
+                    aria-label="Invite member"
+                  >
+                    <Plus className="size-4" />
+                  </button>
+                </form>
+                {invite && (
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                    <p className="break-all text-[11px] leading-5 text-slate-600">{invite}</p>
+                    <button
+                      type="button"
+                      onClick={() => void navigator.clipboard.writeText(invite)}
+                      className="mt-2 inline-flex items-center gap-2 text-xs font-semibold text-blue-700"
+                    >
+                      <Copy className="size-3.5" />
+                      Copy invitation
+                    </button>
+                  </div>
+                )}
+              </section>
+            )}
+
+            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Usage</p>
+                  <h2 className="mt-2 text-base font-semibold">Monthly volume</h2>
+                </div>
+                <Settings2 className="size-5 text-slate-400" />
+              </div>
+              <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-100">
+                <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${usagePercent}%` }} />
+              </div>
+              <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500">
+                <span>{data.subscription?.monthlyMeetingsUsed ?? 0} used</span>
+                <span>{planMax} limit</span>
+              </div>
+            </section>
+          </div>
         </div>
       </div>
 
       <ConfirmDialog
         open={Boolean(confirmation)}
-        title={confirmation?.kind === "remove-employee" ? "Remove employee?" : "End meeting?"}
+        title={confirmation?.kind === "remove-employee" ? "Remove member?" : "End meeting?"}
         description={
           confirmation?.kind === "remove-employee"
-            ? `Remove ${confirmation.name} from this company? This changes company access and cannot be undone from this dialog.`
-            : "End this meeting now? The Conventus meeting flow will close, joining will stop working, and this booking cannot be reused."
+            ? `Remove ${confirmation.name} from this company? Their workspace access will be revoked.`
+            : "End this meeting now? Access to this meeting will close and this booking cannot be reused."
         }
-        confirmLabel={confirmation?.kind === "remove-employee" ? "Remove employee" : "End meeting"}
+        confirmLabel={confirmation?.kind === "remove-employee" ? "Remove member" : "End meeting"}
         destructive
         busy={
           confirmation?.kind === "remove-employee"
@@ -562,6 +987,6 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
         }}
         onConfirm={() => void confirmDialogAction()}
       />
-    </div>
-  </main>;
+    </main>
+  );
 }
