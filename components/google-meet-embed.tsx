@@ -51,10 +51,9 @@ export default function GoogleMeetEmbed({
               </h2>
 
               <p className="mx-auto mt-4 max-w-xl text-sm leading-6 text-white/55">
-                The live Google Meet application is hosted by Google and cannot
-                be framed by Conventus. This page keeps the secure Conventus
-                authorization around the meeting while Google hosts the
-                audio/video session.
+                Google does not expose the normal Meet call interface as an
+                embeddable iframe. Conventus keeps this secure meeting shell
+                around the session, then opens the real Google-hosted call.
               </p>
 
               {meetingCode && (
@@ -75,13 +74,19 @@ export default function GoogleMeetEmbed({
                 className="mt-8 inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-7 py-4 text-sm font-semibold text-slate-950 shadow-xl transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-white/50"
               >
                 <Video className="size-4" />
-                Join Google Meet
+                Open Google Meet
                 <ExternalLink className="size-4" />
               </a>
 
+              <div className="mx-auto mt-6 grid max-w-xl gap-2 rounded-2xl border border-amber-400/10 bg-amber-400/[0.04] px-4 py-3 text-left">
+                <p className="text-xs font-semibold text-amber-200/80">Why this is not an iframe</p>
+                <p className="text-[11px] leading-5 text-white/40">
+                  A normal meet.google.com page sends browser framing protections, so an iframe is rejected before the Meet application can load. Google&apos;s supported APIs do not provide a drop-in iframe for the full participant UI.
+                </p>
+              </div>
               <p className="mt-4 text-[11px] text-white/30">
                 Only the authenticated Conventus customer, assigned employee,
-                or authorized company manager can open this page.
+                or authorized company manager can open this Conventus meeting page.
               </p>
             </div>
           </div>
