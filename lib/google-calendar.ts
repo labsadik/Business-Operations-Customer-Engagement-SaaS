@@ -67,7 +67,17 @@ export async function queryFreeBusy(userId: string, timeMin: Date, timeMax: Date
   );
 }
 
+export async function getCalendarEvent(userId: string, eventId: string) {
+  const { accessToken } = await getGoogleAccessToken(userId);
+  return googleApi<{ id: string; htmlLink?: string }>(
+    accessToken,
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`,
+    { method: "GET" }
+  );
+}
+
 export async function createCalendarEvent(userId: string, input: {
+  eventId?: string;
   summary: string;
   description?: string;
   startAt: Date;
@@ -82,6 +92,7 @@ export async function createCalendarEvent(userId: string, input: {
     {
       method: "POST",
       body: JSON.stringify({
+        ...(input.eventId ? { id: input.eventId } : {}),
         summary: input.summary,
         description: input.description,
         start: { dateTime: input.startAt.toISOString() },
