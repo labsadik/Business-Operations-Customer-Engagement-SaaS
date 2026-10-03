@@ -9,7 +9,7 @@ Conventus is a multi-tenant scheduling SaaS for companies that want customers to
 - **Customer** opens the company's public page, signs in with Google, selects a date/time/duration, and sends a request.
 - **Assignment engine** offers the request to eligible employees with a five-minute acceptance window.
 - **Meeting engine** creates the Google Meet space and Calendar event after an employee accepts.
-- **Meeting route** is company-scoped, for example `/acme/meet/abc123`.
+- **Meeting route** is company-scoped, for example `/acme/meet/abc123` (canonical public-company meeting route).
 
 ## Plans
 
