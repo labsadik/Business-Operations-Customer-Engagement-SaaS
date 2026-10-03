@@ -45,8 +45,9 @@ export default function UserAvatar({
             event.currentTarget.style.display = "none";
           }}
         />
-      ) : null}
-      <span className="absolute inset-0 grid place-items-center">{initials}</span>
+      ) : (
+        <span className="absolute inset-0 grid place-items-center">{initials}</span>
+      )}
     </div>
   );
 }
