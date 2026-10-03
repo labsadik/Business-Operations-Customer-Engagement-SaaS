@@ -11,7 +11,8 @@ export const metadata: Metadata = {
   applicationName: "Conventus",
   keywords: ["meeting scheduling", "Google Meet", "Google Calendar", "customer booking", "team scheduling"],
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
-  robots: { index: true, follow: true },\n  icons: { icon: "/conventus-mark.svg" }
+  robots: { index: true, follow: true },
+  icons: { icon: "/conventus-mark.svg" }
 };
 
 export const viewport: Viewport = {
