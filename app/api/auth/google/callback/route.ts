@@ -11,7 +11,7 @@ import { Membership } from "@/models/membership";
 import { Workspace } from "@/models/workspace";
 import { Invitation } from "@/models/invitation";
 import { AvailabilityRule } from "@/models/availability-rule";
-import { ensureEmployeePresence } from "@/lib/employee-presence";
+import { setEmployeePresence } from "@/lib/employee-presence";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,7 +50,7 @@ function safeInternalPath(path: string | undefined, fallback: string) {
 
 async function initializeEmployeePresence(companyId: string, userId: string) {
   try {
-    await ensureEmployeePresence(companyId, userId);
+    await setEmployeePresence(companyId, userId, "AVAILABLE");
   } catch (error) {
     console.error("Conventus employee presence initialization failed", error);
   }
