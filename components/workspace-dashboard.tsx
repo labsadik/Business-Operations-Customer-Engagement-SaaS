@@ -1592,12 +1592,13 @@ export default function WorkspaceDashboard({
                     </div>
 
                     {!employee.googleConnected && employee.email === user.email && (
-                      <a
+                      <Link
                         href="/api/auth/google/start?intent=connect&returnTo=%2Fdashboard"
+                        prefetch={false}
                         className="shrink-0 rounded-xl bg-slate-950 px-3 py-2.5 text-[10px] font-semibold text-white hover:bg-slate-800"
                       >
                         Setup Google
-                      </a>
+                      </Link>
                     )}
 
                     {canManage && employee.role === "EMPLOYEE" && (
