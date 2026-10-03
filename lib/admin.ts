@@ -9,6 +9,7 @@ import { Payment } from "@/models/payment";
 import { Meeting } from "@/models/meeting";
 import { BookingRequest } from "@/models/booking-request";
 import { Invoice } from "@/models/invoice";
+import { GoogleAccount } from "@/models/google-account";
 import { getPlan, PLANS } from "@/lib/plans";
 
 export type AdminCompanyListItem = {
@@ -296,7 +297,7 @@ export async function getAdminCompanyDetails(companyId: string) {
       buildCompanyRows([company as never]).then((rows) => rows[0] ?? null),
       User.findById(company.ownerUserId).select("name email image").lean(),
       Membership.find({ companyId: objectId, active: true }).lean(),
-      User.find({ _id: { $in: (await Membership.find({ companyId: objectId, active: true }).select("userId").lean()).map((m) => m.userId) } }).select("name email").lean(),
+      User.find({ _id: { $in: await Membership.find({ companyId: objectId, active: true }).distinct("userId") } }).select("name email").lean(),
       Subscription.findOne({ companyId: objectId }).lean(),
       Payment.find({ companyId: objectId }).sort({ createdAt: -1 }).limit(50).lean(),
       Invoice.find({ companyId: objectId }).sort({ issuedAt: -1 }).limit(50).lean(),
@@ -319,14 +320,11 @@ export async function getAdminCompanyDetails(companyId: string) {
   if (!baseRow) return null;
 
   const memberUserMap = new Map(memberUsers.map((item) => [String(item._id), item]));
-  const connectedUsers = new Set(
-    (await import("@/models/google-account")).GoogleAccount.find({
-      userId: { $in: members.map((m) => m.userId) },
-      status: "CONNECTED"
-    }).then((items) => items.select("userId").lean())
-      .then((items) => items.map((item) => String(item.userId)))
-  );
-  const connectedIds = await connectedUsers;
+  const connectedAccounts = await GoogleAccount.find({
+    userId: { $in: members.map((member) => member.userId) },
+    status: "CONNECTED"
+  }).select("userId").lean();
+  const connectedIds = new Set(connectedAccounts.map((item) => String(item.userId)));
 
   const meetingUserMap = new Map(
     (await User.find({
@@ -358,7 +356,7 @@ export async function getAdminCompanyDetails(companyId: string) {
         name: user?.name ?? "Unknown user",
         email: user?.email ?? "Unknown email",
         role: member.role,
-        googleConnected: connectedIds.includes(String(member.userId))
+        googleConnected: connectedIds.has(String(member.userId))
       };
     }),
     meetingRequestCounts: Object.fromEntries(meetingRequestStats.map((item) => [item._id, item.count])),
