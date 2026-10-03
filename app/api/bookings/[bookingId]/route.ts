@@ -20,17 +20,30 @@ export async function GET(
   const booking = await BookingRequest.findById(bookingId).lean();
   if (!booking) return jsonError("BOOKING_NOT_FOUND", 404);
 
-  const companyMatch = session.companyId && String(booking.companyId) === session.companyId;
-  const participantMatch = String(booking.customerId) === session.userId || String(booking.assignedEmployeeId || "") === session.userId;
+  const companyMatch = Boolean(session.companyId && String(booking.companyId) === session.companyId);
+  let companyRole = false;
+  let activeCompanyMember = false;
+
+  if (companyMatch && session.role !== "CUSTOMER" && session.role !== "PLATFORM_ADMIN") {
+    const membership = await Membership.findOne({
+      companyId: booking.companyId,
+      userId: session.userId,
+      active: true
+    }).lean();
+    activeCompanyMember = Boolean(membership);
+    if (!activeCompanyMember) return jsonError("FORBIDDEN", 403);
+    companyRole = true;
+  }
+
+  const customerParticipant = String(booking.customerId) === session.userId;
+  const employeeParticipant =
+    String(booking.assignedEmployeeId || "") === session.userId &&
+    activeCompanyMember;
+  const participantMatch = customerParticipant || employeeParticipant;
+
   if (!companyMatch && !participantMatch) return jsonError("FORBIDDEN", 403);
 
   const meeting = await Meeting.findOne({ bookingRequestId: booking._id }).lean();
-
-  let companyRole = false;
-  if (session.companyId) {
-    const membership = await Membership.findOne({ companyId: booking.companyId, userId: session.userId, active: true }).lean();
-    companyRole = Boolean(membership);
-  }
 
   return jsonOk({
     booking: {
@@ -50,6 +63,6 @@ export async function GET(
       meetingUri: meeting.googleMeetingUri ?? null,
       calendarEventId: meeting.googleCalendarEventId ?? null
     } : null,
-    canManage: companyRole || ["EMPLOYEE", "COMPANY_OWNER", "COMPANY_ADMIN"].includes(session.role)
+    canManage: companyRole
   });
 }
