@@ -6,13 +6,39 @@ import { getSession } from "@/lib/session";
 import { Company } from "@/models/company";
 import { Meeting } from "@/models/meeting";
 import { Membership } from "@/models/membership";
+import { verifyMeetingAccessToken } from "@/lib/security";
 
 export const dynamic = "force-dynamic";
+export const metadata = {
+  robots: {
+    index: false,
+    follow: false
+  }
+};
+
+function extractGoogleMeetCode(uri: string | null) {
+  if (!uri) return null;
+  try {
+    const url = new URL(uri);
+    if (url.hostname !== "meet.google.com") return null;
+    const code = url.pathname.replace(/^\/+/, "").split("/")[0];
+    return code || null;
+  } catch {
+    return null;
+  }
+}
 
 export default async function CompanyMeetingPage({ params }: { params: Promise<{ companySlug: string; meetingId: string }> }) {
-  const { companySlug, meetingId } = await params;
+  const { companySlug, meetingId: meetingToken } = await params;
   const session = await getSession();
   if (!session) redirect(`/login?error=signin_required&returnTo=/${encodeURIComponent(companySlug)}/meet/${encodeURIComponent(meetingId)}`);
+
+  let meetingId: string;
+  try {
+    ({ meetingId } = verifyMeetingAccessToken(meetingToken));
+  } catch {
+    notFound();
+  }
 
   await getMongo();
   const company = await Company.findOne({ slug: companySlug.toLowerCase() }).lean();
@@ -42,6 +68,7 @@ export default async function CompanyMeetingPage({ params }: { params: Promise<{
 
   const duration = Math.max(1, Math.round((meeting.endAt.getTime() - meeting.startAt.getTime()) / 60000));
   const meetingUri = meeting.googleMeetingUri ?? null;
+  const googleMeetCode = extractGoogleMeetCode(meetingUri);
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
@@ -69,6 +96,7 @@ export default async function CompanyMeetingPage({ params }: { params: Promise<{
                   <Video className="size-9" />
                 </div>
                 <p className="mt-7 text-xs font-semibold uppercase tracking-[0.2em] text-blue-300">Meeting ready</p>
+                {googleMeetCode && <p className="mt-2 font-mono text-sm text-white/70">Google Meet code: {googleMeetCode}</p>}
                 <h2 className="mt-3 text-3xl font-semibold tracking-tight">Your Google Meet is ready.</h2>
                 <p className="mt-4 text-sm leading-6 text-white/55">
                   The event is saved to the employee's Google Calendar and the customer has been invited. Open Google Meet to join the live meeting surface.
@@ -90,7 +118,7 @@ export default async function CompanyMeetingPage({ params }: { params: Promise<{
                 <Video className="mx-auto size-12 text-blue-300" />
                 <h2 className="mt-5 text-2xl font-semibold">Meeting is being created</h2>
                 <p className="mt-3 text-sm leading-6 text-white/55">Conventus has the booking and Calendar event. Google is still generating the Meet entry point. Refresh this page after a moment; the booking remains company-scoped and protected.</p>
-                <p className="mt-4 text-xs text-white/35">Meeting ID: {meetingId}</p>
+                <p className="mt-4 text-xs text-white/35">Secure participant link required to access this meeting.</p>
               </div>
             </div>
           )}
@@ -98,7 +126,7 @@ export default async function CompanyMeetingPage({ params }: { params: Promise<{
 
         <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_320px]">
           <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5"><div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 size-5 shrink-0 text-blue-300" /><div><p className="text-sm font-semibold">Company-scoped meeting</p><p className="mt-1 text-xs leading-5 text-white/50">This route is authorized against the stored company, booking, customer, and employee records before the meeting surface is exposed.</p></div></div></div>
-          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5"><p className="text-xs uppercase tracking-[0.18em] text-white/35">Meeting details</p><div className="mt-4 space-y-3"><div><p className="text-[11px] text-white/35">Meeting ID</p><p className="mt-1 break-all font-mono text-xs">{meetingId}</p></div><div><p className="text-[11px] text-white/35">Calendar</p><p className="mt-1 text-xs">{meeting.googleCalendarEventId ? "Synced" : "Pending"}</p></div>{meetingUri && <a href={meetingUri} className="inline-flex items-center gap-2 text-xs font-semibold text-blue-300" target="_self"><ExternalLink className="size-3.5" /> Open Google Meet fallback</a>}<Link href={`/${company.slug}`} className="inline-flex items-center gap-2 text-xs font-semibold text-white/60"><ArrowLeft className="size-3.5" /> Back to company page</Link></div></div>
+          <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5"><p className="text-xs uppercase tracking-[0.18em] text-white/35">Meeting details</p><div className="mt-4 space-y-3">{googleMeetCode && <div><p className="text-[11px] text-white/35">Google Meet code</p><p className="mt-1 break-all font-mono text-xs">{googleMeetCode}</p></div>}<div><p className="text-[11px] text-white/35">Calendar</p><p className="mt-1 text-xs">{meeting.googleCalendarEventId ? "Synced" : "Pending"}</p></div>{meetingUri && <a href={meetingUri} className="inline-flex items-center gap-2 text-xs font-semibold text-blue-300" target="_self"><ExternalLink className="size-3.5" /> Open Google Meet fallback</a>}<Link href={`/${company.slug}`} className="inline-flex items-center gap-2 text-xs font-semibold text-white/60"><ArrowLeft className="size-3.5" /> Back to company page</Link></div></div>
         </div>
       </div>
     </main>
