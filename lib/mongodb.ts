@@ -14,7 +14,6 @@ export async function getMongo() {
   if (mongoose.connection.readyState === 1) return mongoose;
 
   globalThis.__conventusMongo ??= mongoose.connect(uri, {
-    dbName: process.env.MONGODB_DB_NAME || "Conventus",
     serverSelectionTimeoutMS: 5000,
     maxPoolSize: 20,
     minPoolSize: 2
