@@ -84,7 +84,7 @@ export default async function InvoicePage({
     merchant: merchantSnapshot,
     company: invoice.companySnapshot,
     tax,
-    pdfHref: `/api/billing/invoices/${invoice.invoiceNumber ? invoice._id : invoice._id}/pdf`
+    pdfHref: `/api/billing/invoices/${invoice._id}/pdf`
   };
 
   return (
