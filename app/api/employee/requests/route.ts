@@ -19,11 +19,20 @@ export async function GET() {
   if (!session.companyId) return jsonError("COMPANY_NOT_CONFIGURED", 403);
 
   await getMongo();
+  const roleAllowsAllActive = ["COMPANY_OWNER", "COMPANY_ADMIN"].includes(session.role);
   const bookings = await BookingRequest.find({
     companyId: session.companyId,
-    status: { $in: ["REQUESTED", "RETRYING"] },
     expiresAt: { $gt: new Date() },
-    declinedBy: { $ne: session.userId }
+    $or: [
+      {
+        status: { $in: ["REQUESTED", "RETRYING"] },
+        declinedBy: { $ne: session.userId }
+      },
+      {
+        status: { $in: ["ASSIGNED", "CREATING_MEETING"] },
+        ...(roleAllowsAllActive ? {} : { assignedEmployeeId: session.userId })
+      }
+    ]
   }).sort({ expiresAt: 1, requestedStartAt: 1 }).limit(50).lean();
 
   const customers = await User.find({ _id: { $in: bookings.map((b) => b.customerId) } }).select("name email image").lean();
@@ -37,6 +46,7 @@ export async function GET() {
       endAt: booking.requestedEndAt,
       durationMinutes: booking.requestedDurationMinutes,
       status: booking.status,
+      assignedEmployeeId: booking.assignedEmployeeId ? String(booking.assignedEmployeeId) : null,
       expiresAt: booking.expiresAt,
       customer: customer ? { name: customer.name, email: customer.email, image: customer.image } : null
     };
