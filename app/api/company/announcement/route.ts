@@ -46,7 +46,8 @@ export async function GET() {
     );
   } catch (error) {
     const code = error instanceof Error ? error.message : "ANNOUNCEMENT_FAILED";
-    return jsonError(code, code === "UNAUTHENTICATED" ? 401 : 403);
+    const status = code === "UNAUTHENTICATED" ? 401 : code === "FORBIDDEN" ? 403 : 500;
+    return jsonError(code, status);
   }
 }
 
