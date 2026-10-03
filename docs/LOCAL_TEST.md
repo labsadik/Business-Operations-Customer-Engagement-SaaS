@@ -1,0 +1,62 @@
+# Local VS Code test
+
+## Windows PowerShell
+
+```powershell
+git clone https://github.com/WorkRCS/Conventus.git
+cd Conventus
+git pull origin main
+
+Copy-Item .env.example .env.local
+npm install
+
+npm run typecheck
+npm run lint
+npm run build
+
+npm run dev
+```
+
+Open:
+- http://localhost:3000
+- http://localhost:3000/login
+
+After Google OAuth is configured:
+- http://localhost:3000/login
+- create a workspace
+- connect Google
+- publish the public company page
+- open /<company-slug>
+- sign in as a customer
+- choose a slot and request a meeting
+- accept from the employee/company dashboard
+- verify /<company-slug>/meet/<meeting-id>
+
+## Required local environment
+
+Set these in .env.local:
+- MONGODB_URI
+- REDIS_URL
+- GOOGLE_CLIENT_ID
+- GOOGLE_CLIENT_SECRET
+- GOOGLE_REDIRECT_URI
+- AUTH_SECRET
+- ENCRYPTION_KEY
+
+Generate a 32-byte base64url ENCRYPTION_KEY and a long AUTH_SECRET. Do not commit .env.local.
+
+## Health check
+
+With MongoDB and Redis configured:
+
+```powershell
+Invoke-WebRequest http://localhost:3000/api/health | Select-Object -ExpandProperty Content
+```
+
+Expected shape:
+
+```json
+{"service":"conventus","status":"ok","checks":{"mongo":"ok","redis":"ok"}}
+```
+
+A missing local service should show `degraded`, not be mistaken for a successful production configuration.
