@@ -23,6 +23,8 @@ const invoiceSchema = new Schema(
     amount: { type: Number, required: true, min: 1 },
     currency: { type: String, required: true, default: "INR" },
     issuedAt: { type: Date, required: true },
+    billingPeriodStart: { type: Date },
+    billingPeriodEnd: { type: Date },
     serviceDescription: { type: String, required: true, default: "Conventus monthly scheduling service" },
     planSnapshot: {
       name: { type: String, required: true, default: "" },
