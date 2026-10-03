@@ -52,7 +52,7 @@ export default function RazorpayPlanButton({
         amount: body.data.amount,
         currency: body.data.currency,
         name: "Conventus",
-        description: plan.name + " monthly plan",
+        description: plan.name + " plan · 1 month",
         order_id: body.data.orderId,
         prefill: {
           name: body.data.customer?.name,
