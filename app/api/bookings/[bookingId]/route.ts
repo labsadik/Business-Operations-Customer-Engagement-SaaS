@@ -81,8 +81,7 @@ export async function GET(
     meeting: meeting ? {
       status: meeting.status,
       meetingUri: meeting.googleMeetingUri ?? null,
-      joinToken: meetingJoinToken,
-      calendarEventId: meeting.googleCalendarEventId ?? null
+      joinToken: meetingJoinToken
     } : null,
     canManage: companyRole
   });
