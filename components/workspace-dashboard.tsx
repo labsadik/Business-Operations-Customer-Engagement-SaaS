@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { CalendarDays, CheckCircle2, Copy, Globe2, LogOut, Plus, RefreshCw, Settings2, ShieldCheck, Trash2, UsersRound, Video, XCircle } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { CalendarDays, CheckCircle2, Copy, Globe2, LogOut, Plus, RefreshCw, Settings2, ShieldCheck, Trash2, UsersRound, Video, XCircle, Volume2, VolumeX } from "lucide-react";
+import ConfirmDialog from "@/components/confirm-dialog";
+import { playMeetingSound, unlockMeetingSound } from "@/lib/client-meeting-sound";
 
 type CompanyData = {
   company: { id: string; name: string; slug: string; description?: string; publicBookingEnabled: boolean };
@@ -41,6 +43,11 @@ type MeetingHistoryItem = {
 
 const INITIAL_NOW = Date.now();
 
+type Confirmation =
+  | { kind: "remove-employee"; id: string; name: string }
+  | { kind: "end-meeting"; id: string }
+  | null;
+
 async function api<T>(url: string, init?: RequestInit) {
   const response = await fetch(url, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) }, cache: "no-store" });
   const body = await response.json().catch(() => ({}));
@@ -67,6 +74,10 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
   const [actingRequestId, setActingRequestId] = useState("");
   const [endingRequestId, setEndingRequestId] = useState("");
   const [now, setNow] = useState(INITIAL_NOW);
+  const [confirmation, setConfirmation] = useState<Confirmation>(null);
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const seenRequestIdsRef = useRef(new Set<string>());
+  const initializedRequestsRef = useRef(false);
 
   async function refresh() {
     try {
@@ -96,6 +107,28 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
     return () => {
       window.clearTimeout(initial);
       window.clearInterval(id);
+    };
+  }, []);
+
+  useEffect(() => {
+    const ids = requests.map((item) => item.id);
+    if (initializedRequestsRef.current && ids.some((id) => !seenRequestIdsRef.current.has(id))) {
+      void playMeetingSound("incoming");
+    }
+    for (const id of ids) seenRequestIdsRef.current.add(id);
+    initializedRequestsRef.current = true;
+  }, [requests]);
+
+  useEffect(() => {
+    const unlock = () => {
+      void unlockMeetingSound();
+      setSoundEnabled(true);
+    };
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
     };
   }, []);
 
@@ -150,12 +183,11 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
     }
   }
 
-  async function removeEmployee(employee: Employee) {
-    if (!window.confirm(`Remove ${employee.name} from this company?`)) return;
-    setDeletingEmployeeId(employee.id);
+  async function removeEmployee(employeeId: string) {
+    setDeletingEmployeeId(employeeId);
     setError("");
     try {
-      await api(`/api/company/employees/${employee.id}`, { method: "DELETE" });
+      await api(`/api/company/employees/${employeeId}`, { method: "DELETE" });
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "EMPLOYEE_REMOVE_FAILED");
@@ -165,7 +197,6 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
   }
 
   async function endMeeting(id: string) {
-    if (!window.confirm("End this meeting now? The Conventus meeting flow will close and this booking cannot be joined or reused again.")) return;
     setEndingRequestId(id);
     setError("");
     try {
@@ -176,6 +207,17 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
       await refresh();
     } finally {
       setEndingRequestId("");
+    }
+  }
+
+  async function confirmDialogAction() {
+    if (!confirmation) return;
+    const action = confirmation;
+    setConfirmation(null);
+    if (action.kind === "remove-employee") {
+      await removeEmployee(action.id);
+    } else {
+      await endMeeting(action.id);
     }
   }
 
@@ -245,7 +287,13 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
                   ? "This meeting is not ready to be ended."
                   : error.replaceAll("_", " ")}
       </div>}
-      <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end"><div><p className="text-sm font-semibold text-blue-600">Company workspace</p><h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{data.company.name}</h1><p className="mt-2 text-sm text-slate-500">/{data.company.slug} · {data.workspace?.timezone}</p></div><button onClick={() => void refresh()} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"><RefreshCw className="size-4" /> Refresh</button></div>
+      <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end"><div><p className="text-sm font-semibold text-blue-600">Company workspace</p><h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{data.company.name}</h1><p className="mt-2 text-sm text-slate-500">/{data.company.slug} · {data.workspace?.timezone}</p></div><div className="flex items-center gap-2">
+          <button type="button" onClick={() => { void unlockMeetingSound(); setSoundEnabled(true); }} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50" title={soundEnabled ? "Meeting sounds enabled" : "Enable meeting sounds"}>
+            {soundEnabled ? <Volume2 className="size-4 text-blue-600" /> : <VolumeX className="size-4 text-slate-400" />}
+            <span className="hidden sm:inline">{soundEnabled ? "Sound on" : "Enable sound"}</span>
+          </button>
+          <button onClick={() => void refresh()} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"><RefreshCw className="size-4" /> Refresh</button>
+        </div></div>
 
       <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
@@ -345,7 +393,7 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
                             <button
                               type="button"
                               disabled={endingRequestId === item.id}
-                              onClick={() => void endMeeting(item.id)}
+                              onClick={() => setConfirmation({ kind: "end-meeting", id: item.id })}
                               className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <XCircle className="size-4" />
@@ -481,7 +529,7 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700">{employee.googleConnected ? "Calendar connected" : "Connect Google"}</span>
-                    {canManageEmployees && employee.role === "EMPLOYEE" && <button type="button" onClick={() => void removeEmployee(employee)} disabled={deletingEmployeeId === employee.id} className="grid size-8 place-items-center rounded-lg border border-rose-200 bg-white text-rose-600 hover:bg-rose-50 disabled:opacity-50" aria-label={"Remove " + employee.name} title={"Remove " + employee.name}><Trash2 className="size-3.5" /></button>}
+                    {canManageEmployees && employee.role === "EMPLOYEE" && <button type="button" onClick={() => setConfirmation({ kind: "remove-employee", id: employee.id, name: employee.name })} disabled={deletingEmployeeId === employee.id} className="grid size-8 place-items-center rounded-lg border border-rose-200 bg-white text-rose-600 hover:bg-rose-50 disabled:opacity-50" aria-label={"Remove " + employee.name} title={"Remove " + employee.name}><Trash2 className="size-3.5" /></button>}
                   </div>
                 </div>
               ))}
@@ -494,6 +542,26 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
         </div>
       </div>
 
+      <ConfirmDialog
+        open={Boolean(confirmation)}
+        title={confirmation?.kind === "remove-employee" ? "Remove employee?" : "End meeting?"}
+        description={
+          confirmation?.kind === "remove-employee"
+            ? `Remove ${confirmation.name} from this company? This changes company access and cannot be undone from this dialog.`
+            : "End this meeting now? The Conventus meeting flow will close, joining will stop working, and this booking cannot be reused."
+        }
+        confirmLabel={confirmation?.kind === "remove-employee" ? "Remove employee" : "End meeting"}
+        destructive
+        busy={
+          confirmation?.kind === "remove-employee"
+            ? deletingEmployeeId === confirmation.id
+            : endingRequestId === confirmation?.id
+        }
+        onCancel={() => {
+          if (!deletingEmployeeId && !endingRequestId) setConfirmation(null);
+        }}
+        onConfirm={() => void confirmDialogAction()}
+      />
     </div>
   </main>;
 }
