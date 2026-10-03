@@ -8,8 +8,8 @@ import { ensureInvoicesForCapturedPayments } from "@/lib/billing";
 import { Invoice } from "@/models/invoice";
 import { Subscription } from "@/models/subscription";
 import { getPlan } from "@/lib/plans";
-import { calculateInvoiceTax, invoiceTaxConfig } from "@/lib/invoicing";
-import { platformLegalProfile, platformLogoUrl } from "@/lib/platform";
+import { calculateInvoiceTax } from "@/lib/invoicing";
+import { platformLegalProfile } from "@/lib/platform";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Invoice · Conventus" };
