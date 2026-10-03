@@ -31,7 +31,11 @@ function extractGoogleMeetCode(uri: string | null) {
 export default async function CompanyMeetingPage({ params }: { params: Promise<{ companySlug: string; meetingId: string }> }) {
   const { companySlug, meetingId: meetingToken } = await params;
   const session = await getSession();
-  if (!session) redirect(`/login?error=signin_required&returnTo=/${encodeURIComponent(companySlug)}/meet/${encodeURIComponent(meetingId)}`);
+  if (!session) {
+    redirect(
+      `/login?error=signin_required&returnTo=/${encodeURIComponent(companySlug)}/meet/${encodeURIComponent(meetingToken)}`
+    );
+  }
 
   let meetingId: string;
   try {
@@ -78,7 +82,14 @@ export default async function CompanyMeetingPage({ params }: { params: Promise<{
             <span className="grid size-8 place-items-center rounded-xl bg-white text-slate-950"><Command className="size-4" /></span>
             Conventus
           </Link>
-          <div className="flex items-center gap-3 text-xs text-white/50"><span>{company.name}</span><span className="rounded-full border border-white/10 px-3 py-1">Meeting {meetingId}</span></div>
+          <div className="flex items-center gap-3 text-xs text-white/50">
+            <span>{company.name}</span>
+            {googleMeetCode && (
+              <span className="rounded-full border border-white/10 px-3 py-1">
+                Google Meet · {googleMeetCode}
+              </span>
+            )}
+          </div>
         </div>
       </header>
 
