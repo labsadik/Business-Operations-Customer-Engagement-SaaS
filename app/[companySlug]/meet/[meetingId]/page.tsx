@@ -21,12 +21,24 @@ export default async function CompanyMeetingPage({ params }: { params: Promise<{
   const meeting = await Meeting.findOne({ _id: meetingId, companyId: company._id }).lean();
   if (!meeting) notFound();
 
-  const allowed =
-    String(meeting.customerId) === session.userId ||
-    String(meeting.employeeId) === session.userId ||
-    (session.companyId === String(company._id) && ["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role));
+  let activeMembership = null;
+  if (session.companyId === String(company._id) && session.role !== "PLATFORM_ADMIN") {
+    activeMembership = await Membership.findOne({
+      companyId: company._id,
+      userId: session.userId,
+      active: true
+    }).lean();
+  }
 
-  if (!allowed) redirect(`/${company.slug}?error=meeting_access_denied`);
+  const isCustomer = String(meeting.customerId) === session.userId;
+  const isActiveEmployee = String(meeting.employeeId) === session.userId && Boolean(activeMembership);
+  const isCompanyManager =
+    session.role === "PLATFORM_ADMIN" ||
+    (Boolean(activeMembership) && ["COMPANY_OWNER", "COMPANY_ADMIN"].includes(activeMembership.role));
+
+  if (!isCustomer && !isActiveEmployee && !isCompanyManager) {
+    redirect(`/${company.slug}?error=meeting_access_denied`);
+  }
 
   const duration = Math.max(1, Math.round((meeting.endAt.getTime() - meeting.startAt.getTime()) / 60000));
   const meetingUri = meeting.googleMeetingUri ?? null;
