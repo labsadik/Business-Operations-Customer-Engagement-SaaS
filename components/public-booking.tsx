@@ -3,22 +3,13 @@
 import type { Route } from "next";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { io } from "socket.io-client";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarDays, CheckCircle2, Clock3, LayoutDashboard, Loader2, LogIn, ShieldCheck } from "lucide-react";
 import { getTodayIso } from "@/lib/timezone";
 
 type Type = { id: string; name: string; description?: string; durationOptionsMinutes: number[] };
 type Slot = { startAt: string; endAt: string };
 type Access = "anonymous" | "company-member" | "customer";
-
-function getSocketUrl() {
-  if (process.env.NEXT_PUBLIC_SOCKET_URL) return process.env.NEXT_PUBLIC_SOCKET_URL;
-  if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-    return window.location.protocol + "//" + window.location.hostname + ":3001";
-  }
-  return window.location.origin;
-}
 
 export default function PublicBooking({
   companyId,
@@ -49,7 +40,7 @@ export default function PublicBooking({
   const [expiresAt, setExpiresAt] = useState("");
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [error, setError] = useState("");
-  const availabilityLoaderRef = useRef<(silent?: boolean) => Promise<void>>(async () => undefined);
+  const [outcomeModal, setOutcomeModal] = useState<"EXPIRED" | "UNAVAILABLE" | null>(null);
 
   const loadAvailability = useCallback(async (silent = false) => {
     if (!typeId || access !== "customer") return;
@@ -75,10 +66,6 @@ export default function PublicBooking({
       if (!silent) setLoading(false);
     }
   }, [access, companySlug, date, duration, typeId]);
-
-  useEffect(() => {
-    availabilityLoaderRef.current = loadAvailability;
-  }, [loadAvailability]);
 
   useEffect(() => {
     if (!typeId || access !== "customer") return;
@@ -155,6 +142,9 @@ export default function PublicBooking({
         window.open(`/${companySlug}/meet/${meeting.id}`, "_self");
       }
 
+      if (nextStatus === "EXPIRED") {
+        setOutcomeModal("EXPIRED");
+      }
       if (["EXPIRED", "CANCELLED", "CONFIRMED"].includes(nextStatus)) {
         window.clearInterval(timer);
       }
@@ -203,7 +193,11 @@ export default function PublicBooking({
       setExpiresAt(body.data.expiresAt);
       setRemainingSeconds(Math.max(0, Math.ceil((new Date(body.data.expiresAt).getTime() - Date.now()) / 1000)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "BOOKING_FAILED");
+      const code = err instanceof Error ? err.message : "BOOKING_FAILED";
+      if (code === "NO_EMPLOYEE_AVAILABLE" || code === "CONCURRENT_MEETING_LIMIT") {
+        setOutcomeModal("UNAVAILABLE");
+      }
+      setError(code);
     } finally {
       setLoading(false);
     }
@@ -294,6 +288,31 @@ export default function PublicBooking({
     );
   }
 
+  {outcomeModal && (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 p-5 backdrop-blur-sm" role="dialog" aria-modal="true">
+      <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
+        <div className="grid size-11 place-items-center rounded-2xl bg-amber-50 text-amber-700">
+          <Clock3 className="size-5" />
+        </div>
+        <h2 className="mt-5 text-xl font-semibold tracking-tight text-slate-950">
+          {outcomeModal === "EXPIRED" ? "No employee accepted this request" : "That time is no longer available"}
+        </h2>
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          {outcomeModal === "EXPIRED"
+            ? "The five-minute acceptance window has ended. The employee may have become busy or unavailable in the meantime. Please choose another time and try again."
+            : "The selected time became unavailable on the connected employee calendars. Please choose another time and try again."}
+        </p>
+        <button
+          type="button"
+          onClick={() => { setOutcomeModal(null); setBookingId(""); setStatus(""); setExpiresAt(""); setRemainingSeconds(0); void loadAvailability(true); }}
+          className="mt-6 w-full rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white"
+        >
+          Choose another time
+        </button>
+      </div>
+    </div>
+  )}
+
   return (
     <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
       {error && <div role="alert" className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{error.replaceAll("_", " ")}</div>}
@@ -333,7 +352,7 @@ export default function PublicBooking({
               </button>
             ))}
           </div>
-          {!loading && slots.length === 0 && <div className="mt-3 rounded-2xl bg-slate-50 p-4 text-xs leading-5 text-slate-500">No free times found for this date. Conventus checks employee availability and Google Calendar in real time; choose another date or wait for the schedule to refresh.</div>}
+          {!loading && slots.length === 0 && <div className="mt-3 rounded-2xl bg-slate-50 p-4 text-xs leading-5 text-slate-500">No matching time is currently free on the connected employee calendars for this date. Try another time or another date.</div>}
         </div>
         <button type="button" disabled={!selected || loading} onClick={() => void submit()} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3.5 text-sm font-semibold text-white disabled:opacity-40">
           <CheckCircle2 className="size-4" /> Request meeting
