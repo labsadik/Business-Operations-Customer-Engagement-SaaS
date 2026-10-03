@@ -48,7 +48,9 @@ async function api<T>(url: string, init?: RequestInit) {
   return body.data as T;
 }
 
-export default function WorkspaceDashboard() {
+type DashboardUser = { name: string; email: string; image?: string };
+
+export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
   const [data, setData] = useState<CompanyData | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [requests, setRequests] = useState<RequestItem[]>([]);
@@ -203,7 +205,31 @@ export default function WorkspaceDashboard() {
   const usage = Math.min(100, Math.round(((data.subscription?.monthlyMeetingsUsed ?? 0) / planMax) * 100));
 
   return <main className="min-h-screen bg-[#f7f8fb]">
-    <header className="border-b border-slate-200 bg-white"><div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-8"><Link href="/" className="flex items-center gap-2 font-semibold tracking-tight text-slate-950"><span className="grid size-8 place-items-center rounded-xl bg-slate-950 text-white"><Video className="size-4" /></span>Conventus</Link><div className="flex items-center gap-2"><Link href={`/${data.company.slug}`} className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 sm:inline-flex"><Globe2 className="mr-2 size-4" /> Public page</Link><button type="button" onClick={() => window.open("/api/auth/google/start?intent=connect&returnTo=/dashboard", "_self")} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"><ShieldCheck className="size-4 text-blue-600" /> Connect Google</button><form action="/api/auth/logout" method="post"><button aria-label="Sign out" className="grid size-10 place-items-center rounded-xl border border-slate-200 text-slate-600"><LogOut className="size-4" /></button></form></div></div></header>
+    <header className="border-b border-slate-200 bg-white"><div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-8"><Link href="/" className="flex items-center gap-2 font-semibold tracking-tight text-slate-950"><span className="grid size-8 place-items-center rounded-xl bg-slate-950 text-white"><Video className="size-4" /></span>Conventus</Link><div className="flex items-center gap-2">
+        <Link href={`/${data.company.slug}`} className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 sm:inline-flex"><Globe2 className="mr-2 size-4" /> Public page</Link>
+        <button type="button" onClick={() => window.open("/api/auth/google/start?intent=connect&returnTo=/dashboard", "_self")} className="hidden items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 md:inline-flex"><ShieldCheck className="size-4 text-blue-600" /> Connect Google</button>
+        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-2 py-1.5">
+          <div
+            className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full border border-slate-200 bg-white text-[10px] font-bold text-slate-700"
+            title={user.email}
+          >
+            {user.image ? (
+              <span
+                aria-label={user.name}
+                className="block size-full bg-cover bg-center"
+                style={{ backgroundImage: `url("${user.image}")` }}
+              />
+            ) : (
+              user.name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()
+            )}
+          </div>
+          <div className="hidden max-w-36 sm:block">
+            <p className="truncate text-xs font-semibold text-slate-900">{user.name}</p>
+            <p className="truncate text-[10px] text-slate-500">{user.email}</p>
+          </div>
+        </div>
+        <form action="/api/auth/logout" method="post"><button aria-label="Sign out" className="grid size-10 place-items-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50"><LogOut className="size-4" /></button></form>
+      </div></div></header>
 
     <div className="mx-auto max-w-7xl px-5 py-8 sm:px-6 lg:px-8">
       {error && <div role="alert" className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
