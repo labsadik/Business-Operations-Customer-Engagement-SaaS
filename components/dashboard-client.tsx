@@ -12,7 +12,9 @@ type CompanyData = {
 };
 
 type Employee = { id: string; name: string; email: string; role: string; googleConnected: boolean };
-type RequestItem = { id: string; startAt: string; endAt: string; durationMinutes: number; status: string; expiresAt: string; customer: { name: string; email: string } | null };\n\nconst INITIAL_NOW = Date.now();
+type RequestItem = { id: string; startAt: string; endAt: string; durationMinutes: number; status: string; expiresAt: string; customer: { name: string; email: string } | null };
+
+const INITIAL_NOW = Date.now();
 
 async function getJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) }, cache: "no-store" });
@@ -31,7 +33,8 @@ export default function DashboardClient() {
   const [inviteUrl, setInviteUrl] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [savingCompany, setSavingCompany] = useState(false);\n  const [now, setNow] = useState(INITIAL_NOW);
+  const [savingCompany, setSavingCompany] = useState(false);
+  const [now, setNow] = useState(INITIAL_NOW);
 
   async function refresh() {
     try {
