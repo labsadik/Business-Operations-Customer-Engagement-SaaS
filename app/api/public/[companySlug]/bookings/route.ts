@@ -37,7 +37,8 @@ export async function POST(
     durationMinutes?: number;
   } | null;
 
-  if (!body?.meetingTypeId || !body.startAt || !body.endAt || !Number.isInteger(body.durationMinutes)) {
+  const durationMinutes = body?.durationMinutes;
+  if (!body?.meetingTypeId || !body.startAt || !body.endAt || typeof durationMinutes !== "number" || !Number.isInteger(durationMinutes)) {
     return jsonError("INVALID_BOOKING");
   }
 
@@ -46,11 +47,11 @@ export async function POST(
   if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime()) || endAt <= startAt) return jsonError("INVALID_TIME_RANGE");
 
   try {
-    const plan = await assertMeetingCapacity(String(company._id), body.durationMinutes);
+    const plan = await assertMeetingCapacity(String(company._id), durationMinutes);
     const type = await MeetingType.findOne({ _id: body.meetingTypeId, companyId: company._id, active: true }).lean();
     const workspace = await Workspace.findOne({ companyId: company._id, active: true }).lean();
     if (!type || !workspace) throw new Error("MEETING_TYPE_NOT_FOUND");
-    if (!type.durationOptionsMinutes.includes(body.durationMinutes)) throw new Error("INVALID_DURATION");
+    if (!type.durationOptionsMinutes.includes(durationMinutes)) throw new Error("INVALID_DURATION");
     if (startAt.getTime() <= Date.now()) throw new Error("BOOKING_TIME_IN_PAST");
 
     const busyForCompany = await BookingRequest.countDocuments({
@@ -74,7 +75,7 @@ export async function POST(
         meetingTypeId: type._id,
         requestedStartAt: startAt,
         requestedEndAt: endAt,
-        requestedDurationMinutes: body.durationMinutes,
+        requestedDurationMinutes: durationMinutes,
         status: "REQUESTED",
         expiresAt: new Date(Date.now() + 5 * 60_000),
         idempotencyKey,
