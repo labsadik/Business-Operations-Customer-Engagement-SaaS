@@ -178,7 +178,6 @@ export async function getSession(): Promise<AuthSession | null> {
 
   if (session.role === "PLATFORM_ADMIN" && user.role !== "PLATFORM_ADMIN") {
     await Session.deleteOne({ _id: session._id });
-    store.delete(ADMIN_MANAGED_COMPANY_COOKIE);
     return null;
   }
 
