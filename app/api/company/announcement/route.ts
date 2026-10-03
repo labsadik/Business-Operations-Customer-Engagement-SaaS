@@ -3,6 +3,7 @@ import { Announcement } from "@/models/announcement";
 import { getSession } from "@/lib/session";
 import { Membership } from "@/models/membership";
 import { jsonError, jsonOk } from "@/lib/http";
+import { Types } from "mongoose";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,24 +27,32 @@ async function requireManager() {
   return session;
 }
 
+function serialize(item: {
+  _id: unknown;
+  title: string;
+  message: string;
+  active: boolean;
+  createdAt: Date;
+}) {
+  return {
+    id: String(item._id),
+    title: item.title,
+    message: item.message,
+    active: item.active,
+    createdAt: item.createdAt
+  };
+}
+
 export async function GET() {
   try {
     const session = await requireManager();
     const announcements = await Announcement.find({ companyId: session.companyId })
       .sort({ createdAt: -1 })
-      .limit(20)
+      .limit(50)
       .select("_id title message active createdAt")
       .lean();
 
-    return jsonOk(
-      announcements.map((item) => ({
-        id: String(item._id),
-        title: item.title,
-        message: item.message,
-        active: item.active,
-        createdAt: item.createdAt
-      }))
-    );
+    return jsonOk(announcements.map(serialize));
   } catch (error) {
     const code = error instanceof Error ? error.message : "ANNOUNCEMENT_FAILED";
     const status = code === "UNAUTHENTICATED" ? 401 : code === "FORBIDDEN" ? 403 : 500;
@@ -63,9 +72,12 @@ export async function POST(request: Request) {
     const message = body?.message?.trim();
 
     if (title.length > 120) return jsonError("ANNOUNCEMENT_TITLE_TOO_LONG", 400);
-    if (!message || message.length < 1 || message.length > 500) {
-      return jsonError("ANNOUNCEMENT_MESSAGE_INVALID", 400);
-    }
+    if (!message || message.length > 500) return jsonError("ANNOUNCEMENT_MESSAGE_INVALID", 400);
+
+    await Announcement.updateMany(
+      { companyId: session.companyId, active: true },
+      { $set: { active: false } }
+    );
 
     const announcement = await Announcement.create({
       companyId: session.companyId,
@@ -75,25 +87,11 @@ export async function POST(request: Request) {
       createdByUserId: session.userId
     });
 
-    await Announcement.updateMany(
-      {
-        companyId: session.companyId,
-        active: true,
-        _id: { $ne: announcement._id }
-      },
-      { $set: { active: false } }
-    );
-
-    return jsonOk({
-      id: String(announcement._id),
-      title: announcement.title,
-      message: announcement.message,
-      active: announcement.active,
-      createdAt: announcement.createdAt
-    }, 201);
+    return jsonOk(serialize(announcement), 201);
   } catch (error) {
     const code = error instanceof Error ? error.message : "ANNOUNCEMENT_CREATE_FAILED";
-    return jsonError(code, code === "UNAUTHENTICATED" ? 401 : 403);
+    const status = code === "UNAUTHENTICATED" ? 401 : code === "FORBIDDEN" ? 403 : 500;
+    return jsonError(code, status);
   }
 }
 
@@ -102,10 +100,12 @@ export async function PATCH(request: Request) {
     const session = await requireManager();
     const body = await request.json().catch(() => null) as {
       id?: string;
+      title?: string;
+      message?: string;
       active?: boolean;
     } | null;
 
-    if (!body?.id || typeof body.active !== "boolean") {
+    if (!body?.id || !Types.ObjectId.isValid(body.id)) {
       return jsonError("INVALID_ANNOUNCEMENT_UPDATE", 400);
     }
 
@@ -115,25 +115,59 @@ export async function PATCH(request: Request) {
     });
     if (!announcement) return jsonError("ANNOUNCEMENT_NOT_FOUND", 404);
 
-    if (body.active) {
-      await Announcement.updateMany(
-        { companyId: session.companyId, _id: { $ne: announcement._id }, active: true },
-        { $set: { active: false } }
-      );
+    if (typeof body.title === "string") {
+      const title = body.title.trim() || "Announcement";
+      if (title.length > 120) return jsonError("ANNOUNCEMENT_TITLE_TOO_LONG", 400);
+      announcement.title = title;
     }
 
-    announcement.active = body.active;
-    await announcement.save();
+    if (typeof body.message === "string") {
+      const message = body.message.trim();
+      if (!message || message.length > 500) return jsonError("ANNOUNCEMENT_MESSAGE_INVALID", 400);
+      announcement.message = message;
+    }
 
-    return jsonOk({
-      id: String(announcement._id),
-      title: announcement.title,
-      message: announcement.message,
-      active: announcement.active,
-      createdAt: announcement.createdAt
-    });
+    if (typeof body.active === "boolean") {
+      if (body.active) {
+        await Announcement.updateMany(
+          {
+            companyId: session.companyId,
+            _id: { $ne: announcement._id },
+            active: true
+          },
+          { $set: { active: false } }
+        );
+      }
+      announcement.active = body.active;
+    }
+
+    await announcement.save();
+    return jsonOk(serialize(announcement));
   } catch (error) {
     const code = error instanceof Error ? error.message : "ANNOUNCEMENT_UPDATE_FAILED";
-    return jsonError(code, code === "UNAUTHENTICATED" ? 401 : 403);
+    const status = code === "UNAUTHENTICATED" ? 401 : code === "FORBIDDEN" ? 403 : 500;
+    return jsonError(code, status);
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const session = await requireManager();
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id") ?? "";
+
+    if (!Types.ObjectId.isValid(id)) return jsonError("INVALID_ANNOUNCEMENT_ID", 400);
+
+    const deleted = await Announcement.findOneAndDelete({
+      _id: id,
+      companyId: session.companyId
+    }).lean();
+
+    if (!deleted) return jsonError("ANNOUNCEMENT_NOT_FOUND", 404);
+    return jsonOk({ id, deleted: true });
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "ANNOUNCEMENT_DELETE_FAILED";
+    const status = code === "UNAUTHENTICATED" ? 401 : code === "FORBIDDEN" ? 403 : 500;
+    return jsonError(code, status);
   }
 }

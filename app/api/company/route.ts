@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { getMongo } from "@/lib/mongodb";
 import { getSession, updateSessionScope } from "@/lib/session";
 import { Company } from "@/models/company";
@@ -7,6 +6,7 @@ import { Membership } from "@/models/membership";
 import { Subscription } from "@/models/subscription";
 import { MeetingType } from "@/models/meeting-type";
 import { AvailabilityRule } from "@/models/availability-rule";
+import { User } from "@/models/user";
 import { slugify } from "@/lib/slug";
 import { jsonError, jsonOk } from "@/lib/http";
 import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
@@ -15,37 +15,131 @@ import { GoogleAccount } from "@/models/google-account";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+type CompanyAddress = {
+  line1?: string;
+  line2?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+};
+
+function cleanAddress(address?: CompanyAddress) {
+  if (!address) return undefined;
+  return {
+    line1: address.line1?.trim().slice(0, 200) || "",
+    line2: address.line2?.trim().slice(0, 200) || "",
+    city: address.city?.trim().slice(0, 100) || "",
+    state: address.state?.trim().slice(0, 100) || "",
+    postalCode: address.postalCode?.trim().slice(0, 30) || "",
+    country: address.country?.trim().slice(0, 100) || ""
+  };
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function cleanPhone(value: string) {
+  return value.replace(/[^0-9+]/g, "").trim();
+}
+
+function profilePayload(company: {
+  _id: unknown;
+  name: string;
+  slug: string;
+  email?: string;
+  phone?: string;
+  logoUrl?: string;
+  websiteUrl?: string;
+  description?: string;
+  address?: CompanyAddress;
+  taxId?: string;
+  publicBookingEnabled: boolean;
+}, owner?: { name?: string; email?: string; image?: string }) {
+  const email = company.email ?? "";
+  const phone = company.phone ?? "";
+  return {
+    id: String(company._id),
+    name: company.name,
+    slug: company.slug,
+    email,
+    phone,
+    logoUrl: company.logoUrl ?? "",
+    websiteUrl: company.websiteUrl ?? "",
+    description: company.description ?? "",
+    address: {
+      line1: company.address?.line1 ?? "",
+      line2: company.address?.line2 ?? "",
+      city: company.address?.city ?? "",
+      state: company.address?.state ?? "",
+      postalCode: company.address?.postalCode ?? "",
+      country: company.address?.country ?? ""
+    },
+    taxId: company.taxId ?? "",
+    publicBookingEnabled: company.publicBookingEnabled,
+    profileComplete: Boolean(company.name && isValidEmail(email) && phone.length >= 8),
+    owner: owner
+      ? { name: owner.name ?? "", email: owner.email ?? "", image: owner.image ?? "" }
+      : null
+  };
+}
+
+async function getScopedCompany(session: Awaited<ReturnType<typeof getSession>>) {
+  if (!session) return null;
+  if (session.companyId && ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"].includes(session.role)) {
+    const membership = await Membership.findOne({
+      companyId: session.companyId,
+      userId: session.userId,
+      active: true
+    }).lean();
+    if (!membership) return null;
+  }
+  return session.companyId
+    ? Company.findById(session.companyId).lean()
+    : Company.findOne({ ownerUserId: session.userId }).lean();
+}
+
 export async function GET() {
   const session = await getSession();
   if (!session) return jsonError("UNAUTHENTICATED", 401);
 
   await getMongo();
-  if (session.companyId && ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"].includes(session.role)) {
-    const membership = await Membership.findOne({ companyId: session.companyId, userId: session.userId, active: true }).lean();
-    if (!membership) return jsonError("FORBIDDEN", 403);
-  }
-  const company = session.companyId ? await Company.findById(session.companyId).lean() : await Company.findOne({ ownerUserId: session.userId }).lean();
+  const company = await getScopedCompany(session);
   if (!company) return jsonOk(null);
 
-  const workspace = await Workspace.findOne({ companyId: company._id }).lean();
-  const subscription = await Subscription.findOne({ companyId: company._id }).lean();
-  const activeMembers = await Membership.find({
-    companyId: company._id,
-    active: true,
-    role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] }
-  }).select("userId").lean();
-  const { GoogleAccount } = await import("@/models/google-account");
+  const [workspace, subscription, activeMembers, owner] = await Promise.all([
+    Workspace.findOne({ companyId: company._id }).lean(),
+    Subscription.findOne({ companyId: company._id }).lean(),
+    Membership.find({
+      companyId: company._id,
+      active: true,
+      role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] }
+    }).select("userId").lean(),
+    User.findById(company.ownerUserId).select("name email image").lean()
+  ]);
+
   const connectedAccounts = await GoogleAccount.find({
     userId: { $in: activeMembers.map((member) => member.userId) },
     status: "CONNECTED"
   }).select("userId status scopes").lean();
+
   const connectedMemberCount = connectedAccounts.filter(isGoogleSchedulingReady).length;
   const memberCount = activeMembers.length;
 
   return jsonOk({
-    company: { id: String(company._id), name: company.name, slug: company.slug, description: company.description, publicBookingEnabled: company.publicBookingEnabled },
-    workspace: workspace ? { id: String(workspace._id), name: workspace.name, timezone: workspace.timezone, planId: workspace.planId } : null,
-    subscription: subscription ? { planId: subscription.planId, status: subscription.status, monthlyMeetingsUsed: subscription.monthlyMeetingsUsed, periodEnd: subscription.currentPeriodEnd } : null,
+    company: profilePayload(company, owner ?? undefined),
+    workspace: workspace
+      ? { id: String(workspace._id), name: workspace.name, timezone: workspace.timezone, planId: workspace.planId }
+      : null,
+    subscription: subscription
+      ? {
+          planId: subscription.planId,
+          status: subscription.status,
+          monthlyMeetingsUsed: subscription.monthlyMeetingsUsed,
+          periodEnd: subscription.currentPeriodEnd
+        }
+      : null,
     memberCount,
     connectedMemberCount,
     canPublish: connectedMemberCount > 0,
@@ -62,11 +156,26 @@ export async function POST(request: Request) {
   const existing = await Company.findOne({ ownerUserId: session.userId }).lean();
   if (existing) return jsonError("COMPANY_ALREADY_EXISTS", 409);
 
-  let body: { name?: string; slug?: string; description?: string; timezone?: string };
-  try { body = await request.json(); } catch { return jsonError("INVALID_JSON"); }
+  let body: {
+    name?: string;
+    slug?: string;
+    email?: string;
+    phone?: string;
+    description?: string;
+    timezone?: string;
+  };
+  try {
+    body = await request.json();
+  } catch {
+    return jsonError("INVALID_JSON");
+  }
 
   const name = body.name?.trim();
+  const email = body.email?.trim().toLowerCase();
+  const phone = cleanPhone(body.phone ?? "");
   if (!name || name.length < 2 || name.length > 100) return jsonError("INVALID_COMPANY_NAME");
+  if (!email || !isValidEmail(email)) return jsonError("INVALID_COMPANY_EMAIL");
+  if (phone.length < 8 || phone.length > 18) return jsonError("INVALID_COMPANY_PHONE");
 
   const slug = slugify(body.slug?.trim() || name);
   const collision = await Company.findOne({ slug }).lean();
@@ -80,14 +189,56 @@ export async function POST(request: Request) {
   const tx = await db.startSession();
   try {
     const createdIds = await tx.withTransaction(async () => {
-      const [company] = await Company.create([{ name, slug, description: body.description?.trim().slice(0, 1200), ownerUserId: session.userId }], { session: tx });
-      const [workspace] = await Workspace.create([{ companyId: company._id, name: `${name} workspace`, timezone: body.timezone || "Asia/Kolkata", planId: "starter" }], { session: tx });
-      await Subscription.create([{ companyId: company._id, planId: "starter", status: "ACTIVE", currentPeriodStart: now, currentPeriodEnd: periodEnd, monthlyMeetingsUsed: 0 }], { session: tx });
-      await Membership.create([{ companyId: company._id, workspaceId: workspace._id, userId: session.userId, role: "COMPANY_OWNER", active: true, googleConnectionStatus: "DISCONNECTED" }], { session: tx });
-      await MeetingType.create([{ companyId: company._id, workspaceId: workspace._id, name: "General meeting", slug: "general", durationOptionsMinutes: [10, 15, 20, 25, 30, 35] }], { session: tx });
+      const [company] = await Company.create([{
+        name,
+        slug,
+        email,
+        phone,
+        description: body.description?.trim().slice(0, 1200),
+        ownerUserId: session.userId
+      }], { session: tx });
+
+      const [workspace] = await Workspace.create([{
+        companyId: company._id,
+        name: `${name} workspace`,
+        timezone: body.timezone || "Asia/Kolkata",
+        planId: "starter"
+      }], { session: tx });
+
+      await Subscription.create([{
+        companyId: company._id,
+        planId: "starter",
+        status: "ACTIVE",
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+        monthlyMeetingsUsed: 0
+      }], { session: tx });
+
+      await Membership.create([{
+        companyId: company._id,
+        workspaceId: workspace._id,
+        userId: session.userId,
+        role: "COMPANY_OWNER",
+        active: true,
+        googleConnectionStatus: "DISCONNECTED"
+      }], { session: tx });
+
+      await MeetingType.create([{
+        companyId: company._id,
+        workspaceId: workspace._id,
+        name: "General meeting",
+        slug: "general",
+        durationOptionsMinutes: [10, 15, 20, 25, 30, 35]
+      }], { session: tx });
 
       const rules = [1, 2, 3, 4, 5].map((dayOfWeek) => ({
-        companyId: company._id, employeeId: session.userId, dayOfWeek, startMinute: 9 * 60, endMinute: 17 * 60, timezone: body.timezone || "Asia/Kolkata", active: true
+        companyId: company._id,
+        employeeId: session.userId,
+        dayOfWeek,
+        startMinute: 9 * 60,
+        endMinute: 17 * 60,
+        timezone: body.timezone || "Asia/Kolkata",
+        active: true
       }));
       await AvailabilityRule.insertMany(rules, { session: tx });
 
@@ -122,44 +273,101 @@ export async function PATCH(request: Request) {
   const session = await getSession();
   if (!session) return jsonError("UNAUTHENTICATED", 401);
   if (!["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role)) return jsonError("FORBIDDEN", 403);
+  if (!session.companyId) return jsonError("COMPANY_NOT_CONFIGURED", 400);
 
   await getMongo();
-  const body = await request.json().catch(() => null) as { publicBookingEnabled?: boolean; description?: string } | null;
-  if (!session.companyId) return jsonError("COMPANY_NOT_CONFIGURED", 400);
-  if (["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"].includes(session.role)) {
-    const membership = await Membership.findOne({ companyId: session.companyId, userId: session.userId, active: true }).lean();
-    if (!membership) return jsonError("FORBIDDEN", 403);
-  }
+  const membership = await Membership.findOne({
+    companyId: session.companyId,
+    userId: session.userId,
+    active: true,
+    role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN"] }
+  }).lean();
+  if (!membership && session.role !== "PLATFORM_ADMIN") return jsonError("FORBIDDEN", 403);
+
+  const body = await request.json().catch(() => null) as {
+    publicBookingEnabled?: boolean;
+    name?: string;
+    slug?: string;
+    email?: string;
+    phone?: string;
+    logoUrl?: string;
+    websiteUrl?: string;
+    description?: string;
+    taxId?: string;
+    address?: CompanyAddress;
+  } | null;
+
+  const current = await Company.findById(session.companyId).lean();
+  if (!current) return jsonError("COMPANY_NOT_FOUND", 404);
 
   const update: Record<string, unknown> = {};
+
+  if (typeof body?.name === "string") {
+    const name = body.name.trim();
+    if (name.length < 2 || name.length > 100) return jsonError("INVALID_COMPANY_NAME", 400);
+    update.name = name;
+  }
+
+  if (typeof body?.slug === "string") {
+    const slug = slugify(body.slug);
+    if (!slug) return jsonError("INVALID_COMPANY_SLUG", 400);
+    const collision = await Company.findOne({ slug, _id: { $ne: session.companyId } }).lean();
+    if (collision) return jsonError("COMPANY_SLUG_TAKEN", 409);
+    update.slug = slug;
+  }
+
+  if (typeof body?.email === "string") {
+    const email = body.email.trim().toLowerCase();
+    if (!isValidEmail(email)) return jsonError("INVALID_COMPANY_EMAIL", 400);
+    update.email = email;
+  }
+
+  if (typeof body?.phone === "string") {
+    const phone = cleanPhone(body.phone);
+    if (phone.length < 8 || phone.length > 18) return jsonError("INVALID_COMPANY_PHONE", 400);
+    update.phone = phone;
+  }
+
+  if (typeof body?.logoUrl === "string") update.logoUrl = body.logoUrl.trim().slice(0, 2000);
+  if (typeof body?.websiteUrl === "string") update.websiteUrl = body.websiteUrl.trim().slice(0, 500);
+  if (typeof body?.description === "string") update.description = body.description.trim().slice(0, 1200);
+  if (typeof body?.taxId === "string") update.taxId = body.taxId.trim().slice(0, 80);
+
+  const address = cleanAddress(body?.address);
+  if (address) update.address = address;
+
   if (typeof body?.publicBookingEnabled === "boolean") {
     if (body.publicBookingEnabled) {
-      const { GoogleAccount } = await import("@/models/google-account");
       const members = await Membership.find({
         companyId: session.companyId,
         active: true,
         role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] }
       }).select("userId").lean();
+
       const accounts = await GoogleAccount.find({
         userId: { $in: members.map((member) => member.userId) },
         status: "CONNECTED"
       }).select("userId status scopes").lean();
+
       if (!accounts.some(isGoogleSchedulingReady)) {
         return jsonError("GOOGLE_SCHEDULING_CONNECTION_REQUIRED", 409);
       }
     }
     update.publicBookingEnabled = body.publicBookingEnabled;
   }
-  if (typeof body?.description === "string") update.description = body.description.trim().slice(0, 1200);
 
   const company = await Company.findOneAndUpdate(
-    { _id: session.companyId, ownerUserId: session.role === "COMPANY_OWNER" ? session.userId : { $exists: true } },
+    { _id: session.companyId },
     { $set: update },
     { new: true }
   ).lean();
 
   if (!company) return jsonError("COMPANY_NOT_FOUND", 404);
-  return jsonOk({
-    company: { id: String(company._id), name: company.name, slug: company.slug, description: company.description, publicBookingEnabled: company.publicBookingEnabled }
-  });
+
+  if (session.role === "COMPANY_OWNER" && update.slug) {
+    await updateSessionScope(session.userId, { companyId: String(company._id), workspaceId: session.workspaceId });
+  }
+
+  const owner = await User.findById(company.ownerUserId).select("name email image").lean();
+  return jsonOk({ company: profilePayload(company, owner ?? undefined) });
 }

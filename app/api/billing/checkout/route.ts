@@ -1,7 +1,7 @@
 import { getMongo } from "@/lib/mongodb";
 import { getSession } from "@/lib/session";
+import { Company } from "@/models/company";
 import { Membership } from "@/models/membership";
-import { User } from "@/models/user";
 import { Subscription } from "@/models/subscription";
 import { Payment } from "@/models/payment";
 import { PLANS, type PlanId } from "@/lib/plans";
@@ -10,6 +10,15 @@ import { jsonError, jsonOk } from "@/lib/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function validEmail(value?: string) {
+  return Boolean(value && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value));
+}
+
+function validPhone(value?: string) {
+  const normalized = value?.replace(/[^0-9+]/g, "") ?? "";
+  return normalized.length >= 8 && normalized.length <= 18;
+}
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -27,6 +36,20 @@ export async function POST(request: Request) {
   }).lean();
   if (!membership) return jsonError("FORBIDDEN", 403);
 
+  const company = await Company.findById(session.companyId).lean();
+  if (!company) return jsonError("COMPANY_NOT_FOUND", 404);
+
+  const missingProfileFields: string[] = [];
+  if (!company.name?.trim()) missingProfileFields.push("companyName");
+  if (!validEmail(company.email)) missingProfileFields.push("companyEmail");
+  if (!validPhone(company.phone)) missingProfileFields.push("companyPhone");
+
+  if (missingProfileFields.length > 0) {
+    return jsonError("COMPANY_PROFILE_INCOMPLETE", 409, {
+      missingFields: missingProfileFields
+    });
+  }
+
   const body = await request.json().catch(() => null) as { planId?: string } | null;
   const planId = body?.planId as PlanId | undefined;
   const plan = planId ? PLANS[planId] : undefined;
@@ -42,7 +65,9 @@ export async function POST(request: Request) {
     receipt,
     notes: {
       companyId: session.companyId,
-      planId: plan.id
+      planId: plan.id,
+      companyEmail: company.email!,
+      companyPhone: company.phone!
     }
   });
 
@@ -55,8 +80,6 @@ export async function POST(request: Request) {
     status: "PENDING"
   });
 
-  const user = await User.findById(session.userId).select("name email").lean();
-
   return jsonOk({
     orderId: order.id,
     amount: order.amount,
@@ -64,6 +87,10 @@ export async function POST(request: Request) {
     keyId: razorpayKeyId(),
     planId: plan.id,
     planName: plan.name,
-    customer: user ? { name: user.name, email: user.email } : null
+    customer: {
+      name: company.name,
+      email: company.email,
+      phone: company.phone
+    }
   });
 }

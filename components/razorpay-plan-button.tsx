@@ -43,20 +43,32 @@ export default function RazorpayPlanButton({
         body: JSON.stringify({ planId })
       });
       const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.error || "CHECKOUT_FAILED");
+      if (!response.ok) {
+        const message =
+          body.error === "COMPANY_PROFILE_INCOMPLETE"
+            ? "Complete company name, email, and phone in Company Profile before paying."
+            : body.error || "CHECKOUT_FAILED";
+        throw new Error(message);
+      }
 
       if (!window.Razorpay) throw new Error("RAZORPAY_CHECKOUT_NOT_READY");
+
+      const customer = body.data.customer as
+        | { name?: string; email?: string; phone?: string }
+        | null
+        | undefined;
 
       const checkout = new window.Razorpay({
         key: body.data.keyId,
         amount: body.data.amount,
         currency: body.data.currency,
-        name: "Conventus",
+        name: customer?.name || "Conventus",
         description: plan.name + " plan · 1 month",
         order_id: body.data.orderId,
         prefill: {
-          name: body.data.customer?.name,
-          email: body.data.customer?.email
+          name: customer?.name,
+          email: customer?.email,
+          contact: customer?.phone
         },
         theme: { color: "#2563EB" },
         handler: async (paymentResponse: {
@@ -74,7 +86,11 @@ export default function RazorpayPlanButton({
             if (!verify.ok) throw new Error(result.error || "PAYMENT_VERIFICATION_FAILED");
             onComplete?.();
           } catch (error) {
-            onError?.(error instanceof Error ? error.message : "PAYMENT_VERIFICATION_FAILED");
+            onError?.(
+              error instanceof Error
+                ? error.message
+                : "PAYMENT_VERIFICATION_FAILED"
+            );
           } finally {
             setLoading(false);
           }
@@ -83,11 +99,12 @@ export default function RazorpayPlanButton({
 
       checkout.on("payment.failed", () => {
         setLoading(false);
+        onError?.("PAYMENT_FAILED");
       });
       checkout.open();
     } catch (error) {
       setLoading(false);
-      throw error;
+      onError?.(error instanceof Error ? error.message : "CHECKOUT_FAILED");
     }
   }
 
@@ -100,16 +117,17 @@ export default function RazorpayPlanButton({
       />
       <button
         type="button"
-        onClick={() => {
-          void startCheckout().catch((error) => {
-            setLoading(false);
-            onError?.(error instanceof Error ? error.message : "CHECKOUT_FAILED");
-          });
-        }}
+        onClick={() => void startCheckout()}
         disabled={disabled || isCurrent || loading || !ready}
         className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {loading ? <Loader2 className="size-3.5 animate-spin" /> : isCurrent ? <Check className="size-3.5" /> : <CreditCard className="size-3.5" />}
+        {loading ? (
+          <Loader2 className="size-3.5 animate-spin" />
+        ) : isCurrent ? (
+          <Check className="size-3.5" />
+        ) : (
+          <CreditCard className="size-3.5" />
+        )}
         {loading ? "Opening checkout..." : isCurrent ? "Current plan" : "Choose " + plan.name}
       </button>
     </>

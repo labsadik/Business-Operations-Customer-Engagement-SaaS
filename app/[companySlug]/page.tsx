@@ -97,7 +97,7 @@ export default async function CompanyPublicPage({
           access={session?.role === "CUSTOMER" ? "customer" : "anonymous"}
           timezone={workspace?.timezone || "Asia/Kolkata"}
           companyName={company.name}
-          companyDescription=""
+          companyDescription={company.description ?? ""}
         />
       </div>
     </main>
