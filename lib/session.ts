@@ -102,10 +102,7 @@ async function getManagedCompanyScope(userId: unknown, isPlatformAdmin: boolean,
   if (!rawCompanyId || !Types.ObjectId.isValid(rawCompanyId)) return null;
 
   const company = await Company.findById(rawCompanyId).select("_id").lean();
-  if (!company) {
-    store.delete(ADMIN_MANAGED_COMPANY_COOKIE);
-    return null;
-  }
+  if (!company) return null;
 
   const workspace = await Workspace.findOne({ companyId: company._id }).select("_id").sort({ createdAt: 1 }).lean();
   if (!workspace) return null;
