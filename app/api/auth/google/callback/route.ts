@@ -252,8 +252,8 @@ export async function GET(request: Request) {
         await createSession({
           userId: String(user!._id),
           role: platformAdminSession ? "PLATFORM_ADMIN" : String(membership.role),
-          companyId: platformAdminSession ? undefined : String(company._id),
-          workspaceId: platformAdminSession ? undefined : String(membership.workspaceId)
+          companyId: String(company._id),
+          workspaceId: String(membership.workspaceId)
         });
 
         const response = NextResponse.redirect(
@@ -269,8 +269,8 @@ export async function GET(request: Request) {
         await createSession({
           userId: String(pendingEmployee.user._id),
           role: platformAdminSession ? "PLATFORM_ADMIN" : "EMPLOYEE",
-          companyId: platformAdminSession ? undefined : String(company._id),
-          workspaceId: platformAdminSession ? undefined : pendingEmployee.workspaceId
+          companyId: String(company._id),
+          workspaceId: pendingEmployee.workspaceId
         });
 
         const response = NextResponse.redirect(
@@ -459,16 +459,8 @@ export async function GET(request: Request) {
         : scopedMembership
           ? String(scopedMembership.role)
           : String(user.role),
-      companyId: platformAdminSession
-        ? undefined
-        : scopedMembership
-          ? String(scopedMembership.companyId)
-          : undefined,
-      workspaceId: platformAdminSession
-        ? undefined
-        : scopedMembership
-          ? String(scopedMembership.workspaceId)
-          : undefined
+      companyId: scopedMembership ? String(scopedMembership.companyId) : undefined,
+      workspaceId: scopedMembership ? String(scopedMembership.workspaceId) : undefined
     });
 
     const finalReturnTo = oauth.intent === "workspace" && platformAdminSession && !companySlug ? "/admin" : returnTo;
