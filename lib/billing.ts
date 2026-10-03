@@ -57,7 +57,7 @@ export async function activatePaidPlan(paymentId: string) {
       const claimed = await Payment.findOneAndUpdate(
         {
           _id: payment._id,
-          status: "PENDING",
+          status: { $in: ["PENDING", "FAILED"] },
           $or: [{ activatedAt: null }, { activatedAt: { $exists: false } }]
         },
         {
