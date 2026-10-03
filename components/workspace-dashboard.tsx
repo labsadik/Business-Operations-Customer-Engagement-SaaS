@@ -285,6 +285,9 @@ export default function WorkspaceDashboard({
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [meetingHistory, setMeetingHistory] = useState<MeetingHistoryItem[]>([]);
+  const [modalRequests, setModalRequests] = useState<RequestItem[]>([]);
+  const [modalMeetingHistory, setModalMeetingHistory] = useState<MeetingHistoryItem[]>([]);
+  const [meetingsLoading, setMeetingsLoading] = useState(false);
   const [meetingView, setMeetingView] = useState<MeetingView>("new");
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
   const [invitations, setInvitations] = useState<InvitationItem[]>([]);
@@ -346,8 +349,8 @@ export default function WorkspaceDashboard({
 
       const [staff, pending, history, announcementList] = await Promise.all([
         api<Employee[]>("/api/company/employees"),
-        api<RequestItem[]>("/api/employee/requests"),
-        api<MeetingHistoryItem[]>("/api/employee/meetings"),
+        api<RequestItem[]>("/api/employee/requests?limit=6"),
+        api<MeetingHistoryItem[]>("/api/employee/meetings?limit=6"),
         ["COMPANY_OWNER", "COMPANY_ADMIN"].includes(company.currentRole)
           ? api<AnnouncementItem[]>("/api/company/announcement")
           : Promise.resolve([] as AnnouncementItem[])
@@ -371,8 +374,8 @@ export default function WorkspaceDashboard({
     refreshingRef.current = true;
     try {
       const [pending, history] = await Promise.all([
-        api<RequestItem[]>("/api/employee/requests"),
-        api<MeetingHistoryItem[]>("/api/employee/meetings")
+        api<RequestItem[]>("/api/employee/requests?limit=6"),
+        api<MeetingHistoryItem[]>("/api/employee/meetings?limit=6")
       ]);
       setRequests(pending);
       setMeetingHistory(history);
@@ -380,6 +383,23 @@ export default function WorkspaceDashboard({
       // Keep the last good dashboard state during transient polling failures.
     } finally {
       refreshingRef.current = false;
+    }
+  }
+
+  async function loadAllMeetings() {
+    setMeetingsLoading(true);
+    try {
+      const [allRequests, allHistory] = await Promise.all([
+        api<RequestItem[]>("/api/employee/requests?limit=100"),
+        api<MeetingHistoryItem[]>("/api/employee/meetings?limit=500")
+      ]);
+      setModalRequests(allRequests);
+      setModalMeetingHistory(allHistory);
+      setError("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "MEETING_LIST_FAILED");
+    } finally {
+      setMeetingsLoading(false);
     }
   }
 
@@ -661,6 +681,7 @@ export default function WorkspaceDashboard({
       await api(`/api/bookings/${encodeURIComponent(id)}/end`, { method: "POST" });
       await refreshLive();
       await refreshAll();
+      if (activeModal === "meetings") await loadAllMeetings();
     } catch (err) {
       setError(err instanceof Error ? err.message : "MEETING_END_FAILED");
     } finally {
@@ -677,6 +698,7 @@ export default function WorkspaceDashboard({
       });
       await refreshLive();
       await refreshAll();
+      if (activeModal === "meetings") await loadAllMeetings();
     } catch (err) {
       setError(err instanceof Error ? err.message : "BOOKING_ACTION_FAILED");
     } finally {
@@ -702,6 +724,7 @@ export default function WorkspaceDashboard({
   function openModal(name: Exclude<ModalName, null>) {
     setError("");
     setActiveModal(name);
+    if (name === "meetings") void loadAllMeetings();
   }
 
   if (loading) return <DashboardSkeleton />;
@@ -916,10 +939,10 @@ export default function WorkspaceDashboard({
 
                 <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
                   <button type="button" onClick={() => setMeetingView("new")} className={`rounded-lg px-3.5 py-2 text-xs font-semibold ${meetingView === "new" ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200" : "text-slate-500"}`}>
-                    New <span className="ml-1 text-slate-400">{requests.length}</span>
+                    New <span className="ml-1 text-slate-400">{requests.length > 5 ? "5+" : requests.length}</span>
                   </button>
                   <button type="button" onClick={() => setMeetingView("old")} className={`rounded-lg px-3.5 py-2 text-xs font-semibold ${meetingView === "old" ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200" : "text-slate-500"}`}>
-                    Old <span className="ml-1 text-slate-400">{meetingHistory.length}</span>
+                    Old <span className="ml-1 text-slate-400">{meetingHistory.length > 5 ? "5+" : meetingHistory.length}</span>
                   </button>
                 </div>
               </div>
@@ -1233,21 +1256,27 @@ export default function WorkspaceDashboard({
         <div className="p-5 sm:p-6">
           <div className="mb-5 inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
             <button type="button" onClick={() => setMeetingView("new")} className={`rounded-lg px-4 py-2 text-xs font-semibold ${meetingView === "new" ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200" : "text-slate-500"}`}>
-              New ({requests.length})
+              New ({requests.length > 5 ? "5+" : requests.length})
             </button>
             <button type="button" onClick={() => setMeetingView("old")} className={`rounded-lg px-4 py-2 text-xs font-semibold ${meetingView === "old" ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200" : "text-slate-500"}`}>
-              History ({meetingHistory.length})
+              History ({meetingHistory.length > 5 ? "5+" : meetingHistory.length})
             </button>
           </div>
 
-          {meetingView === "new" ? (
-            requests.length === 0 ? (
+          {meetingsLoading ? (
+            <div className="grid gap-3">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="h-24 animate-pulse rounded-2xl bg-slate-100" />
+              ))}
+            </div>
+          ) : meetingView === "new" ? (
+            modalRequests.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-12 text-center text-xs text-slate-500">
                 No active meetings.
               </div>
             ) : (
               <div className="space-y-3">
-                {requests.map((item) => {
+                {modalRequests.map((item) => {
                   const actionable = item.status === "REQUESTED" || item.status === "RETRYING";
                   const ready = item.meeting?.status === "READY" && Boolean(item.meeting.meetingUri);
                   return (
@@ -1293,13 +1322,13 @@ export default function WorkspaceDashboard({
                 })}
               </div>
             )
-          ) : meetingHistory.length === 0 ? (
+          ) : modalMeetingHistory.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-12 text-center text-xs text-slate-500">
               No completed or cancelled meetings.
             </div>
           ) : (
             <div className="space-y-3">
-              {meetingHistory.map((meeting, index) => {
+              {modalMeetingHistory.map((meeting, index) => {
                 const timeZone = data.workspace?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
                 const scheduledBy = meeting.scheduledBy ?? meeting.customer;
                 return (
