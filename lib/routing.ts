@@ -2,6 +2,7 @@ import { AvailabilityRule } from "@/models/availability-rule";
 import { Membership } from "@/models/membership";
 import { GoogleAccount } from "@/models/google-account";
 import { queryFreeBusy } from "@/lib/google-calendar";
+import { getEmployeePresence } from "@/lib/employee-presence";
 
 function localParts(date: Date, timezone: string) {
   const formatter = new Intl.DateTimeFormat("en-US", {
@@ -34,6 +35,9 @@ export async function eligibleEmployees(companyId: string, startAt: Date, endAt:
     const userId = String(membership.userId);
     const account = await GoogleAccount.findOne({ userId, status: "CONNECTED" }).lean();
     if (!account) continue;
+
+    const presence = await getEmployeePresence(companyId, userId);
+    if (presence.status !== "AVAILABLE") continue;
 
     const rules = await AvailabilityRule.find({
       companyId,
