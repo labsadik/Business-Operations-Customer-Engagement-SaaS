@@ -8,6 +8,21 @@ export function sha256(value: string) {
   return createHash("sha256").update(value).digest("hex");
 }
 
+export function assertSameOrigin(request: Request) {
+  const expectedOrigin = new URL(request.url).origin;
+  const origin = request.headers.get("origin");
+
+  if (origin) {
+    if (origin !== expectedOrigin) throw new Error("CSRF_ORIGIN_INVALID");
+    return;
+  }
+
+  const referer = request.headers.get("referer");
+  if (referer && new URL(referer).origin !== expectedOrigin) {
+    throw new Error("CSRF_ORIGIN_INVALID");
+  }
+}
+
 function getEncryptionKey() {
   const raw = process.env.ENCRYPTION_KEY;
   if (!raw) throw new Error("ENCRYPTION_KEY is not configured");
@@ -29,6 +44,8 @@ export async function encryptSecret(plainText: string) {
 export async function decryptSecret(payload: string) {
   const crypto = await import("node:crypto");
   const raw = Buffer.from(payload, "base64url");
+  if (raw.length < 29) throw new Error("INVALID_ENCRYPTED_SECRET");
+
   const iv = raw.subarray(0, 12);
   const tag = raw.subarray(12, 28);
   const ciphertext = raw.subarray(28);
@@ -36,4 +53,3 @@ export async function decryptSecret(payload: string) {
   decipher.setAuthTag(tag);
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
 }
-
