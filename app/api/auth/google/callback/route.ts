@@ -435,10 +435,24 @@ export async function GET(request: Request) {
       await user.save();
     }
 
+    const activeMemberships = await Membership.find({
+      userId: user._id,
+      active: true,
+      role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] }
+    }).sort({ createdAt: -1 }).limit(2).lean();
+
+    const scopedMembership = activeMemberships[0];
+
     await createSession({
       userId: String(user._id),
-      role: String(user.role)
+      role: scopedMembership ? String(scopedMembership.role) : String(user.role),
+      companyId: scopedMembership ? String(scopedMembership.companyId) : undefined,
+      workspaceId: scopedMembership ? String(scopedMembership.workspaceId) : undefined
     });
+
+    if (scopedMembership) {
+      await initializeEmployeePresence(String(scopedMembership.companyId), String(user._id));
+    }
 
     const response = NextResponse.redirect(new URL(returnTo, request.url));
     response.cookies.delete("conventus_oauth_state");
