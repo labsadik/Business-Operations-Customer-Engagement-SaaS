@@ -67,9 +67,25 @@ export async function queryFreeBusy(userId: string, timeMin: Date, timeMax: Date
   );
 }
 
+export type GoogleCalendarEvent = {
+  id: string;
+  htmlLink?: string;
+  hangoutLink?: string;
+  conferenceData?: {
+    createRequest?: {
+      requestId?: string;
+      status?: { statusCode?: string };
+    };
+    entryPoints?: Array<{
+      entryPointType?: string;
+      uri?: string;
+    }>;
+  };
+};
+
 export async function getCalendarEvent(userId: string, eventId: string) {
   const { accessToken } = await getGoogleAccessToken(userId);
-  return googleApi<{ id: string; htmlLink?: string }>(
+  return googleApi<GoogleCalendarEvent>(
     accessToken,
     `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(eventId)}`,
     { method: "GET" }
@@ -78,17 +94,23 @@ export async function getCalendarEvent(userId: string, eventId: string) {
 
 export async function createCalendarEvent(userId: string, input: {
   eventId?: string;
+  conferenceRequestId?: string;
   summary: string;
   description?: string;
   startAt: Date;
   endAt: Date;
   attendeeEmails: string[];
-  meetingUri: string;
 }) {
   const { accessToken } = await getGoogleAccessToken(userId);
-  return googleApi<{ id: string; htmlLink?: string }>(
+
+  const params = new URLSearchParams({
+    conferenceDataVersion: "1",
+    sendUpdates: "all"
+  });
+
+  return googleApi<GoogleCalendarEvent>(
     accessToken,
-    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params.toString()}`,
     {
       method: "POST",
       body: JSON.stringify({
@@ -98,7 +120,14 @@ export async function createCalendarEvent(userId: string, input: {
         start: { dateTime: input.startAt.toISOString() },
         end: { dateTime: input.endAt.toISOString() },
         attendees: input.attendeeEmails.map((email) => ({ email })),
-        location: input.meetingUri
+        conferenceData: input.conferenceRequestId
+          ? {
+              createRequest: {
+                requestId: input.conferenceRequestId,
+                conferenceSolutionKey: { type: "hangoutsMeet" }
+              }
+            }
+          : undefined
       })
     }
   );
