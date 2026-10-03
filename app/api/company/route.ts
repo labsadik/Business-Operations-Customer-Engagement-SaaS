@@ -84,7 +84,7 @@ export async function POST(request: Request) {
       const [workspace] = await Workspace.create([{ companyId: company._id, name: `${name} workspace`, timezone: body.timezone || "Asia/Kolkata", planId: "starter" }], { session: tx });
       await Subscription.create([{ companyId: company._id, planId: "starter", status: "ACTIVE", currentPeriodStart: now, currentPeriodEnd: periodEnd, monthlyMeetingsUsed: 0 }], { session: tx });
       await Membership.create([{ companyId: company._id, workspaceId: workspace._id, userId: session.userId, role: "COMPANY_OWNER", active: true, googleConnectionStatus: "DISCONNECTED" }], { session: tx });
-      await MeetingType.create([{ companyId: company._id, workspaceId: workspace._id, name: "General meeting", slug: "general", durationOptionsMinutes: [20] }], { session: tx });
+      await MeetingType.create([{ companyId: company._id, workspaceId: workspace._id, name: "General meeting", slug: "general", durationOptionsMinutes: [10, 15, 20, 25, 30, 35] }], { session: tx });
 
       const rules = [1, 2, 3, 4, 5].map((dayOfWeek) => ({
         companyId: company._id, employeeId: session.userId, dayOfWeek, startMinute: 9 * 60, endMinute: 17 * 60, timezone: body.timezone || "Asia/Kolkata", active: true
