@@ -4,8 +4,8 @@ import { getMongo } from "@/lib/mongodb";
 import { getSession } from "@/lib/session";
 import { Invoice } from "@/models/invoice";
 import { getPlan } from "@/lib/plans";
-import { calculateInvoiceTax, invoiceTaxConfig, type InvoiceTaxSnapshot } from "@/lib/invoicing";
-import { platformLegalProfile, platformLogoUrl } from "@/lib/platform";
+import { calculateInvoiceTax, type InvoiceTaxSnapshot } from "@/lib/invoicing";
+import { platformLegalProfile } from "@/lib/platform";
 import { jsonError } from "@/lib/http";
 
 export const runtime = "nodejs";
