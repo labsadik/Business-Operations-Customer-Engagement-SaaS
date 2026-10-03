@@ -5,27 +5,28 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, CheckCircle2, Clock3, LayoutDashboard, Loader2, LogIn, ShieldCheck } from "lucide-react";
+import { getTodayIso } from "@/lib/timezone";
 
 type Type = { id: string; name: string; description?: string; durationOptionsMinutes: number[] };
 type Slot = { startAt: string; endAt: string };
 type Access = "anonymous" | "company-member" | "customer";
-
-const DEFAULT_BOOKING_DATE = new Date().toISOString().slice(0, 10);
 
 export default function PublicBooking({
   companySlug,
   types,
   access,
   sessionName,
-  employeeLoginUrl
+  employeeLoginUrl,
+  timezone
 }: {
   companySlug: string;
   types: Type[];
   access: Access;
   sessionName?: string;
   employeeLoginUrl: string;
+  timezone: string;
 }) {
-  const [date, setDate] = useState(DEFAULT_BOOKING_DATE);
+  const [date, setDate] = useState(() => getTodayIso(timezone));
   const [typeId, setTypeId] = useState(types[0]?.id ?? "");
   const type = types.find((item) => item.id === typeId) ?? types[0];
   const [duration, setDuration] = useState(type?.durationOptionsMinutes[0] ?? 20);
@@ -39,7 +40,7 @@ export default function PublicBooking({
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      if (!typeId || access === "company-member") return;
+      if (!typeId || access !== "customer") return;
       setLoading(true);
       setError("");
       try {
@@ -177,7 +178,7 @@ export default function PublicBooking({
           Date
           <div className="flex items-center gap-3 rounded-xl border border-slate-300 px-4 py-3">
             <CalendarDays className="size-4 text-blue-600" />
-            <input type="date" value={date} min={DEFAULT_BOOKING_DATE} onChange={(e) => setDate(e.target.value)} className="min-w-0 flex-1 bg-transparent font-normal outline-none" />
+            <input type="date" value={date} min={DEFAULT_BOOKING_DATE} onChange={(e) => setDate(e.target.value)} min={getTodayIso(timezone)} className="min-w-0 flex-1 bg-transparent font-normal outline-none" />
           </div>
         </label>
         <div>
