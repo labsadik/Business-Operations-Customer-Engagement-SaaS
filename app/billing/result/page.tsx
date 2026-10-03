@@ -94,9 +94,7 @@ export default async function BillingResultPage({
     address: legal.address
   };
 
-  const currentTime = Date.now();
-  const currentPlanId = subscription?.status === "ACTIVE" &&
-    subscription.currentPeriodEnd.getTime() > currentTime
+  const currentPlanId = subscription?.status === "ACTIVE"
     ? subscription.planId
     : null;
 
