@@ -59,7 +59,12 @@ export async function GET(
   const meeting = await Meeting.findOne({ bookingRequestId: booking._id }).lean();
 
   const meetingReady = meeting?.status === "READY";
-  const meetingJoinToken = meetingReady ? createMeetingAccessToken(String(meeting!._id)) : null;
+  const meetingTokenExpiry = meeting
+    ? new Date(Math.max(Date.now() + 60 * 60 * 1000, meeting.endAt.getTime() + 24 * 60 * 60 * 1000))
+    : undefined;
+  const meetingJoinToken = meetingReady
+    ? createMeetingAccessToken(String(meeting!._id), meetingTokenExpiry)
+    : null;
 
   return jsonOk({
     booking: {
