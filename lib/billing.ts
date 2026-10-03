@@ -5,7 +5,89 @@ import { Invoice } from "@/models/invoice";
 import { Payment } from "@/models/payment";
 import { Subscription } from "@/models/subscription";
 import { Workspace } from "@/models/workspace";
-import { buildInvoiceSnapshots } from "@/lib/invoicing";
+import { buildInvoiceSnapshots, type InvoiceTaxSnapshot } from "@/lib/invoicing";
+
+function addValidityDays(from: Date, days: number) {
+  const result = new Date(from);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+function monthKey(date: Date) {
+  return date.toISOString().slice(0, 7).replace("-", "");
+}
+
+function invoiceSourceLabel(source: "FREE" | "ADMIN_GRANTED") {
+  return source === "FREE" ? "FREE" : "ADMIN";
+}
+
+async function createOrUpdateAccessInvoice({
+  company,
+  subscription,
+  plan,
+  source,
+  grantedByUserId
+}: {
+  company: Awaited<ReturnType<typeof Company.findById>> extends infer T ? Exclude<Awaited<T>, null> : never;
+  subscription: {
+    _id: unknown;
+    currentPeriodStart: Date;
+    currentPeriodEnd: Date;
+  };
+  plan: NonNullable<ReturnType<typeof PLANS[PlanId]>>;
+  source: "FREE" | "ADMIN_GRANTED";
+  grantedByUserId?: string;
+}) {
+  const periodStart = subscription.currentPeriodStart;
+  const periodEnd = subscription.currentPeriodEnd;
+  const invoiceNumber = `CONV-${invoiceSourceLabel(source)}-${monthKey(periodStart)}-${String(company._id).slice(-8).toUpperCase()}-${source === "ADMIN_GRANTED" ? plan.id.toUpperCase() : "FREE"}`;
+  const taxSnapshot: InvoiceTaxSnapshot = {
+    enabled: false,
+    ratePercent: 0,
+    inclusive: false,
+    taxableAmount: 0,
+    gstAmount: 0
+  };
+
+  const snapshots = await buildInvoiceSnapshots({
+    company: {
+      name: company.name,
+      email: company.email ?? "",
+      phone: company.phone ?? "",
+      address: company.address ?? {},
+      taxId: company.taxId ?? ""
+    },
+    plan,
+    amount: 0,
+    taxSnapshot
+  });
+
+  return Invoice.findOneAndUpdate(
+    {
+      companyId: company._id,
+      source,
+      billingPeriodStart: periodStart
+    },
+    {
+      $setOnInsert: {
+        companyId: company._id,
+        invoiceNumber,
+        planId: plan.id,
+        providerOrderId: "",
+        providerPaymentId: "",
+        amount: 0,
+        currency: "INR",
+        issuedAt: periodStart,
+        billingPeriodStart: periodStart,
+        billingPeriodEnd: periodEnd,
+        source,
+        ...snapshots
+      },
+      ...(grantedByUserId ? { $set: { "companySnapshot.name": company.name } } : {})
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+}
 
 export async function activatePaidPlan(paymentId: string) {
   const db = await getMongo();
@@ -17,7 +99,7 @@ export async function activatePaidPlan(paymentId: string) {
       if (!payment) throw new Error("PAYMENT_NOT_FOUND");
 
       const plan = PLANS[payment.planId as PlanId];
-      if (!plan) throw new Error("PLAN_NOT_FOUND");
+      if (!plan || !plan.requiresPayment) throw new Error("PLAN_NOT_FOUND");
 
       if (payment.merchantAccount && payment.merchantAccount !== "CONVENTUS") {
         throw new Error("PAYMENT_MERCHANT_INVALID");
@@ -28,16 +110,12 @@ export async function activatePaidPlan(paymentId: string) {
 
       const companyEmail = company.email?.trim().toLowerCase();
       const companyPhone = company.phone?.trim();
-      if (!companyEmail || !companyPhone) {
-        throw new Error("COMPANY_PROFILE_INCOMPLETE");
-      }
+      if (!companyEmail || !companyPhone) throw new Error("COMPANY_PROFILE_INCOMPLETE");
 
       const invoiceDate = payment.paidAt ?? new Date();
       const providerPaymentId = payment.providerPaymentId;
       if (!providerPaymentId) throw new Error("PAYMENT_ID_MISSING");
 
-      // A captured payment that already has an invoice has completed its
-      // activation. Webhooks and browser verification can safely retry.
       if (payment.status === "CAPTURED") {
         const existingInvoice = await Invoice.exists({ paymentId: payment._id }).session(tx);
         if (existingInvoice) {
@@ -52,8 +130,6 @@ export async function activatePaidPlan(paymentId: string) {
         }
       }
 
-      // Atomically claim the payment so only one webhook/verification request
-      // can activate the subscription.
       const claimed = await Payment.findOneAndUpdate(
         {
           _id: payment._id,
@@ -70,16 +146,32 @@ export async function activatePaidPlan(paymentId: string) {
         { new: true, session: tx }
       );
 
-      if (!claimed) {
-        return;
-      }
+      if (!claimed) return;
 
       const now = new Date();
-      const periodEnd = new Date(now);
-      periodEnd.setMonth(periodEnd.getMonth() + 1);
+      const periodEnd = addValidityDays(now, plan.validityDays);
+      const invoiceNumber = `CONV-PAID-${monthKey(invoiceDate)}-${String(payment._id).slice(-8).toUpperCase()}`;
 
-      const invoiceNumber =
-        `CONV-${invoiceDate.toISOString().slice(0, 7).replace("-", "")}-${String(payment._id).slice(-8).toUpperCase()}`;
+      const taxSnapshot: InvoiceTaxSnapshot = {
+        enabled: payment.taxRatePercent > 0,
+        ratePercent: payment.taxRatePercent ?? 0,
+        inclusive: payment.taxInclusive ?? false,
+        taxableAmount: payment.baseAmount,
+        gstAmount: payment.taxAmount ?? 0
+      };
+
+      const snapshots = await buildInvoiceSnapshots({
+        company: {
+          name: company.name,
+          email: companyEmail,
+          phone: companyPhone,
+          address: company.address ?? {},
+          taxId: company.taxId ?? ""
+        },
+        plan,
+        amount: payment.amount,
+        taxSnapshot
+      });
 
       await Invoice.findOneAndUpdate(
         { paymentId: payment._id },
@@ -87,6 +179,7 @@ export async function activatePaidPlan(paymentId: string) {
           $setOnInsert: {
             companyId: payment.companyId,
             paymentId: payment._id,
+            source: "PAID",
             invoiceNumber,
             planId: plan.id,
             billingPeriodStart: now,
@@ -96,17 +189,7 @@ export async function activatePaidPlan(paymentId: string) {
             amount: payment.amount,
             currency: payment.currency,
             issuedAt: invoiceDate,
-            ...(await buildInvoiceSnapshots({
-              company: {
-                name: company.name,
-                email: companyEmail,
-                phone: companyPhone,
-                address: company.address ?? {},
-                taxId: company.taxId ?? ""
-              },
-              plan,
-              amount: payment.amount
-            }))
+            ...snapshots
           }
         },
         { upsert: true, new: true, session: tx }
@@ -117,14 +200,16 @@ export async function activatePaidPlan(paymentId: string) {
         {
           $set: {
             planId: plan.id,
+            source: "PAID",
             status: "ACTIVE",
             currentPeriodStart: now,
             currentPeriodEnd: periodEnd,
-            monthlyMeetingsUsed: 0
+            monthlyMeetingsUsed: 0,
+            freeUsageDates: [],
+            grantedByUserId: undefined,
+            grantedAt: undefined
           },
-          $setOnInsert: {
-            companyId: payment.companyId
-          }
+          $setOnInsert: { companyId: payment.companyId }
         },
         { upsert: true, new: true, session: tx }
       );
@@ -140,6 +225,76 @@ export async function activatePaidPlan(paymentId: string) {
   }
 }
 
+export async function grantCompanyPlan(
+  companyId: string,
+  planId: PlanId,
+  adminUserId: string
+) {
+  const plan = PLANS[planId];
+  if (!plan) throw new Error("PLAN_NOT_FOUND");
+
+  await getMongo();
+  const company = await Company.findById(companyId).lean();
+  if (!company) throw new Error("COMPANY_NOT_FOUND");
+
+  const now = new Date();
+  const periodEnd = addValidityDays(now, plan.validityDays);
+
+  const subscription = await Subscription.findOneAndUpdate(
+    { companyId },
+    {
+      $set: {
+        planId,
+        source: "ADMIN_GRANTED",
+        status: "ACTIVE",
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+        monthlyMeetingsUsed: 0,
+        freeUsageDates: [],
+        grantedByUserId: adminUserId,
+        grantedAt: now
+      },
+      $setOnInsert: { companyId }
+    },
+    { upsert: true, new: true }
+  ).lean();
+
+  await Workspace.updateOne({ companyId }, { $set: { planId } });
+
+  if (!subscription) throw new Error("SUBSCRIPTION_GRANT_FAILED");
+
+  await createOrUpdateAccessInvoice({
+    company,
+    subscription,
+    plan,
+    source: "ADMIN_GRANTED",
+    grantedByUserId: adminUserId
+  });
+
+  return subscription;
+}
+
+export async function ensureCurrentAccessInvoice(companyId: string) {
+  await getMongo();
+  const [company, subscription] = await Promise.all([
+    Company.findById(companyId).lean(),
+    Subscription.findOne({ companyId }).lean()
+  ]);
+
+  if (!company || !subscription) return null;
+
+  const plan = PLANS[subscription.planId as PlanId];
+  if (!plan) return null;
+  if (!["FREE", "ADMIN_GRANTED"].includes(subscription.source)) return null;
+
+  return createOrUpdateAccessInvoice({
+    company,
+    subscription,
+    plan,
+    source: subscription.source as "FREE" | "ADMIN_GRANTED",
+    grantedByUserId: subscription.grantedByUserId ? String(subscription.grantedByUserId) : undefined
+  });
+}
 
 export async function ensureInvoicesForCapturedPayments(companyId: string) {
   await getMongo();
@@ -153,37 +308,33 @@ export async function ensureInvoicesForCapturedPayments(companyId: string) {
     providerPaymentId: { $exists: true, $ne: "" }
   }).sort({ paidAt: -1, createdAt: -1 }).limit(100).lean();
 
-  if (!payments.length) return 0;
-
   let createdOrUpdated = 0;
+
   for (const payment of payments) {
     const plan = PLANS[payment.planId as PlanId];
     if (!plan) continue;
 
     const issuedAt = payment.paidAt ?? payment.createdAt ?? new Date();
     const existing = await Invoice.findOne({ paymentId: payment._id }).lean();
-
     const hasCompleteSnapshot = Boolean(
       existing?.merchantSnapshot?.name &&
       existing?.merchantSnapshot?.description &&
       existing?.merchantSnapshot?.logoUrl &&
-      existing?.merchantSnapshot?.websiteUrl !== undefined &&
-      existing?.merchantSnapshot?.email !== undefined &&
-      existing?.merchantSnapshot?.taxId !== undefined &&
-      existing?.merchantSnapshot?.gstin !== undefined &&
-      existing?.merchantSnapshot?.sacCode !== undefined &&
       existing?.planSnapshot?.name &&
       existing?.taxSnapshot
     );
 
-    if (existing && hasCompleteSnapshot) continue;
+    if (existing && existing.source === "PAID" && hasCompleteSnapshot) continue;
 
     const billingPeriodStart = existing?.billingPeriodStart ?? issuedAt;
-    const billingPeriodEnd = existing?.billingPeriodEnd ?? (() => {
-      const end = new Date(billingPeriodStart);
-      end.setMonth(end.getMonth() + 1);
-      return end;
-    })();
+    const billingPeriodEnd = existing?.billingPeriodEnd ?? addValidityDays(billingPeriodStart, plan.validityDays);
+    const taxSnapshot: InvoiceTaxSnapshot = {
+      enabled: (payment.taxRatePercent ?? 0) > 0,
+      ratePercent: payment.taxRatePercent ?? 0,
+      inclusive: payment.taxInclusive ?? false,
+      taxableAmount: payment.baseAmount ?? payment.amount,
+      gstAmount: payment.taxAmount ?? 0
+    };
 
     const snapshots = await buildInvoiceSnapshots({
       company: {
@@ -194,12 +345,11 @@ export async function ensureInvoicesForCapturedPayments(companyId: string) {
         taxId: company.taxId ?? ""
       },
       plan,
-      amount: payment.amount
+      amount: payment.amount,
+      taxSnapshot
     });
 
-    const invoiceNumber =
-      existing?.invoiceNumber ??
-      `CONV-${issuedAt.toISOString().slice(0, 7).replace("-", "")}-${String(payment._id).slice(-8).toUpperCase()}`;
+    const invoiceNumber = existing?.invoiceNumber ?? `CONV-PAID-${monthKey(issuedAt)}-${String(payment._id).slice(-8).toUpperCase()}`;
 
     await Invoice.findOneAndUpdate(
       { paymentId: payment._id },
@@ -207,6 +357,7 @@ export async function ensureInvoicesForCapturedPayments(companyId: string) {
         $set: {
           companyId: payment.companyId,
           paymentId: payment._id,
+          source: "PAID",
           invoiceNumber,
           planId: plan.id,
           providerOrderId: payment.providerOrderId,
@@ -216,11 +367,7 @@ export async function ensureInvoicesForCapturedPayments(companyId: string) {
           issuedAt,
           billingPeriodStart,
           billingPeriodEnd,
-          serviceDescription: snapshots.serviceDescription,
-          planSnapshot: snapshots.planSnapshot,
-          merchantSnapshot: snapshots.merchantSnapshot,
-          companySnapshot: snapshots.companySnapshot,
-          taxSnapshot: snapshots.taxSnapshot
+          ...snapshots
         }
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
@@ -229,5 +376,6 @@ export async function ensureInvoicesForCapturedPayments(companyId: string) {
     createdOrUpdated += 1;
   }
 
+  await ensureCurrentAccessInvoice(companyId);
   return createdOrUpdated;
 }
