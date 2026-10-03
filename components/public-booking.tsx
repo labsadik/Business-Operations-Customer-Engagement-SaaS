@@ -51,7 +51,7 @@ export default function PublicBooking({
   const [loading, setLoading] = useState(false);
   const [bookingId, setBookingId] = useState("");
   const [status, setStatus] = useState("");
-  const [meetingJoinToken, setMeetingJoinToken] = useState("");
+  const [meetingUri, setMeetingUri] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [error, setError] = useState("");
@@ -162,8 +162,8 @@ export default function PublicBooking({
       );
 
       const meeting = body.data.meeting;
-      if (meeting?.status === "READY" && meeting?.joinToken) {
-        setMeetingJoinToken(String(meeting.joinToken));
+      if (meeting?.status === "READY" && meeting?.meetingUri) {
+        setMeetingUri(String(meeting.meetingUri));
         setStatus("CONFIRMED");
         window.clearInterval(timer);
       }
@@ -216,7 +216,7 @@ export default function PublicBooking({
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "BOOKING_FAILED");
       setBookingId(body.data.bookingId);
-      setMeetingJoinToken("");
+      setMeetingUri("");
       setStatus(body.data.status);
       setExpiresAt(body.data.expiresAt);
       setRemainingSeconds(Math.max(0, Math.ceil((new Date(body.data.expiresAt).getTime() - Date.now()) / 1000)));
@@ -300,7 +300,7 @@ export default function PublicBooking({
           </p>
           <button
             type="button"
-            onClick={() => { setOutcomeModal(null); setBookingId(""); setStatus(""); setMeetingJoinToken(""); setExpiresAt(""); setRemainingSeconds(0); void loadAvailability(true); }}
+            onClick={() => { setOutcomeModal(null); setBookingId(""); setStatus(""); setMeetingUri(""); setExpiresAt(""); setRemainingSeconds(0); void loadAvailability(true); }}
             className="mt-6 w-full rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white"
           >
             Choose another time
@@ -325,7 +325,7 @@ export default function PublicBooking({
     const minutes = Math.floor(remainingSeconds / 60);
     const seconds = remainingSeconds % 60;
     const pending = !["CONFIRMED", "EXPIRED", "CANCELLED"].includes(status);
-    const confirmed = status === "CONFIRMED" && Boolean(meetingJoinToken);
+    const confirmed = status === "CONFIRMED" && Boolean(meetingUri);
     return (
       <>
       <section className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm sm:p-8">
@@ -360,15 +360,17 @@ export default function PublicBooking({
               <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600" />
               <div>
                 <p className="text-sm font-semibold text-emerald-900">Meeting ready</p>
-                <p className="mt-1 text-xs leading-5 text-emerald-800">Open your Conventus meeting page to join the Google Meet call.</p>
+                <p className="mt-1 text-xs leading-5 text-emerald-800">Open the Google Meet call directly.</p>
               </div>
             </div>
-            <Link
-              href={`/${companySlug}/meet/${meetingJoinToken}` as Route}
+            <a
+              href={meetingUri}
+              target="_blank"
+              rel="noopener noreferrer"
               className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
             >
-              Join meeting
-            </Link>
+              Join Google Meet
+            </a>
           </div>
         )}
 
