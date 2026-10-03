@@ -249,7 +249,7 @@ export async function GET(request: Request) {
           workspaceId: String(membership.workspaceId)
         });
 
-        const response = NextResponse.redirect(new URL(returnTo === `/${company.slug}` ? "/dashboard" : returnTo, request.url));
+        const response = NextResponse.redirect(new URL("/dashboard", request.url));
         response.cookies.delete("conventus_oauth_state");
         return response;
       }
