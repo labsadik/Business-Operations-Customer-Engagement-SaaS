@@ -7,6 +7,7 @@ import {
   ArrowUpRight,
   CalendarDays,
   CheckCircle2,
+  CreditCard,
   ChevronRight,
   Copy,
   Globe2,
@@ -1109,6 +1110,7 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
                           currentPlanId={data.subscription?.planId === "business" ? "business" : "starter"}
                           disabled={busy}
                           onComplete={() => void refresh()}
+                          onError={(message) => setError(message)}
                         />
                       </div>
                     );
