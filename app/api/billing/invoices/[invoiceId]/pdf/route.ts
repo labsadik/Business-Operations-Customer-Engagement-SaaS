@@ -21,16 +21,7 @@ const GREEN = rgb(0.047, 0.48, 0.32);
 const WHITE = rgb(1, 1, 1);
 
 function money(minor: number, currency: string) {
-  try {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(minor / 100);
-  } catch {
-    return `₹${(minor / 100).toFixed(2)}`;
-  }
+  return `${currency.toUpperCase()} ${(minor / 100).toFixed(2)}`;
 }
 
 function dateLabel(value: Date | string | null | undefined, withTime = false) {
