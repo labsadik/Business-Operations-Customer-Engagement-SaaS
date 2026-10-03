@@ -63,8 +63,7 @@ export async function POST(request: Request) {
   const db = await getMongo();
   const tx = await db.startSession();
   try {
-    let ids: { companyId: string; workspaceId: string } | null = null;
-    await tx.withTransaction(async () => {
+    const createdIds = await tx.withTransaction(async () => {
       const [company] = await Company.create([{ name, slug, description: body.description?.trim().slice(0, 1200), ownerUserId: session.userId }], { session: tx });
       const [workspace] = await Workspace.create([{ companyId: company._id, name: `${name} workspace`, timezone: body.timezone || "Asia/Kolkata", planId: "starter" }], { session: tx });
       await Subscription.create([{ companyId: company._id, planId: "starter", status: "ACTIVE", currentPeriodStart: now, currentPeriodEnd: periodEnd, monthlyMeetingsUsed: 0 }], { session: tx });
@@ -76,10 +75,9 @@ export async function POST(request: Request) {
       }));
       await AvailabilityRule.insertMany(rules, { session: tx });
 
-      ids = { companyId: String(company._id), workspaceId: String(workspace._id) };
+      return { companyId: String(company._id), workspaceId: String(workspace._id) };
     });
 
-    const createdIds = ids;
     if (!createdIds) throw new Error("COMPANY_CREATE_FAILED");
     await updateSessionScope(session.userId, createdIds);
     return jsonOk({ companyId: createdIds.companyId, workspaceId: createdIds.workspaceId, slug }, 201);
