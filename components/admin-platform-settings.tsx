@@ -96,7 +96,16 @@ export default function AdminPlatformSettings({ initial }: { initial: Settings }
           <Field label="Billing email" type="email" value={form.billingEmail} onChange={(v) => setValue("billingEmail", v)} />
           <Field label="Website" value={form.websiteUrl} onChange={(v) => setValue("websiteUrl", v)} />
           <Field label="Phone" value={form.phone} onChange={(v) => setValue("phone", v)} />
-          <Field label="Logo URL" value={form.logoUrl} onChange={(v) => setValue("logoUrl", v)} />
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+            <span className="text-xs font-semibold text-slate-700">Conventus logo</span>
+            <div className="mt-2 flex items-center gap-3">
+              <img src="/favicon.svg" alt="Conventus" className="size-10 rounded-xl object-cover" />
+              <div>
+                <p className="text-xs font-semibold text-slate-900">Bundled locally</p>
+                <p className="mt-0.5 text-[11px] text-slate-500">Used by the app, dashboard, website, invoices and favicon.</p>
+              </div>
+            </div>
+          </div>
           <Field label="Tax ID" value={form.taxId} onChange={(v) => setValue("taxId", v)} />
           <Field label="GSTIN" value={form.gstin} onChange={(v) => setValue("gstin", v)} />
           <Field label="SAC code" value={form.sacCode} onChange={(v) => setValue("sacCode", v)} />
