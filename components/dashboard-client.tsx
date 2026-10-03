@@ -12,7 +12,7 @@ type CompanyData = {
 };
 
 type Employee = { id: string; name: string; email: string; role: string; googleConnected: boolean };
-type RequestItem = { id: string; startAt: string; endAt: string; durationMinutes: number; status: string; expiresAt: string; customer: { name: string; email: string } | null };
+type RequestItem = { id: string; startAt: string; endAt: string; durationMinutes: number; status: string; expiresAt: string; customer: { name: string; email: string } | null };\n\nconst INITIAL_NOW = Date.now();
 
 async function getJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) }, cache: "no-store" });
@@ -31,7 +31,7 @@ export default function DashboardClient() {
   const [inviteUrl, setInviteUrl] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [savingCompany, setSavingCompany] = useState(false);
+  const [savingCompany, setSavingCompany] = useState(false);\n  const [now, setNow] = useState(INITIAL_NOW);
 
   async function refresh() {
     try {
@@ -54,8 +54,16 @@ export default function DashboardClient() {
   }
 
   useEffect(() => {
-    void refresh();
+    const initial = window.setTimeout(() => { void refresh(); }, 0);
     const timer = window.setInterval(() => { void refresh(); }, 3000);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -136,7 +144,7 @@ export default function DashboardClient() {
           <Link href="/" className="font-semibold tracking-tight text-slate-950">Conventus</Link>
           <div className="flex items-center gap-2">
             <Link href={`/${company.slug}`} className="hidden items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 sm:inline-flex"><Globe2 className="size-4" /> Public page</Link>
-            <a href="/api/auth/google/start?intent=connect&returnTo=/dashboard" className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3.5 py-2.5 text-sm font-semibold text-white"><ShieldCheck className="size-4" /> {companyData.memberCount ? "Connect Google" : "Connect Google"}</a>
+            <button type="button" onClick={() => window.open("/api/auth/google/start?intent=connect&returnTo=/dashboard", "_self")} className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3.5 py-2.5 text-sm font-semibold text-white"><ShieldCheck className="size-4" /> Connect Google</button>
             <form action="/api/auth/logout" method="post"><button aria-label="Sign out" className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"><LogOut className="size-4" /></button></form>
           </div>
         </div>
@@ -165,7 +173,7 @@ export default function DashboardClient() {
             <div className="divide-y divide-slate-100">
               {requests.length === 0 ? <div className="px-6 py-12 text-center"><Video className="mx-auto size-7 text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-900">No active requests</p><p className="mt-1 text-xs text-slate-500">New customer requests will appear here.</p></div> :
                 requests.map((item) => {
-                  const remaining = Math.max(0, Math.ceil((new Date(item.expiresAt).getTime() - Date.now()) / 1000));
+                  const remaining = Math.max(0, Math.ceil((new Date(item.expiresAt).getTime() - now) / 1000));
                   return <div key={item.id} className="px-6 py-5"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-semibold text-slate-950">{item.customer?.name ?? "Customer"}</p><p className="mt-1 text-xs text-slate-500">{new Date(item.startAt).toLocaleString()} · {item.durationMinutes} min</p><p className="mt-2 text-xs font-semibold text-blue-700">Expires in {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}</p></div><div className="flex gap-2"><button onClick={() => void act(item.id, "decline")} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"><XCircle className="size-4" /> Decline</button><button onClick={() => void act(item.id, "accept")} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-blue-700"><CheckCircle2 className="size-4" /> Accept</button></div></div></div>;
                 })}
             </div>
