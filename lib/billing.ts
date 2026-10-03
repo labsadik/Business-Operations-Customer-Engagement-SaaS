@@ -1,5 +1,5 @@
 import { getMongo } from "@/lib/mongodb";
-import { PLANS, type PlanId } from "@/lib/plans";
+import { PLANS, type PlanEntitlements, type PlanId } from "@/lib/plans";
 import { Company } from "@/models/company";
 import { Invoice } from "@/models/invoice";
 import { Payment } from "@/models/payment";
