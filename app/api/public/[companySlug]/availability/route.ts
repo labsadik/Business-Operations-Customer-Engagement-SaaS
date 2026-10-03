@@ -42,8 +42,17 @@ export async function GET(
   }
 
   try {
-    const slots = await getAvailableSlots(String(company._id), date, duration);
-    return jsonOk({ date, duration, slots });
+    const availability = await getAvailableSlots(String(company._id), date, duration);
+    return jsonOk({
+      date,
+      duration,
+      slots: availability.slots,
+      availability: {
+        reason: availability.reason,
+        schedulingReadyMemberCount: availability.schedulingReadyMemberCount,
+        membersWithWorkingHoursCount: availability.membersWithWorkingHoursCount
+      }
+    });
   } catch (error) {
     const code = error instanceof Error ? error.message : "AVAILABILITY_FAILED";
     return jsonError(code, 400);
