@@ -3,7 +3,6 @@ import { GoogleAccount } from "@/models/google-account";
 import { Membership } from "@/models/membership";
 import { queryFreeBusy } from "@/lib/google-calendar";
 import { Workspace } from "@/models/workspace";
-import { getEmployeePresence } from "@/lib/employee-presence";
 import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
 import { getDayOfWeekForDate, nextDateIso, zonedDateTimeToUtc } from "@/lib/timezone";
 
@@ -28,9 +27,6 @@ export async function getAvailableSlots(companyId: string, dateIso: string, dura
     const employeeId = String(membership.userId);
     const account = await GoogleAccount.findOne({ userId: employeeId, status: "CONNECTED" }).lean();
     if (!isGoogleSchedulingReady(account)) continue;
-
-    const presence = await getEmployeePresence(companyId, employeeId);
-    if (presence.status !== "AVAILABLE") continue;
 
     const rules = await AvailabilityRule.find({ companyId, employeeId, active: true }).lean();
     if (rules.length === 0) continue;
