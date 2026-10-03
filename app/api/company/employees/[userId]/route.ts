@@ -8,6 +8,7 @@ import { AvailabilityRule } from "@/models/availability-rule";
 import { BookingRequest } from "@/models/booking-request";
 import { Company } from "@/models/company";
 import { GoogleAccount } from "@/models/google-account";
+import { Session } from "@/models/session";
 import { Types } from "mongoose";
 import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
 
@@ -15,7 +16,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
@@ -23,13 +24,8 @@ export async function DELETE(
     await getMongo();
     const { userId } = await params;
 
-    if (!Types.ObjectId.isValid(userId)) {
-      return jsonError("INVALID_EMPLOYEE_ID", 400);
-    }
-
-    if (userId === session.userId) {
-      return jsonError("CANNOT_REMOVE_SELF", 400);
-    }
+    if (!Types.ObjectId.isValid(userId)) return jsonError("INVALID_EMPLOYEE_ID", 400);
+    if (userId === session.userId) return jsonError("CANNOT_REMOVE_SELF", 400);
 
     const membership = await Membership.findOne({
       companyId: session.companyId,
@@ -38,12 +34,25 @@ export async function DELETE(
     }).lean();
 
     if (!membership) return jsonError("EMPLOYEE_NOT_FOUND", 404);
-    if (membership.role !== "EMPLOYEE") {
-      return jsonError("ONLY_EMPLOYEES_CAN_BE_REMOVED", 409);
-    }
+    if (membership.role !== "EMPLOYEE") return jsonError("ONLY_EMPLOYEES_CAN_BE_REMOVED", 409);
 
     const employee = await User.findById(userId).select("name email").lean();
     if (!employee) return jsonError("EMPLOYEE_NOT_FOUND", 404);
+
+    const url = new URL(request.url);
+    const permanent = url.searchParams.get("permanent") === "true";
+
+    if (permanent) {
+      const otherActiveMembership = await Membership.findOne({
+        userId,
+        active: true,
+        companyId: { $ne: session.companyId }
+      }).lean();
+
+      if (otherActiveMembership) {
+        return jsonError("EMPLOYEE_ACCOUNT_USED_BY_OTHER_COMPANY", 409);
+      }
+    }
 
     const meetingCreation = await BookingRequest.findOne({
       companyId: session.companyId,
@@ -72,7 +81,7 @@ export async function DELETE(
       {
         companyId: session.companyId,
         assignedEmployeeId: userId,
-        status: "ASSIGNED",
+        status: { $in: ["ASSIGNED", "CREATING_MEETING"] },
         expiresAt: { $gt: removalTime }
       },
       {
@@ -109,9 +118,26 @@ export async function DELETE(
       );
     }
 
+    if (permanent) {
+      await Invitation.deleteMany({ invitedEmail: employee.email });
+      await Session.deleteMany({ userId });
+      await GoogleAccount.deleteOne({ userId });
+      await AvailabilityRule.deleteMany({ companyId: session.companyId, employeeId: userId });
+      await Membership.deleteOne({ _id: membership._id });
+      await User.deleteOne({ _id: userId });
+
+      return jsonOk({
+        userId,
+        removed: true,
+        permanentlyDeleted: true,
+        publicBookingEnabled: hasSchedulingEmployee
+      });
+    }
+
     return jsonOk({
       userId,
       removed: true,
+      permanentlyDeleted: false,
       publicBookingEnabled: hasSchedulingEmployee
     });
   } catch (error) {
@@ -122,9 +148,7 @@ export async function DELETE(
         ? 403
         : code === "EMPLOYEE_NOT_FOUND"
           ? 404
-          : code === "INVALID_EMPLOYEE_ID"
-            ? 400
-            : 409;
+          : 409;
     return jsonError(code, status);
   }
 }
