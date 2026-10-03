@@ -198,6 +198,7 @@ export default function PublicBooking({
         </Link>
         <Link href={employeeLoginUrl as Route} className="mt-4 block text-center text-xs font-semibold text-blue-700">Company login page</Link>
       </section>
+      </>
     );
   }
 
