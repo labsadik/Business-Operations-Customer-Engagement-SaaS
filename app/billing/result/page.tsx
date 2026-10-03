@@ -102,10 +102,13 @@ export default async function BillingResultPage({
       maxMeetingDurationMinutes: (invoice.planSnapshot ?? plan).maxMeetingDurationMinutes,
       maxConcurrentMeetings: (invoice.planSnapshot ?? plan).maxConcurrentMeetings
     },
-    currentPlanId: subscription?.status === "ACTIVE" &&
-      subscription.currentPeriodEnd.getTime() > Date.now()
-      ? subscription.planId
-      : null,
+    currentPlanId: (() => {
+      const currentTime = new Date().getTime();
+      return subscription?.status === "ACTIVE" &&
+        subscription.currentPeriodEnd.getTime() > currentTime
+        ? subscription.planId
+        : null;
+    })(),
     billingPeriodStart: invoice.billingPeriodStart ?? null,
     billingPeriodEnd: invoice.billingPeriodEnd ?? null,
     merchant,
