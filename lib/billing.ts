@@ -132,7 +132,7 @@ export async function activatePaidPlan(paymentId: string) {
       if (!providerPaymentId) throw new Error("PAYMENT_ID_MISSING");
 
       if (payment.status === "CAPTURED") {
-        const existingInvoice = await Invoice.exists({ paymentId: payment._id }).session(tx);
+        const existingInvoice = await Invoice.findOne({ paymentId: payment._id }).session(tx).lean();
 
         await Subscription.findOneAndUpdate(
           { companyId: payment.companyId },
