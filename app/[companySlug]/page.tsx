@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
-import { Command, LogIn, LogOut } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, CalendarDays, CheckCircle2, Clock3, Command, LogIn, LogOut, ShieldCheck } from "lucide-react";
 import { getMongo } from "@/lib/mongodb";
 import { getSession } from "@/lib/session";
 import { Company } from "@/models/company";
@@ -9,6 +10,7 @@ import { Membership } from "@/models/membership";
 import { getCompanyEntitlements } from "@/lib/plans-server";
 import { getMeetingDurationOptions } from "@/lib/plans";
 import PublicBooking from "@/components/public-booking";
+import UserAvatar from "@/components/user-avatar";
 
 export const dynamic = "force-dynamic";
 
@@ -61,43 +63,39 @@ export default async function CompanyPublicPage({
     )
   }));
 
+  const features = [
+    [CalendarDays, "Choose a time", "Pick the date and duration that fits your schedule."],
+    [Clock3, "Send a request", "The company team reviews the request inside their workspace."],
+    [CheckCircle2, "Join when ready", "Once accepted, your meeting link appears immediately."]
+  ] as const;
+
   return (
-    <main className="min-h-screen bg-slate-950">
-      <header className="border-b border-white/10 bg-slate-950">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3 text-white">
-            <span className="grid size-9 place-items-center rounded-xl bg-white text-slate-950">
+    <main className="min-h-screen bg-[#f7f8fb] text-slate-950">
+      <header className="border-b border-slate-200 bg-white/95 backdrop-blur-xl">
+        <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
+          <Link href={`/${company.slug}`} className="flex min-w-0 items-center gap-3">
+            <span className="grid size-9 place-items-center rounded-xl bg-slate-950 text-white shadow-sm">
               <Command className="size-4" />
             </span>
-            <span className="text-base font-semibold tracking-tight">{company.name}</span>
-          </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold tracking-tight">{company.name}</p>
+              <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-400">Schedule</p>
+            </div>
+          </Link>
 
           {session ? (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <div className="hidden text-right sm:block">
-                <p className="text-xs font-semibold text-white">{session.name}</p>
-                <p className="mt-0.5 max-w-56 truncate text-[11px] text-white/45">{session.email}</p>
+                <p className="text-xs font-semibold text-slate-900">{session.name}</p>
+                <p className="max-w-48 truncate text-[10px] text-slate-400">{session.email}</p>
               </div>
-              <div
-                className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full border border-white/15 bg-white/10 text-xs font-bold text-white"
-                title={session.email}
-              >
-                {session.image ? (
-                  <span
-                    aria-label={session.name}
-                    className="block size-full bg-cover bg-center"
-                    style={{ backgroundImage: `url("${session.image}")` }}
-                  />
-                ) : (
-                  session.name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()
-                )}
-              </div>
+              <UserAvatar name={session.name} email={session.email} size={38} />
               <form action="/api/auth/logout" method="post">
                 <button
                   type="submit"
                   aria-label="Sign out"
                   title="Sign out"
-                  className="grid size-10 place-items-center rounded-xl border border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
+                  className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
                 >
                   <LogOut className="size-4" />
                 </button>
@@ -106,36 +104,78 @@ export default async function CompanyPublicPage({
           ) : (
             <a
               href={`/api/auth/google/start?intent=customer&companySlug=${encodeURIComponent(company.slug)}&returnTo=%2F${encodeURIComponent(company.slug)}`}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-950 hover:bg-slate-100"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
             >
               <LogIn className="size-4" />
-              Continue with Google
+              Continue securely
             </a>
           )}
         </div>
       </header>
 
-      <div className="mx-auto max-w-7xl px-5 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
-        <div className="mb-8 max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-300">
-            Schedule a meeting
-          </p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-            Find a time that works for you.
-          </h1>
-          <p className="mt-3 text-sm leading-6 text-white/55">
-            Choose a date and an available time. Your request is reviewed by the company team before the Google Meet is created.
-          </p>
-        </div>
+      <div className="mx-auto max-w-7xl px-5 py-8 sm:px-6 lg:px-8 lg:py-12">
+        <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8 lg:p-10">
+          <div className="grid gap-10 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
+            <div className="max-w-xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-[11px] font-semibold text-blue-700">
+                <span className="size-1.5 rounded-full bg-blue-600" />
+                Public scheduling
+              </div>
 
-        <PublicBooking
-          companySlug={company.slug}
-          types={types}
-          access={session?.role === "CUSTOMER" ? "customer" : "anonymous"}
-          timezone={workspace?.timezone || "Asia/Kolkata"}
-          companyName={company.name}
-          companyDescription={company.description || ""}
-        />
+              <h1 className="mt-5 text-4xl font-semibold tracking-[-0.04em] text-slate-950 sm:text-5xl">
+                Schedule time with {company.name}.
+              </h1>
+              <p className="mt-5 text-base leading-7 text-slate-600">
+                Choose a suitable date and duration. Your request is routed to the company team and the confirmed meeting link becomes available in the same flow.
+              </p>
+
+              <div className="mt-8 grid gap-3">
+                {features.map(([Icon, title, description]) => (
+                  <div key={title} className="flex gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                    <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-blue-600 shadow-sm ring-1 ring-slate-200">
+                      <Icon className="size-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">{title}</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="flex items-start gap-3">
+                  <ShieldCheck className="mt-0.5 size-5 shrink-0 text-blue-600" />
+                  <div>
+                    <p className="text-sm font-semibold">Secure company access</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      Requests are linked to your account and checked again on the server before anything is created.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <Link
+                href={`/${company.slug}/login`}
+                className="mt-5 inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-900"
+              >
+                Employee access
+                <ArrowRight className="size-3.5" />
+              </Link>
+            </div>
+
+            <div className="min-w-0">
+              <PublicBooking
+                companySlug={company.slug}
+                types={types}
+                access={session?.role === "CUSTOMER" ? "customer" : "anonymous"}
+                timezone={workspace?.timezone || "Asia/Kolkata"}
+                companyName={company.name}
+                companyDescription={company.description || ""}
+              />
+            </div>
+          </div>
+        </section>
       </div>
     </main>
   );
