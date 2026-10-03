@@ -8,6 +8,11 @@ function envValue(name: string) {
   return process.env[name]?.trim() || "";
 }
 
+function emailValue(value: string) {
+  const match = value.match(/<([^>]+)>/);
+  return (match?.[1] ?? value).trim();
+}
+
 export type PlatformAddress = {
   line1: string;
   line2: string;
@@ -41,7 +46,7 @@ export function platformLegalProfile(): PlatformLegalProfile {
   return {
     legalName: envValue("CONVENTUS_LEGAL_NAME") || PLATFORM_BRAND.name,
     websiteUrl,
-    email: envValue("CONVENTUS_BILLING_EMAIL") || envValue("EMAIL_FROM"),
+    email: emailValue(envValue("CONVENTUS_BILLING_EMAIL") || envValue("EMAIL_FROM")),
     phone: envValue("CONVENTUS_PHONE"),
     taxId,
     gstin: envValue("CONVENTUS_GSTIN") || taxId,
