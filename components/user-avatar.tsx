@@ -6,12 +6,14 @@ export default function UserAvatar({
   name,
   email,
   size = 40,
-  className = ""
+  className = "",
+  image
 }: {
   name: string;
   email?: string;
   size?: number;
   className?: string;
+  image?: string | null;
 }) {
   const initials = name
     .trim()
@@ -32,10 +34,10 @@ export default function UserAvatar({
       aria-label={name}
     >
       <Image
-        src="/api/profile/avatar"
+        src={image || "/api/profile/avatar"}
         alt=""
         fill
-        sizes={`${size}px`}
+        sizes={String(size) + "px"}
         className="object-cover"
         unoptimized
         onError={(event) => {
