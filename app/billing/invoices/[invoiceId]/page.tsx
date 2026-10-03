@@ -56,8 +56,9 @@ export default async function InvoicePage({
     address: legal.address
   };
 
+  const currentTime = new Date().getTime();
   const currentPlanId = subscription?.status === "ACTIVE" &&
-    subscription.currentPeriodEnd.getTime() > Date.now()
+    subscription.currentPeriodEnd.getTime() > currentTime
     ? subscription.planId
     : null;
 
