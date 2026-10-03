@@ -1,0 +1,114 @@
+import { PLATFORM_BRAND, platformLegalProfile, platformLogoUrl } from "@/lib/platform";
+import type { PlanEntitlements } from "@/lib/plans";
+
+export type InvoiceTaxSnapshot = {
+  enabled: boolean;
+  ratePercent: number;
+  inclusive: boolean;
+  taxableAmount: number;
+  gstAmount: number;
+};
+
+export function invoiceTaxConfig() {
+  const enabled = process.env.CONVENTUS_GST_ENABLED !== "false";
+  const inclusive = process.env.CONVENTUS_GST_INCLUSIVE !== "false";
+  const parsedRate = Number(process.env.CONVENTUS_GST_RATE ?? "18");
+  const ratePercent = Number.isFinite(parsedRate) && parsedRate >= 0 && parsedRate <= 100
+    ? parsedRate
+    : 18;
+
+  return { enabled, inclusive, ratePercent };
+}
+
+export function calculateInvoiceTax(totalMinor: number, ratePercent = invoiceTaxConfig().ratePercent, inclusive = true): InvoiceTaxSnapshot {
+  const safeTotal = Math.max(0, Math.round(totalMinor));
+  if (!invoiceTaxConfig().enabled || ratePercent <= 0) {
+    return {
+      enabled: false,
+      ratePercent: 0,
+      inclusive,
+      taxableAmount: safeTotal,
+      gstAmount: 0
+    };
+  }
+
+  if (inclusive) {
+    const taxableAmount = Math.round(safeTotal / (1 + ratePercent / 100));
+    return {
+      enabled: true,
+      ratePercent,
+      inclusive: true,
+      taxableAmount,
+      gstAmount: safeTotal - taxableAmount
+    };
+  }
+
+  const gstAmount = Math.round(safeTotal * ratePercent / 100);
+  return {
+    enabled: true,
+    ratePercent,
+    inclusive: false,
+    taxableAmount: safeTotal,
+    gstAmount
+  };
+}
+
+export function buildInvoiceSnapshots(input: {
+  company: {
+    name: string;
+    email?: string;
+    phone?: string;
+    logoUrl?: string;
+    websiteUrl?: string;
+    description?: string;
+    taxId?: string;
+    address?: {
+      line1?: string;
+      line2?: string;
+      city?: string;
+      state?: string;
+      postalCode?: string;
+      country?: string;
+    };
+  };
+  plan: PlanEntitlements;
+  amount: number;
+}) {
+  const legal = platformLegalProfile();
+  const taxConfig = invoiceTaxConfig();
+  const taxSnapshot = calculateInvoiceTax(
+    input.amount,
+    taxConfig.ratePercent,
+    taxConfig.inclusive
+  );
+
+  return {
+    merchantSnapshot: {
+      name: legal.legalName || PLATFORM_BRAND.name,
+      description: PLATFORM_BRAND.description,
+      logoUrl: platformLogoUrl(),
+      websiteUrl: legal.websiteUrl,
+      email: legal.email,
+      phone: legal.phone,
+      taxId: legal.taxId,
+      gstin: legal.gstin,
+      address: legal.address
+    },
+    companySnapshot: {
+      name: input.company.name,
+      email: input.company.email?.trim().toLowerCase() ?? "",
+      phone: input.company.phone?.trim() ?? "",
+      address: {
+        line1: input.company.address?.line1 ?? "",
+        line2: input.company.address?.line2 ?? "",
+        city: input.company.address?.city ?? "",
+        state: input.company.address?.state ?? "",
+        postalCode: input.company.address?.postalCode ?? "",
+        country: input.company.address?.country ?? ""
+      },
+      taxId: input.company.taxId ?? ""
+    },
+    taxSnapshot,
+    serviceDescription: `Conventus ${input.plan.name} monthly scheduling service`
+  };
+}
