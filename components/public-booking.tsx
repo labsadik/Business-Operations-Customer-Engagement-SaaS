@@ -14,6 +14,9 @@ type Access = "anonymous" | "company-member" | "customer";
 
 function getSocketUrl() {
   if (process.env.NEXT_PUBLIC_SOCKET_URL) return process.env.NEXT_PUBLIC_SOCKET_URL;
+  if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+    return window.location.protocol + "//" + window.location.hostname + ":3001";
+  }
   return window.location.origin;
 }
 
