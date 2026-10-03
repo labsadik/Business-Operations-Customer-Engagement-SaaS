@@ -13,7 +13,7 @@ type CompanyData = {
 
 type Employee = { id: string; name: string; email: string; role: string; googleConnected: boolean; presence: "AVAILABLE" | "BUSY" | "NOT_AVAILABLE" };
 type RequestItem = { id: string; startAt: string; endAt: string; durationMinutes: number; status: string; expiresAt: string; customer: { name: string; email: string } | null };
-type Presence = { userId: string; role: string; status: "AVAILABLE" | "BUSY" | "NOT_AVAILABLE"; redisAvailable: boolean };
+type Presence = { userId: string; role: string; status: "AVAILABLE" | "BUSY" | "NOT_AVAILABLE"; redisAvailable: boolean };\n\nconst INITIAL_NOW = Date.now();
 
 async function api<T>(url: string, init?: RequestInit) {
   const response = await fetch(url, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) }, cache: "no-store" });
@@ -33,7 +33,7 @@ export default function WorkspaceDashboard() {
   const [slug, setSlug] = useState("");
   const [email, setEmail] = useState("");
   const [invite, setInvite] = useState("");
-  const [presence, setPresence] = useState<Presence | null>(null);
+  const [presence, setPresence] = useState<Presence | null>(null);\n  const [now, setNow] = useState(INITIAL_NOW);
 
   async function refresh() {
     try {
@@ -58,8 +58,16 @@ export default function WorkspaceDashboard() {
   }
 
   useEffect(() => {
-    void refresh();
+    const initial = window.setTimeout(() => { void refresh(); }, 0);
     const id = window.setInterval(() => void refresh(), 3000);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(id);
+    };
+  }, []);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, []);
 
@@ -147,7 +155,7 @@ export default function WorkspaceDashboard() {
   const usage = Math.min(100, Math.round(((data.subscription?.monthlyMeetingsUsed ?? 0) / planMax) * 100));
 
   return <main className="min-h-screen bg-[#f7f8fb]">
-    <header className="border-b border-slate-200 bg-white"><div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-8"><Link href="/" className="flex items-center gap-2 font-semibold tracking-tight text-slate-950"><span className="grid size-8 place-items-center rounded-xl bg-slate-950 text-white"><Video className="size-4" /></span>Conventus</Link><div className="flex items-center gap-2"><Link href={`/${data.company.slug}`} className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 sm:inline-flex"><Globe2 className="mr-2 size-4" /> Public page</Link><a href="/api/auth/google/start?intent=connect&returnTo=/dashboard" className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"><ShieldCheck className="size-4 text-blue-600" /> Connect Google</a><form action="/api/auth/logout" method="post"><button aria-label="Sign out" className="grid size-10 place-items-center rounded-xl border border-slate-200 text-slate-600"><LogOut className="size-4" /></button></form></div></div></header>
+    <header className="border-b border-slate-200 bg-white"><div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-8"><Link href="/" className="flex items-center gap-2 font-semibold tracking-tight text-slate-950"><span className="grid size-8 place-items-center rounded-xl bg-slate-950 text-white"><Video className="size-4" /></span>Conventus</Link><div className="flex items-center gap-2"><Link href={`/${data.company.slug}`} className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 sm:inline-flex"><Globe2 className="mr-2 size-4" /> Public page</Link><button type="button" onClick={() => window.open("/api/auth/google/start?intent=connect&returnTo=/dashboard", "_self")} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"><ShieldCheck className="size-4 text-blue-600" /> Connect Google</button><form action="/api/auth/logout" method="post"><button aria-label="Sign out" className="grid size-10 place-items-center rounded-xl border border-slate-200 text-slate-600"><LogOut className="size-4" /></button></form></div></div></header>
 
     <div className="mx-auto max-w-7xl px-5 py-8 sm:px-6 lg:px-8">
       {error && <div role="alert" className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{error.replaceAll("_", " ")}</div>}
@@ -163,7 +171,7 @@ export default function WorkspaceDashboard() {
       </div>
 
       <div className="mt-7 grid gap-5 lg:grid-cols-[1.25fr_0.75fr]">
-        <section className="rounded-3xl border border-slate-200 bg-white shadow-sm"><div className="border-b border-slate-200 px-6 py-5"><div className="flex items-center justify-between"><div><h2 className="text-base font-semibold text-slate-950">Incoming requests</h2><p className="mt-1 text-xs text-slate-500">The server checks acceptance and expiration; this dashboard refreshes every three seconds.</p></div><span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{requests.length} pending</span></div></div><div className="divide-y divide-slate-100">{requests.length === 0 ? <div className="px-6 py-14 text-center"><Video className="mx-auto size-7 text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-900">No active requests</p><p className="mt-1 text-xs text-slate-500">Customer booking requests will appear here.</p></div> : requests.map((item) => { const remaining = Math.max(0, Math.ceil((new Date(item.expiresAt).getTime() - Date.now()) / 1000)); return <div key={item.id} className="px-6 py-5"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-semibold text-slate-950">{item.customer?.name ?? "Customer"}</p><p className="mt-1 text-xs text-slate-500">{new Date(item.startAt).toLocaleString()} · {item.durationMinutes} min</p><p className="mt-2 text-xs font-semibold text-blue-700">Expires {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}</p></div><div className="flex gap-2"><button onClick={() => void act(item.id, "decline")} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3.5 py-2.5 text-xs font-semibold text-slate-700"><XCircle className="size-4" /> Decline</button><button onClick={() => void act(item.id, "accept")} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3.5 py-2.5 text-xs font-semibold text-white"><CheckCircle2 className="size-4" /> Accept</button></div></div></div>; })}</div></section>
+        <section className="rounded-3xl border border-slate-200 bg-white shadow-sm"><div className="border-b border-slate-200 px-6 py-5"><div className="flex items-center justify-between"><div><h2 className="text-base font-semibold text-slate-950">Incoming requests</h2><p className="mt-1 text-xs text-slate-500">The server checks acceptance and expiration; this dashboard refreshes every three seconds.</p></div><span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{requests.length} pending</span></div></div><div className="divide-y divide-slate-100">{requests.length === 0 ? <div className="px-6 py-14 text-center"><Video className="mx-auto size-7 text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-900">No active requests</p><p className="mt-1 text-xs text-slate-500">Customer booking requests will appear here.</p></div> : requests.map((item) => { const remaining = Math.max(0, Math.ceil((new Date(item.expiresAt).getTime() - now) / 1000)); return <div key={item.id} className="px-6 py-5"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-semibold text-slate-950">{item.customer?.name ?? "Customer"}</p><p className="mt-1 text-xs text-slate-500">{new Date(item.startAt).toLocaleString()} · {item.durationMinutes} min</p><p className="mt-2 text-xs font-semibold text-blue-700">Expires {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}</p></div><div className="flex gap-2"><button onClick={() => void act(item.id, "decline")} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3.5 py-2.5 text-xs font-semibold text-slate-700"><XCircle className="size-4" /> Decline</button><button onClick={() => void act(item.id, "accept")} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3.5 py-2.5 text-xs font-semibold text-white"><CheckCircle2 className="size-4" /> Accept</button></div></div></div>; })}</div></section>
 
         <div className="space-y-5">
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="text-base font-semibold text-slate-950">Company access links</h2><p className="mt-1 text-xs leading-5 text-slate-500">Publish the customer page and share the company-scoped employee login separately.</p><div className="mt-4 flex items-center gap-3 rounded-2xl bg-slate-50 p-3"><span className={`size-2 rounded-full ${data.company.publicBookingEnabled ? "bg-emerald-500" : "bg-slate-300"}`} /><span className="text-xs font-semibold text-slate-700">{data.company.publicBookingEnabled ? "Public page published" : "Public page draft"}</span><button onClick={() => void publish()} disabled={busy} className="ml-auto rounded-xl bg-slate-950 px-3 py-2 text-xs font-semibold text-white">{data.company.publicBookingEnabled ? "Unpublish" : "Publish"}</button></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><Link href={`/${data.company.slug}`} className="block break-all rounded-2xl border border-slate-200 bg-white p-3 font-mono text-xs text-slate-700 hover:border-slate-300"><span className="mb-1 block font-sans text-[11px] font-semibold text-slate-500">Customer booking</span>/{data.company.slug}</Link><Link href={`/${data.company.slug}/login`} className="block break-all rounded-2xl border border-slate-200 bg-white p-3 font-mono text-xs text-slate-700 hover:border-slate-300"><span className="mb-1 block font-sans text-[11px] font-semibold text-slate-500">Employee login</span>/{data.company.slug}/login</Link></div></section>
