@@ -308,7 +308,7 @@ export default function WorkspaceDashboard() {
                       <div className="flex flex-wrap gap-2">
                         {ready && item.meeting?.meetingUri && (
                           <>
-                            <Link
+                            <a
                               href={item.meeting.meetingUri}
                               target="_blank"
                               rel="noopener noreferrer"
