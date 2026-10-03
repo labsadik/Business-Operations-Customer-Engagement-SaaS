@@ -27,7 +27,7 @@ export async function getAvailableSlots(
   dateIso: string,
   durationMinutes: number
 ): Promise<AvailabilityResult> {
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(dateIso)) throw new Error("INVALID_DATE");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateIso)) throw new Error("INVALID_DATE");
   if (!Number.isInteger(durationMinutes) || durationMinutes <= 0) {
     throw new Error("INVALID_DURATION");
   }
