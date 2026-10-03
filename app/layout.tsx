@@ -10,6 +10,7 @@ export const metadata: Metadata = {
     "Conventus helps companies let customers request meetings and automatically route them to available employees.",
   applicationName: "Conventus",
   keywords: ["meeting scheduling", "Google Meet", "Google Calendar", "customer booking", "team scheduling"],
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
   robots: { index: true, follow: true }
 };
 
