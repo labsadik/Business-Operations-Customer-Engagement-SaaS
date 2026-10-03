@@ -4,7 +4,6 @@ import { User } from "@/models/user";
 import { requireCompanyMember } from "@/lib/authz";
 import { jsonError, jsonOk } from "@/lib/http";
 import { Meeting } from "@/models/meeting";
-import { createMeetingAccessToken } from "@/lib/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -66,15 +65,7 @@ export async function GET() {
         const meeting = meetingMap.get(String(booking._id));
         if (!meeting) return null;
         const ready = meeting.status === "READY";
-        const tokenExpiry = new Date(Math.max(
-          Date.now() + 60 * 60 * 1000,
-          meeting.endAt.getTime() + 24 * 60 * 60 * 1000
-        ));
-        return {
-          status: meeting.status,
-          meetingUri: meeting.googleMeetingUri ?? null,
-          joinToken: ready ? createMeetingAccessToken(String(meeting._id), tokenExpiry) : null
-        };
+        return {\n          status: meeting.status,\n          meetingUri: meeting.googleMeetingUri ?? null\n        };\n      })()
       })()
     };
   }));
