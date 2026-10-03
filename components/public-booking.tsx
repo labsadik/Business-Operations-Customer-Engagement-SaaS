@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarDays,
   CheckCircle2,
@@ -14,6 +14,7 @@ import {
   X
 } from "lucide-react";
 import { getTodayIso, zonedDateTimeToUtc } from "@/lib/timezone";
+import { playMeetingSound, unlockMeetingSound } from "@/lib/client-meeting-sound";
 
 type Type = {
   id: string;
@@ -125,6 +126,8 @@ export default function PublicBooking({
   const [availabilityReason, setAvailabilityReason] =
     useState<AvailabilityReason | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const observedStatusRef = useRef("");
+  const observedMeetingUriRef = useRef("");
 
   const calendarDays = useMemo(() => buildCalendarDays(calendarMonth), [calendarMonth]);
 
@@ -202,6 +205,21 @@ export default function PublicBooking({
         if (!response.ok) return;
 
         const nextStatus = body.data.booking.status as string;
+        const previousStatus = observedStatusRef.current;
+        const nextMeeting = body.data.meeting;
+        const nextMeetingUri = nextMeeting?.meetingUri ? String(nextMeeting.meetingUri) : "";
+
+        if (nextMeeting?.status === "READY" && nextMeetingUri && !observedMeetingUriRef.current) {
+          void playMeetingSound("accepted");
+        } else if (nextStatus === "RETRYING" && previousStatus !== "RETRYING") {
+          void playMeetingSound("retrying");
+        } else if (nextStatus === "EXPIRED" && previousStatus !== "EXPIRED") {
+          void playMeetingSound("expired");
+        }
+
+        observedStatusRef.current = nextStatus;
+        observedMeetingUriRef.current = nextMeetingUri;
+
         setStatus(nextStatus);
         setExpiresAt(body.data.booking.expiresAt);
         setRemainingSeconds(
@@ -214,9 +232,8 @@ export default function PublicBooking({
           )
         );
 
-        const nextMeeting = body.data.meeting;
-        if (nextMeeting?.status === "READY" && nextMeeting?.meetingUri) {
-          setMeetingUri(String(nextMeeting.meetingUri));
+        if (nextMeeting?.status === "READY" && nextMeetingUri) {
+          setMeetingUri(nextMeetingUri);
           setStatus("CONFIRMED");
           window.clearInterval(timer);
         }
@@ -278,6 +295,7 @@ export default function PublicBooking({
 
     setLoading(true);
     setError("");
+    void unlockMeetingSound();
 
     try {
       const response = await fetch(
@@ -771,11 +789,13 @@ export default function PublicBooking({
                       <div>
                         <p className="text-sm font-semibold text-blue-950">
                           {status === "RETRYING"
-                            ? "Employees are busy. Checking again."
+                            ? "The selected employee is unavailable."
                             : "Waiting for an employee to accept."}
                         </p>
                         <p className="mt-1 text-xs leading-5 text-blue-950/60">
-                          The request remains active for {minutes}:{String(seconds).padStart(2, "0")}.
+                          {status === "RETRYING"
+                            ? "That employee is busy or unavailable right now. Conventus is checking the next available company member."
+                            : `The request remains active for ${minutes}:${String(seconds).padStart(2, "0")}.`}
                         </p>
                       </div>
                     </div>
@@ -816,7 +836,7 @@ export default function PublicBooking({
 
               {status === "EXPIRED" && (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                  No employee accepted this request in time. Choose another date or time and create a new request.
+                  No employee accepted this request in time. The request is closed. Choose another date or time and create a new request.
                 </div>
               )}
 
