@@ -39,7 +39,9 @@ const invoiceSchema = new Schema(
       maxEmployees: { type: Number, required: true, default: 0 },
       monthlyMeetingLimit: { type: Number, required: true, default: 0 },
       maxMeetingDurationMinutes: { type: Number, required: true, default: 0 },
-      maxConcurrentMeetings: { type: Number, required: true, default: 0 }
+      maxConcurrentMeetings: { type: Number, required: true, default: 0 },
+      validityDays: { type: Number, required: true, default: 30 },
+      freeFeatureDays: { type: Number, default: null }
     },
     merchantSnapshot: {
       name: { type: String, required: true },
