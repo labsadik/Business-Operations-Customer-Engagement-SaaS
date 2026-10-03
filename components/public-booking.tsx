@@ -117,7 +117,7 @@ export default function PublicBooking({
     setCustomTime("");
   }
 
-  function handleCustomTimeChange(value: string) {
+  function handleCustomTimeChange(value: string, durationMinutes = duration) {
     setCustomTime(value);
     setSelected(null);
 
@@ -126,14 +126,14 @@ export default function PublicBooking({
     const [hour, minute] = value.split(":").map(Number);
     const startMinute = hour * 60 + minute;
 
-    if (!Number.isInteger(startMinute) || startMinute < 0 || startMinute + duration > 24 * 60) {
+    if (!Number.isInteger(startMinute) || startMinute < 0 || startMinute + durationMinutes > 24 * 60) {
       setError("CHOOSE_AN_EARLIER_TIME");
       return;
     }
 
     setError("");
     const startAt = zonedDateTimeToUtc(date, startMinute, timezone);
-    const endAt = zonedDateTimeToUtc(date, startMinute + duration, timezone);
+    const endAt = zonedDateTimeToUtc(date, startMinute + durationMinutes, timezone);
     setSelected({
       startAt: startAt.toISOString(),
       endAt: endAt.toISOString()
@@ -393,7 +393,7 @@ export default function PublicBooking({
                 onClick={() => {
                   setDuration(minutes);
                   setSelected(null);
-                  if (customTime) handleCustomTimeChange(customTime);
+                  if (customTime) handleCustomTimeChange(customTime, minutes);
                 }}
                 className={`rounded-xl border px-4 py-2.5 text-sm font-semibold ${duration === minutes ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 bg-white text-slate-700"}`}
               >
