@@ -4,7 +4,6 @@ import { Meeting } from "@/models/meeting";
 import { Membership } from "@/models/membership";
 import { getSession } from "@/lib/session";
 import { jsonError, jsonOk } from "@/lib/http";
-import { createMeetingAccessToken } from "@/lib/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -59,12 +58,6 @@ export async function GET(
   const meeting = await Meeting.findOne({ bookingRequestId: booking._id }).lean();
 
   const meetingReady = meeting?.status === "READY";
-  const meetingTokenExpiry = meeting
-    ? new Date(Math.max(Date.now() + 60 * 60 * 1000, meeting.endAt.getTime() + 24 * 60 * 60 * 1000))
-    : undefined;
-  const meetingJoinToken = meetingReady
-    ? createMeetingAccessToken(String(meeting!._id), meetingTokenExpiry)
-    : null;
 
   return jsonOk({
     booking: {
@@ -80,8 +73,7 @@ export async function GET(
     },
     meeting: meeting ? {
       status: meeting.status,
-      meetingUri: meeting.googleMeetingUri ?? null,
-      joinToken: meetingJoinToken
+      meetingUri: meeting.googleMeetingUri ?? null
     } : null,
     canManage: companyRole
   });
