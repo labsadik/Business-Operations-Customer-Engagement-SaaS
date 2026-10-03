@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { CalendarDays, CheckCircle2, Copy, ExternalLink, Globe2, LogOut, Plus, RefreshCw, Settings2, ShieldCheck, UsersRound, Video, XCircle } from "lucide-react";
+import { CalendarDays, CheckCircle2, Copy, Globe2, LogOut, Plus, RefreshCw, Settings2, ShieldCheck, UsersRound, Video, XCircle } from "lucide-react";
 
 type CompanyData = {
   company: { id: string; name: string; slug: string; description?: string; publicBookingEnabled: boolean };
@@ -11,8 +11,8 @@ type CompanyData = {
   memberCount: number;
 };
 
-type Employee = { id: string; name: string; email: string; role: string; googleConnected: boolean };
-type RequestItem = { id: string; startAt: string; endAt: string; durationMinutes: number; status: string; expiresAt: string; customer: { name: string; email: string } | null };
+type Employee = { id: string; name: string; email: string; role: string; googleConnected: boolean; presence: "AVAILABLE" | "BUSY" | "NOT_AVAILABLE" };
+type RequestItem = { id: string; startAt: string; endAt: string; durationMinutes: number; status: string; expiresAt: string; customer: { name: string; email: string } | null };\ntype Presence = { userId: string; role: string; status: "AVAILABLE" | "BUSY" | "NOT_AVAILABLE"; redisAvailable: boolean };
 
 async function api<T>(url: string, init?: RequestInit) {
   const response = await fetch(url, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) }, cache: "no-store" });
@@ -31,7 +31,7 @@ export default function WorkspaceDashboard() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [email, setEmail] = useState("");
-  const [invite, setInvite] = useState("");
+  const [invite, setInvite] = useState("");\n  const [presence, setPresence] = useState<Presence | null>(null);
 
   async function refresh() {
     try {
@@ -95,7 +95,7 @@ export default function WorkspaceDashboard() {
     }
   }
 
-  async function act(id: string, action: "accept" | "decline") {
+  async function setPresenceStatus(status: Presence["status"]) {\n    try {\n      const next = await api<Omit<Presence, "userId" | "role">>("/api/employee/presence", { method: "PATCH", body: JSON.stringify({ status }) });\n      setPresence((current) => current ? { ...current, ...next } : current);\n      await refresh();\n    } catch (err) {\n      setError(err instanceof Error ? err.message : "PRESENCE_UPDATE_FAILED");\n    }\n  }\n\n  async function act(id: string, action: "accept" | "decline") {
     try {
       await api(`/api/bookings/${id}/${action}`, { method: "POST" });
       await refresh();
@@ -135,7 +135,7 @@ export default function WorkspaceDashboard() {
         <div className="space-y-5">
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="text-base font-semibold text-slate-950">Company access links</h2><p className="mt-1 text-xs leading-5 text-slate-500">Publish the customer page and share the company-scoped employee login separately.</p><div className="mt-4 flex items-center gap-3 rounded-2xl bg-slate-50 p-3"><span className={`size-2 rounded-full ${data.company.publicBookingEnabled ? "bg-emerald-500" : "bg-slate-300"}`} /><span className="text-xs font-semibold text-slate-700">{data.company.publicBookingEnabled ? "Public page published" : "Public page draft"}</span><button onClick={() => void publish()} disabled={busy} className="ml-auto rounded-xl bg-slate-950 px-3 py-2 text-xs font-semibold text-white">{data.company.publicBookingEnabled ? "Unpublish" : "Publish"}</button></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><Link href={`/${data.company.slug}`} className="block break-all rounded-2xl border border-slate-200 bg-white p-3 font-mono text-xs text-slate-700 hover:border-slate-300"><span className="mb-1 block font-sans text-[11px] font-semibold text-slate-500">Customer booking</span>/{data.company.slug}</Link><Link href={`/${data.company.slug}/login`} className="block break-all rounded-2xl border border-slate-200 bg-white p-3 font-mono text-xs text-slate-700 hover:border-slate-300"><span className="mb-1 block font-sans text-[11px] font-semibold text-slate-500">Employee login</span>/{data.company.slug}/login</Link></div></section>
 
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex items-center justify-between"><div><h2 className="text-base font-semibold text-slate-950">Employees</h2><p className="mt-1 text-xs text-slate-500">{employees.length} active members</p></div><UsersRound className="size-5 text-blue-600" /></div><div className="mt-5 space-y-3">{employees.map((employee) => <div key={employee.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 p-3"><div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-900">{employee.name}</p><p className="truncate text-xs text-slate-500">{employee.email}</p></div><span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${employee.googleConnected ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{employee.googleConnected ? "Google ready" : "Connect Google"}</span></div>)}</div></section>
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex items-center justify-between gap-4"><div><h2 className="text-base font-semibold text-slate-950">Employees</h2><p className="mt-1 text-xs text-slate-500">{employees.length} active members · live presence</p></div><UsersRound className="size-5 text-blue-600" /></div>{presence && <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-semibold text-slate-700">Your status</p><p className="mt-1 text-[11px] text-slate-500">{presence.redisAvailable ? "Synced through Upstash Redis" : "Redis presence is unavailable"}</p></div><select value={presence.status} onChange={(e) => void setPresenceStatus(e.target.value as Presence["status"])} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500"><option value="AVAILABLE">Available</option><option value="BUSY">Busy</option><option value="NOT_AVAILABLE">Not available</option></select></div>}<div className="mt-5 space-y-3">{employees.map((employee) => <div key={employee.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 p-3"><div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-900">{employee.name}</p><p className="truncate text-xs text-slate-500">{employee.email}</p></div><div className="flex shrink-0 items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${employee.presence === "AVAILABLE" ? "bg-emerald-50 text-emerald-700" : employee.presence === "BUSY" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600"}`}>{employee.presence.replaceAll("_", " ")}</span><span className={`hidden rounded-full px-2.5 py-1 text-[11px] font-semibold sm:inline-flex ${employee.googleConnected ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>{employee.googleConnected ? "Google ready" : "Connect Google"}</span></div></div>)}</div></section>
 
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="text-base font-semibold text-slate-950">Invite employee</h2><p className="mt-1 text-xs leading-5 text-slate-500">Generate a secure invite link for the employee.</p><form onSubmit={inviteEmployee} className="mt-4 flex gap-2"><input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="employee@company.com" className="focus-ring min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-500" /><button className="grid size-11 place-items-center rounded-xl bg-slate-950 text-white"><Plus className="size-4" /></button></form>{invite && <div className="mt-4 rounded-2xl bg-slate-50 p-3"><p className="break-all text-xs text-slate-600">{invite}</p><button type="button" onClick={() => void navigator.clipboard.writeText(invite)} className="mt-2 inline-flex items-center gap-2 text-xs font-semibold text-blue-700"><Copy className="size-3.5" /> Copy invite link</button></div>}</section>
 
