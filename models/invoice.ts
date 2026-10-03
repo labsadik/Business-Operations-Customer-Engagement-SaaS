@@ -43,6 +43,7 @@ const invoiceSchema = new Schema(
       phone: { type: String, default: "" },
       taxId: { type: String, default: "" },
       gstin: { type: String, default: "" },
+      sacCode: { type: String, default: "" },
       address: { type: addressSchema, default: () => ({}) }
     },
     companySnapshot: {
