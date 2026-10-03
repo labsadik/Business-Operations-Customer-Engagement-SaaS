@@ -14,14 +14,6 @@ export async function activatePaidPlan(paymentId: string) {
   const plan = PLANS[payment.planId as PlanId];
   if (!plan) throw new Error("PLAN_NOT_FOUND");
 
-  const capturedPayment = await Payment.findOneAndUpdate(
-    { _id: payment._id, status: { $ne: "CAPTURED" } },
-    { $set: { status: "CAPTURED", paidAt: payment.paidAt ?? new Date() } },
-    { new: true }
-  ).lean();
-
-  if (!capturedPayment) return;
-
   const company = await Company.findById(payment.companyId).lean();
   if (!company) throw new Error("COMPANY_NOT_FOUND");
 
@@ -32,48 +24,69 @@ export async function activatePaidPlan(paymentId: string) {
   }
 
   const invoiceDate = payment.paidAt ?? new Date();
-  const invoiceNumber = `CONV-${invoiceDate.toISOString().slice(0, 7).replace("-", "")}-${String(payment._id).slice(-8).toUpperCase()}`;
+  const providerPaymentId = payment.providerPaymentId;
+  if (!providerPaymentId) throw new Error("PAYMENT_ID_MISSING");
 
-  await Invoice.create({
-    companyId: payment.companyId,
-    paymentId: payment._id,
-    invoiceNumber,
-    planId: plan.id,
-    providerOrderId: payment.providerOrderId,
-    providerPaymentId: payment.providerPaymentId,
-    amount: payment.amount,
-    currency: payment.currency,
-    issuedAt: invoiceDate,
-    companySnapshot: {
-      name: company.name,
-      email: companyEmail,
-      phone: companyPhone,
-      address: company.address ?? {},
-      taxId: company.taxId ?? ""
-    }
-  });
+  const capturedPayment = await Payment.findOneAndUpdate(
+    { _id: payment._id },
+    {
+      $set: {
+        status: "CAPTURED",
+        providerPaymentId,
+        paidAt: payment.paidAt ?? invoiceDate
+      }
+    },
+    { new: true }
+  ).lean();
+
+  if (!capturedPayment) throw new Error("PAYMENT_NOT_FOUND");
+
+  const invoiceNumber =
+    `CONV-${invoiceDate.toISOString().slice(0, 7).replace("-", "")}-${String(payment._id).slice(-8).toUpperCase()}`;
+
+  await Invoice.findOneAndUpdate(
+    { paymentId: payment._id },
+    {
+      $setOnInsert: {
+        companyId: payment.companyId,
+        paymentId: payment._id,
+        invoiceNumber,
+        planId: plan.id,
+        providerOrderId: payment.providerOrderId,
+        providerPaymentId,
+        amount: payment.amount,
+        currency: payment.currency,
+        issuedAt: invoiceDate,
+        companySnapshot: {
+          name: company.name,
+          email: companyEmail,
+          phone: companyPhone,
+          address: company.address ?? {},
+          taxId: company.taxId ?? ""
+        }
+      }
+    },
+    { upsert: true, new: true }
+  );
 
   const now = new Date();
   const periodEnd = new Date(now);
   periodEnd.setMonth(periodEnd.getMonth() + 1);
 
-  const subscription = await Subscription.findOne({ companyId: payment.companyId });
-  if (!subscription) {
-    await Subscription.create({
-      companyId: payment.companyId,
-      planId: plan.id,
-      status: "ACTIVE",
-      currentPeriodStart: now,
-      currentPeriodEnd: periodEnd,
-      monthlyMeetingsUsed: 0
-    });
-    return;
-  }
-
-  subscription.planId = plan.id;
-  subscription.status = "ACTIVE";
-  subscription.currentPeriodStart = now;
-  subscription.currentPeriodEnd = periodEnd;
-  subscription.monthlyMeetingsUsed = 0;
-  await subscription.save();
+  await Subscription.findOneAndUpdate(
+    { companyId: payment.companyId },
+    {
+      $set: {
+        planId: plan.id,
+        status: "ACTIVE",
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+        monthlyMeetingsUsed: 0
+      },
+      $setOnInsert: {
+        companyId: payment.companyId
+      }
+    },
+    { upsert: true, new: true }
+  );
 }
