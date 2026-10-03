@@ -31,7 +31,9 @@ const bookingRequestSchema = new Schema(
     assignedEmployeeId: { type: Schema.Types.ObjectId, ref: "User", index: true },
     acceptedAt: { type: Date },
     confirmedAt: { type: Date },
-    idempotencyKey: { type: String, required: true, unique: true }
+    idempotencyKey: { type: String, required: true, unique: true },
+    declinedBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    nextRetryAt: { type: Date, index: true }
   },
   { timestamps: true }
 );
