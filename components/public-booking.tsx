@@ -206,6 +206,7 @@ export default function PublicBooking({
     return (
       <>
       <section className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm sm:p-8">
+      <section className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm sm:p-8">
         <div className="grid size-12 place-items-center rounded-2xl bg-slate-950 text-white"><LogIn className="size-5" /></div>
         <h2 className="mt-5 text-2xl font-semibold tracking-tight text-slate-950">Sign in to continue</h2>
         <p className="mt-3 text-sm leading-6 text-slate-600">
