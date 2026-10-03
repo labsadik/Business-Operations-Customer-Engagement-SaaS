@@ -44,5 +44,5 @@ export default async function DashboardPage() {
     }
   }
 
-  return <WorkspaceDashboard />;
+  return <WorkspaceDashboard user={{ name: session.name, email: session.email, image: session.image }} />;
 }
