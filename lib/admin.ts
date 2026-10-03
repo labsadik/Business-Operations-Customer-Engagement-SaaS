@@ -80,6 +80,7 @@ export type AdminCompanyDetails = AdminCompanyListItem & {
     isCurrentPlan: boolean;
     gstAmount: number;
     gstRatePercent: number;
+    source: string;
   }>;
   recentMeetings: Array<{
     id: string;
@@ -263,10 +264,12 @@ export async function getAdminOverview() {
     activeMeetings,
     totalPayments: paymentCount,
     totalRevenue: paymentAggregate[0]?.total ?? 0,
-    planMix: {
-      starter: planMix.find((item) => item._id === "starter")?.count ?? 0,
-      business: planMix.find((item) => item._id === "business")?.count ?? 0
-    }
+    planMix: Object.fromEntries(
+      Object.keys(PLANS).map((id) => [
+        id,
+        planMix.find((item) => item._id === id)?.count ?? 0
+      ])
+    ) as Record<string, number>
   };
 }
 
@@ -344,7 +347,9 @@ export async function getAdminCompanyDetails(companyId: string) {
   );
 
   const currentPlan = getPlan(subscription?.planId);
-  const alternativePlanId = subscription?.planId === "starter" ? "business" : subscription?.planId === "business" ? "starter" : null;
+  const alternativePlanId = currentPlan
+    ? Object.values(PLANS).find((plan) => plan.id !== currentPlan.id)?.id ?? null
+    : null;
 
   return {
     ...baseRow,
@@ -367,7 +372,8 @@ export async function getAdminCompanyDetails(companyId: string) {
         name: user?.name ?? "Unknown user",
         email: user?.email ?? "Unknown email",
         role: member.role,
-        googleConnected: connectedIds.has(String(member.userId))
+        googleConnected: connectedIds.has(String(member.userId)),
+        image: user?.image ?? ""
       };
     }),
     meetingRequestCounts: Object.fromEntries(meetingRequestStats.map((item) => [item._id, item.count])),
@@ -394,7 +400,8 @@ export async function getAdminCompanyDetails(companyId: string) {
         subscription.currentPeriodEnd.getTime() > Date.now() &&
         subscription.planId === invoice.planId,
       gstAmount: invoice.taxSnapshot?.gstAmount ?? 0,
-      gstRatePercent: invoice.taxSnapshot?.enabled ? invoice.taxSnapshot.ratePercent : 0
+      gstRatePercent: invoice.taxSnapshot?.enabled ? invoice.taxSnapshot.ratePercent : 0,
+      source: invoice.source ?? "PAID"
     })),
     recentMeetings: recentMeetings.map((meeting) => ({
       id: String(meeting._id),
