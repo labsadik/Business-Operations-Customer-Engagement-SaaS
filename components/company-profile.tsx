@@ -90,7 +90,8 @@ export default function CompanyProfile({ user }: { user: { name: string; email: 
       Boolean(
         form?.name.trim() &&
         /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form?.email.trim() || "") &&
-        form?.phone.replace(/[^0-9+]/g, "").length
+        form?.phone.replace(/[^0-9+]/g, "").length >= 8 &&
+        form?.phone.replace(/[^0-9+]/g, "").length <= 18
       ),
     [form]
   );
@@ -351,16 +352,16 @@ export default function CompanyProfile({ user }: { user: { name: string; email: 
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Primary owner</p>
               <div className="mt-4 flex items-center gap-3">
                 <div className="grid size-11 place-items-center overflow-hidden rounded-full bg-slate-100 text-xs font-semibold text-slate-500">
-                  {user.image ? (
+                  {form.owner?.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={user.image} alt="" className="size-full object-cover" />
+                    <img src={form.owner.image} alt="" className="size-full object-cover" />
                   ) : (
-                    user.name.slice(0, 1).toUpperCase()
+                    (form.owner?.name || user.name).slice(0, 1).toUpperCase()
                   )}
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">{user.name}</p>
-                  <p className="truncate text-xs text-slate-500">{user.email}</p>
+                  <p className="truncate text-sm font-semibold">{form.owner?.name || user.name}</p>
+                  <p className="truncate text-xs text-slate-500">{form.owner?.email || user.email}</p>
                 </div>
               </div>
             </section>
