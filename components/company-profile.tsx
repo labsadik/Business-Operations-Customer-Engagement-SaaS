@@ -82,7 +82,8 @@ export default function CompanyProfile({ user }: { user: { name: string; email: 
   }
 
   useEffect(() => {
-    void load();
+    const handle = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(handle);
   }, []);
 
   const complete = useMemo(
