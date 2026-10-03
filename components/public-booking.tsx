@@ -12,7 +12,6 @@ type Slot = { startAt: string; endAt: string };
 type Access = "anonymous" | "company-member" | "customer";
 
 export default function PublicBooking({
-  companyId,
   companySlug,
   types,
   access,
@@ -20,7 +19,6 @@ export default function PublicBooking({
   employeeLoginUrl,
   timezone
 }: {
-  companyId: string;
   companySlug: string;
   types: Type[];
   access: Access;
@@ -95,26 +93,6 @@ export default function PublicBooking({
     setDuration(nextType?.durationOptionsMinutes[0] ?? 20);
     setSelected(null);
   }
-
-  useEffect(() => {
-    if (access !== "customer" || !companyId) return;
-
-    const socket = io(getSocketUrl(), {
-      auth: { public: true, companyId },
-      transports: ["websocket", "polling"],
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 500
-    });
-
-    socket.on("availability:changed", () => {
-      void availabilityLoaderRef.current(true);
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [access, companyId]);
 
   useEffect(() => {
     if (!bookingId) return;
