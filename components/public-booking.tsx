@@ -178,7 +178,7 @@ export default function PublicBooking({
           Date
           <div className="flex items-center gap-3 rounded-xl border border-slate-300 px-4 py-3">
             <CalendarDays className="size-4 text-blue-600" />
-            <input type="date" value={date} min={DEFAULT_BOOKING_DATE} onChange={(e) => setDate(e.target.value)} min={getTodayIso(timezone)} className="min-w-0 flex-1 bg-transparent font-normal outline-none" />
+            <input type="date" value={date} min={getTodayIso(timezone)} onChange={(e) => { setDate(e.target.value); setSelected(null); }} className="min-w-0 flex-1 bg-transparent font-normal outline-none" />
           </div>
         </label>
         <div>
@@ -193,13 +193,13 @@ export default function PublicBooking({
         </div>
         <div>
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-slate-800">Available times</p>
+            <div><p className="text-sm font-semibold text-slate-800">Available times</p><p className="mt-0.5 text-[11px] font-normal text-slate-500">{timezone}</p></div>
             {loading && <span className="inline-flex items-center gap-2 text-xs text-slate-500"><Loader2 className="size-3 animate-spin" /> Checking Google calendars</span>}
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {slots.map((item) => (
               <button key={item.startAt} type="button" onClick={() => setSelected(item)} className={`rounded-xl border px-3 py-3 text-sm font-semibold ${selected?.startAt === item.startAt ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-700 hover:border-slate-400"}`}>
-                {new Date(item.startAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                {new Date(item.startAt).toLocaleTimeString([], { timeZone: timezone, hour: "numeric", minute: "2-digit" })}
               </button>
             ))}
           </div>
