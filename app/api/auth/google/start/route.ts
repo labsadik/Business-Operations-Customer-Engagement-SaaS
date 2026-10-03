@@ -19,8 +19,14 @@ export async function GET(request: Request) {
   const invitationToken = url.searchParams.get("invitationToken") || undefined;
   const requestedReturnTo = url.searchParams.get("returnTo") || undefined;
 
-  if (["customer", "employee", "company"].includes(intent) && !companySlug && !invitationToken) {
+  if (intent === "customer" && !companySlug) {
     return NextResponse.redirect(new URL("/login?error=missing_company_context", request.url));
+  }
+  if (intent === "company" && !companySlug) {
+    return NextResponse.redirect(new URL("/login?error=missing_company_context", request.url));
+  }
+  if (intent === "employee" && (!companySlug || !invitationToken)) {
+    return NextResponse.redirect(new URL("/login?error=missing_employee_invitation", request.url));
   }
 
   const currentSession = await getSession();
