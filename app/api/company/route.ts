@@ -208,12 +208,13 @@ export async function POST(request: Request) {
         companyId: company._id,
         name: `${name} workspace`,
         timezone: body.timezone || "Asia/Kolkata",
-        planId: "starter"
+        planId: "free"
       }], { session: tx });
 
       await Subscription.create([{
         companyId: company._id,
-        planId: "starter",
+        planId: "free",
+        source: "FREE",
         status: "ACTIVE",
         currentPeriodStart: now,
         currentPeriodEnd: periodEnd,
@@ -234,7 +235,7 @@ export async function POST(request: Request) {
         workspaceId: workspace._id,
         name: "General meeting",
         slug: "general",
-        durationOptionsMinutes: [10, 15, 20, 25, 30, 35]
+        durationOptionsMinutes: [5]
       }], { session: tx });
 
       const rules = [1, 2, 3, 4, 5].map((dayOfWeek) => ({
@@ -263,6 +264,10 @@ export async function POST(request: Request) {
       await Membership.updateOne(
         { companyId: createdIds.companyId, userId: session.userId, active: true },
         { $set: { googleConnectionStatus: "CONNECTED" } }
+      );
+      await Company.updateOne(
+        { _id: createdIds.companyId },
+        { $set: { publicBookingEnabled: true } }
       );
     }
 
