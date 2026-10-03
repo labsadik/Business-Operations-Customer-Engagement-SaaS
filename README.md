@@ -76,6 +76,30 @@ RAZORPAY_KEY_SECRET=
 RAZORPAY_WEBHOOK_SECRET=
 ```
 
+Invoice/legal configuration:
+
+```
+CONVENTUS_LEGAL_NAME=Conventus
+CONVENTUS_WEBSITE_URL=
+CONVENTUS_LOGO_URL=
+CONVENTUS_BILLING_EMAIL=
+CONVENTUS_PHONE=
+CONVENTUS_TAX_ID=
+CONVENTUS_GSTIN=
+CONVENTUS_ADDRESS_LINE1=
+CONVENTUS_ADDRESS_LINE2=
+CONVENTUS_ADDRESS_CITY=
+CONVENTUS_ADDRESS_STATE=
+CONVENTUS_ADDRESS_POSTAL_CODE=
+CONVENTUS_ADDRESS_COUNTRY=India
+CONVENTUS_GST_ENABLED=true
+CONVENTUS_GST_RATE=18
+CONVENTUS_GST_INCLUSIVE=true
+CONVENTUS_SAC_CODE=
+```
+
+The invoice stores a point-in-time snapshot of the Conventus merchant identity, paying company identity, purchased plan, service period, and tax calculation. Paid plan prices are treated as GST-inclusive when `CONVENTUS_GST_INCLUSIVE=true`; for example, a ₹99 inclusive total at 18% GST is ₹83.90 taxable value + ₹15.10 GST = ₹99.00 total. Configure the legal/tax fields for the actual Conventus business; the application does not determine whether a specific GST registration or tax treatment legally applies.
+
 For local development use Razorpay Test Mode credentials. For production/Vercel, configure the Live Mode credentials in the Vercel environment settings and configure the Razorpay webhook URL as:
 
 `https://YOUR_DOMAIN/api/webhooks/razorpay`
@@ -85,6 +109,8 @@ Never commit the secret values.
 ## Platform administration
 
 Platform administrator access is a **database role**, not a client-side flag. The role is stored on `User.role`, checked again when a session is loaded, and restricted to `/admin/*` through the server layout. Administrators can manage platform-admin access from `/admin/access`; grants and revocations are written to `AdminAuditEvent`, self-demotion is blocked, and the last active platform admin cannot be removed.
+
+Platform admins can open a specific company from `/admin/companies/:companyId` with **Manage workspace**. That sets a short-lived, server-only management scope while keeping the real user role as `PLATFORM_ADMIN`. The normal company dashboard, team, announcements, profile, and scheduling APIs then operate against that scoped company. Billing checkout stays disabled in admin management mode.
 
 For first-time bootstrap, set `PLATFORM_ADMIN_EMAILS` to one or more trusted Google account emails, then sign in through the normal `/login` flow. The matching `User` record is promoted to `PLATFORM_ADMIN` in MongoDB. After bootstrap, use the Admin Access screen for additional role changes.
 
