@@ -40,9 +40,14 @@ export default function WorkspaceDashboard() {
       const company = await api<CompanyData | null>("/api/company");
       setData(company);
       if (company) {
-        const [staff, pending] = await Promise.all([api<Employee[]>("/api/company/employees"), api<RequestItem[]>("/api/employee/requests")]);
+        const [staff, pending, currentPresence] = await Promise.all([
+          api<Employee[]>("/api/company/employees"),
+          api<RequestItem[]>("/api/employee/requests"),
+          api<Presence>("/api/employee/presence")
+        ]);
         setEmployees(staff);
         setRequests(pending);
+        setPresence(currentPresence);
       }
       setError("");
     } catch (err) {
@@ -57,6 +62,19 @@ export default function WorkspaceDashboard() {
     const id = window.setInterval(() => void refresh(), 3000);
     return () => window.clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (!data) return;
+    const id = window.setInterval(async () => {
+      try {
+        const next = await api<Presence>("/api/employee/presence", { method: "POST" });
+        setPresence(next);
+      } catch {
+        // Presence expires server-side if heartbeat delivery fails.
+      }
+    }, 30_000);
+    return () => window.clearInterval(id);
+  }, [data]);
 
   async function createCompany(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -100,6 +118,19 @@ export default function WorkspaceDashboard() {
   async function setPresenceStatus(status: Presence["status"]) {
     try {
       const next = await api<Omit<Presence, "userId" | "role">>("/api/employee/presence", { method: "PATCH", body: JSON.stringify({ status }) });
+      setPresence((current) => current ? { ...current, ...next } : current);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "PRESENCE_UPDATE_FAILED");
+    }
+  }
+
+  async function setPresenceStatus(status: Presence["status"]) {
+    try {
+      const next = await api<{ status: Presence["status"]; redisAvailable: boolean }>("/api/employee/presence", {
+        method: "PATCH",
+        body: JSON.stringify({ status })
+      });
       setPresence((current) => current ? { ...current, ...next } : current);
       await refresh();
     } catch (err) {
