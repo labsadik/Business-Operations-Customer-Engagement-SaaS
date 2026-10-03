@@ -74,6 +74,10 @@ export async function activatePaidPlan(paymentId: string) {
         return;
       }
 
+      const now = new Date();
+      const periodEnd = new Date(now);
+      periodEnd.setMonth(periodEnd.getMonth() + 1);
+
       const invoiceNumber =
         `CONV-${invoiceDate.toISOString().slice(0, 7).replace("-", "")}-${String(payment._id).slice(-8).toUpperCase()}`;
 
@@ -85,6 +89,8 @@ export async function activatePaidPlan(paymentId: string) {
             paymentId: payment._id,
             invoiceNumber,
             planId: plan.id,
+            billingPeriodStart: now,
+            billingPeriodEnd: periodEnd,
             providerOrderId: payment.providerOrderId,
             providerPaymentId,
             amount: payment.amount,
@@ -105,10 +111,6 @@ export async function activatePaidPlan(paymentId: string) {
         },
         { upsert: true, new: true, session: tx }
       );
-
-      const now = new Date();
-      const periodEnd = new Date(now);
-      periodEnd.setMonth(periodEnd.getMonth() + 1);
 
       await Subscription.findOneAndUpdate(
         { companyId: payment.companyId },
