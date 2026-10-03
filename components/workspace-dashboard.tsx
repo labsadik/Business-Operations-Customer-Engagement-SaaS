@@ -71,6 +71,7 @@ type CompanyData = {
     source: "FREE" | "PAID" | "ADMIN_GRANTED";
     monthlyMeetingsUsed: number;
     freeUsageDates?: string[];
+    periodStart: string;
     periodEnd: string;
   } | null;
   memberCount: number;
@@ -79,6 +80,8 @@ type CompanyData = {
   gstRatePercent: number;
   gstEnabled: boolean;
   gstInclusive: boolean;
+  featureLocked: boolean;
+  freeFeatureEndsAt: string | null;
   currentRole: string;
 };
 
@@ -885,6 +888,20 @@ export default function WorkspaceDashboard({
       </header>
 
       <div className="mx-auto max-w-7xl px-5 py-7 sm:px-6 lg:px-8 lg:py-9">
+        {data.featureLocked && (
+          <div className="mb-6 flex items-start justify-between gap-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-900">
+            <div>
+              <p className="font-semibold">Free feature window ended</p>
+              <p className="mt-1 text-xs leading-5 text-rose-700">
+                Your Free plan remains active for this 30-day cycle, but scheduling features are locked after the first 14 days. The next cycle renews automatically.
+              </p>
+            </div>
+            <Link href="/dashboard?billing=1" className="shrink-0 rounded-xl bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">
+              View plans
+            </Link>
+          </div>
+        )}
+
         {error && (
           <div role="alert" className="mb-6 flex items-start justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             <span>{error.replaceAll("_", " ")}</span>
@@ -947,7 +964,7 @@ export default function WorkspaceDashboard({
                 <button
                   type="button"
                   onClick={() => void updatePublishing()}
-                  disabled={busy || (!data.company.publicBookingEnabled && !data.canPublish)}
+                  disabled={busy || data.featureLocked || (!data.company.publicBookingEnabled && !data.canPublish)}
                   className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {data.company.publicBookingEnabled ? "Published" : "Publish page"}
@@ -1754,7 +1771,7 @@ export default function WorkspaceDashboard({
                           {isCurrent && <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">Current</span>}
                         </div>
                         {item.freeFeatureDays && (
-                          <p className="mt-1 text-[10px] text-slate-400">{item.freeFeatureDays} active feature days / {item.validityDays} days</p>
+                          <p className="mt-1 text-[10px] text-slate-400">{item.freeFeatureDays}-day feature window / {item.validityDays}-day cycle</p>
                         )}
                       </td>
                       <td className="px-4 py-4">
@@ -1829,8 +1846,8 @@ export default function WorkspaceDashboard({
               </div>
               {plan.freeFeatureDays && (
                 <div className="rounded-xl bg-amber-50 px-3.5 py-3">
-                  <p className="text-[10px] uppercase tracking-[0.1em] text-amber-600">Free access days</p>
-                  <p className="mt-1 text-xs font-semibold">{data.subscription?.freeUsageDates?.length ?? 0} / {plan.freeFeatureDays}</p>
+                  <p className="text-[10px] uppercase tracking-[0.1em] text-amber-600">Free feature window</p>
+                  <p className="mt-1 text-xs font-semibold">{data.featureLocked ? "Locked until renewal" : `${plan.freeFeatureDays} days available`}</p>
                 </div>
               )}
             </div>
