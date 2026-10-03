@@ -118,8 +118,10 @@ function toMoneyMinor(value: number | undefined) {
 }
 
 function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\function escapeRegex(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\function toMoneyMinor(value: number | undefined) {
   return Number.isFinite(value ?? NaN) ? Number(value) : 0;
+}");
 }");
 }
 
