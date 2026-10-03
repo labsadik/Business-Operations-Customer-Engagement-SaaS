@@ -26,8 +26,12 @@ export async function reconcileLatestPaidAccess(companyId: string) {
     Payment.findOne({
       companyId,
       merchantAccount: "CONVENTUS",
-      status: { $in: ["CAPTURED", "PENDING"] },
-      providerPaymentId: { $exists: true, $ne: "" }
+      status: { $in: ["CAPTURED", "PENDING", "FAILED"] },
+      providerPaymentId: { $exists: true, $ne: "" },
+      $or: [
+        { paidAt: { $exists: true, $ne: null } },
+        { activatedAt: { $exists: true, $ne: null } }
+      ]
     })
       .sort({ paidAt: -1, activatedAt: -1, createdAt: -1 })
       .lean()
@@ -51,16 +55,19 @@ export async function reconcileLatestPaidAccess(companyId: string) {
 
   const currentStart = subscription?.currentPeriodStart?.getTime() ?? 0;
   const currentEnd = subscription?.currentPeriodEnd?.getTime() ?? 0;
-  const currentAccessIsPaid = Boolean(
+  const currentAccessIsActive = Boolean(
     subscription &&
     subscription.status === "ACTIVE" &&
-    subscription.source === "PAID" &&
     currentEnd > now
+  );
+  const currentAccessIsPaidOrGranted = Boolean(
+    currentAccessIsActive &&
+    subscription &&
+    ["PAID", "ADMIN_GRANTED"].includes(subscription.source)
   );
   const paymentIsNewer = activationStart.getTime() > currentStart;
   const planNeedsRepair = !subscription ||
-    subscription.planId !== plan.id ||
-    !currentAccessIsPaid ||
+    !currentAccessIsPaidOrGranted ||
     paymentIsNewer;
 
   if (planNeedsRepair) {
@@ -89,7 +96,7 @@ export async function reconcileLatestPaidAccess(companyId: string) {
     );
   }
 
-  if (latestPayment.status === "PENDING") {
+  if (latestPayment.status !== "CAPTURED") {
     await Payment.updateOne(
       {
         _id: latestPayment._id,
