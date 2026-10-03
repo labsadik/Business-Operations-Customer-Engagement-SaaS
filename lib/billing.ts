@@ -19,7 +19,7 @@ export async function activatePaidPlan(paymentId: string) {
       const plan = PLANS[payment.planId as PlanId];
       if (!plan) throw new Error("PLAN_NOT_FOUND");
 
-      if (payment.merchantAccount !== "CONVENTUS") {
+      if (payment.merchantAccount && payment.merchantAccount !== "CONVENTUS") {
         throw new Error("PAYMENT_MERCHANT_INVALID");
       }
 
