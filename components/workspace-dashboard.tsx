@@ -1208,16 +1208,23 @@ export default function WorkspaceDashboard({
               <div className="mt-5 space-y-2.5">
                 {employees.slice(0, 5).map((employee) => (
                   <div key={employee.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 p-3">
-                    <div className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-slate-100 text-[11px] font-semibold text-slate-500">
-                      {initials(employee.name)}
-                    </div>
+                    <UserAvatar name={employee.name} email={employee.email} image={employee.image} size={36} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-semibold">{employee.name}</p>
                       <p className="truncate text-[11px] text-slate-500">{employee.email}</p>
                     </div>
-                    <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${employee.googleConnected ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-                      {employee.googleConnected ? "Ready" : "Needs setup"}
-                    </span>
+                    {employee.googleConnected ? (
+                      <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">Connected</span>
+                    ) : employee.email === user.email ? (
+                      <a
+                        href="/api/auth/google/start?intent=connect&returnTo=%2Fdashboard"
+                        className="rounded-xl bg-slate-950 px-2.5 py-2 text-[10px] font-semibold text-white hover:bg-slate-800"
+                      >
+                        Setup Google
+                      </a>
+                    ) : (
+                      <span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">Needs setup</span>
+                    )}
                   </div>
                 ))}
                 {employees.length === 0 && (
