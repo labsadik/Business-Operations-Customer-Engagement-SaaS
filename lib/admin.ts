@@ -54,6 +54,7 @@ export type AdminCompanyDetails = AdminCompanyListItem & {
     id: string;
     name: string;
     email: string;
+    image: string;
     role: string;
     googleConnected: boolean;
   }>;
