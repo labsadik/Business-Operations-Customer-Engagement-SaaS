@@ -51,6 +51,7 @@ export default function PublicBooking({
   const [loading, setLoading] = useState(false);
   const [bookingId, setBookingId] = useState("");
   const [status, setStatus] = useState("");
+  const [meetingId, setMeetingId] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [error, setError] = useState("");
@@ -162,17 +163,19 @@ export default function PublicBooking({
 
       const meeting = body.data.meeting;
       if (meeting?.status === "READY") {
+        setMeetingId(String(meeting.id));
+        setStatus("CONFIRMED");
         window.clearInterval(timer);
-        window.open(`/${companySlug}/meet/${meeting.id}`, "_self");
       }
 
       if (nextStatus === "EXPIRED") {
         setOutcomeModal("EXPIRED");
-      }
-      if (["EXPIRED", "CANCELLED", "CONFIRMED"].includes(nextStatus)) {
         window.clearInterval(timer);
       }
-    }, 2000);
+      if (nextStatus === "CANCELLED") {
+        window.clearInterval(timer);
+      }
+    }, 1000);
 
     return () => window.clearInterval(timer);
   }, [bookingId, companySlug]);
@@ -213,6 +216,7 @@ export default function PublicBooking({
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "BOOKING_FAILED");
       setBookingId(body.data.bookingId);
+      setMeetingId("");
       setStatus(body.data.status);
       setExpiresAt(body.data.expiresAt);
       setRemainingSeconds(Math.max(0, Math.ceil((new Date(body.data.expiresAt).getTime() - Date.now()) / 1000)));
@@ -321,6 +325,7 @@ export default function PublicBooking({
     const minutes = Math.floor(remainingSeconds / 60);
     const seconds = remainingSeconds % 60;
     const pending = !["CONFIRMED", "EXPIRED", "CANCELLED"].includes(status);
+    const confirmed = status === "CONFIRMED" && Boolean(meetingId);
     return (
       <>
       <section className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm sm:p-8">
@@ -341,12 +346,32 @@ export default function PublicBooking({
           {status === "CONFIRMED" ? "Meeting confirmed" : status === "EXPIRED" ? "Request expired" : "Finding your employee..."}
         </h2>
         <p className="mt-3 text-sm leading-6 text-slate-600">
-          {status === "CONFIRMED"
-            ? "Your company meeting page is opening now."
-            : status === "EXPIRED"
-              ? "No employee accepted this request before the five-minute window ended."
-              : "An employee can accept this request during the five-minute window. Conventus retries automatically when needed."}
+          {confirmed
+            ? "Your meeting is ready. The Google Calendar event and Meet link have been finalized."
+            : status === "CONFIRMED"
+              ? "The booking is confirmed. Conventus is finishing the Google Meet connection."
+              : status === "EXPIRED"
+                ? "No employee accepted this request before the five-minute window ended."
+                : "An employee can accept this request during the five-minute window. Conventus finalizes the Google meeting in the background."}
         </p>
+        {confirmed && (
+          <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600" />
+              <div>
+                <p className="text-sm font-semibold text-emerald-900">Meeting ready</p>
+                <p className="mt-1 text-xs leading-5 text-emerald-800">Open your Conventus meeting page to join the Google Meet call.</p>
+              </div>
+            </div>
+            <Link
+              href={`/${companySlug}/meet/${meetingId}` as Route}
+              className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
+            >
+              Join meeting
+            </Link>
+          </div>
+        )}
+
         {pending && (
           <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-100">
             <div
