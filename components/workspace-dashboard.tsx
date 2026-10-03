@@ -95,7 +95,7 @@ export default function WorkspaceDashboard() {
     if (!data?.company.id) return;
 
     let cancelled = false;
-    const socket = presenceSocketRef.current;
+    const companyId = data.company.id;
 
     async function connectRealtime() {
       try {
@@ -122,7 +122,7 @@ export default function WorkspaceDashboard() {
         });
 
         nextSocket.on("presence:updated", (event: RealtimePresenceEvent) => {
-          if (event.companyId !== data.company.id) return;
+          if (event.companyId !== companyId) return;
 
           setEmployees((current) =>
             current.map((employee) =>
