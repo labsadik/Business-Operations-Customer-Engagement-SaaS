@@ -11,7 +11,6 @@ import { slugify } from "@/lib/slug";
 import { jsonError, jsonOk } from "@/lib/http";
 import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
 import { GoogleAccount } from "@/models/google-account";
-import { setEmployeePresence } from "@/lib/employee-presence";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -108,11 +107,6 @@ export async function POST(request: Request) {
         { companyId: createdIds.companyId, userId: session.userId, active: true },
         { $set: { googleConnectionStatus: "CONNECTED" } }
       );
-      try {
-        await setEmployeePresence(createdIds.companyId, session.userId, "AVAILABLE");
-      } catch (error) {
-        console.error("Conventus owner presence initialization failed", error);
-      }
     }
 
     return jsonOk({ companyId: createdIds.companyId, workspaceId: createdIds.workspaceId, slug }, 201);
