@@ -152,6 +152,7 @@ export async function GET(
       phone: invoice.merchantSnapshot?.phone || legacyMerchant.phone,
       taxId: invoice.merchantSnapshot?.taxId || legacyMerchant.taxId,
       gstin: invoice.merchantSnapshot?.gstin || legacyMerchant.gstin,
+      sacCode: invoice.merchantSnapshot?.sacCode || legacyMerchant.sacCode,
       address: invoice.merchantSnapshot?.address || legacyMerchant.address
     };
 
