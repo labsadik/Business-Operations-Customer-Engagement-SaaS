@@ -133,33 +133,54 @@ export async function activatePaidPlan(paymentId: string) {
 
       if (payment.status === "CAPTURED") {
         const existingInvoice = await Invoice.findOne({ paymentId: payment._id }).session(tx).lean();
+        const currentSubscription = await Subscription.findOne({
+          companyId: payment.companyId
+        }).session(tx).lean();
 
-        await Subscription.findOneAndUpdate(
-          { companyId: payment.companyId },
-          {
-            $set: {
-              planId: plan.id,
-              source: "PAID",
-              status: "ACTIVE",
-              currentPeriodStart: existingInvoice?.billingPeriodStart ?? invoiceDate,
-              currentPeriodEnd:
-                existingInvoice?.billingPeriodEnd ??
-                addValidityDays(existingInvoice?.billingPeriodStart ?? invoiceDate, plan.validityDays),
-              monthlyMeetingsUsed: 0,
-              freeUsageDates: [],
-              grantedByUserId: undefined,
-              grantedAt: undefined
+        const paymentStart = existingInvoice?.billingPeriodStart ?? invoiceDate;
+        const paymentEnd =
+          existingInvoice?.billingPeriodEnd ??
+          addValidityDays(paymentStart, plan.validityDays);
+        const currentStart = currentSubscription?.currentPeriodStart?.getTime() ?? 0;
+        const currentEnd = currentSubscription?.currentPeriodEnd?.getTime() ?? 0;
+        const currentAccessIsActive = Boolean(
+          currentSubscription &&
+          currentSubscription.status === "ACTIVE" &&
+          currentEnd > Date.now()
+        );
+        const currentAccessIsProtected = Boolean(
+          currentAccessIsActive &&
+          currentSubscription &&
+          ["PAID", "ADMIN_GRANTED"].includes(currentSubscription.source)
+        );
+        const paymentIsNewer = paymentStart.getTime() > currentStart;
+
+        if (!currentAccessIsProtected || paymentIsNewer) {
+          await Subscription.findOneAndUpdate(
+            { companyId: payment.companyId },
+            {
+              $set: {
+                planId: plan.id,
+                source: "PAID",
+                status: "ACTIVE",
+                currentPeriodStart: paymentStart,
+                currentPeriodEnd: paymentEnd,
+                monthlyMeetingsUsed: 0,
+                freeUsageDates: [],
+                grantedByUserId: undefined,
+                grantedAt: undefined
+              },
+              $setOnInsert: { companyId: payment.companyId }
             },
-            $setOnInsert: { companyId: payment.companyId }
-          },
-          { upsert: true, new: true, session: tx }
-        );
+            { upsert: true, new: true, session: tx }
+          );
 
-        await Workspace.updateOne(
-          { companyId: payment.companyId },
-          { $set: { planId: plan.id } },
-          { session: tx }
-        );
+          await Workspace.updateOne(
+            { companyId: payment.companyId },
+            { $set: { planId: plan.id } },
+            { session: tx }
+          );
+        }
 
         if (!payment.activatedAt) {
           await Payment.updateOne(
