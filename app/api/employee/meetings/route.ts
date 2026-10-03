@@ -74,7 +74,8 @@ export async function GET() {
         status: meeting.status,
         calendarSyncStatus: meeting.calendarSyncStatus,
         employee: participantMap.get(String(meeting.employeeId)) ?? null,
-        customer: participantMap.get(String(meeting.customerId)) ?? null
+        customer: participantMap.get(String(meeting.customerId)) ?? null,
+        scheduledBy: participantMap.get(String(meeting.customerId)) ?? null
       };
     })
   );
