@@ -13,10 +13,8 @@ export default async function DashboardPage() {
     redirect("/login?error=workspace_access_required");
   }
 
-  if (["COMPANY_ADMIN", "EMPLOYEE"].includes(session.role)) {
-    if (!session.companyId) redirect("/login?error=workspace_access_required");
-    const membership = await Membership.findOne({ companyId: session.companyId, userId: session.userId, active: true }).lean();
-    if (!membership) redirect("/login?error=workspace_access_revoked");
+  if (["COMPANY_ADMIN", "EMPLOYEE"].includes(session.role) && !session.companyId) {
+    redirect("/login?error=workspace_access_required");
   }
 
   if (session.companyId && ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"].includes(session.role)) {
