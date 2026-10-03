@@ -123,7 +123,7 @@ export async function GET(
     if (!invoice) return jsonError("INVOICE_NOT_FOUND", 404);
 
     const legacyMerchant = await platformLegalProfile();
-    const legacyTax = calculateInvoiceTax(invoice.amount, legacyMerchant.gst.ratePercent, legacyMerchant.gst.inclusive);
+    const legacyTax = calculateInvoiceTax(invoice.amount, legacyMerchant.gst.ratePercent, legacyMerchant.gst.inclusive, legacyMerchant.gst.enabled);
     const tax: InvoiceTaxSnapshot = invoice.taxSnapshot
       ? {
           enabled: invoice.taxSnapshot.enabled,
