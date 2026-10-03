@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, CalendarCheck2, Check, CircleCheck, Clock3, Command, Layers3, ShieldCheck, UsersRound, Video } from "lucide-react";
 import { PLANS } from "@/lib/plans";
-import { platformLegalProfile } from "@/lib/platform";
 
 const steps = [
   ["01", "Create your workspace", "Set your company profile, add employees, define availability, and connect Google."],
@@ -10,9 +9,8 @@ const steps = [
   ["04", "Meet in your flow", "After acceptance, Conventus creates the Google Meet and Calendar event and opens the company meeting route."]
 ] as const;
 
-export default async function Home() {
-  const legal = await platformLegalProfile();
-  const gstRate = legal.gst.enabled ? legal.gst.ratePercent : 0;
+export default function Home() {
+  const gstRate = 18;
 
   return (
     <main>
