@@ -182,8 +182,9 @@ export async function GET(
     drawText(page, merchant.name, 94, PAGE_HEIGHT - 43, bold, 15);
     drawWrapped(page, merchant.description, 94, PAGE_HEIGHT - 58, 230, regular, 8.5, 2, MUTED);
 
-    const accessLabel = invoice.source === "PAID" ? "PAID" : invoice.source === "ADMIN_GRANTED" ? "ADMIN GRANTED" : "FREE";
-    const accessColor = invoice.source === "PAID" ? GREEN : invoice.source === "ADMIN_GRANTED" ? BLUE : MUTED;
+    const source = invoice.source ?? "PAID";
+    const accessLabel = source === "PAID" ? "PAID" : source === "ADMIN_GRANTED" ? "ADMIN GRANTED" : "FREE";
+    const accessColor = source === "PAID" ? GREEN : source === "ADMIN_GRANTED" ? BLUE : MUTED;
     const badgeWidth = bold.widthOfTextAtSize(accessLabel, 7) + 18;
     page.drawRectangle({
       x: PAGE_WIDTH - 42 - badgeWidth,
@@ -192,7 +193,7 @@ export async function GET(
       height: 16,
       color: accessColor
     });
-    drawText(page, accessLabel, PAGE_WIDTH - 33 - badgeWidth / 2, PAGE_HEIGHT - 74, bold, 7, WHITE);
+    drawText(page, accessLabel, PAGE_WIDTH - 42 - badgeWidth + 9, PAGE_HEIGHT - 74, bold, 7, WHITE);
     drawRight(page, tax.enabled ? "TAX INVOICE" : "INVOICE", PAGE_WIDTH - 42, PAGE_HEIGHT - 38, bold, 8, BLUE);
     drawRight(page, invoice.invoiceNumber, PAGE_WIDTH - 42, PAGE_HEIGHT - 54, bold, 14, INK);
     drawRight(page, `Issued ${dateLabel(invoice.issuedAt)}`, PAGE_WIDTH - 42, PAGE_HEIGHT - 68, regular, 8.5, MUTED);
@@ -277,11 +278,11 @@ export async function GET(
 
     const paymentY = summaryTop - 103;
     drawText(page, "PAYMENT DETAILS", 42, paymentY, bold, 7, BLUE);
-    drawLabelValue(page, "Status", invoice.source === "PAID" ? "PAID / CAPTURED" : invoice.source === "ADMIN_GRANTED" ? "ADMIN GRANTED" : "FREE ACCESS", 42, paymentY - 13, 150, regular, bold);
+    drawLabelValue(page, "Status", source === "PAID" ? "PAID / CAPTURED" : source === "ADMIN_GRANTED" ? "ADMIN GRANTED" : "FREE ACCESS", 42, paymentY - 13, 150, regular, bold);
     drawLabelValue(
       page,
-      invoice.source === "PAID" ? "Payment ID" : "Access",
-      invoice.source === "PAID" ? invoice.providerPaymentId : invoice.source === "ADMIN_GRANTED" ? "Granted by platform admin" : "Free plan",
+      source === "PAID" ? "Payment ID" : "Access",
+      source === "PAID" ? invoice.providerPaymentId : source === "ADMIN_GRANTED" ? "Granted by platform admin" : "Free plan",
       205,
       paymentY - 13,
       175,
