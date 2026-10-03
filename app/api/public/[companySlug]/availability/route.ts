@@ -4,6 +4,7 @@ import { MeetingType } from "@/models/meeting-type";
 import { getAvailableSlots } from "@/lib/public-availability";
 import { jsonError, jsonOk } from "@/lib/http";
 import { getCompanyEntitlements } from "@/lib/plans-server";
+import { getMeetingDurationOptions } from "@/lib/plans";
 import { getSession } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -32,7 +33,11 @@ export async function GET(
   if (!type) return jsonError("MEETING_TYPE_NOT_FOUND", 404);
 
   const plan = await getCompanyEntitlements(String(company._id));
-  if (duration > plan.maxMeetingDurationMinutes || !type.durationOptionsMinutes.includes(duration)) {
+  if (
+    duration < 10 ||
+    duration > plan.maxMeetingDurationMinutes ||
+    !getMeetingDurationOptions(plan.maxMeetingDurationMinutes, type.durationOptionsMinutes).includes(duration)
+  ) {
     return jsonError("INVALID_DURATION", 400);
   }
 
