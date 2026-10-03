@@ -5,7 +5,7 @@ import { Invoice } from "@/models/invoice";
 import { Payment } from "@/models/payment";
 import { Subscription } from "@/models/subscription";
 import { Workspace } from "@/models/workspace";
-import { PLATFORM_BRAND, platformLogoUrl } from "@/lib/platform";
+import { buildInvoiceSnapshots } from "@/lib/invoicing";
 
 export async function activatePaidPlan(paymentId: string) {
   const db = await getMongo();
@@ -90,18 +90,17 @@ export async function activatePaidPlan(paymentId: string) {
             amount: payment.amount,
             currency: payment.currency,
             issuedAt: invoiceDate,
-            merchantSnapshot: {
-              name: PLATFORM_BRAND.name,
-              description: PLATFORM_BRAND.description,
-              logoUrl: platformLogoUrl()
-            },
-            companySnapshot: {
-              name: company.name,
-              email: companyEmail,
-              phone: companyPhone,
-              address: company.address ?? {},
-              taxId: company.taxId ?? ""
-            }
+            ...buildInvoiceSnapshots({
+              company: {
+                name: company.name,
+                email: companyEmail,
+                phone: companyPhone,
+                address: company.address ?? {},
+                taxId: company.taxId ?? ""
+              },
+              plan,
+              amount: payment.amount
+            })
           }
         },
         { upsert: true, new: true, session: tx }
