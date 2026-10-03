@@ -19,10 +19,12 @@ import {
   Trash2,
   UsersRound,
   Video,
-  XCircle
+  XCircle,
+  Megaphone
 } from "lucide-react";
 import ConfirmDialog from "@/components/confirm-dialog";
 import UserAvatar from "@/components/user-avatar";
+import RazorpayPlanButton from "@/components/razorpay-plan-button";
 import { playMeetingSound, unlockMeetingSound } from "@/lib/client-meeting-sound";
 
 type CompanyData = {
@@ -83,6 +85,14 @@ type MeetingHistoryItem = {
 };
 
 type DashboardUser = { name: string; email: string; image?: string };
+
+type AnnouncementItem = {
+  id: string;
+  title: string;
+  message: string;
+  active: boolean;
+  createdAt: string;
+};
 
 type Confirmation =
   | { kind: "remove-employee"; id: string; name: string }
@@ -146,6 +156,10 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [meetingHistory, setMeetingHistory] = useState<MeetingHistoryItem[]>([]);
   const [meetingView, setMeetingView] = useState<"new" | "old">("new");
+  const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
+  const [announcementTitle, setAnnouncementTitle] = useState("");
+  const [announcementMessage, setAnnouncementMessage] = useState("");
+  const [announcementComposerOpen, setAnnouncementComposerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -167,14 +181,18 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
       const company = await api<CompanyData | null>("/api/company");
       setData(company);
       if (company) {
-        const [staff, pending, history] = await Promise.all([
+        const [staff, pending, history, announcementList] = await Promise.all([
           api<Employee[]>("/api/company/employees"),
           api<RequestItem[]>("/api/employee/requests"),
-          api<MeetingHistoryItem[]>("/api/employee/meetings")
+          api<MeetingHistoryItem[]>("/api/employee/meetings"),
+          ["COMPANY_OWNER", "COMPANY_ADMIN"].includes(company.currentRole)
+            ? api<AnnouncementItem[]>("/api/company/announcement")
+            : Promise.resolve([] as AnnouncementItem[])
         ]);
         setEmployees(staff);
         setRequests(pending);
         setMeetingHistory(history);
+        setAnnouncements(announcementList);
       }
       setError("");
     } catch (err) {
@@ -264,6 +282,46 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "PUBLISH_FAILED");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createAnnouncement(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!announcementMessage.trim()) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api<AnnouncementItem>("/api/company/announcement", {
+        method: "POST",
+        body: JSON.stringify({
+          title: announcementTitle.trim() || "Announcement",
+          message: announcementMessage.trim()
+        })
+      });
+      setAnnouncementTitle("");
+      setAnnouncementMessage("");
+      setAnnouncementComposerOpen(false);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "ANNOUNCEMENT_CREATE_FAILED");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleAnnouncement(item: AnnouncementItem) {
+    setBusy(true);
+    setError("");
+    try {
+      await api("/api/company/announcement", {
+        method: "PATCH",
+        body: JSON.stringify({ id: item.id, active: !item.active })
+      });
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "ANNOUNCEMENT_UPDATE_FAILED");
     } finally {
       setBusy(false);
     }
@@ -639,6 +697,7 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
                               <UserAvatar
                                 name={item.customer.name}
                                 email={item.customer.email}
+                                image={item.customer.image}
                                 size={40}
                               />
                             ) : (
@@ -855,7 +914,85 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
               </Link>
             </section>
 
-            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                        {canManageEmployees && (
+              <section data-section="page-settings-announcements" className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Page settings</p>
+                    <h2 className="mt-2 text-base font-semibold">Announcement</h2>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">Publish one active notice on this company&apos;s public booking page.</p>
+                  </div>
+                  <Megaphone className="size-5 text-blue-600" />
+                </div>
+
+                <div className="mt-5 space-y-3">
+                  {announcements.filter((item) => item.active).slice(0, 1).map((item) => (
+                    <div key={item.id} className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-blue-800">{item.title}</p>
+                          <p className="mt-1 text-xs leading-5 text-blue-950">{item.message}</p>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700">Live</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void toggleAnnouncement(item)}
+                        disabled={busy}
+                        className="mt-3 text-xs font-semibold text-blue-700 hover:text-blue-900 disabled:opacity-50"
+                      >
+                        Turn off
+                      </button>
+                    </div>
+                  ))}
+
+                  {!announcements.some((item) => item.active) && (
+                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
+                      <p className="text-xs font-semibold text-slate-700">No active announcement</p>
+                      <p className="mt-1 text-[11px] leading-5 text-slate-500">The next announcement will appear at the top of the public page.</p>
+                    </div>
+                  )}
+
+                  {!announcementComposerOpen ? (
+                    <button
+                      type="button"
+                      onClick={() => setAnnouncementComposerOpen(true)}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      <Plus className="size-4" />
+                      New announcement
+                    </button>
+                  ) : (
+                    <form onSubmit={createAnnouncement} className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <input
+                        value={announcementTitle}
+                        onChange={(event) => setAnnouncementTitle(event.target.value)}
+                        maxLength={120}
+                        placeholder="Announcement title"
+                        className="focus-ring w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                      />
+                      <textarea
+                        required
+                        value={announcementMessage}
+                        onChange={(event) => setAnnouncementMessage(event.target.value)}
+                        maxLength={500}
+                        rows={3}
+                        placeholder="Write the message your customers should see..."
+                        className="focus-ring w-full resize-none rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                      />
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => setAnnouncementComposerOpen(false)} disabled={busy} className="flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-600 disabled:opacity-50">Cancel</button>
+                        <button type="submit" disabled={busy || !announcementMessage.trim()} className="flex-1 rounded-xl bg-slate-950 px-3 py-2.5 text-xs font-semibold text-white disabled:opacity-40">
+                          {busy ? "Publishing..." : "Publish"}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              </section>
+            )}
+
+<section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Team</p>
@@ -947,7 +1084,40 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
               </section>
             )}
 
-            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                        {canManageEmployees && (
+              <section data-section="billing" className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Billing</p>
+                    <h2 className="mt-2 text-base font-semibold">Conventus plan</h2>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">Plans are paid securely through Razorpay. The server determines the amount from the selected plan.</p>
+                  </div>
+                  <CreditCard className="size-5 text-blue-600" />
+                </div>
+                <div className="mt-5 space-y-3">
+                  {(["starter", "business"] as const).map((planId) => {
+                    const plan = planId === "business" ? { name: "Business", price: "₹199", detail: "30 employees · 350 meetings · 35 min max · 30 concurrent" } : { name: "Starter", price: "₹99", detail: "10 employees · 100 meetings · 20 min max · 10 concurrent" };
+                    return (
+                      <div key={planId} className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold">{plan.name}</p>
+                          <p className="mt-1 text-xs text-slate-500">{plan.price} / month</p>
+                          <p className="mt-1 text-[11px] leading-5 text-slate-400">{plan.detail}</p>
+                        </div>
+                        <RazorpayPlanButton
+                          planId={planId}
+                          currentPlanId={data.subscription?.planId === "business" ? "business" : "starter"}
+                          disabled={busy}
+                          onComplete={() => void refresh()}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+<section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Usage</p>
