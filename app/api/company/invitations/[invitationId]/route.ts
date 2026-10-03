@@ -21,17 +21,16 @@ export async function DELETE(
       return jsonError("FORBIDDEN", 403);
     }
 
-    if (session.role === "PLATFORM_ADMIN") {
-      // Managed-company scope is authorized by the platform-admin session.
-    } else {
+    if (session.role !== "PLATFORM_ADMIN") {
       await getMongo();
       const membership = await Membership.findOne({
-      companyId: session.companyId,
-      userId: session.userId,
-      active: true,
-      role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN"] }
-    }).lean();
-    if (!membership) return jsonError("FORBIDDEN", 403);
+        companyId: session.companyId,
+        userId: session.userId,
+        active: true,
+        role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN"] }
+      }).lean();
+      if (!membership) return jsonError("FORBIDDEN", 403);
+    }
 
     const { invitationId } = await params;
     if (!Types.ObjectId.isValid(invitationId)) return jsonError("INVALID_INVITATION_ID", 400);
