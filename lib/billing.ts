@@ -6,20 +6,19 @@ import { Subscription } from "@/models/subscription";
 export async function activatePaidPlan(paymentId: string) {
   await getMongo();
 
-  const payment = await Payment.findById(paymentId);
+  const payment = await Payment.findById(paymentId).lean();
   if (!payment) throw new Error("PAYMENT_NOT_FOUND");
 
   const plan = PLANS[payment.planId as PlanId];
   if (!plan) throw new Error("PLAN_NOT_FOUND");
 
-  const firstCapture = payment.status !== "CAPTURED";
-  if (firstCapture) {
-    payment.status = "CAPTURED";
-    payment.paidAt = payment.paidAt ?? new Date();
-    await payment.save();
-  } else {
-    return;
-  }
+  const capturedPayment = await Payment.findOneAndUpdate(
+    { _id: payment._id, status: { $ne: "CAPTURED" } },
+    { $set: { status: "CAPTURED", paidAt: payment.paidAt ?? new Date() } },
+    { new: true }
+  ).lean();
+
+  if (!capturedPayment) return;
 
   const now = new Date();
   const periodEnd = new Date(now);
