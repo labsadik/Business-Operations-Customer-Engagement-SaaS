@@ -11,6 +11,11 @@ const invoiceSchema = new Schema(
     amount: { type: Number, required: true, min: 1 },
     currency: { type: String, required: true, default: "INR" },
     issuedAt: { type: Date, required: true },
+    merchantSnapshot: {
+      name: { type: String, required: true },
+      description: { type: String, required: true },
+      logoUrl: { type: String, required: true }
+    },
     companySnapshot: {
       name: { type: String, required: true },
       email: { type: String, required: true },
