@@ -9,6 +9,7 @@ import { AvailabilityRule } from "@/models/availability-rule";
 import { User } from "@/models/user";
 import { slugify } from "@/lib/slug";
 import { jsonError, jsonOk } from "@/lib/http";
+import { assertSameOrigin } from "@/lib/security";
 import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
 import { GoogleAccount } from "@/models/google-account";
 
@@ -148,6 +149,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  assertSameOrigin(request);
   const session = await getSession();
   if (!session) return jsonError("UNAUTHENTICATED", 401);
   if (!["COMPANY_OWNER", "PLATFORM_ADMIN"].includes(session.role)) return jsonError("FORBIDDEN", 403);
@@ -270,6 +272,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  assertSameOrigin(request);
   const session = await getSession();
   if (!session) return jsonError("UNAUTHENTICATED", 401);
   if (!["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role)) return jsonError("FORBIDDEN", 403);
