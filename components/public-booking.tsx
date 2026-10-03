@@ -204,21 +204,31 @@ export default function PublicBooking({
 
   if (access === "anonymous") {
     return (
-      <>
       <section className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm sm:p-8">
-      <section className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm sm:p-8">
-        <div className="grid size-12 place-items-center rounded-2xl bg-slate-950 text-white"><LogIn className="size-5" /></div>
+        <div className="grid size-12 place-items-center rounded-2xl bg-slate-950 text-white">
+          <LogIn className="size-5" />
+        </div>
         <h2 className="mt-5 text-2xl font-semibold tracking-tight text-slate-950">Sign in to continue</h2>
         <p className="mt-3 text-sm leading-6 text-slate-600">
           Continue with Google. Conventus checks this company first: registered employees go to the company dashboard, while other Google accounts continue as customers for the meeting request.
         </p>
-        <button type="button" onClick={() => window.open(loginUrl, "_self")} className="mt-7 flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white hover:bg-slate-800">
+        <button
+          type="button"
+          onClick={() => window.open(loginUrl, "_self")}
+          className="mt-7 flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white hover:bg-slate-800"
+        >
           <span className="grid size-6 place-items-center rounded-full bg-white/10 text-xs font-bold">G</span>
           Continue with Google
         </button>
-        <Link href={employeeLoginUrl as Route} className="mt-4 block text-center text-xs font-semibold text-blue-700">Employee? Open company login</Link>
+        <Link
+          href={employeeLoginUrl as Route}
+          className="mt-4 block text-center text-xs font-semibold text-blue-700"
+        >
+          Employee? Open company login
+        </Link>
         <div className="mt-5 flex gap-2 text-[11px] leading-5 text-slate-500">
-          <ShieldCheck className="size-4 shrink-0 text-blue-600" />Employee authorization is checked server-side using the company email list.
+          <ShieldCheck className="size-4 shrink-0 text-blue-600" />
+          Employee authorization is checked server-side using the company email list.
         </div>
       </section>
     );
@@ -255,6 +265,7 @@ export default function PublicBooking({
     const seconds = remainingSeconds % 60;
     const pending = !["CONFIRMED", "EXPIRED", "CANCELLED"].includes(status);
     return (
+      <>
       <section className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm sm:p-8">
         <div className="flex items-start justify-between gap-4">
           <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-blue-50 text-blue-700">
