@@ -8,6 +8,7 @@ import { eligibleEmployees } from "@/lib/routing";
 import { getCompanyEntitlements } from "@/lib/plans-server";
 import { createMeetingForBooking } from "@/lib/meeting-service";
 import { jsonError, jsonOk } from "@/lib/http";
+import { assertSameOrigin } from "@/lib/security";
 import { after } from "next/server";
 
 export const runtime = "nodejs";
@@ -15,7 +16,8 @@ export const dynamic = "force-dynamic";
 
 export async function POST(
   _request: Request,
-  { params }: { params: Promise<{ bookingId: string }> }
+  {
+  assertSameOrigin(_request); params }: { params: Promise<{ bookingId: string }> }
 ) {
   let session: { userId: string; companyId?: string };
   try {
