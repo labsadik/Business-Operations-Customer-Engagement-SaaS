@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Command, ShieldCheck, UsersRound } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ShieldCheck, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { getMongo } from "@/lib/mongodb";
 import { getSession } from "@/lib/session";
@@ -120,7 +120,7 @@ export default async function CompanyLoginPage({
         <section className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm sm:p-9">
           <div className="flex items-center gap-3">
             <span className="grid size-10 place-items-center rounded-2xl bg-slate-950 text-white">
-              <Command className="size-5" />
+              <img src="/favicon.svg" alt="" className="size-8 rounded-lg" />
             </span>
             <div>
               <p className="text-sm font-semibold text-slate-950">{company.name}</p>
