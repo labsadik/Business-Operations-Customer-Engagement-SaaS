@@ -39,7 +39,7 @@ export default function GoogleMeetEmbed({ meetingCode, meetingUri }: { meetingCo
       initializedRef.current = false;
       setError("Google Meet could not be embedded. Use the Google Meet button below.");
     }
-  }
+  }, [meetingCode]);
 
   useEffect(() => {
     if (window.MeetApp) init();
