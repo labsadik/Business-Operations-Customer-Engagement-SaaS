@@ -21,6 +21,9 @@ export async function createMeetingForBooking(bookingId: string) {
   const customer = await User.findById(booking.customerId).lean();
   if (!employee || !customer) throw new Error("PARTICIPANT_NOT_FOUND");
 
+  booking.status = "CREATING_MEETING";
+  await booking.save();
+
   const meeting = await Meeting.findOneAndUpdate(
     { bookingRequestId: booking._id },
     {
@@ -70,9 +73,10 @@ export async function createMeetingForBooking(bookingId: string) {
     meeting.calendarSyncStatus = "FAILED";
     await meeting.save();
 
-    booking.status = "RETRYING";
+    const stillActive = booking.expiresAt.getTime() > Date.now();
+    booking.status = stillActive ? "RETRYING" : "EXPIRED";
     booking.assignedEmployeeId = undefined;
-    booking.nextRetryAt = new Date(Date.now() + 20_000);
+    booking.nextRetryAt = stillActive ? new Date(Date.now() + 20_000) : undefined;
     await booking.save();
 
     throw error;
