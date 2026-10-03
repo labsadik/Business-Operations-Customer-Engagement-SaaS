@@ -4,7 +4,6 @@ import { getMongo } from "@/lib/mongodb";
 import { Membership } from "@/models/membership";
 import { User } from "@/models/user";
 import { GoogleAccount } from "@/models/google-account";
-import { getEmployeePresenceMap } from "@/lib/employee-presence";
 import { Invitation } from "@/models/invitation";
 import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
 
@@ -24,12 +23,12 @@ export async function GET() {
     const connected = new Set(
       connections.filter(isGoogleSchedulingReady).map((item) => String(item.userId))
     );
-    const presence = await getEmployeePresenceMap(session.companyId!, users.map((user) => String(user._id)));
-
     return jsonOk(users.map((user) => ({
-      id: String(user._id), name: user.name, email: user.email, role: user.role,
-      googleConnected: connected.has(String(user._id)),
-      presence: presence.result.get(String(user._id)) ?? "NOT_AVAILABLE"
+      id: String(user._id),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      googleConnected: connected.has(String(user._id))
     })));
   } catch (error) {
     const code = error instanceof Error ? error.message : "FORBIDDEN";
