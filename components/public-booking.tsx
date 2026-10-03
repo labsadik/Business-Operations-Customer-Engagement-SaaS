@@ -15,7 +15,8 @@ type AvailabilityReason =
   | "NO_ACTIVE_MEMBERS"
   | "NO_GOOGLE_SCHEDULING_MEMBER"
   | "NO_WORKING_HOURS"
-  | "NO_FREE_SLOTS";
+  | "NO_FREE_SLOTS"
+  | "GOOGLE_CALENDAR_ERROR";
 
 export default function PublicBooking({
   companySlug,
@@ -279,6 +280,8 @@ export default function PublicBooking({
         return "No working hours are configured for this date. Choose another date.";
       case "NO_ACTIVE_MEMBERS":
         return "There are no active employees available for scheduling right now.";
+      case "GOOGLE_CALENDAR_ERROR":
+        return "A connected employee's Google Calendar could not be checked. Please ask the company to reconnect Google Calendar and try again.";
       case "NO_FREE_SLOTS":
       default:
         return "Every connected employee calendar is busy for the selected duration. Choose another time or another date.";
