@@ -2,7 +2,7 @@ import { getMongo } from "@/lib/mongodb";
 import { BookingRequest } from "@/models/booking-request";
 import { Meeting } from "@/models/meeting";
 import { Subscription } from "@/models/subscription";
-import { getSession } from "@/lib/session";
+import { requireCompanyMember } from "@/lib/authz";
 import { withRedisLock } from "@/lib/redis-lock";
 import { eligibleEmployees } from "@/lib/routing";
 import { getCompanyEntitlements } from "@/lib/plans-server";
@@ -16,9 +16,15 @@ export async function POST(
   _request: Request,
   { params }: { params: Promise<{ bookingId: string }> }
 ) {
-  const session = await getSession();
-  if (!session || !session.companyId) return jsonError("UNAUTHENTICATED", 401);
-  if (!["EMPLOYEE", "COMPANY_OWNER", "COMPANY_ADMIN"].includes(session.role)) return jsonError("FORBIDDEN", 403);
+  let session: { userId: string; companyId?: string };
+  try {
+    const result = await requireCompanyMember(["EMPLOYEE", "COMPANY_OWNER", "COMPANY_ADMIN"]);
+    session = result.session;
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "UNAUTHENTICATED";
+    return jsonError(code, code === "UNAUTHENTICATED" ? 401 : 403);
+  }
+  if (!session.companyId) return jsonError("COMPANY_NOT_CONFIGURED", 403);
 
   await getMongo();
   const { bookingId } = await params;
