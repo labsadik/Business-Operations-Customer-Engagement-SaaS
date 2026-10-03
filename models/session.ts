@@ -7,7 +7,7 @@ const sessionSchema = new Schema(
     role: { type: String, required: true, index: true },
     companyId: { type: Schema.Types.ObjectId, ref: "Company", index: true },
     workspaceId: { type: Schema.Types.ObjectId, ref: "Workspace", index: true },
-    expiresAt: { type: Date, required: true, index: true },
+    expiresAt: { type: Date, required: true },
     lastSeenAt: { type: Date }
   },
   { timestamps: true }
