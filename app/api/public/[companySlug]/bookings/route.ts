@@ -17,7 +17,7 @@ export async function POST(
   { params }: { params: Promise<{ companySlug: string }> }
 ) {
   const session = await getSession();
-  if (!session) return jsonError("CUSTOMER_LOGIN_REQUIRED", 401);
+  if (!session || session.role !== "CUSTOMER") return jsonError("CUSTOMER_LOGIN_REQUIRED", 401);
 
   const idempotencyKey = request.headers.get("Idempotency-Key");
   if (!idempotencyKey || idempotencyKey.length < 12) return jsonError("IDEMPOTENCY_KEY_REQUIRED", 400);
