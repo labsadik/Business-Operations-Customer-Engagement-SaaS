@@ -100,7 +100,7 @@ export async function reconcileLatestPaidAccess(companyId: string) {
     await Payment.updateOne(
       {
         _id: latestPayment._id,
-        status: "PENDING"
+        status: { $in: ["PENDING", "FAILED"] }
       },
       {
         $set: {
