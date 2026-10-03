@@ -47,7 +47,7 @@ async function redisGet(key) {
     const token = process.env.REDIS_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
     if (!token) throw new Error("REDIS_REST_TOKEN_NOT_CONFIGURED");
 
-    const response = await fetch(url.replace(/\\/$/, "") + "/get/" + encodeURIComponent(key), {
+    const response = await fetch(url.replace(/\/$/, "") + "/get/" + encodeURIComponent(key), {
       headers: {
         Authorization: "Bearer " + token,
         "content-type": "application/json"
@@ -79,7 +79,7 @@ async function redisSet(key, value, ttlSeconds) {
     if (!token) throw new Error("REDIS_REST_TOKEN_NOT_CONFIGURED");
 
     const response = await fetch(
-      url.replace(/\\/$/, "") +
+      url.replace(/\/$/, "") +
         "/set/" +
         encodeURIComponent(key) +
         "/" +
