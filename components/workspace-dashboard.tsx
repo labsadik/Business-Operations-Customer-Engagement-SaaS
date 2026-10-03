@@ -287,7 +287,7 @@ export default function WorkspaceDashboard() {
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="text-sm font-semibold text-slate-950">{item.customer?.name ?? "Customer"}</p>
                           <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${ready ? "bg-emerald-50 text-emerald-700" : creating ? "bg-blue-50 text-blue-700" : item.status === "RETRYING" ? "bg-amber-50 text-amber-700" : scheduled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
-                            {ready ? "Meeting ready" : creating ? "Creating meeting" : item.status === "RETRYING" ? "Retrying" : scheduled ? "Confirmed" : "Waiting for acceptance"}
+                            {ready ? "Meeting ready" : creating ? "Creating meeting" : item.status === "RETRYING" ? "Employees busy · retrying" : scheduled ? "Confirmed" : "Waiting for acceptance"}
                           </span>
                         </div>
                         <p className="mt-1 text-xs text-slate-500">{new Date(item.startAt).toLocaleString()} · {item.durationMinutes} min</p>
@@ -297,7 +297,7 @@ export default function WorkspaceDashboard() {
                               <span className={`rounded-xl border px-3 py-1.5 font-mono text-sm font-bold ${urgent ? "border-rose-200 bg-rose-50 text-rose-700" : "border-slate-200 bg-slate-50 text-slate-950"}`}>
                                 {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
                               </span>
-                              <span className="text-[11px] font-medium text-slate-500">{creating ? "Meeting setup in progress" : "Acceptance timer"}</span>
+                              <span className="text-[11px] font-medium text-slate-500">{creating ? "Meeting setup in progress" : item.status === "RETRYING" ? "Looking for another available employee" : "Acceptance timer"}</span>
                             </div>
                             <div className="mt-2 h-1.5 max-w-sm overflow-hidden rounded-full bg-slate-100">
                               <div className={`h-full transition-all duration-1000 ${urgent ? "bg-rose-500" : "bg-blue-600"}`} style={{ width: `${Math.min(100, Math.max(0, (remaining / 300) * 100))}%` }} />
