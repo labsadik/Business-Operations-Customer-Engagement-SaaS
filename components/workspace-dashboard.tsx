@@ -27,6 +27,16 @@ type RequestItem = {
   meeting: { status: string; meetingUri: string | null; joinToken: string | null } | null;
 };
 
+type MeetingHistoryItem = {
+  startAt: string;
+  endAt: string;
+  durationMinutes: number;
+  status: string;
+  calendarSyncStatus: string;
+  employee: { name: string; email: string; image: string | null } | null;
+  customer: { name: string; email: string; image: string | null } | null;
+};
+
 const INITIAL_NOW = Date.now();
 
 async function api<T>(url: string, init?: RequestInit) {
@@ -40,6 +50,7 @@ export default function WorkspaceDashboard() {
   const [data, setData] = useState<CompanyData | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [requests, setRequests] = useState<RequestItem[]>([]);
+  const [meetingHistory, setMeetingHistory] = useState<MeetingHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -302,6 +313,94 @@ export default function WorkspaceDashboard() {
           <div className="h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: `${usage}%` }} /></div>
         </div>
       </div>
+
+      <section className="mt-5 rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-3 border-b border-slate-200 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <CalendarDays className="size-4 text-blue-600" />
+              <h2 className="text-base font-semibold text-slate-950">Past meeting history</h2>
+            </div>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              Completed meeting records with the exact scheduled date and start/end time from Conventus.
+            </p>
+          </div>
+          <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">
+            {meetingHistory.length} recorded
+          </span>
+        </div>
+
+        {meetingHistory.length === 0 ? (
+          <div className="px-6 py-14 text-center">
+            <CalendarDays className="mx-auto size-7 text-slate-300" />
+            <p className="mt-3 text-sm font-semibold text-slate-900">No past meetings yet</p>
+            <p className="mt-1 text-xs text-slate-500">Created meetings will appear here after their scheduled end time.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {meetingHistory.map((meeting, index) => {
+              const timeZone = data.workspace?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+              const start = new Date(meeting.startAt);
+              const end = new Date(meeting.endAt);
+              const dateLabel = start.toLocaleDateString(undefined, {
+                timeZone,
+                weekday: "short",
+                year: "numeric",
+                month: "short",
+                day: "numeric"
+              });
+              const startLabel = start.toLocaleTimeString(undefined, {
+                timeZone,
+                hour: "numeric",
+                minute: "2-digit"
+              });
+              const endLabel = end.toLocaleTimeString(undefined, {
+                timeZone,
+                hour: "numeric",
+                minute: "2-digit"
+              });
+              const statusLabel = meeting.status === "COMPLETED" ? "Completed" : "Ended";
+              return (
+                <div key={`${meeting.startAt}-${meeting.customer?.email ?? index}`} className="px-6 py-5">
+                  <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr_auto] lg:items-center">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="truncate text-sm font-semibold text-slate-950">
+                          {meeting.customer?.name ?? "Customer"}
+                        </p>
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
+                          {statusLabel}
+                        </span>
+                      </div>
+                      <p className="mt-1 truncate text-xs text-slate-500">
+                        {meeting.customer?.email ?? "Customer details unavailable"}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <p className="text-xs font-semibold text-slate-900">{dateLabel}</p>
+                      <p className="mt-1 text-xs text-slate-600">
+                        {startLabel} – {endLabel} · {meeting.durationMinutes} min
+                      </p>
+                      <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400">
+                        {timeZone}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 lg:justify-end">
+                      <CheckCircle2 className="size-4 text-emerald-600" />
+                      <span className="text-xs font-medium text-slate-600">
+                        {meeting.calendarSyncStatus === "SYNCED" ? "Calendar synced" : "Meeting recorded"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
     </div>
   </main>;
 }
