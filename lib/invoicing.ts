@@ -9,6 +9,10 @@ export type InvoiceTaxSnapshot = {
   gstAmount: number;
 };
 
+export type InvoiceTaxCalculation = InvoiceTaxSnapshot & {
+  totalAmount: number;
+};
+
 export async function invoiceTaxConfig() {
   const legal = await platformLegalProfile();
   return {
@@ -18,6 +22,10 @@ export async function invoiceTaxConfig() {
   };
 }
 
+/**
+ * Legacy invoice calculation where totalMinor already represents the
+ * customer-paid total. Kept for old invoices/backfill compatibility.
+ */
 export function calculateInvoiceTax(
   totalMinor: number,
   ratePercent = 18,
@@ -56,6 +64,53 @@ export function calculateInvoiceTax(
   };
 }
 
+/**
+ * Checkout calculation where the configured plan price is the base amount
+ * and GST is added on top when pricing is exclusive.
+ */
+export function calculateInvoiceTaxFromBase(
+  baseMinor: number,
+  ratePercent = 18,
+  inclusive = false,
+  enabled = true
+): InvoiceTaxCalculation {
+  const safeBase = Math.max(0, Math.round(baseMinor));
+
+  if (!enabled || ratePercent <= 0) {
+    return {
+      enabled: false,
+      ratePercent: 0,
+      inclusive,
+      taxableAmount: safeBase,
+      gstAmount: 0,
+      totalAmount: safeBase
+    };
+  }
+
+  if (inclusive) {
+    const taxableAmount = Math.round(safeBase / (1 + ratePercent / 100));
+    const gstAmount = safeBase - taxableAmount;
+    return {
+      enabled: true,
+      ratePercent,
+      inclusive: true,
+      taxableAmount,
+      gstAmount,
+      totalAmount: safeBase
+    };
+  }
+
+  const gstAmount = Math.round(safeBase * ratePercent / 100);
+  return {
+    enabled: true,
+    ratePercent,
+    inclusive: false,
+    taxableAmount: safeBase,
+    gstAmount,
+    totalAmount: safeBase + gstAmount
+  };
+}
+
 export async function buildInvoiceSnapshots(input: {
   company: {
     name: string;
@@ -76,9 +131,10 @@ export async function buildInvoiceSnapshots(input: {
   };
   plan: PlanEntitlements;
   amount: number;
+  taxSnapshot?: InvoiceTaxSnapshot;
 }) {
   const legal = await platformLegalProfile();
-  const taxSnapshot = calculateInvoiceTax(
+  const taxSnapshot = input.taxSnapshot ?? calculateInvoiceTax(
     input.amount,
     legal.gst.ratePercent,
     legal.gst.inclusive,
@@ -121,6 +177,8 @@ export async function buildInvoiceSnapshots(input: {
       maxMeetingDurationMinutes: input.plan.maxMeetingDurationMinutes,
       maxConcurrentMeetings: input.plan.maxConcurrentMeetings
     },
-    serviceDescription: `Conventus ${input.plan.name} monthly scheduling service`
+    serviceDescription: input.plan.id === "free"
+      ? "Conventus Free plan access"
+      : `Conventus ${input.plan.name} monthly scheduling service`
   };
 }
