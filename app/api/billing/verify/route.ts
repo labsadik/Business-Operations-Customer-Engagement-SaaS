@@ -44,8 +44,6 @@ export async function POST(request: Request) {
   if (remotePayment.status !== "captured") return jsonError("PAYMENT_NOT_CAPTURED", 409);
 
   payment.providerPaymentId = paymentId;
-  payment.status = "CAPTURED";
-  payment.paidAt = new Date();
   await payment.save();
   await activatePaidPlan(String(payment._id));
 
