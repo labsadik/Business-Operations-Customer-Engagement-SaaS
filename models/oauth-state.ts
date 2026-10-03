@@ -7,7 +7,7 @@ const oauthStateSchema = new Schema(
     companySlug: { type: String, lowercase: true, trim: true },
     invitationToken: { type: String },
     returnTo: { type: String, required: true },
-    expiresAt: { type: Date, required: true, index: true }
+    expiresAt: { type: Date, required: true }
   },
   { timestamps: true }
 );
