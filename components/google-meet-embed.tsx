@@ -43,7 +43,7 @@ export default function GoogleMeetEmbed({ meetingCode, meetingUri }: { meetingCo
 
   useEffect(() => {
     if (window.MeetApp) init();
-  }, []);
+  }, [init]);
 
   return (
     <div className="relative h-[72vh] min-h-[620px] bg-[#05070b]">
