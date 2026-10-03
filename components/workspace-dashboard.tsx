@@ -46,7 +46,7 @@ export default function WorkspaceDashboard() {
       const company = await api<CompanyData | null>("/api/company");
       setData(company);
       if (company) {
-        const [staff, pending, currentPresence] = await Promise.all([
+        const [staff, pending] = await Promise.all([
           api<Employee[]>("/api/company/employees"),
           api<RequestItem[]>("/api/employee/requests")
         ]);
