@@ -1092,7 +1092,7 @@ export default function WorkspaceDashboard({ user }: { user: DashboardUser }) {
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Billing</p>
                     <h2 className="mt-2 text-base font-semibold">Conventus plan</h2>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">Plans are paid securely through Razorpay. The server determines the amount from the selected plan.</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">Plans are paid securely through Razorpay. The server determines the amount from the selected plan and a successful payment activates it for one month.</p>
                   </div>
                   <CreditCard className="size-5 text-blue-600" />
                 </div>
