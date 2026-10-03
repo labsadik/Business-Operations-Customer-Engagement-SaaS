@@ -5,10 +5,10 @@ import { Membership } from "@/models/membership";
 import { Subscription } from "@/models/subscription";
 import { Payment } from "@/models/payment";
 import { PLANS, type PlanId } from "@/lib/plans";
-import { createRazorpayOrder, platformLogoUrl, razorpayKeyId } from "@/lib/razorpay";
+import { createRazorpayOrder, razorpayKeyId } from "@/lib/razorpay";
 import { jsonError, jsonOk } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
-import { PLATFORM_BRAND } from "@/lib/platform";
+import { PLATFORM_BRAND, platformLogoUrl } from "@/lib/platform";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -81,6 +81,7 @@ export async function POST(request: Request) {
         planId: plan.id,
         planName: plan.name,
         merchant: PLATFORM_BRAND,
+        logoUrl: platformLogoUrl(),
         customer: {
           name: company.name,
           email: company.email,
