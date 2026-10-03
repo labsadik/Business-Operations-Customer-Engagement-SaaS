@@ -4,7 +4,7 @@ import { PlatformSettings } from "@/models/platform-settings";
 export const PLATFORM_BRAND = {
   name: process.env.NEXT_PUBLIC_APP_NAME?.trim() || "Conventus",
   description: "Company scheduling infrastructure for customer meetings.",
-  logoPath: "/conventus-mark.svg"
+  logoPath: "/favicon.svg"
 } as const;
 
 export type PlatformAddress = {
@@ -41,8 +41,7 @@ function emailValue(value: string) {
 
 function defaultLogoUrl() {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || "http://localhost:3000";
-  const configured = process.env.CONVENTUS_LOGO_URL?.trim();
-  return configured || new URL(PLATFORM_BRAND.logoPath, baseUrl).toString();
+  return new URL(PLATFORM_BRAND.logoPath, baseUrl).toString();
 }
 
 export async function getPlatformSettings() {
