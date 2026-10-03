@@ -73,10 +73,7 @@ export async function reconcileLatestPaidAccess(companyId: string) {
           status: "ACTIVE",
           currentPeriodStart: activationStart,
           currentPeriodEnd: periodEnd,
-          monthlyMeetingsUsed:
-            subscription?.planId === plan.id && paymentIsNewer
-              ? subscription.monthlyMeetingsUsed
-              : 0,
+          monthlyMeetingsUsed: 0,
           freeUsageDates: [],
           grantedByUserId: undefined,
           grantedAt: undefined
@@ -155,12 +152,14 @@ export async function getCompanySubscription(companyId: string) {
 
 export async function getCompanyEntitlements(companyId: string): Promise<PlanEntitlements> {
   await getMongo();
+  await reconcileLatestPaidAccess(companyId);
   const subscription = await ensureSubscription(companyId);
   return getPlan(subscription.planId) ?? getPlan("free")!;
 }
 
 export async function assertFeatureAccess(companyId: string) {
   await getMongo();
+  await reconcileLatestPaidAccess(companyId);
   const subscription = await ensureSubscription(companyId);
   const plan = getPlan(subscription.planId) ?? getPlan("free")!;
 
