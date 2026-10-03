@@ -62,7 +62,19 @@ export async function POST(
         booking.requestedEndAt,
         booking.declinedBy?.map(String) ?? []
       );
-      if (!employeeEligible.includes(session.userId)) throw new Error("EMPLOYEE_NOT_AVAILABLE");
+      if (!employeeEligible.includes(session.userId)) {
+        await BookingRequest.updateOne(
+          { _id: booking._id, status: "ASSIGNED", assignedEmployeeId: session.userId },
+          {
+            $set: {
+              status: "RETRYING",
+              assignedEmployeeId: null,
+              nextRetryAt: new Date(Date.now() + 20_000)
+            }
+          }
+        );
+        throw new Error("EMPLOYEE_NOT_AVAILABLE");
+      }
 
       const concurrent = await Meeting.countDocuments({
         companyId: session.companyId,
