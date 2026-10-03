@@ -17,6 +17,8 @@ export type InvoiceDocumentData = {
     monthlyMeetingLimit: number;
     maxMeetingDurationMinutes: number;
     maxConcurrentMeetings: number;
+    validityDays?: number;
+    freeFeatureDays?: number | null;
   };
   currentPlanId?: string | null;
   billingPeriodStart?: Date | string | null;
@@ -190,6 +192,8 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentD
                 <span>{invoice.plan.monthlyMeetingLimit} meetings / month</span>
                 <span>{invoice.plan.maxMeetingDurationMinutes} min max</span>
                 <span>{invoice.plan.maxConcurrentMeetings} concurrent</span>
+                <span>{invoice.plan.validityDays ?? 30} days validity</span>
+                {invoice.plan.freeFeatureDays ? <span>{invoice.plan.freeFeatureDays} active feature days</span> : null}
               </div>
               {(invoice.billingPeriodStart || invoice.billingPeriodEnd) && (
                 <p className="mt-4 text-[11px] font-medium text-slate-600">
