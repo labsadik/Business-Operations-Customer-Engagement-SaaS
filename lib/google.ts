@@ -20,9 +20,7 @@ const CALENDAR_SCOPES = [
   "https://www.googleapis.com/auth/calendar.freebusy",
   "https://www.googleapis.com/auth/calendar.events"
 ];
-const MEET_SCOPES = ["https://www.googleapis.com/auth/meetings.space.created"];
-
-export const GOOGLE_FULL_SCOPES = [...new Set([...AUTH_SCOPES, ...CALENDAR_SCOPES, ...MEET_SCOPES])];
+export const GOOGLE_FULL_SCOPES = [...new Set([...AUTH_SCOPES, ...CALENDAR_SCOPES])];
 
 export async function exchangeGoogleCode(code: string, redirectUri: string) {
   const clientId = process.env.GOOGLE_CLIENT_ID;
