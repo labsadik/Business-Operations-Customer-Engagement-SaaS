@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Download, ExternalLink, FileText, ShieldCheck } from "lucide-react";
 
 export type InvoiceDocumentData = {
