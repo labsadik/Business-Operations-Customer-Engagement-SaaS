@@ -67,11 +67,6 @@ export async function POST(request: Request) {
       return jsonError("ANNOUNCEMENT_MESSAGE_INVALID", 400);
     }
 
-    await Announcement.updateMany(
-      { companyId: session.companyId, active: true },
-      { $set: { active: false } }
-    );
-
     const announcement = await Announcement.create({
       companyId: session.companyId,
       title,
@@ -79,6 +74,15 @@ export async function POST(request: Request) {
       active: true,
       createdByUserId: session.userId
     });
+
+    await Announcement.updateMany(
+      {
+        companyId: session.companyId,
+        active: true,
+        _id: { $ne: announcement._id }
+      },
+      { $set: { active: false } }
+    );
 
     return jsonOk({
       id: String(announcement._id),
