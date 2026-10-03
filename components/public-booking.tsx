@@ -183,6 +183,7 @@ export default function PublicBooking({
 
   if (access === "company-member") {
     return (
+      <>
       <section className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm sm:p-8">
         <div className="grid size-12 place-items-center rounded-2xl bg-blue-50 text-blue-700">
           <LayoutDashboard className="size-5" />
@@ -291,6 +292,7 @@ export default function PublicBooking({
         <Link href={`/${companySlug}` as Route} className="mt-5 inline-flex text-sm font-semibold text-blue-700">Start another request</Link>
       </section>
       {outcomeDialog}
+      </>
     );
   }
 
