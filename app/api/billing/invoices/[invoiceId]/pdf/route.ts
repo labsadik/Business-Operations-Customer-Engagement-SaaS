@@ -122,8 +122,8 @@ export async function GET(
     }).lean();
     if (!invoice) return jsonError("INVOICE_NOT_FOUND", 404);
 
-    const legacyMerchant = platformLegalProfile();
-    const legacyTax = calculateInvoiceTax(invoice.amount, invoiceTaxConfig().ratePercent, invoiceTaxConfig().inclusive);
+    const legacyMerchant = await platformLegalProfile();
+    const legacyTax = calculateInvoiceTax(invoice.amount, legacyMerchant.gst.ratePercent, legacyMerchant.gst.inclusive);
     const tax: InvoiceTaxSnapshot = invoice.taxSnapshot
       ? {
           enabled: invoice.taxSnapshot.enabled,
@@ -136,8 +136,8 @@ export async function GET(
 
     const merchant = {
       name: invoice.merchantSnapshot?.name || legacyMerchant.legalName,
-      description: invoice.merchantSnapshot?.description || "Company scheduling infrastructure for customer meetings.",
-      logoUrl: invoice.merchantSnapshot?.logoUrl || platformLogoUrl(),
+      description: invoice.merchantSnapshot?.description || legacyMerchant.description,
+      logoUrl: invoice.merchantSnapshot?.logoUrl || legacyMerchant.logoUrl,
       websiteUrl: invoice.merchantSnapshot?.websiteUrl || legacyMerchant.websiteUrl,
       email: invoice.merchantSnapshot?.email || legacyMerchant.email,
       phone: invoice.merchantSnapshot?.phone || legacyMerchant.phone,
