@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Building2, CheckCircle2, Command, ShieldCheck, UsersRound } from "lucide-react";
 import Link from "next/link";
@@ -150,7 +151,7 @@ export default async function CompanyLoginPage({
             </div>
           )}
 
-          <Link href={loginUrl} className="mt-7 flex w-full items-center justify-center gap-3 rounded-2xl bg-slate-950 px-4 py-3.5 text-sm font-semibold text-white hover:bg-slate-800">
+          <Link href={loginUrl as Route} className="mt-7 flex w-full items-center justify-center gap-3 rounded-2xl bg-slate-950 px-4 py-3.5 text-sm font-semibold text-white hover:bg-slate-800">
             <span className="grid size-6 place-items-center rounded-full bg-white/10 text-xs font-bold">G</span>
             Sign in as employee
           </Link>
