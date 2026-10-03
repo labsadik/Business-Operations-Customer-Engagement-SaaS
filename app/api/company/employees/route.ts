@@ -36,7 +36,6 @@ export async function POST(request: Request) {
     if (!email || !email.includes("@")) return jsonError("INVALID_EMAIL");
 
     const companyMemberCount = await Membership.countDocuments({ companyId: session.companyId, active: true, role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] } });
-    const { Subscription } = await import("@/models/subscription");
     const { getCompanyEntitlements } = await import("@/lib/plans-server");
     const plan = await getCompanyEntitlements(session.companyId!);
     if (companyMemberCount >= plan.maxEmployees) return jsonError("EMPLOYEE_LIMIT_REACHED", 409);
