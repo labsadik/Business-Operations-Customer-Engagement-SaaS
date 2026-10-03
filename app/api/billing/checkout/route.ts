@@ -1,6 +1,7 @@
 import { getMongo } from "@/lib/mongodb";
 import { getSession } from "@/lib/session";
 import { Membership } from "@/models/membership";
+import { User } from "@/models/user";
 import { Subscription } from "@/models/subscription";
 import { Payment } from "@/models/payment";
 import { PLANS, type PlanId } from "@/lib/plans";
@@ -54,12 +55,15 @@ export async function POST(request: Request) {
     status: "PENDING"
   });
 
+  const user = await User.findById(session.userId).select("name email").lean();
+
   return jsonOk({
     orderId: order.id,
     amount: order.amount,
     currency: order.currency,
     keyId: razorpayKeyId(),
     planId: plan.id,
-    planName: plan.name
+    planName: plan.name,
+    customer: user ? { name: user.name, email: user.email } : null
   });
 }
