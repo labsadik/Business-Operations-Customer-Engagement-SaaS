@@ -72,21 +72,17 @@ export async function assertFeatureAccess(companyId: string) {
   const plan = getPlan(subscription.planId) ?? getPlan("free")!;
 
   if (plan.id === "free") {
-    const today = utcDayKey();
-    const usedDays = Array.isArray(subscription.freeUsageDates)
-      ? subscription.freeUsageDates.filter(Boolean)
-      : [];
-
-    if (!usedDays.includes(today) && usedDays.length >= FREE_USAGE_LIMIT_DAYS) {
+    const featureWindowEnd = new Date(subscription.currentPeriodStart);
+    featureWindowEnd.setDate(featureWindowEnd.getDate() + FREE_USAGE_LIMIT_DAYS);
+    if (Date.now() >= featureWindowEnd.getTime()) {
       throw new Error("FREE_FEATURE_DAYS_EXHAUSTED");
     }
 
-    if (!usedDays.includes(today)) {
-      await Subscription.updateOne(
-        { _id: subscription._id, freeUsageDates: { $ne: today } },
-        { $addToSet: { freeUsageDates: today } }
-      );
-    }
+    const today = utcDayKey();
+    await Subscription.updateOne(
+      { _id: subscription._id, freeUsageDates: { $ne: today } },
+      { $addToSet: { freeUsageDates: today } }
+    );
   }
 
   return plan;
