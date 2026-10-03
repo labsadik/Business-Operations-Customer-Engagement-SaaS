@@ -332,9 +332,9 @@ export default function WorkspaceDashboard({
     (item) => item.meeting?.status === "READY" && item.meeting.meetingUri
   ).length;
 
-  const visibleMainMeetings = meetingView === "new"
-    ? requests.slice(0, 5)
-    : meetingHistory.slice(0, 5);
+  const hasVisibleMainMeetings = meetingView === "new"
+    ? requests.length > 0
+    : meetingHistory.length > 0;
   const hasMoreMeetings =
     meetingView === "new" ? requests.length > 5 : meetingHistory.length > 5;
 
@@ -948,7 +948,7 @@ export default function WorkspaceDashboard({
               </div>
             </div>
 
-            {visibleMainMeetings.length === 0 ? (
+            {!hasVisibleMainMeetings ? (
               <div className="px-6 py-16 text-center">
                 <div className="mx-auto grid size-11 place-items-center rounded-2xl bg-slate-100 text-slate-400">
                   <Video className="size-5" />
@@ -964,7 +964,7 @@ export default function WorkspaceDashboard({
               </div>
             ) : meetingView === "new" ? (
               <div className="divide-y divide-slate-100">
-                {visibleMainMeetings.map((item) => {
+                {requests.slice(0, 5).map((item) => {
                   const remaining = Math.max(
                     0,
                     Math.ceil((new Date(item.expiresAt).getTime() - now) / 1000)
@@ -1051,7 +1051,7 @@ export default function WorkspaceDashboard({
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {visibleMainMeetings.map((meeting, index) => {
+                {meetingHistory.slice(0, 5).map((meeting, index) => {
                   const timeZone = data.workspace?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
                   const scheduledBy = meeting.scheduledBy ?? meeting.customer;
                   return (
