@@ -18,9 +18,14 @@ export async function invoiceTaxConfig() {
   };
 }
 
-export function calculateInvoiceTax(totalMinor: number, ratePercent = 18, inclusive = true): InvoiceTaxSnapshot {
+export function calculateInvoiceTax(
+  totalMinor: number,
+  ratePercent = 18,
+  inclusive = true,
+  enabled = true
+): InvoiceTaxSnapshot {
   const safeTotal = Math.max(0, Math.round(totalMinor));
-  if (ratePercent <= 0) {
+  if (!enabled || ratePercent <= 0) {
     return {
       enabled: false,
       ratePercent: 0,
@@ -76,7 +81,8 @@ export async function buildInvoiceSnapshots(input: {
   const taxSnapshot = calculateInvoiceTax(
     input.amount,
     legal.gst.ratePercent,
-    legal.gst.inclusive
+    legal.gst.inclusive,
+    legal.gst.enabled
   );
 
   return {
