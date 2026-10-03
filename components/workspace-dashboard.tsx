@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { io } from "socket.io-client";
 import { CalendarDays, CheckCircle2, Copy, Globe2, LogOut, Plus, RefreshCw, Settings2, ShieldCheck, Trash2, UsersRound, Video, XCircle } from "lucide-react";
 
 type CompanyData = {
@@ -17,6 +18,12 @@ type CompanyData = {
 type Employee = { id: string; name: string; email: string; role: string; googleConnected: boolean; presence: "AVAILABLE" | "BUSY" | "NOT_AVAILABLE" };
 type RequestItem = { id: string; startAt: string; endAt: string; durationMinutes: number; status: string; assignedEmployeeId: string | null; expiresAt: string; customer: { name: string; email: string } | null };
 type Presence = { userId: string; role: string; status: "AVAILABLE" | "BUSY" | "NOT_AVAILABLE"; redisAvailable: boolean };
+type RealtimePresenceEvent = { companyId: string; userId: string; status: Presence["status"]; updatedAt: string };
+
+function getSocketUrl() {
+  if (process.env.NEXT_PUBLIC_SOCKET_URL) return process.env.NEXT_PUBLIC_SOCKET_URL;
+  return window.location.origin;
+}
 
 const INITIAL_NOW = Date.now();
 
@@ -42,6 +49,8 @@ export default function WorkspaceDashboard() {
   const [deletingEmployeeId, setDeletingEmployeeId] = useState("");
   const [actingRequestId, setActingRequestId] = useState("");
   const [now, setNow] = useState(INITIAL_NOW);
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
+  const presenceSocketRef = useRef<ReturnType<typeof io> | null>(null);
 
   async function refresh() {
     try {
@@ -80,17 +89,93 @@ export default function WorkspaceDashboard() {
   }, []);
 
   useEffect(() => {
-    if (!data) return;
-    const id = window.setInterval(async () => {
+    if (!data?.company.id) return;
+
+    let cancelled = false;
+    const socket = presenceSocketRef.current;
+
+    async function connectRealtime() {
       try {
-        const next = await api<Presence>("/api/employee/presence", { method: "POST" });
-        setPresence(next);
+        const token = await api<{ token: string }>("/api/realtime/token");
+        if (cancelled) return;
+
+        const nextSocket = io(getSocketUrl(), {
+          auth: { token: token.token },
+          transports: ["websocket", "polling"],
+          reconnection: true,
+          reconnectionAttempts: Infinity,
+          reconnectionDelay: 500
+        });
+
+        presenceSocketRef.current = nextSocket;
+
+        nextSocket.on("connect", () => {
+          if (cancelled) return;
+          setRealtimeConnected(true);
+          nextSocket.emit("presence:heartbeat", null, (ack: { ok: boolean; data?: { status: Presence["status"]; ttlSeconds: number } }) => {
+            if (!ack.ok || !ack.data) return;
+            setPresence((current) => current ? { ...current, status: ack.data!.status, redisAvailable: true } : current);
+          });
+        });
+
+        nextSocket.on("presence:updated", (event: RealtimePresenceEvent) => {
+          if (event.companyId !== data.company.id) return;
+
+          setEmployees((current) =>
+            current.map((employee) =>
+              employee.id === event.userId ? { ...employee, presence: event.status } : employee
+            )
+          );
+
+          setPresence((current) =>
+            current && current.userId === event.userId
+              ? { ...current, status: event.status, redisAvailable: true }
+              : current
+          );
+        });
+
+        nextSocket.on("disconnect", () => {
+          setRealtimeConnected(false);
+        });
+
+        nextSocket.on("connect_error", () => {
+          setRealtimeConnected(false);
+        });
       } catch {
-        // Presence expires server-side if heartbeat delivery fails.
+        setRealtimeConnected(false);
       }
+    }
+
+    void connectRealtime();
+
+    return () => {
+      cancelled = true;
+      setRealtimeConnected(false);
+      presenceSocketRef.current?.disconnect();
+      presenceSocketRef.current = socket ?? null;
+    };
+  }, [data?.company.id]);
+
+  useEffect(() => {
+    if (!data?.company.id) return;
+
+    const id = window.setInterval(() => {
+      const socket = presenceSocketRef.current;
+      if (socket?.connected) {
+        socket.emit("presence:heartbeat", null, (ack: { ok: boolean; data?: { status: Presence["status"] } }) => {
+          if (!ack.ok || !ack.data) return;
+          setPresence((current) => current ? { ...current, status: ack.data!.status, redisAvailable: true } : current);
+        });
+        return;
+      }
+
+      void api<Presence>("/api/employee/presence", { method: "POST" }).then(setPresence).catch(() => {
+        // REST heartbeat remains the safety fallback when Socket.IO is disconnected.
+      });
     }, 30_000);
+
     return () => window.clearInterval(id);
-  }, [data]);
+  }, [data?.company.id]);
 
   async function createCompany(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -153,6 +238,24 @@ export default function WorkspaceDashboard() {
   }
 
   async function setPresenceStatus(status: Presence["status"]) {
+    setError("");
+    const socket = presenceSocketRef.current;
+
+    if (socket?.connected) {
+      socket.emit(
+        "presence:set",
+        { status },
+        (ack: { ok: boolean; data?: { status: Presence["status"]; ttlSeconds: number }; error?: string }) => {
+          if (!ack.ok || !ack.data) {
+            setError(ack.error || "PRESENCE_UPDATE_FAILED");
+            return;
+          }
+          setPresence((current) => current ? { ...current, status: ack.data!.status, redisAvailable: true } : current);
+        }
+      );
+      return;
+    }
+
     try {
       const next = await api<{ status: Presence["status"]; redisAvailable: boolean }>("/api/employee/presence", {
         method: "PATCH",
@@ -274,7 +377,7 @@ export default function WorkspaceDashboard() {
             </div>
           </section>
 
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex items-center justify-between gap-4"><div><h2 className="text-base font-semibold text-slate-950">Employees</h2><p className="mt-1 text-xs text-slate-500">{employees.length} active members · live presence</p></div><UsersRound className="size-5 text-blue-600" /></div>{presence && <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-semibold text-slate-700">Your status</p><p className="mt-1 text-[11px] text-slate-500">{presence.redisAvailable ? "Synced through Upstash Redis" : "Redis presence is unavailable"}</p></div><select value={presence.status} onChange={(e) => void setPresenceStatus(e.target.value as Presence["status"])} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500"><option value="AVAILABLE">Available</option><option value="BUSY">Busy</option><option value="NOT_AVAILABLE">Not available</option></select></div>}<div className="mt-5 space-y-3">{employees.map((employee) => <div key={employee.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 p-3"><div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-900">{employee.name}</p><p className="truncate text-xs text-slate-500">{employee.email}</p></div><div className="flex shrink-0 items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${employee.presence === "AVAILABLE" ? "bg-emerald-50 text-emerald-700" : employee.presence === "BUSY" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600"}`}>{employee.presence.replaceAll("_", " ")}</span><span className={`hidden rounded-full px-2.5 py-1 text-[11px] font-semibold sm:inline-flex ${employee.googleConnected ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>{employee.googleConnected ? "Google ready" : "Connect Google"}</span>{canManageEmployees && employee.role === "EMPLOYEE" && <button type="button" onClick={() => void removeEmployee(employee)} disabled={deletingEmployeeId === employee.id} className="grid size-8 place-items-center rounded-lg border border-rose-200 bg-white text-rose-600 hover:bg-rose-50 disabled:opacity-50" aria-label={`Remove ${employee.name}`} title={`Remove ${employee.name}`}><Trash2 className="size-3.5" /> </button>}</div></div>)}</div></section>
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex items-center justify-between gap-4"><div><h2 className="text-base font-semibold text-slate-950">Employees</h2><p className="mt-1 text-xs text-slate-500">{employees.length} active members · live presence</p></div><UsersRound className="size-5 text-blue-600" /></div>{presence && <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-semibold text-slate-700">Your status</p><p className="mt-1 text-[11px] text-slate-500">{realtimeConnected ? "Live through Socket.IO · Upstash Redis" : presence.redisAvailable ? "Socket.IO reconnecting · REST fallback active" : "Redis presence is unavailable"}</p></div><select value={presence.status} onChange={(e) => void setPresenceStatus(e.target.value as Presence["status"])} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-blue-500"><option value="AVAILABLE">Available</option><option value="BUSY">Busy</option><option value="NOT_AVAILABLE">Not available</option></select></div>}<div className="mt-5 space-y-3">{employees.map((employee) => <div key={employee.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 p-3"><div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-900">{employee.name}</p><p className="truncate text-xs text-slate-500">{employee.email}</p></div><div className="flex shrink-0 items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${employee.presence === "AVAILABLE" ? "bg-emerald-50 text-emerald-700" : employee.presence === "BUSY" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600"}`}>{employee.presence.replaceAll("_", " ")}</span><span className={`hidden rounded-full px-2.5 py-1 text-[11px] font-semibold sm:inline-flex ${employee.googleConnected ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>{employee.googleConnected ? "Google ready" : "Connect Google"}</span>{canManageEmployees && employee.role === "EMPLOYEE" && <button type="button" onClick={() => void removeEmployee(employee)} disabled={deletingEmployeeId === employee.id} className="grid size-8 place-items-center rounded-lg border border-rose-200 bg-white text-rose-600 hover:bg-rose-50 disabled:opacity-50" aria-label={`Remove ${employee.name}`} title={`Remove ${employee.name}`}><Trash2 className="size-3.5" /> </button>}</div></div>)}</div></section>
 
           {canManageEmployees && (<section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="text-base font-semibold text-slate-950">Invite employee</h2><p className="mt-1 text-xs leading-5 text-slate-500">Generate a secure invite link for the employee.</p><form onSubmit={inviteEmployee} className="mt-4 flex gap-2"><input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="employee@company.com" className="focus-ring min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-500" /><button className="grid size-11 place-items-center rounded-xl bg-slate-950 text-white"><Plus className="size-4" /></button></form>{invite && <div className="mt-4 rounded-2xl bg-slate-50 p-3"><p className="break-all text-xs text-slate-600">{invite}</p><button type="button" onClick={() => void navigator.clipboard.writeText(invite)} className="mt-2 inline-flex items-center gap-2 text-xs font-semibold text-blue-700"><Copy className="size-3.5" /> Copy invite link</button></div>}</section>)}
 
