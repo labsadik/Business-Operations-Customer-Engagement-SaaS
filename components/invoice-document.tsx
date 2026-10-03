@@ -30,6 +30,7 @@ export type InvoiceDocumentData = {
     phone: string;
     taxId: string;
     gstin: string;
+    sacCode: string;
     address: {
       line1: string;
       line2: string;
@@ -138,6 +139,7 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentD
                   {invoice.merchant.websiteUrl && <p>{invoice.merchant.websiteUrl}</p>}
                   {invoice.merchant.gstin && <p>GSTIN: {invoice.merchant.gstin}</p>}
                   {invoice.merchant.taxId && invoice.merchant.taxId !== invoice.merchant.gstin && <p>Tax ID: {invoice.merchant.taxId}</p>}
+                  {invoice.merchant.sacCode && <p>SAC: {invoice.merchant.sacCode}</p>}
                 </div>
               </div>
             </div>
