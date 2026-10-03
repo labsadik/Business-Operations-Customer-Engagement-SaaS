@@ -102,7 +102,7 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentD
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 print:hidden">
         <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
           <FileText className="size-4 text-blue-600" />
-          Tax invoice
+          {invoice.tax.enabled ? "Tax invoice" : "Invoice"}
         </div>
         <div className="flex items-center gap-2">
           <a
@@ -122,6 +122,7 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentD
         <div className="p-7 sm:p-10">
           <header className="flex flex-col gap-7 border-b border-slate-200 pb-7 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex min-w-0 items-start gap-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={invoice.merchant.logoUrl}
                 alt={invoice.merchant.name}
@@ -145,7 +146,7 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentD
             </div>
 
             <div className="min-w-[220px] text-left sm:text-right">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Tax invoice</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">{invoice.tax.enabled ? "Tax invoice" : "Invoice"}</p>
               <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">{invoice.invoiceNumber}</p>
               <div className="mt-4 space-y-1.5 text-[11px] text-slate-500">
                 <p>Issue date <span className="font-semibold text-slate-800">{dateLabel(invoice.issuedAt)}</span></p>
