@@ -28,7 +28,21 @@ async function createOrUpdateAccessInvoice({
   source,
   grantedByUserId
 }: {
-  company: Awaited<ReturnType<typeof Company.findById>> extends infer T ? Exclude<Awaited<T>, null> : never;
+  company: {
+    _id: unknown;
+    name: string;
+    email?: string;
+    phone?: string;
+    address?: {
+      line1?: string;
+      line2?: string;
+      city?: string;
+      state?: string;
+      postalCode?: string;
+      country?: string;
+    };
+    taxId?: string;
+  };
   subscription: {
     _id: unknown;
     currentPeriodStart: Date;
