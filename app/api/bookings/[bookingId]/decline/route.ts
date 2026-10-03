@@ -2,13 +2,15 @@ import { getMongo } from "@/lib/mongodb";
 import { BookingRequest } from "@/models/booking-request";
 import { requireCompanyMember } from "@/lib/authz";
 import { jsonError, jsonOk } from "@/lib/http";
+import { assertSameOrigin } from "@/lib/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(
   _request: Request,
-  { params }: { params: Promise<{ bookingId: string }> }
+  {
+  assertSameOrigin(_request); params }: { params: Promise<{ bookingId: string }> }
 ) {
   let session: { userId: string; companyId?: string };
   try {
