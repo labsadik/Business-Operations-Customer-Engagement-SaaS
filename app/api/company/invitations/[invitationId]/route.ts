@@ -11,10 +11,10 @@ export const dynamic = "force-dynamic";
 
 export async function DELETE(
   _request: Request,
-  {
-  assertSameOrigin(_request); params }: { params: Promise<{ invitationId: string }> }
+  { params }: { params: Promise<{ invitationId: string }> }
 ) {
   try {
+    assertSameOrigin(_request);
     const session = await getSession();
     if (!session) return jsonError("UNAUTHENTICATED", 401);
     if (!session.companyId || !["COMPANY_OWNER", "COMPANY_ADMIN"].includes(session.role)) {
