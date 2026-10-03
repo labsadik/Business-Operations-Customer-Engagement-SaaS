@@ -43,6 +43,18 @@ export async function GET(
 
   if (!companyMatch && !participantMatch) return jsonError("FORBIDDEN", 403);
 
+  if (
+    booking.expiresAt.getTime() <= Date.now() &&
+    ["REQUESTED", "ASSIGNED", "CREATING_MEETING", "RETRYING"].includes(booking.status)
+  ) {
+    await BookingRequest.updateOne(
+      { _id: booking._id, status: booking.status },
+      { $set: { status: "EXPIRED", assignedEmployeeId: null, nextRetryAt: null } }
+    );
+    booking.status = "EXPIRED";
+    booking.assignedEmployeeId = undefined;
+  }
+
   const meeting = await Meeting.findOne({ bookingRequestId: booking._id }).lean();
 
   return jsonOk({
