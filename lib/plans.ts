@@ -43,3 +43,22 @@ export function getPlan(planId: string | null | undefined): PlanEntitlements | n
   if (!planId || !(planId in PLANS)) return null;
   return PLANS[planId as PlanId];
 }
+export const STANDARD_MEETING_DURATIONS_MINUTES = [10, 15, 20, 25, 30, 35] as const;
+
+export function getMeetingDurationOptions(
+  planMaxMinutes: number,
+  configured: number[] = []
+) {
+  const configuredOptions = configured
+    .filter((minutes) => Number.isInteger(minutes) && minutes >= 10 && minutes <= planMaxMinutes)
+    .sort((a, b) => a - b);
+
+  // Older workspaces were created with only [20]. Treat that as the legacy
+  // default and expose the plan-supported standard durations.
+  const legacyDefault = configuredOptions.length === 1 && configuredOptions[0] === 20;
+  const source = legacyDefault
+    ? STANDARD_MEETING_DURATIONS_MINUTES
+    : configuredOptions;
+
+  return source.filter((minutes) => minutes <= planMaxMinutes);
+}
