@@ -41,6 +41,7 @@ export async function POST(request: Request) {
   const remotePayment = await fetchRazorpayPayment(paymentId);
   if (remotePayment.order_id !== orderId) return jsonError("PAYMENT_ORDER_MISMATCH", 400);
   if (remotePayment.amount !== payment.amount) return jsonError("PAYMENT_AMOUNT_MISMATCH", 400);
+  if (remotePayment.currency !== payment.currency) return jsonError("PAYMENT_CURRENCY_MISMATCH", 400);
   if (remotePayment.status !== "captured") return jsonError("PAYMENT_NOT_CAPTURED", 409);
 
   payment.providerPaymentId = paymentId;
