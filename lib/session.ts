@@ -123,29 +123,27 @@ export async function getSession(): Promise<AuthSession | null> {
       );
     }
 
-    if (session.role !== "PLATFORM_ADMIN" || session.companyId || session.workspaceId) {
-      await Session.updateOne(
-        { _id: session._id },
-        {
-          $set: {
-            role: "PLATFORM_ADMIN",
-            lastSeenAt: new Date()
-          },
-          $unset: {
-            companyId: 1,
-            workspaceId: 1
-          }
+    await Session.updateOne(
+      { _id: session._id },
+      {
+        $set: {
+          role: "PLATFORM_ADMIN",
+          lastSeenAt: new Date()
+        },
+        $unset: {
+          companyId: 1,
+          workspaceId: 1
         }
-      );
+      }
+    );
 
-      return {
-        userId: String(user._id),
-        role: "PLATFORM_ADMIN",
-        email: String(user.email),
-        name: String(user.name),
-        image: user.image ?? undefined
-      };
-    }
+    return {
+      userId: String(user._id),
+      role: "PLATFORM_ADMIN",
+      email: String(user.email),
+      name: String(user.name),
+      image: user.image ?? undefined
+    };
   }
 
   if (session.role === "PLATFORM_ADMIN" && user.role !== "PLATFORM_ADMIN") {
