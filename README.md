@@ -15,8 +15,11 @@ Conventus is a multi-tenant scheduling SaaS for companies that want customers to
 
 | Plan | Price | Employees | Meetings / month | Max duration | Concurrent meetings |
 | --- | ---: | ---: | ---: | ---: | ---: |
+| Free | Free | 1 | 10 | 5 min | 1 |
 | Starter | ₹99/month | 10 | 100 | 20 min | 10 |
-| Business | ₹199/month | 30 | 350 | 35 min | 30 |
+| Elite | ₹399/month | 50 | 850 | 60 min | 25 |
+| Pro | ₹799/month | 100 | 1,500 | 90 min | 50 |
+| Plus | ₹1,499/month | 250 | 3,000 | 120 min | 100 |
 
 ## Architecture principles
 
@@ -66,7 +69,7 @@ Queue tuning, Redis upgrade when required, database scaling, caching, load testi
 
 ## Billing with Razorpay
 
-Conventus connects the existing Starter (₹99/month) and Business (₹199/month) plan entitlements to Razorpay Checkout. The server creates the Razorpay order from the trusted plan definition, validates the returned signature, confirms the payment is captured, and then activates the paid plan for one month. Razorpay webhook events are also accepted at `/api/webhooks/razorpay` for server-side reconciliation. Razorpay recommends server-side order creation, signature validation, payment-status verification, and HMAC validation for webhooks. citeturn731333search0turn318613search5
+Conventus connects the Free, Starter, Elite, Pro, and Plus plan entitlements to Razorpay Checkout. Paid plans add the GST rate configured in MongoDB to the trusted base plan price before the Razorpay order is created. The server creates the Razorpay order from the trusted plan definition, validates the returned signature, confirms the payment is captured, and then activates the paid plan for one month. Razorpay webhook events are also accepted at `/api/webhooks/razorpay` for server-side reconciliation. Razorpay recommends server-side order creation, signature validation, payment-status verification, and HMAC validation for webhooks. citeturn731333search0turn318613search5
 
 Required environment variables:
 
@@ -78,7 +81,7 @@ RAZORPAY_WEBHOOK_SECRET=
 
 Platform legal/tax details are stored in the MongoDB `PlatformSettings` singleton and managed from `/admin/platform-settings`. New invoices snapshot the legal merchant identity and GST treatment at capture time; completed invoice snapshots are not silently rewritten later.
 
-The runtime environment only contains service/application credentials. The platform legal name, website, billing email, phone, logo setting, tax ID, GSTIN, SAC code, registered address, and GST treatment are database data.
+The runtime environment only contains service/application credentials. The platform legal name, website, billing email, phone, tax ID, GSTIN, SAC code, registered address, and GST treatment are database data. The Conventus brand mark is bundled locally as /favicon.svg and is used by the favicon, landing page, admin console, public scheduling shell, dashboard billing UI, and invoices/PDFs.
  
 For local development use Razorpay Test Mode credentials. For production/Vercel, configure the Live Mode credentials in the Vercel environment settings and configure the Razorpay webhook URL as:
 
