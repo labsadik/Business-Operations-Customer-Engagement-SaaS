@@ -28,13 +28,13 @@ export default function AdminOverview({
     activeMeetings: number;
     totalPayments: number;
     totalRevenue: number;
-    planMix: { starter: number; business: number };
+    planMix: Record<string, number>;
   };
 }) {
   const cards = [
     { label: "Total companies", value: data.totalCompanies, icon: Building2, detail: `${data.paidCompanies} companies have captured payments` },
     { label: "Total revenue", value: money(data.totalRevenue), icon: BadgeIndianRupee, detail: `${data.totalPayments} captured payments` },
-    { label: "Active subscriptions", value: data.activeSubscriptions, icon: CreditCard, detail: `${data.planMix.starter} Starter · ${data.planMix.business} Business` },
+    { label: "Active subscriptions", value: data.activeSubscriptions, icon: CreditCard, detail: `${data.planMix.free ?? 0} Free · ${data.planMix.starter ?? 0} Starter · ${data.planMix.elite ?? 0} Elite · ${data.planMix.pro ?? 0} Pro · ${data.planMix.plus ?? 0} Plus` },
     { label: "Meeting users", value: data.totalMeetingUsers, icon: UsersRound, detail: "Unique public customers who submitted booking requests" },
     { label: "Meetings happened", value: data.completedMeetings, icon: CalendarCheck2, detail: `${data.totalMeetings} total meetings recorded` },
     { label: "Live / active meetings", value: data.activeMeetings, icon: Activity, detail: `${data.activeCompanies} public booking pages live` }
@@ -120,8 +120,11 @@ export default function AdminOverview({
           </div>
           <div className="mt-6 space-y-4">
             {[
-              ["Starter", data.planMix.starter],
-              ["Business", data.planMix.business]
+              ["Free", data.planMix.free ?? 0],
+              ["Starter", data.planMix.starter ?? 0],
+              ["Elite", data.planMix.elite ?? 0],
+              ["Pro", data.planMix.pro ?? 0],
+              ["Plus", data.planMix.plus ?? 0]
             ].map(([label, value]) => (
               <div key={label}>
                 <div className="flex items-center justify-between text-xs">
