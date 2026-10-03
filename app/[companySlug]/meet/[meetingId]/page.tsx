@@ -110,7 +110,7 @@ export default async function CompanyMeetingPage({ params }: { params: Promise<{
                 {googleMeetCode && <p className="mt-2 font-mono text-sm text-white/70">Google Meet code: {googleMeetCode}</p>}
                 <h2 className="mt-3 text-3xl font-semibold tracking-tight">Your Google Meet is ready.</h2>
                 <p className="mt-4 text-sm leading-6 text-white/55">
-                  The event is saved to the employee's Google Calendar and the customer has been invited. Open Google Meet to join the live meeting surface.
+                  The event is saved to the employee&apos;s Google Calendar and the customer has been invited. Open Google Meet to join the live meeting surface.
                 </p>
                 <a
                   href={meetingUri}
