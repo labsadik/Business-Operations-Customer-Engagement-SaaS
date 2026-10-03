@@ -96,7 +96,7 @@ export async function activatePaidPlan(paymentId: string) {
             amount: payment.amount,
             currency: payment.currency,
             issuedAt: invoiceDate,
-            ...buildInvoiceSnapshots({
+            ...(await buildInvoiceSnapshots({
               company: {
                 name: company.name,
                 email: companyEmail,
@@ -106,7 +106,7 @@ export async function activatePaidPlan(paymentId: string) {
               },
               plan,
               amount: payment.amount
-            })
+            }))
           }
         },
         { upsert: true, new: true, session: tx }
