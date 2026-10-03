@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export async function POST(
   _request: Request,
   {
-  assertSameOrigin(request); params }: { params: Promise<{ invitationId: string }> }
+  assertSameOrigin(_request); params }: { params: Promise<{ invitationId: string }> }
 ) {
   try {
     const session = await getSession();
