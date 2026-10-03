@@ -41,14 +41,15 @@ export async function PATCH(request: Request) {
     const body = await request.json().catch(() => null);
 
     if (!body || typeof body !== "object") return jsonError("INVALID_SETTINGS", 400);
+    const input = body as Record<string, unknown>;
 
-    const gst = body.gst && typeof body.gst === "object" ? body.gst as Record<string, unknown> : {};
+    const gst = input.gst && typeof input.gst === "object" ? input.gst as Record<string, unknown> : {};
     const rate = Number(gst.ratePercent ?? 18);
     if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
       return jsonError("INVALID_GST_RATE", 400);
     }
 
-    const billingEmail = clean(body.billingEmail, 254).toLowerCase();
+    const billingEmail = clean(input.billingEmail, 254).toLowerCase();
     if (billingEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(billingEmail)) {
       return jsonError("INVALID_BILLING_EMAIL", 400);
     }
