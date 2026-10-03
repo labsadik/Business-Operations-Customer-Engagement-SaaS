@@ -57,7 +57,6 @@ export async function GET(
 
   const meeting = await Meeting.findOne({ bookingRequestId: booking._id }).lean();
 
-  const meetingReady = meeting?.status === "READY";
 
   return jsonOk({
     booking: {
