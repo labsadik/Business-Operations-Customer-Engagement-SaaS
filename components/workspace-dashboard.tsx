@@ -60,6 +60,7 @@ export default function WorkspaceDashboard() {
   const [invite, setInvite] = useState("");
   const [deletingEmployeeId, setDeletingEmployeeId] = useState("");
   const [actingRequestId, setActingRequestId] = useState("");
+  const [endingRequestId, setEndingRequestId] = useState("");
   const [now, setNow] = useState(INITIAL_NOW);
 
   async function refresh() {
@@ -156,6 +157,21 @@ export default function WorkspaceDashboard() {
     }
   }
 
+  async function endMeeting(id: string) {
+    if (!window.confirm("End this meeting now? The Conventus meeting flow will close and this booking cannot be joined or reused again.")) return;
+    setEndingRequestId(id);
+    setError("");
+    try {
+      await api(`/api/bookings/${id}/end`, { method: "POST" });
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "MEETING_END_FAILED");
+      await refresh();
+    } finally {
+      setEndingRequestId("");
+    }
+  }
+
   async function act(id: string, action: "accept" | "decline") {
     setActingRequestId(id);
     setError("");
@@ -192,7 +208,11 @@ export default function WorkspaceDashboard() {
             ? "An active invitation already exists for this email."
             : error === "EMPLOYEE_HAS_ACTIVE_MEETING_CREATION"
               ? "This employee is currently creating a meeting. Remove them after that operation finishes."
-              : error.replaceAll("_", " ")}
+              : error === "MEETING_ALREADY_ENDED"
+                ? "This meeting has already ended and cannot be joined or reused."
+                : error === "MEETING_NOT_READY"
+                  ? "This meeting is not ready to be ended."
+                  : error.replaceAll("_", " ")}
       </div>}
       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end"><div><p className="text-sm font-semibold text-blue-600">Company workspace</p><h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{data.company.name}</h1><p className="mt-2 text-sm text-slate-500">/{data.company.slug} · {data.workspace?.timezone}</p></div><button onClick={() => void refresh()} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700"><RefreshCw className="size-4" /> Refresh</button></div>
 
@@ -240,12 +260,23 @@ export default function WorkspaceDashboard() {
                   </div>
                                     <div className="flex flex-wrap gap-2">
                     {ready && item.meeting?.joinToken && (
-                      <Link
-                        href={`/${data!.company.slug}/meet/${item.meeting.joinToken}`}
-                        className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700"
-                      >
-                        <Video className="size-4" /> Join meeting
-                      </Link>
+                      <>
+                        <Link
+                          href={`/${data!.company.slug}/meet/${item.meeting.joinToken}`}
+                          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                        >
+                          <Video className="size-4" /> Join meeting
+                        </Link>
+                        <button
+                          type="button"
+                          disabled={endingRequestId === item.id}
+                          onClick={() => void endMeeting(item.id)}
+                          className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <XCircle className="size-4" />
+                          {endingRequestId === item.id ? "Ending..." : "End meeting"}
+                        </button>
+                      </>
                     )}
                     {actionable && (
                       <>
