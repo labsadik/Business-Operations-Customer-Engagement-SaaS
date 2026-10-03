@@ -76,7 +76,7 @@ export async function platformLegalProfile(): Promise<PlatformLegalProfile> {
     websiteUrl: settings.websiteUrl?.trim() || process.env.NEXT_PUBLIC_APP_URL?.trim() || "",
     email: emailValue(settings.billingEmail?.trim() || ""),
     phone: settings.phone?.trim() || "",
-    logoUrl: settings.logoUrl?.trim() || defaultLogoUrl(),
+    logoUrl: defaultLogoUrl(),
     taxId: settings.taxId?.trim() || "",
     gstin: settings.gstin?.trim() || settings.taxId?.trim() || "",
     sacCode: settings.sacCode?.trim() || "",
