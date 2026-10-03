@@ -24,7 +24,7 @@ export async function POST(
     return jsonError("CSRF_ORIGIN_INVALID", 403);
   }
 
-  let session: { userId: string; companyId?: string };
+  let session: { userId: string; companyId?: string; role: string };
   try {
     const result = await requireCompanyMember(["EMPLOYEE", "COMPANY_OWNER", "COMPANY_ADMIN"]);
     session = result.session;
