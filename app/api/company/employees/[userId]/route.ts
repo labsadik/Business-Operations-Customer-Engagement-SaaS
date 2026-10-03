@@ -1,4 +1,5 @@
 import { jsonError, jsonOk } from "@/lib/http";
+import { assertSameOrigin } from "@/lib/security";
 import { requireCompanyMember } from "@/lib/authz";
 import { getMongo } from "@/lib/mongodb";
 import { Membership } from "@/models/membership";
@@ -17,7 +18,8 @@ export const dynamic = "force-dynamic";
 
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ userId: string }> }
+  {
+  assertSameOrigin(request); params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const { session } = await requireCompanyMember(["COMPANY_OWNER", "COMPANY_ADMIN"]);
