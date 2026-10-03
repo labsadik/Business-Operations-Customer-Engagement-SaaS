@@ -12,7 +12,8 @@ type CompanyData = {
 };
 
 type Employee = { id: string; name: string; email: string; role: string; googleConnected: boolean; presence: "AVAILABLE" | "BUSY" | "NOT_AVAILABLE" };
-type RequestItem = { id: string; startAt: string; endAt: string; durationMinutes: number; status: string; expiresAt: string; customer: { name: string; email: string } | null };\ntype Presence = { userId: string; role: string; status: "AVAILABLE" | "BUSY" | "NOT_AVAILABLE"; redisAvailable: boolean };
+type RequestItem = { id: string; startAt: string; endAt: string; durationMinutes: number; status: string; expiresAt: string; customer: { name: string; email: string } | null };
+type Presence = { userId: string; role: string; status: "AVAILABLE" | "BUSY" | "NOT_AVAILABLE"; redisAvailable: boolean };
 
 async function api<T>(url: string, init?: RequestInit) {
   const response = await fetch(url, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) }, cache: "no-store" });
@@ -31,7 +32,8 @@ export default function WorkspaceDashboard() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [email, setEmail] = useState("");
-  const [invite, setInvite] = useState("");\n  const [presence, setPresence] = useState<Presence | null>(null);
+  const [invite, setInvite] = useState("");
+  const [presence, setPresence] = useState<Presence | null>(null);
 
   async function refresh() {
     try {
@@ -95,7 +97,17 @@ export default function WorkspaceDashboard() {
     }
   }
 
-  async function setPresenceStatus(status: Presence["status"]) {\n    try {\n      const next = await api<Omit<Presence, "userId" | "role">>("/api/employee/presence", { method: "PATCH", body: JSON.stringify({ status }) });\n      setPresence((current) => current ? { ...current, ...next } : current);\n      await refresh();\n    } catch (err) {\n      setError(err instanceof Error ? err.message : "PRESENCE_UPDATE_FAILED");\n    }\n  }\n\n  async function act(id: string, action: "accept" | "decline") {
+  async function setPresenceStatus(status: Presence["status"]) {
+    try {
+      const next = await api<Omit<Presence, "userId" | "role">>("/api/employee/presence", { method: "PATCH", body: JSON.stringify({ status }) });
+      setPresence((current) => current ? { ...current, ...next } : current);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "PRESENCE_UPDATE_FAILED");
+    }
+  }
+
+  async function act(id: string, action: "accept" | "decline") {
     try {
       await api(`/api/bookings/${id}/${action}`, { method: "POST" });
       await refresh();
