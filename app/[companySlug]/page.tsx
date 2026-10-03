@@ -29,7 +29,7 @@ export default async function CompanyPublicPage({
 
   const session = await getSession();
 
-  const [meetingTypes, workspace, plan] = await Promise.all([
+  const [meetingTypes, workspace, plan, announcement] = await Promise.all([
     MeetingType.find({
       companyId: company._id,
       active: true
@@ -38,7 +38,11 @@ export default async function CompanyPublicPage({
       companyId: company._id,
       active: true
     }).select("timezone").lean(),
-    getCompanyEntitlements(String(company._id))
+    getCompanyEntitlements(String(company._id)),
+    Announcement.findOne({
+      companyId: company._id,
+      active: true
+    }).sort({ createdAt: -1 }).select("title message createdAt").lean()
   ]);
 
   const types = meetingTypes.map((type) => ({
