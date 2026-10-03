@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import type { Route } from "next";
 import { Command, LogIn, LogOut, X } from "lucide-react";
 import UserAvatar from "@/components/user-avatar";
 
@@ -24,7 +25,7 @@ export default function PublicBookingHeader({
     <>
       <header className="sticky top-0 z-40 border-b border-slate-200/90 bg-white/90 backdrop-blur-xl">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
-          <Link href={"/" + companySlug} className="flex min-w-0 items-center gap-3">
+          <Link href={("/" + companySlug) as Route} className="flex min-w-0 items-center gap-3">
             <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-slate-950 text-white shadow-sm">
               <Command className="size-4" />
             </span>
