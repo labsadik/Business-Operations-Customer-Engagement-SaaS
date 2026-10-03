@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import {
   ArrowLeft,
+  ArrowUpRight,
   Building2,
   CalendarClock,
   CheckCircle2,
