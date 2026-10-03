@@ -8,7 +8,10 @@ import { Meeting } from "@/models/meeting";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const requestedLimit = Number(searchParams.get("limit") ?? "100");
+  const limit = Number.isFinite(requestedLimit) ? Math.min(100, Math.max(1, Math.floor(requestedLimit))) : 100;
   let session: { userId: string; companyId?: string; role: string };
   try {
     const result = await requireCompanyMember(["EMPLOYEE", "COMPANY_OWNER", "COMPANY_ADMIN"]);
@@ -41,7 +44,7 @@ export async function GET() {
         ...(roleAllowsAllActive ? {} : { assignedEmployeeId: session.userId })
       }
     ]
-  }).sort({ requestedStartAt: 1 }).limit(100).lean();
+  }).sort({ requestedStartAt: 1 }).limit(limit).lean();
 
   const customers = await User.find({ _id: { $in: bookings.map((b) => b.customerId) } }).select("name email image").lean();
   const meetings = await Meeting.find({
