@@ -7,7 +7,6 @@ import {
   ArrowUpRight,
   CalendarDays,
   CheckCircle2,
-  CreditCard,
   ChevronRight,
   Copy,
   Globe2,
