@@ -158,13 +158,14 @@ export default async function BillingResultPage({
                       </p>
                     </div>
                   </div>
-                  <Link
+                  <a
                     href={invoiceData.pdfHref}
+                    download
                     className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-semibold text-white hover:bg-slate-800"
                   >
                     <Download className="size-3.5" />
                     Download invoice PDF
-                  </Link>
+                  </a>
                 </div>
               </div>
 
