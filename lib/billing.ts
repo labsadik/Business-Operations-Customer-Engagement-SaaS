@@ -12,10 +12,13 @@ export async function activatePaidPlan(paymentId: string) {
   const plan = PLANS[payment.planId as PlanId];
   if (!plan) throw new Error("PLAN_NOT_FOUND");
 
-  if (payment.status !== "CAPTURED") {
+  const firstCapture = payment.status !== "CAPTURED";
+  if (firstCapture) {
     payment.status = "CAPTURED";
     payment.paidAt = payment.paidAt ?? new Date();
     await payment.save();
+  } else {
+    return;
   }
 
   const now = new Date();
