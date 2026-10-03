@@ -24,7 +24,7 @@ type RequestItem = {
   assignedEmployeeId: string | null;
   expiresAt: string;
   customer: { name: string; email: string } | null;
-  meeting: { status: string; meetingUri: string | null; joinToken: string | null } | null;
+  meeting: { status: string; meetingUri: string | null } | null;
 };
 
 type MeetingHistoryItem = {
@@ -276,7 +276,7 @@ export default function WorkspaceDashboard() {
                 const remaining = Math.max(0, Math.ceil((new Date(item.expiresAt).getTime() - now) / 1000));
                 const actionable = item.status === "REQUESTED" || item.status === "RETRYING";
                 const creating = item.status === "ASSIGNED" || item.status === "CREATING_MEETING";
-                const ready = item.meeting?.status === "READY" && Boolean(item.meeting.joinToken);
+                const ready = item.meeting?.status === "READY" && Boolean(item.meeting.meetingUri);
                 const scheduled = item.status === "CONFIRMED" || item.status === "IN_PROGRESS";
                 const urgent = remaining <= 60;
                 const pendingTimer = !ready && !scheduled;
@@ -306,14 +306,16 @@ export default function WorkspaceDashboard() {
                         )}
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {ready && item.meeting?.joinToken && (
+                        {ready && item.meeting?.meetingUri && (
                           <>
                             <Link
-                              href={`/${data!.company.slug}/meet/${item.meeting.joinToken}`}
+                              href={item.meeting.meetingUri}
+                              target="_blank"
+                              rel="noopener noreferrer"
                               className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700"
                             >
-                              <Video className="size-4" /> Join meeting
-                            </Link>
+                              <Video className="size-4" /> Join Google Meet
+                            </a>
                             <button
                               type="button"
                               disabled={endingRequestId === item.id}
