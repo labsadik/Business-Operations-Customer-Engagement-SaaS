@@ -352,7 +352,7 @@ export default function PublicBooking({
   if (access === "anonymous") {
     return (
       <section className="mx-auto max-w-lg rounded-[2rem] border border-white/10 bg-white p-7 shadow-2xl sm:p-9">
-        <div className="grid size-12 place-items-center rounded-2xl bg-slate-950 text-white">
+        <div className="grid size-12 place-items-center rounded-2xl bg-white text-slate-950">
           <LogIn className="size-5" />
         </div>
         <p className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
@@ -367,7 +367,7 @@ export default function PublicBooking({
         <button
           type="button"
           onClick={() => window.open(loginUrl, "_self")}
-          className="mt-7 flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white hover:bg-slate-800"
+          className="mt-7 flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3.5 text-sm font-semibold text-white hover:bg-blue-700"
         >
           <span className="grid size-6 place-items-center rounded-full bg-white/10 text-xs font-bold">
             G
@@ -850,7 +850,7 @@ export default function PublicBooking({
                 <button
                   type="button"
                   onClick={resetRequest}
-                  className="w-full rounded-2xl bg-slate-950 px-5 py-3.5 text-sm font-semibold text-white hover:bg-slate-800"
+                  className="w-full rounded-2xl bg-blue-600 px-5 py-3.5 text-sm font-semibold text-white hover:bg-blue-700"
                 >
                   Choose another time
                 </button>
