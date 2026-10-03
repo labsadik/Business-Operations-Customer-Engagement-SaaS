@@ -11,6 +11,7 @@ import { Membership } from "@/models/membership";
 import { Workspace } from "@/models/workspace";
 import { Invitation } from "@/models/invitation";
 import { AvailabilityRule } from "@/models/availability-rule";
+import { clearGoogleAccessTokenCache } from "@/lib/google-calendar";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -213,6 +214,10 @@ export async function GET(request: Request) {
         { userId: current.userId },
         { $set: { googleConnectionStatus: "CONNECTED" } }
       );
+
+      // A reconnect may have replaced the refresh token/scopes while Redis still
+      // contains an access token from the previous Google authorization.
+      await clearGoogleAccessTokenCache(current.userId);
 
       const response = NextResponse.redirect(new URL(returnTo, request.url));
       response.cookies.delete("conventus_oauth_state");
