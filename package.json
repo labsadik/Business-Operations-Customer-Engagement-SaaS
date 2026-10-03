@@ -10,8 +10,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm run lint && npm run build",
-    "socket": "node server.mjs",
-    "dev:realtime": "concurrently \"npm run dev\" \"npm run socket\""
+    "socket": "node server.mjs"
   },
   "dependencies": {
     "lucide-react": "1.51.0",
