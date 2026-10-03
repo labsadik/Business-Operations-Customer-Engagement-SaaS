@@ -1,7 +1,7 @@
 'use client';
 
 import Script from "next/script";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ExternalLink, Loader2, Video } from "lucide-react";
 
 declare global {
@@ -20,7 +20,7 @@ export default function GoogleMeetEmbed({ meetingCode, meetingUri }: { meetingCo
   const initializedRef = useRef(false);
   const [error, setError] = useState("");
 
-  function init() {
+  const init = useCallback(() => {
     if (initializedRef.current || !containerRef.current || !meetingCode) return;
     const MeetApp = window.MeetApp;
     if (!MeetApp) {
