@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import ConfirmDialog from "@/components/confirm-dialog";
 import UserAvatar from "@/components/user-avatar";
+import MeetingResponseCountdown from "@/components/meeting-response-countdown";
 import RazorpayPlanButton from "@/components/razorpay-plan-button";
 import { playMeetingSound, unlockMeetingSound } from "@/lib/client-meeting-sound";
 import { PLANS, type PlanId } from "@/lib/plans";
@@ -150,8 +151,6 @@ type Confirmation =
   | { kind: "delete-announcement"; id: string; title: string }
   | { kind: "end-meeting"; id: string }
   | null;
-
-const INITIAL_NOW = Date.now();
 
 async function api<T>(url: string, init?: RequestInit) {
   const response = await fetch(url, {
@@ -310,7 +309,6 @@ export default function WorkspaceDashboard({
   const [actingRequestId, setActingRequestId] = useState("");
   const [endingRequestId, setEndingRequestId] = useState("");
   const [deletingEmployeeId, setDeletingEmployeeId] = useState("");
-  const [now, setNow] = useState(INITIAL_NOW);
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const refreshingRef = useRef(false);
@@ -478,10 +476,6 @@ export default function WorkspaceDashboard({
     };
   }, []);
 
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
 
   async function createCompany(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -966,15 +960,10 @@ export default function WorkspaceDashboard({
             ) : meetingView === "new" ? (
               <div className="divide-y divide-slate-100">
                 {requests.slice(0, 5).map((item) => {
-                  const remaining = Math.max(
-                    0,
-                    Math.ceil((new Date(item.expiresAt).getTime() - now) / 1000)
-                  );
                   const actionable = item.status === "REQUESTED" || item.status === "RETRYING";
                   const creating = item.status === "ASSIGNED" || item.status === "CREATING_MEETING";
                   const ready = item.meeting?.status === "READY" && Boolean(item.meeting.meetingUri);
                   const scheduled = item.status === "CONFIRMED" || item.status === "IN_PROGRESS";
-                  const urgent = remaining <= 60;
 
                   return (
                     <div key={item.id} className="px-6 py-5">
@@ -1003,22 +992,16 @@ export default function WorkspaceDashboard({
                             </p>
                             {item.customer?.email && <p className="mt-1 truncate text-[11px] text-slate-400">{item.customer.email}</p>}
                             {!ready && !scheduled && (
-                              <div className="mt-3 flex max-w-sm items-center gap-3">
-                                <span className={`rounded-lg border px-2.5 py-1.5 font-mono text-xs font-bold ${urgent ? "border-rose-200 bg-rose-50 text-rose-700" : "border-slate-200 bg-slate-50 text-slate-800"}`}>
-                                  {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
-                                </span>
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-[11px] font-medium text-slate-500">
-                                    {creating ? "Preparing the meeting" : item.status === "RETRYING" ? "Finding the next available team member" : "Response window"}
-                                  </p>
-                                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                                    <div
-                                      className={`h-full ${urgent ? "bg-rose-500" : "bg-blue-600"}`}
-                                      style={{ width: `${Math.min(100, Math.max(0, (remaining / 300) * 100))}%` }}
-                                    />
-                                  </div>
-                                </div>
-                              </div>
+                              <MeetingResponseCountdown
+                                expiresAt={item.expiresAt}
+                                label={
+                                  creating
+                                    ? "Preparing the meeting"
+                                    : item.status === "RETRYING"
+                                      ? "Finding the next available team member"
+                                      : "Response window"
+                                }
+                              />
                             )}
                           </div>
                         </div>
