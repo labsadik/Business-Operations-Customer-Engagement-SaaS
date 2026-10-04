@@ -1,11 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import NavigationProgress from "@/components/navigation-progress";
-import { getPublicOrigin } from "@/lib/public-origin";
+import { getConfiguredPublicOrigin } from "@/lib/public-origin";
 import "./globals.css";
 
-const configuredPublicOrigin = process.env.NEXT_PUBLIC_APP_URL?.trim();
-const publicOrigin = configuredPublicOrigin ? getPublicOrigin() : undefined;
+const publicOrigin = getConfiguredPublicOrigin() ?? undefined;
 
 export const metadata: Metadata = {
   title: {
