@@ -133,6 +133,7 @@ export default function NavigationProgress() {
       />
       <span
         data-conventus-nav-status
+        role="status"
         className="sr-only"
         aria-live="polite"
         aria-atomic="true"
