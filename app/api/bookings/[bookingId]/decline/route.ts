@@ -165,7 +165,7 @@ export async function POST(
       }).lean();
 
       if (
-        current?.declinedBy?.some((id) => String(id) === session.userId) &&
+        current?.declinedBy?.some((id: unknown) => String(id) === session.userId) &&
         ["REQUESTED", "RETRYING"].includes(current.status) &&
         current.expiresAt.getTime() > Date.now()
       ) {
