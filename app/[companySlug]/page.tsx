@@ -36,15 +36,21 @@ export default async function CompanyPublicPage({
 
   const session = await getSession();
 
-  const [meetingTypes, workspace, plan, announcement] = await Promise.all([
+  const workspace = await Workspace.findOne({
+    companyId: company._id,
+    active: true
+  })
+    .select("_id timezone")
+    .lean();
+
+  if (!workspace) notFound();
+
+  const [meetingTypes, plan, announcement] = await Promise.all([
     MeetingType.find({
       companyId: company._id,
+      workspaceId: workspace._id,
       active: true
     }).lean(),
-    Workspace.findOne({
-      companyId: company._id,
-      active: true
-    }).select("timezone").lean(),
     getCompanyEntitlements(String(company._id)),
     Announcement.findOne({
       companyId: company._id,
