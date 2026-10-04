@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { getMongo } from "@/lib/mongodb";
 import { BookingRequest } from "@/models/booking-request";
+import { withRedisLock } from "@/lib/redis-lock";
+import { createMeetingForBooking } from "@/lib/meeting-service";
+import { recordBookingActivity, releaseMeetingUsage } from "@/lib/booking-history";
+import { bookingErrorCode } from "@/lib/booking-errors";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,25 +16,158 @@ function authorized(request: Request) {
 }
 
 export async function GET(request: Request) {
-  if (!authorized(request)) return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
+  if (!authorized(request)) {
+    return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
+  }
 
   await getMongo();
   const now = new Date();
 
-  const expired = await BookingRequest.updateMany(
-    { status: { $in: ["REQUESTED", "RETRYING"] }, expiresAt: { $lte: now } },
-    { $set: { status: "EXPIRED", assignedEmployeeId: null } }
-  );
+  const expiring = await BookingRequest.find({
+    status: { $in: ["REQUESTED", "RETRYING", "ASSIGNED", "CREATING_MEETING"] },
+    expiresAt: { $lte: now }
+  })
+    .select("_id companyId status expiresAt assignedEmployeeId")
+    .sort({ expiresAt: 1 })
+    .limit(100)
+    .lean();
 
-  const retry = await BookingRequest.updateMany(
-    { status: "RETRYING", expiresAt: { $gt: now }, nextRetryAt: { $lte: now } },
-    { $set: { status: "REQUESTED", nextRetryAt: null, assignedEmployeeId: null } }
-  );
+  let expired = 0;
+  for (const item of expiring) {
+    try {
+      await withRedisLock(
+        `booking:sweep:expire:${String(item.companyId)}:${String(item._id)}`,
+        10_000,
+        async () => {
+          const current = await BookingRequest.findOneAndUpdate(
+            {
+              _id: item._id,
+              companyId: item.companyId,
+              status: { $in: ["REQUESTED", "RETRYING", "ASSIGNED", "CREATING_MEETING"] },
+              expiresAt: { $lte: new Date() }
+            },
+            {
+              $set: {
+                status: "EXPIRED",
+                assignedEmployeeId: null,
+                nextRetryAt: null
+              }
+            },
+            { new: true }
+          );
+
+          if (!current) return;
+
+          await releaseMeetingUsage({
+            bookingId: String(item._id),
+            companyId: String(item.companyId)
+          });
+
+          await recordBookingActivity({
+            companyId: String(item.companyId),
+            bookingRequestId: String(item._id),
+            eventType: "REQUEST_EXPIRED",
+            fromStatus: item.status,
+            toStatus: "EXPIRED",
+            outcome: "EXPIRED",
+            actorRole: "SYSTEM",
+            employeeId: item.assignedEmployeeId ? String(item.assignedEmployeeId) : null
+          });
+
+          expired += 1;
+        }
+      );
+    } catch (error) {
+      console.warn("[Conventus] booking expiry sweep failed", {
+        code: bookingErrorCode(error)
+      });
+    }
+  }
+
+  const dueRetries = await BookingRequest.find({
+    status: "RETRYING",
+    expiresAt: { $gt: now },
+    nextRetryAt: { $lte: now }
+  })
+    .select("_id companyId status")
+    .sort({ nextRetryAt: 1 })
+    .limit(100)
+    .lean();
+
+  let retried = 0;
+  for (const item of dueRetries) {
+    try {
+      const updated = await BookingRequest.findOneAndUpdate(
+        {
+          _id: item._id,
+          companyId: item.companyId,
+          status: "RETRYING",
+          expiresAt: { $gt: new Date() },
+          nextRetryAt: { $lte: new Date() }
+        },
+        {
+          $set: {
+            status: "REQUESTED",
+            nextRetryAt: null,
+            assignedEmployeeId: null
+          }
+        },
+        { new: true }
+      );
+
+      if (!updated) continue;
+
+      await recordBookingActivity({
+        companyId: String(item.companyId),
+        bookingRequestId: String(item._id),
+        eventType: "RETRY_SCHEDULED",
+        fromStatus: "RETRYING",
+        toStatus: "REQUESTED",
+        outcome: "RETRYING",
+        actorRole: "SYSTEM"
+      });
+
+      retried += 1;
+    } catch (error) {
+      console.warn("[Conventus] booking retry sweep failed", {
+        code: bookingErrorCode(error)
+      });
+    }
+  }
+
+  const creating = await BookingRequest.find({
+    status: "CREATING_MEETING",
+    expiresAt: { $gt: now },
+    nextRetryAt: { $lte: now }
+  })
+    .select("_id companyId assignedEmployeeId status")
+    .sort({ nextRetryAt: 1 })
+    .limit(25)
+    .lean();
+
+  let meetingRetries = 0;
+  for (const item of creating) {
+    try {
+      await withRedisLock(
+        `meeting:finalize:${String(item.companyId)}:${String(item._id)}`,
+        60_000,
+        async () => {
+          await createMeetingForBooking(String(item._id));
+        }
+      );
+      meetingRetries += 1;
+    } catch (error) {
+      console.warn("[Conventus] meeting retry failed", {
+        code: bookingErrorCode(error)
+      });
+    }
+  }
 
   return NextResponse.json({
     ok: true,
-    expired: expired.modifiedCount,
-    retried: retry.modifiedCount,
+    expired,
+    retried,
+    meetingRetries,
     timestamp: now.toISOString()
   });
 }
