@@ -271,8 +271,9 @@ export default function WorkspaceFeedback({
             </div>
           )}
 
-          {tab === "platform" && canSubmit ? (
-            <form onSubmit={(event) => { event.preventDefault(); void submit(); }} className="space-y-5">
+          {tab === "platform" ? (
+            canSubmit ? (
+              <form onSubmit={(event) => { event.preventDefault(); void submit(); }} className="space-y-5">
               <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
                 <p className="text-xs font-semibold text-slate-900">Private platform feedback</p>
                 <p className="mt-1 text-[11px] leading-5 text-slate-600">
@@ -353,7 +354,15 @@ export default function WorkspaceFeedback({
                   {notice && <CheckCircle2 className="size-4" aria-hidden="true" />}
                 </button>
               </div>
-            </form>
+              </form>
+            ) : (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <p className="text-sm font-semibold text-slate-900">Feedback submission is unavailable in support mode</p>
+                <p className="mt-1 text-xs leading-5 text-slate-600">
+                  Only authenticated company members can submit feedback for a company workspace. The platform administrator can still review customer feedback for this managed workspace.
+                </p>
+              </div>
+            )
           ) : loading ? (
             <div className="space-y-2" aria-live="polite" aria-busy="true">
               {Array.from({ length: 4 }).map((_, index) => <div key={index} className="h-20 animate-pulse rounded-xl bg-slate-100" />)}
