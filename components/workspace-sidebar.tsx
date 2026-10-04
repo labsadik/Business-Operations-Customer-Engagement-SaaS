@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname, useRouter } from "next/navigation";
+import UserAvatar from "@/components/user-avatar";
 import {
   ArrowUpRight,
   BarChart3,
@@ -23,6 +24,7 @@ type WorkspaceSidebarProps = {
   companyName: string;
   userName: string;
   userEmail: string;
+  userImage?: string;
   currentRole: string;
   canManage?: boolean;
   adminManaged?: boolean;
@@ -40,6 +42,7 @@ export default function WorkspaceSidebar({
   companyName,
   userName,
   userEmail,
+  userImage,
   currentRole,
   canManage = false,
   adminManaged = false,
@@ -96,9 +99,7 @@ export default function WorkspaceSidebar({
           <div className="rounded-2xl bg-[#faf9f1] p-3 ring-1 ring-inset ring-amber-100/80">
             <p className="truncate text-xs font-semibold text-slate-950">{companyName}</p>
             <div className="mt-2 flex items-center gap-2">
-              <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-blue-600 text-[10px] font-bold text-white">
-                {userName.slice(0, 1).toUpperCase() || "C"}
-              </span>
+              <UserAvatar name={userName} email={userEmail} image={userImage} size={30} className="border-0 bg-blue-600 text-white" />
               <div className="min-w-0">
                 <p className="truncate text-[11px] font-semibold text-slate-800">{userName}</p>
                 <p className="truncate text-[10px] text-slate-500">{userEmail}</p>
