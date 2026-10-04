@@ -80,7 +80,7 @@ export async function POST(request: Request) {
       return jsonError("FORBIDDEN", 403);
     }
 
-    const companyId = companyId;
+    const companyId = session.companyId;
 
     await getMongo();
 
