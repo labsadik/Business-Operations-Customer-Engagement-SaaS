@@ -42,38 +42,96 @@ export async function POST(request: Request) {
   try {
     await getMongo();
 
+    const entity = event.payload?.payment?.entity;
+
     if (event.event === "payment.captured") {
-      const entity = event.payload?.payment?.entity;
-      if (entity?.order_id && entity.id) {
-        const payment = await Payment.findOne({ providerOrderId: entity.order_id });
-        if (payment && (!payment.merchantAccount || payment.merchantAccount === "CONVENTUS")) {
-          payment.providerPaymentId = entity.id;
-          if (entity.created_at) payment.paidAt = new Date(entity.created_at * 1000);
-          await payment.save();
-          await activatePaidPlan(String(payment._id));
-        }
+      if (!entity?.order_id || !entity.id) {
+        return NextResponse.json({ ok: false, error: "CAPTURE_PAYLOAD_INVALID" }, { status: 400 });
       }
+
+      const payment = await Payment.findOne({
+        providerOrderId: entity.order_id,
+        merchantAccount: "CONVENTUS"
+      });
+
+      if (!payment) {
+        // Unknown provider orders are acknowledged so Razorpay does not
+        // repeatedly retry an event that cannot belong to this platform.
+        return NextResponse.json({ ok: true, ignored: true });
+      }
+
+      if (entity.amount !== payment.amount) {
+        return NextResponse.json({ ok: false, error: "PAYMENT_AMOUNT_MISMATCH" }, { status: 400 });
+      }
+
+      if (entity.currency !== payment.currency) {
+        return NextResponse.json({ ok: false, error: "PAYMENT_CURRENCY_MISMATCH" }, { status: 400 });
+      }
+
+      if (
+        payment.status === "CAPTURED" &&
+        payment.providerPaymentId &&
+        payment.providerPaymentId !== entity.id
+      ) {
+        return NextResponse.json({ ok: false, error: "PAYMENT_PROVIDER_ID_CONFLICT" }, { status: 409 });
+      }
+
+      // Older failed records stored the failed provider ID in the success
+      // field. Move that ID to the audit field before recording the capture.
+      if (
+        payment.status === "FAILED" &&
+        payment.providerPaymentId &&
+        payment.providerPaymentId !== entity.id
+      ) {
+        payment.failurePaymentId ??= payment.providerPaymentId;
+        payment.providerPaymentId = undefined;
+      }
+
+      payment.providerPaymentId = entity.id;
+      payment.paidAt = entity.created_at
+        ? new Date(entity.created_at * 1000)
+        : payment.paidAt ?? new Date();
+      await payment.save();
+
+      await activatePaidPlan(String(payment._id));
     }
 
     if (event.event === "payment.failed") {
-      const entity = event.payload?.payment?.entity;
-      if (entity?.order_id) {
-        await Payment.updateOne(
-          { providerOrderId: entity.order_id, status: "PENDING" },
-          {
-            $set: {
-              status: "FAILED",
-              providerPaymentId: entity.id,
-              failureReason: entity.error_description?.slice(0, 500)
-            }
-          }
-        );
+      if (!entity?.order_id) {
+        return NextResponse.json({ ok: false, error: "FAILURE_PAYLOAD_INVALID" }, { status: 400 });
       }
+
+      await Payment.updateOne(
+        {
+          providerOrderId: entity.order_id,
+          merchantAccount: "CONVENTUS",
+          status: "PENDING"
+        },
+        {
+          $set: {
+            status: "FAILED",
+            ...(entity.id ? { failurePaymentId: entity.id } : {}),
+            failureReason: entity.error_description?.slice(0, 500)
+          },
+          $unset: {
+            providerPaymentId: "",
+            paidAt: "",
+            activatedAt: "",
+            checkoutKey: ""
+          }
+        }
+      );
     }
 
     return NextResponse.json({ ok: true });
   } catch (error) {
     const code = error instanceof Error ? error.message : "WEBHOOK_PROCESSING_FAILED";
-    return NextResponse.json({ ok: false, error: code }, { status: 500 });
+    const status =
+      code === "PAYMENT_AMOUNT_MISMATCH" ||
+      code === "PAYMENT_CURRENCY_MISMATCH" ||
+      code === "PAYMENT_PROVIDER_ID_CONFLICT"
+        ? 409
+        : 500;
+    return NextResponse.json({ ok: false, error: code }, { status });
   }
 }
