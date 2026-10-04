@@ -34,14 +34,32 @@ export async function GET(
   let activeCompanyMember = false;
 
   if (companyMatch && session.role !== "CUSTOMER") {
-    const membership = await Membership.findOne({
-      companyId: booking.companyId,
-      userId: session.userId,
-      active: true
-    }).lean();
-    activeCompanyMember = Boolean(membership);
-    if (!activeCompanyMember) return jsonError("FORBIDDEN", 403);
-    companyRole = true;
+    const isManager = ["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(
+      session.role
+    );
+
+    if (isManager) {
+      if (session.role !== "PLATFORM_ADMIN") {
+        const membership = await Membership.findOne({
+          companyId: booking.companyId,
+          userId: session.userId,
+          active: true
+        }).lean();
+        activeCompanyMember = Boolean(membership);
+        if (!activeCompanyMember) return jsonError("FORBIDDEN", 403);
+      } else {
+        activeCompanyMember = true;
+      }
+      companyRole = true;
+    } else {
+      const membership = await Membership.findOne({
+        companyId: booking.companyId,
+        userId: session.userId,
+        active: true
+      }).lean();
+      activeCompanyMember = Boolean(membership);
+      if (!activeCompanyMember) return jsonError("FORBIDDEN", 403);
+    }
   }
 
   const customerParticipant = String(booking.customerId) === session.userId;
@@ -49,6 +67,14 @@ export async function GET(
     String(booking.assignedEmployeeId || "") === session.userId &&
     activeCompanyMember;
   const participantMatch = customerParticipant || employeeParticipant;
+
+  if (
+    !companyRole &&
+    session.role !== "CUSTOMER" &&
+    !participantMatch
+  ) {
+    return jsonError("FORBIDDEN", 403);
+  }
 
   if (!companyMatch && !participantMatch) return jsonError("FORBIDDEN", 403);
 
