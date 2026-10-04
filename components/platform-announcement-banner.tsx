@@ -50,7 +50,10 @@ export default function PlatformAnnouncementBanner({
   const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
-    setDismissed(getDismissed(scope));
+    const timer = window.setTimeout(() => {
+      setDismissed(getDismissed(scope));
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [scope]);
 
   useEffect(() => {
