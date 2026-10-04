@@ -479,18 +479,55 @@ export default function WorkspaceDashboard({
   async function loadAllMeetings() {
     setMeetingsLoading(true);
     try {
-      const [allRequests, allHistory] = await Promise.all([
+      const [allRequests, allHistory, historyPage] = await Promise.all([
         api<RequestItem[]>("/api/employee/requests?limit=100"),
-        api<MeetingHistoryItem[]>("/api/employee/meetings?limit=500")
+        api<MeetingHistoryItem[]>("/api/employee/meetings?paginated=true&limit=50"),
+        api<{ items: RequestHistoryItem[]; nextCursor: string | null }>(
+          "/api/employee/requests?history=true&limit=25"
+        )
       ]);
       setModalRequests(allRequests);
-      setModalMeetingHistory(allHistory);
-      setError("");
+      setModalMeetingHistory(historyPage.items);
+      setModalRequestHistory(historyPage.items);
+      setRequestHistoryCursor(historyPage.nextCursor);
     } catch (err) {
       setError(err instanceof Error ? err.message : "MEETING_LIST_FAILED");
     } finally {
       setMeetingsLoading(false);
     }
+  }
+
+  async function loadOlderRequestHistory() {
+    if (!requestHistoryCursor || requestHistoryLoadingMore) return;
+    setRequestHistoryLoadingMore(true);
+    try {
+      const page = await api<{ items: RequestHistoryItem[]; nextCursor: string | null }>(
+        `/api/employee/requests?history=true&limit=25&cursor=${encodeURIComponent(requestHistoryCursor)}`
+      );
+      setModalRequestHistory((current) => [...current, ...page.items]);
+      setRequestHistoryCursor(page.nextCursor);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "REQUEST_HISTORY_FAILED");
+    } finally {
+      setRequestHistoryLoadingMore(false);
+    }
+  }
+
+  function actionStateMessage(status: string, meetingStatus?: string | null) {
+    if (status === "CREATING_MEETING" || meetingStatus === "CREATING") {
+      return "Setting up the meeting. Duplicate actions are disabled while Google Calendar and Meet are being prepared.";
+    }
+    if (status === "CONFIRMED" || meetingStatus === "READY") {
+      return "This meeting is confirmed and ready.";
+    }
+    if (status === "RETRYING") {
+      return "This request needs another attempt and remains available according to the team routing rules.";
+    }
+    if (status === "EXPIRED") return "This meeting request has expired.";
+    if (status === "COMPLETED") return "This meeting has already been completed.";
+    if (status === "CANCELLED") return "This meeting request was cancelled.";
+    if (status === "ASSIGNED") return "This request is already being processed.";
+    return "The request was updated. The dashboard now shows the latest server state.";
   }
 
   const loadInvitations = useCallback(async function loadInvitations() {
@@ -822,12 +859,42 @@ export default function WorkspaceDashboard({
       await api(`/api/bookings/${encodeURIComponent(id)}/${action}`, {
         method: "POST"
       });
-      await refreshLive();
-      await refreshAll();
-      if (activeModal === "meetings") await loadAllMeetings();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "BOOKING_ACTION_FAILED");
+      const typed = err as Error & { code?: string };
+      let message = typed.message || "We could not complete that meeting action.";
+
+      try {
+        const latest = await api<{
+          booking: { status: string };
+          meeting: { status: string; meetingUri: string | null } | null;
+        }>(`/api/bookings/${encodeURIComponent(id)}`);
+        if (typed.code && typed.code.startsWith("BOOKING_")) {
+          message = actionStateMessage(
+            latest.booking.status,
+            latest.meeting?.status ?? null
+          );
+        }
+      } catch {
+        // Keep the original server-provided message if the latest-state read is unavailable.
+      }
+
+      setError(message);
     } finally {
+      try {
+        const [pending, history] = await Promise.all([
+          api<RequestItem[]>("/api/employee/requests?limit=6"),
+          api<MeetingHistoryItem[]>("/api/employee/meetings?paginated=true&limit=6")
+        ]);
+        setRequests(pending);
+        if (Array.isArray(history)) {
+          setMeetingHistory(history);
+        } else {
+          setMeetingHistory(history.items);
+        }
+        if (activeModal === "meetings") await loadAllMeetings();
+      } catch {
+        // Preserve the last good dashboard data during a transient refresh failure.
+      }
       setActingRequestId("");
     }
   }
