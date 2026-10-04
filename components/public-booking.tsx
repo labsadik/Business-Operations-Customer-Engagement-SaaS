@@ -16,7 +16,6 @@ import {
 import { getTodayIso, zonedDateTimeToUtc } from "@/lib/timezone";
 import { playMeetingSound, unlockMeetingSound } from "@/lib/client-meeting-sound";
 import GoogleIntegrationNotice from "@/components/google-integration-notice";
-import PublicFeedbackPrompt from "@/components/public-feedback-prompt";
 
 type Type = {
   id: string;
