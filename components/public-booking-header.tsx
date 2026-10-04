@@ -12,12 +12,14 @@ export default function PublicBookingHeader({
   companySlug,
   name,
   email,
+  image,
   authenticated
 }: {
   companyName: string;
   companySlug: string;
   name?: string;
   email?: string;
+  image?: string;
   authenticated: boolean;
 }) {
   const [logoutOpen, setLogoutOpen] = useState(false);
@@ -42,7 +44,7 @@ export default function PublicBookingHeader({
                 <p className="truncate text-xs font-semibold text-slate-900">{name}</p>
                 <p className="max-w-52 truncate text-[10px] text-slate-400">{email}</p>
               </div>
-              <UserAvatar name={name} email={email} size={38} />
+              <UserAvatar name={name} email={email} image={image} size={38} />
               <button
                 type="button"
                 aria-label="Sign out"
