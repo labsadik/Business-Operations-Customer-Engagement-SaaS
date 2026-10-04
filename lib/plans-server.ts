@@ -20,18 +20,19 @@ function utcDayKey(date = new Date()) {
   return date.toISOString().slice(0, 10);
 }
 
+/**
+ * Reconciles access only from a payment that is already CAPTURED.
+ * PENDING/FAILED records are never allowed to grant paid entitlements.
+ */
 export async function reconcileLatestPaidAccess(companyId: string) {
   const [subscription, latestPayment] = await Promise.all([
     Subscription.findOne({ companyId }).lean(),
     Payment.findOne({
       companyId,
       merchantAccount: "CONVENTUS",
-      status: { $in: ["CAPTURED", "PENDING", "FAILED"] },
+      status: "CAPTURED",
       providerPaymentId: { $exists: true, $ne: "" },
-      $or: [
-        { paidAt: { $exists: true, $ne: null } },
-        { activatedAt: { $exists: true, $ne: null } }
-      ]
+      paidAt: { $exists: true, $ne: null }
     })
       .sort({ paidAt: -1, activatedAt: -1, createdAt: -1 })
       .lean()
@@ -42,12 +43,7 @@ export async function reconcileLatestPaidAccess(companyId: string) {
   const plan = getPlan(latestPayment.planId);
   if (!plan?.requiresPayment) return subscription;
 
-  const activationStart = new Date(
-    latestPayment.paidAt ??
-    latestPayment.activatedAt ??
-    latestPayment.createdAt ??
-    new Date()
-  );
+  const activationStart = new Date(latestPayment.paidAt ?? latestPayment.activatedAt ?? latestPayment.createdAt ?? new Date());
   const periodEnd = addValidityDays(activationStart, plan.validityDays);
   const now = Date.now();
 
@@ -96,29 +92,16 @@ export async function reconcileLatestPaidAccess(companyId: string) {
     );
   }
 
-  if (latestPayment.status !== "CAPTURED") {
-    await Payment.updateOne(
-      {
-        _id: latestPayment._id,
-        status: { $in: ["PENDING", "FAILED"] }
-      },
-      {
-        $set: {
-          status: "CAPTURED",
-          activatedAt: latestPayment.activatedAt ?? new Date()
-        }
-      }
-    );
-  }
-
   return Subscription.findOne({ companyId });
 }
 
 async function ensureSubscription(companyId: string) {
   let subscription = await Subscription.findOne({ companyId });
+
   if (!subscription) {
     const plan = getPlan("free")!;
     const start = new Date();
+
     subscription = await Subscription.create({
       companyId,
       planId: plan.id,
@@ -129,6 +112,13 @@ async function ensureSubscription(companyId: string) {
       monthlyMeetingsUsed: 0,
       freeUsageDates: []
     });
+
+    await Workspace.updateOne(
+      { companyId },
+      { $set: { planId: plan.id } }
+    );
+
+    return subscription;
   }
 
   const now = new Date();
@@ -136,16 +126,28 @@ async function ensureSubscription(companyId: string) {
     const plan = getPlan(subscription.planId);
     const nextPlan = plan?.requiresPayment ? getPlan("free")! : plan!;
     const start = now;
+
     subscription.planId = nextPlan.id;
     subscription.source = nextPlan.id === "free" ? "FREE" : subscription.source;
     subscription.status = "ACTIVE";
     subscription.currentPeriodStart = start;
     subscription.currentPeriodEnd = periodFor(nextPlan, start);
     subscription.monthlyMeetingsUsed = 0;
-    subscription.freeUsageDates = nextPlan.id === "free" ? [] : subscription.freeUsageDates;
-    subscription.grantedByUserId = nextPlan.id === "free" ? undefined : subscription.grantedByUserId;
-    subscription.grantedAt = nextPlan.id === "free" ? undefined : subscription.grantedAt;
+
+    if (nextPlan.id === "free") {
+      subscription.freeUsageDates = [];
+      subscription.grantedByUserId = undefined;
+      subscription.grantedAt = undefined;
+    }
+
     await subscription.save();
+
+    // Workspace.planId is kept synchronized so legacy/read paths cannot
+    // expose a stale paid plan after the subscription has expired.
+    await Workspace.updateOne(
+      { companyId },
+      { $set: { planId: nextPlan.id } }
+    );
   }
 
   return subscription;
@@ -173,11 +175,13 @@ export async function assertFeatureAccess(companyId: string) {
   if (plan.id === "free") {
     const featureWindowEnd = new Date(subscription.currentPeriodStart);
     featureWindowEnd.setDate(featureWindowEnd.getDate() + FREE_USAGE_LIMIT_DAYS);
+
     if (Date.now() >= featureWindowEnd.getTime()) {
       throw new Error("FREE_FEATURE_DAYS_EXHAUSTED");
     }
 
     const today = utcDayKey();
+
     await Subscription.updateOne(
       { _id: subscription._id, freeUsageDates: { $ne: today } },
       { $addToSet: { freeUsageDates: today } }
@@ -189,11 +193,13 @@ export async function assertFeatureAccess(companyId: string) {
 
 export async function assertMeetingCapacity(companyId: string, durationMinutes: number) {
   const plan = await assertFeatureAccess(companyId);
+
   if (durationMinutes > plan.maxMeetingDurationMinutes) {
     throw new Error("MEETING_DURATION_LIMIT");
   }
 
   const subscription = await getCompanySubscription(companyId);
+
   if (subscription.monthlyMeetingsUsed >= plan.monthlyMeetingLimit) {
     throw new Error("MONTHLY_MEETING_LIMIT");
   }
@@ -203,6 +209,7 @@ export async function assertMeetingCapacity(companyId: string, durationMinutes: 
 
 export async function incrementMeetingUsage(companyId: string) {
   const plan = await assertFeatureAccess(companyId);
+
   const updated = await Subscription.findOneAndUpdate(
     {
       companyId,
@@ -212,6 +219,7 @@ export async function incrementMeetingUsage(companyId: string) {
     { $inc: { monthlyMeetingsUsed: 1 } },
     { new: true }
   );
+
   if (!updated) throw new Error("MONTHLY_MEETING_LIMIT");
   return updated;
 }

@@ -104,6 +104,14 @@ async function createOrUpdateAccessInvoice({
   );
 }
 
+/**
+ * Marks one verified provider payment as captured and atomically creates its
+ * invoice and grants the corresponding plan period.
+ *
+ * This function is intentionally idempotent: Razorpay's browser callback and
+ * webhook can both call it, and only the first successful transaction claims
+ * the payment while the other call becomes a no-op/repair.
+ */
 export async function activatePaidPlan(paymentId: string) {
   const db = await getMongo();
   const tx = await db.startSession();
@@ -120,107 +128,146 @@ export async function activatePaidPlan(paymentId: string) {
         throw new Error("PAYMENT_MERCHANT_INVALID");
       }
 
+      const providerPaymentId = payment.providerPaymentId?.trim();
+      if (!providerPaymentId) throw new Error("PAYMENT_ID_MISSING");
+
       const company = await Company.findById(payment.companyId).session(tx).lean();
       if (!company) throw new Error("COMPANY_NOT_FOUND");
 
       const companyEmail = company.email?.trim().toLowerCase();
       const companyPhone = company.phone?.trim();
-      if (!companyEmail || !companyPhone) throw new Error("COMPANY_PROFILE_INCOMPLETE");
-
-      const invoiceDate = payment.paidAt ?? new Date();
-      const providerPaymentId = payment.providerPaymentId;
-      if (!providerPaymentId) throw new Error("PAYMENT_ID_MISSING");
-
-      if (payment.status === "CAPTURED") {
-        const existingInvoice = await Invoice.findOne({ paymentId: payment._id }).session(tx).lean();
-        const currentSubscription = await Subscription.findOne({
-          companyId: payment.companyId
-        }).session(tx).lean();
-
-        const paymentStart = existingInvoice?.billingPeriodStart ?? invoiceDate;
-        const paymentEnd =
-          existingInvoice?.billingPeriodEnd ??
-          addValidityDays(paymentStart, plan.validityDays);
-        const currentStart = currentSubscription?.currentPeriodStart?.getTime() ?? 0;
-        const currentEnd = currentSubscription?.currentPeriodEnd?.getTime() ?? 0;
-        const currentAccessIsActive = Boolean(
-          currentSubscription &&
-          currentSubscription.status === "ACTIVE" &&
-          currentEnd > Date.now()
-        );
-        const currentAccessIsProtected = Boolean(
-          currentAccessIsActive &&
-          currentSubscription &&
-          ["PAID", "ADMIN_GRANTED"].includes(currentSubscription.source)
-        );
-        const paymentIsNewer = paymentStart.getTime() > currentStart;
-
-        if (!currentAccessIsProtected || paymentIsNewer) {
-          await Subscription.findOneAndUpdate(
-            { companyId: payment.companyId },
-            {
-              $set: {
-                planId: plan.id,
-                source: "PAID",
-                status: "ACTIVE",
-                currentPeriodStart: paymentStart,
-                currentPeriodEnd: paymentEnd,
-                monthlyMeetingsUsed: 0,
-                freeUsageDates: [],
-                grantedByUserId: undefined,
-                grantedAt: undefined
-              },
-              $setOnInsert: { companyId: payment.companyId }
-            },
-            { upsert: true, new: true, session: tx }
-          );
-
-          await Workspace.updateOne(
-            { companyId: payment.companyId },
-            { $set: { planId: plan.id } },
-            { session: tx }
-          );
-        }
-
-        if (!payment.activatedAt) {
-          await Payment.updateOne(
-            { _id: payment._id },
-            { $set: { activatedAt: invoiceDate } },
-            { session: tx }
-          );
-        }
-
-        if (existingInvoice) return;
+      if (!companyEmail || !companyPhone) {
+        throw new Error("COMPANY_PROFILE_INCOMPLETE");
       }
 
-      const claimed = await Payment.findOneAndUpdate(
-        {
-          _id: payment._id,
-          status: { $in: ["PENDING", "FAILED"] },
-          $or: [{ activatedAt: null }, { activatedAt: { $exists: false } }]
-        },
-        {
-          $set: {
-            status: "CAPTURED",
-            paidAt: payment.paidAt ?? invoiceDate,
-            activatedAt: new Date()
-          }
-        },
-        { new: true, session: tx }
-      );
-
-      if (!claimed) return;
-
       const now = new Date();
-      const periodEnd = addValidityDays(now, plan.validityDays);
-      const invoiceNumber = `CONV-PAID-${monthKey(invoiceDate)}-${String(payment._id).slice(-8).toUpperCase()}`;
+
+      let captured = payment;
+
+      if (payment.status !== "CAPTURED") {
+        const claimed = await Payment.findOneAndUpdate(
+          {
+            _id: payment._id,
+            status: { $in: ["PENDING", "FAILED"] },
+            providerPaymentId
+          },
+          {
+            $set: {
+              status: "CAPTURED",
+              paidAt: payment.paidAt ?? now,
+              activatedAt: payment.activatedAt ?? now
+            },
+            $unset: {
+              checkoutKey: "",
+              failureReason: "",
+              failurePaymentId: ""
+            }
+          },
+          { new: true, session: tx }
+        );
+
+        if (!claimed) {
+          const latest = await Payment.findById(payment._id).session(tx);
+          if (!latest || latest.status !== "CAPTURED") return;
+          if (latest.providerPaymentId !== providerPaymentId) {
+            throw new Error("PAYMENT_PROVIDER_ID_CONFLICT");
+          }
+          captured = latest;
+        } else {
+          captured = claimed;
+        }
+      }
+
+      const existingInvoice = await Invoice.findOne({
+        paymentId: captured._id
+      }).session(tx).lean();
+
+      const currentSubscription = await Subscription.findOne({
+        companyId: captured.companyId
+      }).session(tx).lean();
+
+      const invoiceDate = captured.paidAt ?? now;
+
+      let periodStart: Date;
+      let periodEnd: Date;
+
+      if (existingInvoice?.billingPeriodStart && existingInvoice.billingPeriodEnd) {
+        periodStart = new Date(existingInvoice.billingPeriodStart);
+        periodEnd = new Date(existingInvoice.billingPeriodEnd);
+      } else {
+        const currentIsActivePaid =
+          Boolean(
+            currentSubscription &&
+            currentSubscription.status === "ACTIVE" &&
+            currentSubscription.source === "PAID" &&
+            currentSubscription.currentPeriodEnd.getTime() > now.getTime()
+          );
+
+        // Same-plan renewal is appended to the current paid period so time is
+        // never lost and the two paid periods cannot overlap.
+        periodStart =
+          currentIsActivePaid && currentSubscription?.planId === plan.id
+            ? new Date(currentSubscription.currentPeriodEnd)
+            : invoiceDate;
+
+        periodEnd = addValidityDays(periodStart, plan.validityDays);
+      }
+
+      const currentStart = currentSubscription?.currentPeriodStart?.getTime() ?? 0;
+      const currentEnd = currentSubscription?.currentPeriodEnd?.getTime() ?? 0;
+      const shouldApplySubscription =
+        !currentSubscription ||
+        currentSubscription.status !== "ACTIVE" ||
+        currentEnd <= now.getTime() ||
+        currentSubscription.source === "FREE" ||
+        (
+          currentSubscription.source === "PAID" &&
+          (
+            periodStart.getTime() >= currentStart &&
+            (
+              currentSubscription.planId !== plan.id ||
+              periodEnd.getTime() > currentEnd
+            )
+          )
+        ) ||
+        (
+          currentSubscription.source === "ADMIN_GRANTED" &&
+          periodStart.getTime() > currentStart
+        );
+
+      if (shouldApplySubscription) {
+        await Subscription.findOneAndUpdate(
+          { companyId: captured.companyId },
+          {
+            $set: {
+              planId: plan.id,
+              source: "PAID",
+              status: "ACTIVE",
+              currentPeriodStart: periodStart,
+              currentPeriodEnd: periodEnd,
+              monthlyMeetingsUsed: 0,
+              freeUsageDates: [],
+              grantedByUserId: undefined,
+              grantedAt: undefined
+            },
+            $setOnInsert: { companyId: captured.companyId }
+          },
+          { upsert: true, new: true, session: tx }
+        );
+
+        await Workspace.updateOne(
+          { companyId: captured.companyId },
+          { $set: { planId: plan.id } },
+          { session: tx }
+        );
+      }
 
       const taxSnapshot: InvoiceTaxSnapshot = {
-        enabled: payment.taxRatePercent > 0,
-        ratePercent: payment.taxRatePercent ?? 0,
-        inclusive: payment.taxInclusive ?? false,
-        taxableAmount: payment.baseAmount,
-        gstAmount: payment.taxAmount ?? 0
+        enabled: (captured.taxRatePercent ?? 0) > 0,
+        ratePercent: captured.taxRatePercent ?? 0,
+        inclusive: captured.taxInclusive ?? false,
+        taxableAmount: captured.baseAmount,
+        gstAmount: captured.taxAmount ?? 0
       };
 
       const snapshots = await buildInvoiceSnapshots({
@@ -232,25 +279,29 @@ export async function activatePaidPlan(paymentId: string) {
           taxId: company.taxId ?? ""
         },
         plan,
-        amount: payment.amount,
+        amount: captured.amount,
         taxSnapshot
       });
 
+      const invoiceNumber =
+        existingInvoice?.invoiceNumber ??
+        `CONV-PAID-${monthKey(invoiceDate)}-${String(captured._id).slice(-8).toUpperCase()}`;
+
       await Invoice.findOneAndUpdate(
-        { paymentId: payment._id },
+        { paymentId: captured._id },
         {
           $setOnInsert: {
-            companyId: payment.companyId,
-            paymentId: payment._id,
+            companyId: captured.companyId,
+            paymentId: captured._id,
             source: "PAID",
             invoiceNumber,
             planId: plan.id,
-            billingPeriodStart: now,
+            billingPeriodStart: periodStart,
             billingPeriodEnd: periodEnd,
-            providerOrderId: payment.providerOrderId,
+            providerOrderId: captured.providerOrderId,
             providerPaymentId,
-            amount: payment.amount,
-            currency: payment.currency,
+            amount: captured.amount,
+            currency: captured.currency,
             issuedAt: invoiceDate,
             ...snapshots
           }
@@ -258,30 +309,24 @@ export async function activatePaidPlan(paymentId: string) {
         { upsert: true, new: true, session: tx }
       );
 
-      await Subscription.findOneAndUpdate(
-        { companyId: payment.companyId },
-        {
-          $set: {
-            planId: plan.id,
-            source: "PAID",
-            status: "ACTIVE",
-            currentPeriodStart: now,
-            currentPeriodEnd: periodEnd,
-            monthlyMeetingsUsed: 0,
-            freeUsageDates: [],
-            grantedByUserId: undefined,
-            grantedAt: undefined
+      if (captured.activatedAt == null || captured.checkoutKey) {
+        await Payment.updateOne(
+          { _id: captured._id },
+          {
+            $set: {
+              status: "CAPTURED",
+              activatedAt: captured.activatedAt ?? now,
+              paidAt: captured.paidAt ?? invoiceDate
+            },
+            $unset: {
+              checkoutKey: "",
+              failureReason: "",
+              failurePaymentId: ""
+            }
           },
-          $setOnInsert: { companyId: payment.companyId }
-        },
-        { upsert: true, new: true, session: tx }
-      );
-
-      await Workspace.updateOne(
-        { companyId: payment.companyId },
-        { $set: { planId: plan.id } },
-        { session: tx }
-      );
+          { session: tx }
+        );
+      }
     });
   } finally {
     await tx.endSession();
@@ -390,7 +435,10 @@ export async function ensureInvoicesForCapturedPayments(companyId: string) {
     if (existing && existing.source === "PAID" && hasCompleteSnapshot) continue;
 
     const billingPeriodStart = existing?.billingPeriodStart ?? issuedAt;
-    const billingPeriodEnd = existing?.billingPeriodEnd ?? addValidityDays(billingPeriodStart, plan.validityDays);
+    const billingPeriodEnd =
+      existing?.billingPeriodEnd ??
+      addValidityDays(billingPeriodStart, plan.validityDays);
+
     const taxSnapshot: InvoiceTaxSnapshot = {
       enabled: (payment.taxRatePercent ?? 0) > 0,
       ratePercent: payment.taxRatePercent ?? 0,
@@ -412,7 +460,9 @@ export async function ensureInvoicesForCapturedPayments(companyId: string) {
       taxSnapshot
     });
 
-    const invoiceNumber = existing?.invoiceNumber ?? `CONV-PAID-${monthKey(issuedAt)}-${String(payment._id).slice(-8).toUpperCase()}`;
+    const invoiceNumber =
+      existing?.invoiceNumber ??
+      `CONV-PAID-${monthKey(issuedAt)}-${String(payment._id).slice(-8).toUpperCase()}`;
 
     await Invoice.findOneAndUpdate(
       { paymentId: payment._id },

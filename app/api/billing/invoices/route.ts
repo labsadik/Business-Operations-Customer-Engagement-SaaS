@@ -1,12 +1,12 @@
 import { getMongo } from "@/lib/mongodb";
 import { Invoice } from "@/models/invoice";
 import { Payment } from "@/models/payment";
-import { Subscription } from "@/models/subscription";
 import { getPlan } from "@/lib/plans";
 import { getSession } from "@/lib/session";
 import { Membership } from "@/models/membership";
 import { jsonError, jsonOk } from "@/lib/http";
 import { ensureInvoicesForCapturedPayments } from "@/lib/billing";
+import { getCompanySubscription } from "@/lib/plans-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,7 +37,7 @@ export async function GET() {
       .sort({ issuedAt: -1 })
       .limit(50)
       .lean(),
-    Subscription.findOne({ companyId: session.companyId }).lean()
+    getCompanySubscription(session.companyId)
   ]);
 
   const currentPlanId = subscription?.status === "ACTIVE" &&

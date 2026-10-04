@@ -364,6 +364,12 @@ export default function WorkspaceDashboard({
     : "free";
   const plan = PLANS[planId];
   const subscriptionSource = data?.subscription?.source ?? "FREE";
+  const paidAccessActive = Boolean(
+    data?.subscription &&
+    ["PAID", "ADMIN_GRANTED"].includes(data.subscription.source) &&
+    data.subscription.status === "ACTIVE" &&
+    new Date(data.subscription.periodEnd).getTime() > Date.now()
+  );
   const usagePercent = Math.min(
     100,
     Math.round(((data?.subscription?.monthlyMeetingsUsed ?? 0) / plan.monthlyMeetingLimit) * 100)
@@ -1790,7 +1796,7 @@ export default function WorkspaceDashboard({
                           <RazorpayPlanButton
                             planId={id}
                             currentPlanId={planId}
-                            disabled={busy || !data.company.profileComplete || adminManaged}
+                            disabled={adminManaged}
                             onComplete={() => {
                               void loadInvoices();
                               void refreshAll();
@@ -1800,7 +1806,7 @@ export default function WorkspaceDashboard({
                         ) : (
                           <button
                             type="button"
-                            disabled={busy || isCurrent || adminManaged}
+                            disabled={busy || isCurrent || adminManaged || paidAccessActive}
                             onClick={() => {
                               setBusy(true);
                               void api("/api/billing/free", { method: "POST" })
@@ -1810,7 +1816,7 @@ export default function WorkspaceDashboard({
                             }}
                             className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                           >
-                            {isCurrent ? "Current plan" : "Switch to Free"}
+                            {isCurrent ? "Current plan" : paidAccessActive ? "Available after expiry" : "Switch to Free"}
                           </button>
                         )}
                       </td>

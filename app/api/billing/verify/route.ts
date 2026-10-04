@@ -1,6 +1,10 @@
+import { getMongo } from "@/lib/mongodb";
 import { getSession } from "@/lib/session";
 import { Payment } from "@/models/payment";
-import { verifyRazorpayPaymentSignature, fetchRazorpayPayment } from "@/lib/razorpay";
+import {
+  fetchRazorpayPayment,
+  verifyRazorpayPaymentSignature
+} from "@/lib/razorpay";
 import { activatePaidPlan } from "@/lib/billing";
 import { jsonError, jsonOk } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
@@ -25,43 +29,92 @@ export async function POST(request: Request) {
     } | null;
 
     const orderId = body?.razorpay_order_id?.trim();
-    const paymentId = body?.razorpay_payment_id?.trim();
+    const providerPaymentId = body?.razorpay_payment_id?.trim();
     const signature = body?.razorpay_signature?.trim();
 
-    if (!orderId || !paymentId || !signature) return jsonError("PAYMENT_RESPONSE_INVALID", 400);
+    if (!orderId || !providerPaymentId || !signature) {
+      return jsonError("PAYMENT_RESPONSE_INVALID", 400);
+    }
+
+    await getMongo();
 
     const payment = await Payment.findOne({
       providerOrderId: orderId,
-      companyId: session.companyId
+      companyId: session.companyId,
+      merchantAccount: "CONVENTUS"
     });
+
     if (!payment) return jsonError("PAYMENT_NOT_FOUND", 404);
 
-    if (!verifyRazorpayPaymentSignature(orderId, paymentId, signature)) {
+    if (!verifyRazorpayPaymentSignature(orderId, providerPaymentId, signature)) {
       return jsonError("PAYMENT_SIGNATURE_INVALID", 400);
     }
 
-    const remotePayment = await fetchRazorpayPayment(paymentId);
-    if (remotePayment.order_id !== orderId) return jsonError("PAYMENT_ORDER_MISMATCH", 400);
-    if (remotePayment.amount !== payment.amount) return jsonError("PAYMENT_AMOUNT_MISMATCH", 400);
-    if (remotePayment.currency !== payment.currency) return jsonError("PAYMENT_CURRENCY_MISMATCH", 400);
-    if (remotePayment.status !== "captured") return jsonError("PAYMENT_NOT_CAPTURED", 409);
+    const alreadyUsed = await Payment.findOne({
+      providerPaymentId,
+      _id: { $ne: payment._id }
+    }).select("_id providerOrderId companyId").lean();
 
-    payment.providerPaymentId = paymentId;
-    payment.paidAt = remotePayment.created_at ? new Date(remotePayment.created_at * 1000) : new Date();
+    if (alreadyUsed) {
+      return jsonError("PAYMENT_ALREADY_RECORDED", 409);
+    }
+
+    const remotePayment = await fetchRazorpayPayment(providerPaymentId);
+
+    if (remotePayment.order_id !== orderId) {
+      return jsonError("PAYMENT_ORDER_MISMATCH", 400);
+    }
+    if (remotePayment.amount !== payment.amount) {
+      return jsonError("PAYMENT_AMOUNT_MISMATCH", 400);
+    }
+    if (remotePayment.currency !== payment.currency) {
+      return jsonError("PAYMENT_CURRENCY_MISMATCH", 400);
+    }
+    if (remotePayment.status !== "captured") {
+      return jsonError("PAYMENT_NOT_CAPTURED", 409);
+    }
+
+    // FAILED is a provider-attempt state. The successful payment ID belongs in
+    // providerPaymentId; a previous failed ID is kept separately for auditing.
+    if (
+      payment.status === "FAILED" &&
+      payment.providerPaymentId &&
+      payment.providerPaymentId !== providerPaymentId
+    ) {
+      payment.failurePaymentId ??= payment.providerPaymentId;
+      payment.providerPaymentId = undefined;
+    }
+
+    if (
+      payment.status === "CAPTURED" &&
+      payment.providerPaymentId &&
+      payment.providerPaymentId !== providerPaymentId
+    ) {
+      return jsonError("PAYMENT_PROVIDER_ID_CONFLICT", 409);
+    }
+
+    payment.providerPaymentId = providerPaymentId;
+    payment.paidAt = remotePayment.created_at
+      ? new Date(remotePayment.created_at * 1000)
+      : payment.paidAt ?? new Date();
+
     await payment.save();
+
     await activatePaidPlan(String(payment._id));
 
     return jsonOk({
       status: "CAPTURED",
       planId: payment.planId,
-      paymentId
+      paymentId: providerPaymentId
     });
   } catch (error) {
     const code = error instanceof Error ? error.message : "PAYMENT_VERIFICATION_FAILED";
     const status =
       code === "CSRF_ORIGIN_INVALID" || code === "PAYMENT_MERCHANT_INVALID" ? 403 :
+      code === "PAYMENT_NOT_CAPTURED" ? 409 :
+      code === "PAYMENT_ALREADY_RECORDED" || code === "PAYMENT_PROVIDER_ID_CONFLICT" ? 409 :
       code.startsWith("RAZORPAY_API_") ? 502 :
-      code === "PAYMENT_NOT_CAPTURED" ? 409 : 500;
+      500;
     return jsonError(code, status);
   }
 }
