@@ -3,19 +3,102 @@ import { BookingRequest } from "@/models/booking-request";
 import { Meeting } from "@/models/meeting";
 import { MeetingType } from "@/models/meeting-type";
 import { Workspace } from "@/models/workspace";
-import { Subscription } from "@/models/subscription";
+import { Membership } from "@/models/membership";
 import { requireCompanyMember } from "@/lib/authz";
 import { withRedisLock } from "@/lib/redis-lock";
 import { eligibleEmployees } from "@/lib/routing";
-import { getCompanyEntitlements } from "@/lib/plans-server";
+import { getCompanyEntitlements, assertFeatureAccess } from "@/lib/plans-server";
 import { resolveMeetingDuration } from "@/lib/plans";
 import { createMeetingForBooking } from "@/lib/meeting-service";
-import { jsonError, jsonOk } from "@/lib/http";
+import { jsonOk } from "@/lib/http";
+import { bookingJsonError, bookingErrorCode, friendlyBookingMessage } from "@/lib/booking-errors";
+import { recordBookingActivity, reserveMeetingUsage, releaseMeetingUsage } from "@/lib/booking-history";
 import { assertSameOrigin } from "@/lib/security";
 import { after } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+type Session = { userId: string; companyId?: string; role: string };
+
+function responseForCurrentState(
+  booking: {
+    _id: unknown;
+    status: string;
+    assignedEmployeeId?: unknown;
+  },
+  meeting: { status?: string; googleMeetingUri?: string } | null,
+  userId: string
+) {
+  const assignedToCurrent = String(booking.assignedEmployeeId ?? "") === userId;
+
+  if (booking.status === "CONFIRMED" && assignedToCurrent) {
+    return {
+      bookingId: String(booking._id),
+      status: booking.status,
+      meetingUri: meeting?.googleMeetingUri ?? null
+    };
+  }
+
+  if (
+    ["ASSIGNED", "CREATING_MEETING"].includes(booking.status) &&
+    assignedToCurrent
+  ) {
+    return {
+      bookingId: String(booking._id),
+      status: booking.status,
+      meetingUri: meeting?.googleMeetingUri ?? null
+    };
+  }
+
+  return null;
+}
+
+function conflictCodeForState(
+  status: string,
+  assignedEmployeeId: unknown,
+  userId: string
+) {
+  if (assignedEmployeeId && String(assignedEmployeeId) !== userId) {
+    return status === "CONFIRMED" || status === "IN_PROGRESS"
+      ? "BOOKING_ALREADY_CONFIRMED"
+      : "BOOKING_ALREADY_ASSIGNED";
+  }
+
+  switch (status) {
+    case "EXPIRED":
+      return "BOOKING_EXPIRED";
+    case "COMPLETED":
+      return "BOOKING_ALREADY_COMPLETED";
+    case "CANCELLED":
+      return "BOOKING_CANCELLED";
+    case "FAILED":
+      return "BOOKING_FAILED";
+    case "CREATING_MEETING":
+    case "ASSIGNED":
+      return "BOOKING_PROCESSING";
+    case "CONFIRMED":
+    case "IN_PROGRESS":
+      return "BOOKING_ALREADY_CONFIRMED";
+    default:
+      return "BOOKING_NO_LONGER_AVAILABLE";
+  }
+}
+
+async function safeStateDetails(bookingId: string, companyId: string, userId: string) {
+  const booking = await BookingRequest.findOne({ _id: bookingId, companyId })
+    .select("status assignedEmployeeId expiresAt")
+    .lean();
+
+  if (!booking) return undefined;
+
+  return {
+    status: booking.status,
+    assignedToCurrentEmployee:
+      String(booking.assignedEmployeeId ?? "") === userId,
+    expired: booking.expiresAt.getTime() <= Date.now()
+  };
+}
 
 export async function POST(
   _request: Request,
@@ -24,79 +107,147 @@ export async function POST(
   try {
     assertSameOrigin(_request);
   } catch {
-    return jsonError("CSRF_ORIGIN_INVALID", 403);
+    return bookingJsonError("CSRF_ORIGIN_INVALID", 403);
   }
 
-  let session: { userId: string; companyId?: string; role: string };
+  let session: Session;
   try {
-    const result = await requireCompanyMember(["EMPLOYEE", "COMPANY_OWNER", "COMPANY_ADMIN"]);
+    const result = await requireCompanyMember([
+      "EMPLOYEE",
+      "COMPANY_OWNER",
+      "COMPANY_ADMIN"
+    ]);
     session = result.session;
   } catch (error) {
-    const code = error instanceof Error ? error.message : "UNAUTHENTICATED";
-    return jsonError(code, code === "UNAUTHENTICATED" ? 401 : 403);
+    const code = bookingErrorCode(error);
+    return bookingJsonError(code, code === "UNAUTHENTICATED" ? 401 : 403);
   }
-  if (!session.companyId) return jsonError("COMPANY_NOT_CONFIGURED", 403);
+
+  if (!session.companyId) {
+    return bookingJsonError("COMPANY_NOT_CONFIGURED", 403);
+  }
   if (session.role === "PLATFORM_ADMIN") {
-    return jsonError("PLATFORM_ADMIN_CANNOT_ACCEPT_AS_EMPLOYEE", 403);
+    return bookingJsonError("PLATFORM_ADMIN_CANNOT_ACCEPT_AS_EMPLOYEE", 403);
   }
 
   await getMongo();
   const { bookingId } = await params;
 
   try {
-    const result = await withRedisLock(`booking:accept:${bookingId}`, 10_000, async () => {
-      const booking = await BookingRequest.findOneAndUpdate(
-        {
+    const result = await withRedisLock(
+      `booking:accept:${session.companyId}:${bookingId}`,
+      10_000,
+      async () => {
+        const scoped = await BookingRequest.findOne({
           _id: bookingId,
-          companyId: session.companyId,
-          status: { $in: ["REQUESTED", "RETRYING"] },
-          expiresAt: { $gt: new Date() },
-          $or: [
-            { assignedEmployeeId: { $exists: false } },
-            { assignedEmployeeId: null },
-            { assignedEmployeeId: session.userId }
-          ],
-          declinedBy: { $ne: session.userId }
-        },
-        { $set: { assignedEmployeeId: session.userId, status: "ASSIGNED", acceptedAt: new Date() } },
-        { new: true }
-      );
+          companyId: session.companyId
+        }).lean();
 
-      if (!booking) {
-        const current = await BookingRequest.findById(bookingId).lean();
-        if (current?.status === "CONFIRMED") {
-          const meeting = await Meeting.findOne({ bookingRequestId: bookingId }).lean();
-          return { bookingId, status: current.status, meetingUri: meeting?.googleMeetingUri ?? null };
-        }
-        if (
-          current &&
-          ["ASSIGNED", "CREATING_MEETING"].includes(current.status) &&
-          String(current.assignedEmployeeId || "") === session.userId
-        ) {
-          const meeting = await Meeting.findOne({ bookingRequestId: bookingId }).lean();
-          return {
-            bookingId,
-            status: current.status,
-            meetingUri: meeting?.googleMeetingUri ?? null
-          };
-        }
-        throw new Error("BOOKING_NO_LONGER_AVAILABLE");
-      }
+        if (!scoped) throw new Error("BOOKING_NOT_FOUND");
 
-      try {
-        const plan = await getCompanyEntitlements(session.companyId!);
-        const [workspace, type] = await Promise.all([
+        const currentMeeting = await Meeting.findOne({
+          bookingRequestId: bookingId,
+          companyId: session.companyId
+        })
+          .select("status googleMeetingUri employeeId")
+          .lean();
+
+        const currentResponse = responseForCurrentState(
+          scoped,
+          currentMeeting,
+          session.userId
+        );
+        if (currentResponse) return currentResponse;
+
+        if (scoped.status === "EXPIRED") throw new Error("BOOKING_EXPIRED");
+        if (scoped.expiresAt.getTime() <= Date.now()) {
+          const db = await getMongo();
+          const tx = await db.startSession();
+          try {
+            await tx.withTransaction(async () => {
+              const expired = await BookingRequest.findOneAndUpdate(
+                {
+                  _id: bookingId,
+                  companyId: session.companyId,
+                  status: {
+                    $in: [
+                      "REQUESTED",
+                      "RETRYING",
+                      "ASSIGNED",
+                      "CREATING_MEETING"
+                    ]
+                  },
+                  expiresAt: { $lte: new Date() }
+                },
+                {
+                  $set: {
+                    status: "EXPIRED",
+                    assignedEmployeeId: null,
+                    nextRetryAt: null
+                  }
+                },
+                { new: true, session: tx }
+              );
+
+              if (expired) {
+                await releaseMeetingUsage({
+                  bookingId,
+                  companyId: session.companyId!,
+                  session: tx
+                });
+                await recordBookingActivity({
+                  companyId: session.companyId!,
+                  bookingRequestId: bookingId,
+                  eventType: "REQUEST_EXPIRED",
+                  fromStatus: expired.status === "EXPIRED" ? "REQUESTED" : expired.status,
+                  toStatus: "EXPIRED",
+                  outcome: "EXPIRED",
+                  actorRole: "SYSTEM",
+                  session: tx
+                });
+              }
+            });
+          } finally {
+            await tx.endSession();
+          }
+          throw new Error("BOOKING_EXPIRED");
+        }
+
+        const stateConflict = conflictCodeForState(
+          scoped.status,
+          scoped.assignedEmployeeId,
+          session.userId
+        );
+        if (stateConflict !== "BOOKING_NO_LONGER_AVAILABLE") {
+          throw new Error(stateConflict);
+        }
+
+        if (scoped.declinedBy?.some((id) => String(id) === session.userId)) {
+          throw new Error("BOOKING_DECLINED_BY_EMPLOYEE");
+        }
+
+        if (!["REQUESTED", "RETRYING"].includes(scoped.status)) {
+          throw new Error("BOOKING_NO_LONGER_AVAILABLE");
+        }
+
+        await assertFeatureAccess(session.companyId);
+        const plan = await getCompanyEntitlements(session.companyId);
+
+        const [workspace, type, activeMeeting] = await Promise.all([
           Workspace.findOne({
-            _id: booking.workspaceId,
+            _id: scoped.workspaceId,
             companyId: session.companyId,
             active: true
-          }).select("_id").lean(),
+          }).select("_id timezone").lean(),
           MeetingType.findOne({
-            _id: booking.meetingTypeId,
+            _id: scoped.meetingTypeId,
             companyId: session.companyId,
-            workspaceId: booking.workspaceId,
+            workspaceId: scoped.workspaceId,
             active: true
-          }).lean()
+          }).lean(),
+          Meeting.findOne({ bookingRequestId: bookingId, companyId: session.companyId })
+            .select("status googleCalendarEventId employeeId")
+            .lean()
         ]);
 
         if (!workspace) throw new Error("WORKSPACE_NOT_FOUND");
@@ -105,149 +256,214 @@ export async function POST(
         const resolved = resolveMeetingDuration(
           plan.maxMeetingDurationMinutes,
           type.durationOptionsMinutes,
-          booking.requestedDurationMinutes
+          scoped.requestedDurationMinutes
         );
+
         if (
-          booking.requestedEndAt.getTime() - booking.requestedStartAt.getTime() !==
+          scoped.requestedEndAt.getTime() - scoped.requestedStartAt.getTime() !==
           resolved.durationMinutes * 60_000
         ) {
           throw new Error("INVALID_TIME_RANGE");
         }
 
-        const employeeEligible = await eligibleEmployees(
-          session.companyId!,
-          booking.requestedStartAt,
-          booking.requestedEndAt,
-          booking.declinedBy?.map(String) ?? [],
+        const eligible = await eligibleEmployees(
+          session.companyId,
+          scoped.requestedStartAt,
+          scoped.requestedEndAt,
+          scoped.declinedBy?.map(String) ?? [],
           {
             bufferBeforeMinutes: type.bufferBeforeMinutes,
-            bufferAfterMinutes: type.bufferAfterMinutes
+            bufferAfterMinutes: type.bufferAfterMinutes,
+            excludeBookingId: bookingId
           }
         );
-        if (!employeeEligible.includes(session.userId)) {
-          await BookingRequest.updateOne(
-            { _id: booking._id, status: "ASSIGNED", assignedEmployeeId: session.userId },
-            {
-              $set: {
-                status: "RETRYING",
-                assignedEmployeeId: null,
-                nextRetryAt: new Date(Date.now() + 20_000)
-              }
-            }
-          );
+
+        if (!eligible.includes(session.userId)) {
           throw new Error("EMPLOYEE_NOT_AVAILABLE");
         }
 
-        const concurrent = await Meeting.countDocuments({
-          companyId: session.companyId,
-          status: { $in: ["CREATING", "READY", "LIVE"] },
-          startAt: { $lt: booking.requestedEndAt },
-          endAt: { $gt: booking.requestedStartAt }
-        });
-        if (concurrent >= plan.maxConcurrentMeetings) throw new Error("CONCURRENT_MEETING_LIMIT");
+        const db = await getMongo();
+        const tx = await db.startSession();
 
-        const usage = await Subscription.findOneAndUpdate(
-          { companyId: session.companyId, status: "ACTIVE", monthlyMeetingsUsed: { $lt: plan.monthlyMeetingLimit } },
-          { $inc: { monthlyMeetingsUsed: 1 } },
-          { new: true }
-        );
-        if (!usage) throw new Error("MONTHLY_MEETING_LIMIT");
+        let acceptedAt = new Date();
+        try {
+          let response;
+          await tx.withTransaction(async () => {
+            const latest = await BookingRequest.findOne({
+              _id: bookingId,
+              companyId: session.companyId,
+              status: { $in: ["REQUESTED", "RETRYING"] },
+              expiresAt: { $gt: new Date() },
+              declinedBy: { $ne: session.userId },
+              $or: [
+                { assignedEmployeeId: { $exists: false } },
+                { assignedEmployeeId: null }
+              ]
+            }).session(tx);
 
-        const acceptedBookingId = String(booking._id);
-        const acceptedCompanyId = session.companyId!;
+            if (!latest) {
+              const afterRace = await BookingRequest.findOne({
+                _id: bookingId,
+                companyId: session.companyId
+              })
+                .session(tx)
+                .lean();
 
-        after(async () => {
-          let lastError: unknown = null;
+              if (!afterRace) throw new Error("BOOKING_NOT_FOUND");
 
-          for (let attempt = 0; attempt < 3; attempt += 1) {
-            try {
-              await withRedisLock(
-                `meeting:finalize:${acceptedBookingId}`,
-                60_000,
-                async () => {
-                  await createMeetingForBooking(acceptedBookingId);
-                }
+              const same = responseForCurrentState(
+                afterRace,
+                activeMeeting,
+                session.userId
               );
-              return;
-            } catch (error) {
-              lastError = error;
-              const code = error instanceof Error ? error.message : "MEETING_CREATION_FAILED";
-              if (code !== "GOOGLE_MEET_PENDING" || attempt === 2) break;
-              await new Promise((resolve) => setTimeout(resolve, 1500));
+              if (same) {
+                response = same;
+                return;
+              }
+
+              throw new Error(
+                conflictCodeForState(
+                  afterRace.status,
+                  afterRace.assignedEmployeeId,
+                  session.userId
+                )
+              );
             }
-          }
 
-          const current = await BookingRequest.findById(acceptedBookingId).lean();
-          const meeting = await Meeting.findOne({ bookingRequestId: acceptedBookingId }).lean();
-          if (meeting?.status === "READY" || current?.status === "CONFIRMED") return;
-
-          if (current?.status === "CREATING_MEETING" || current?.status === "RETRYING") {
-            const stillActive = current.expiresAt.getTime() > Date.now();
-            await BookingRequest.updateOne(
-              {
-                _id: acceptedBookingId,
-                status: { $in: ["CREATING_MEETING", "RETRYING"] }
+            const concurrent = await BookingRequest.countDocuments({
+              _id: { $ne: latest._id },
+              companyId: session.companyId,
+              status: {
+                $in: [
+                  "ASSIGNED",
+                  "CREATING_MEETING",
+                  "CONFIRMED",
+                  "IN_PROGRESS"
+                ]
               },
-              {
-                $set: {
-                  status: stillActive ? "RETRYING" : "EXPIRED",
-                  assignedEmployeeId: null,
-                  nextRetryAt: stillActive ? new Date(Date.now() + 20_000) : null
-                }
-              }
-            );
-          }
+              requestedStartAt: { $lt: latest.requestedEndAt },
+              requestedEndAt: { $gt: latest.requestedStartAt }
+            }).session(tx);
 
-          await Subscription.updateOne(
-            { companyId: acceptedCompanyId, monthlyMeetingsUsed: { $gt: 0 } },
-            { $inc: { monthlyMeetingsUsed: -1 } }
-          );
-
-          if (lastError) {
-            void lastError;
-          }
-        });
-
-        return { bookingId: acceptedBookingId, status: "CREATING_MEETING", meetingUri: null };
-      } catch (error) {
-        const stillActive = booking.expiresAt.getTime() > Date.now();
-        const current = await BookingRequest.findById(booking._id).lean();
-        if (current?.status === "ASSIGNED" && String(current.assignedEmployeeId) === session.userId) {
-          await BookingRequest.updateOne(
-            { _id: booking._id, status: "ASSIGNED", assignedEmployeeId: session.userId },
-            {
-              $set: {
-                status: stillActive ? "RETRYING" : "EXPIRED",
-                assignedEmployeeId: null,
-                nextRetryAt: stillActive ? new Date(Date.now() + 20_000) : null
-              }
+            if (concurrent >= plan.maxConcurrentMeetings) {
+              throw new Error("CONCURRENT_MEETING_LIMIT");
             }
-          );
+
+            acceptedAt = new Date();
+            latest.assignedEmployeeId = session.userId;
+            latest.status = "CREATING_MEETING";
+            latest.acceptedAt = acceptedAt;
+            latest.confirmedAt = undefined;
+            latest.nextRetryAt = new Date(Date.now() + 15_000);
+            latest.meetingCreationStartedAt = acceptedAt;
+            latest.lastMeetingErrorCode = undefined;
+
+            await latest.save({ session: tx });
+
+            await reserveMeetingUsage({
+              bookingId,
+              companyId: session.companyId!,
+              plan,
+              session: tx
+            });
+
+            await recordBookingActivity({
+              companyId: session.companyId!,
+              bookingRequestId: bookingId,
+              eventType: "EMPLOYEE_ACCEPTED",
+              fromStatus: scoped.status,
+              toStatus: "CREATING_MEETING",
+              outcome: "ACCEPTED",
+              actorId: session.userId,
+              actorRole: session.role,
+              employeeId: session.userId,
+              occurredAt: acceptedAt,
+              session: tx
+            });
+
+            response = {
+              bookingId,
+              status: "CREATING_MEETING",
+              meetingUri: null
+            };
+          });
+
+          return response ?? {
+            bookingId,
+            status: "CREATING_MEETING",
+            meetingUri: null
+          };
+        } finally {
+          await tx.endSession();
         }
-        throw error;
+      }
+    );
+
+    after(async () => {
+      try {
+        await withRedisLock(
+          `meeting:finalize:${session.companyId}:${bookingId}`,
+          60_000,
+          async () => {
+            await createMeetingForBooking(bookingId);
+          }
+        );
+      } catch (error) {
+        const code = bookingErrorCode(error);
+        if (!["GOOGLE_MEET_PENDING", "RESOURCE_BUSY"].includes(code)) {
+          console.warn("[Conventus] meeting finalization failed", { code });
+        }
       }
     });
 
     return jsonOk(result);
   } catch (error) {
-    const code = error instanceof Error ? error.message : "BOOKING_ACCEPT_FAILED";
-    const status = [
-      "BOOKING_NO_LONGER_AVAILABLE",
-      "MEETING_DURATION_LIMIT",
-      "EMPLOYEE_NOT_AVAILABLE",
-      "CONCURRENT_MEETING_LIMIT",
-      "MONTHLY_MEETING_LIMIT",
-      "WORKSPACE_NOT_FOUND",
-      "MEETING_TYPE_NOT_FOUND",
-      "INVALID_DURATION",
-      "MEETING_DURATION_NOT_CONFIGURED",
-      "INVALID_TIME_RANGE",
-      "RESOURCE_BUSY"
-    ].includes(code)
-      ? 409
-      : code.startsWith("GOOGLE_API_") || code.startsWith("GOOGLE_")
-        ? 502
-        : 500;
-    return jsonError(code, status);
+    const code = bookingErrorCode(error);
+    const status =
+      [
+        "BOOKING_NOT_FOUND"
+      ].includes(code)
+        ? 404
+        : [
+            "BOOKING_ALREADY_ASSIGNED",
+            "BOOKING_ALREADY_CONFIRMED",
+            "BOOKING_DECLINED_BY_EMPLOYEE",
+            "BOOKING_EXPIRED",
+            "BOOKING_PROCESSING",
+            "BOOKING_NO_LONGER_AVAILABLE",
+            "EMPLOYEE_NOT_AVAILABLE",
+            "CONCURRENT_MEETING_LIMIT",
+            "MONTHLY_MEETING_LIMIT",
+            "MEETING_DURATION_LIMIT",
+            "INVALID_DURATION",
+            "MEETING_DURATION_NOT_CONFIGURED",
+            "INVALID_TIME_RANGE",
+            "WORKSPACE_NOT_FOUND",
+            "MEETING_TYPE_NOT_FOUND",
+            "RESOURCE_BUSY",
+            "BOOKING_ALREADY_COMPLETED",
+            "BOOKING_CANCELLED",
+            "BOOKING_FAILED"
+          ].includes(code)
+        ? 409
+        : code.startsWith("GOOGLE_API_") || code.startsWith("GOOGLE_")
+          ? 502
+          : 500;
+
+    const details =
+      status === 409
+        ? await safeStateDetails(bookingId, session.companyId!, session.userId).catch(
+            () => undefined
+          )
+        : undefined;
+
+    console.warn("[Conventus] booking accept rejected", {
+      code,
+      status,
+      role: session.role,
+      hasStateDetails: Boolean(details)
+    });
+
+    return bookingJsonError(code, status, details);
   }
 }
