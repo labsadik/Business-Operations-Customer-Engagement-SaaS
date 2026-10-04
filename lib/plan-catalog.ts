@@ -12,7 +12,6 @@ import {
   PLAN_STATUSES,
   validatePlanDraft,
   type PlanDiscountType,
-  type PlanPricing,
   type PlanStatus
 } from "@/lib/plan-rules";
 
@@ -229,7 +228,7 @@ export async function listPublicPlans(): Promise<PublicPlan[]> {
       .lean();
 
     return docs
-      .map(serializeRecord)
+      .map(serializeManagedPlan)
       .filter((plan) => {
         try {
           calculatePlanPricing(plan.priceInr, plan.discountType, plan.discountValue);
