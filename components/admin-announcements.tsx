@@ -246,7 +246,7 @@ export default function AdminAnnouncements() {
                     ["SELECTED_COMPANIES", "Selected authenticated company dashboards"]
                   ] as const).map(([value, label]) => (
                     <label key={value} className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3.5">
-                      <input type="radio" name="announcement-audience" value={value} checked={audience === value} onChange={() => setAudience(value)} className="mt-0.5" />
+                      <input type="radio" name="announcement-audience" value={value} checked={audience === value} onChange={() => { setAudience(value); if (value !== "SELECTED_COMPANIES") setSelectedCompanies([]); }} className="mt-0.5" />
                       <span className="text-xs text-slate-700">{label}</span>
                     </label>
                   ))}
