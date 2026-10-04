@@ -21,7 +21,7 @@
     "react-dom": "19.2.0",
     "redis": "6.3.0",
     "pdf-lib": "1.17.1",
-    "@axiomhq/js": "2.0.0",
+    "@axiomhq/js": "1.8.0",
     "@axiomhq/logging": "0.4.1",
     "@axiomhq/nextjs": "0.4.1",
     "@microsoft/clarity": "1.0.2",
