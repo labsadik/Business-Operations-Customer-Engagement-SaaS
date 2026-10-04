@@ -182,6 +182,35 @@ export default async function BillingCheckoutPage({
               </p>
             </div>
 
+            <div className="mx-6 mt-6 rounded-2xl border border-blue-100 bg-blue-50/60 p-5 sm:mx-8">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.13em] text-blue-600">
+                    Plan pricing
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    Server-calculated billing
+                  </p>
+                </div>
+                <p className="text-xl font-semibold text-slate-950">{money(tax.totalAmount)}</p>
+              </div>
+
+              <div className="mt-4 space-y-2.5 text-xs">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-slate-600">Plan price</span>
+                  <span className="font-semibold text-slate-900">{money(baseAmount)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-slate-600">GST</span>
+                  <span className="font-semibold text-slate-900">{money(tax.gstAmount)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4 border-t border-blue-100 pt-3">
+                  <span className="font-semibold text-blue-950">Final price</span>
+                  <span className="text-lg font-semibold text-slate-950">{money(tax.totalAmount)}</span>
+                </div>
+              </div>
+            </div>
+
             <div className="grid gap-3 p-6 sm:grid-cols-2 sm:p-8">
               {[
                 ["Employees", String(plan.maxEmployees)],
