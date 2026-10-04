@@ -780,18 +780,30 @@ export default function PublicBooking({
               <div className="mt-6 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
                 <Clock3 className="mx-auto size-7 text-slate-300" />
                 <p className="mt-3 text-sm font-semibold text-slate-900">
-                  {availabilityReason === "AVAILABILITY_SERVICE_ERROR"
-                    ? "Availability could not be checked"
+                  {availabilityReason === "NO_ACTIVE_MEMBERS"
+                    ? "This company has no active scheduling members"
                     : availabilityReason === "NO_SCHEDULING_MEMBER"
-                      ? "No scheduling-ready employee is available"
+                      ? "No employee is ready for Google scheduling"
                       : availabilityReason === "NO_CONFIGURED_SCHEDULE"
-                      ? "No working hours are configured for this date"
-                      : "Employees are busy or unavailable for this time"}
+                        ? "No working hours are configured for this date"
+                        : availabilityReason === "GOOGLE_CALENDAR_ERROR"
+                          ? "Google Calendar availability could not be checked"
+                          : availabilityReason === "AVAILABILITY_SERVICE_ERROR"
+                            ? "Availability could not be checked"
+                            : "No eligible employee is available for this time"}
                 </p>
                 <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-slate-500">
-                  {availabilityReason === "AVAILABILITY_SERVICE_ERROR"
-                    ? "Please try another date or ask the company administrator to restore availability."
-                    : "Choose another date or check back later for an available meeting time."}
+                  {availabilityReason === "NO_ACTIVE_MEMBERS"
+                    ? "Please ask the company administrator to add or activate a scheduling member."
+                    : availabilityReason === "NO_SCHEDULING_MEMBER"
+                      ? "A company employee must connect the required Google Calendar permissions before live availability can be shown."
+                      : availabilityReason === "NO_CONFIGURED_SCHEDULE"
+                        ? "Choose another date or ask the company administrator to configure working hours."
+                        : availabilityReason === "GOOGLE_CALENDAR_ERROR"
+                          ? "Please try another date. The company may need to reconnect Google Calendar."
+                          : availabilityReason === "AVAILABILITY_SERVICE_ERROR"
+                            ? "Please try another date or try again later."
+                            : "Choose another date or time. Calendar and existing booking constraints are checked before a request is accepted."}
                 </p>
               </div>
             ) : (
