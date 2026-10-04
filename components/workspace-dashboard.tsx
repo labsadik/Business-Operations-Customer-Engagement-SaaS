@@ -869,7 +869,7 @@ export default function WorkspaceDashboard({
     try {
       const [pending, history] = await Promise.all([
         api<RequestItem[]>("/api/employee/requests?limit=6"),
-        api<MeetingHistoryItem[]>("/api/employee/meetings?paginated=true&limit=6")
+        api<{ items: MeetingHistoryItem[]; nextCursor: string | null }>("/api/employee/meetings?paginated=true&limit=6")
       ]);
 
       setRequests(pending);
