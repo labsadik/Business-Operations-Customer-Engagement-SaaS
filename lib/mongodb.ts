@@ -19,12 +19,27 @@ export async function getMongo() {
     globalThis.__conventusMongo = undefined;
   }
 
-  globalThis.__conventusMongo ??= mongoose.connect(uri, {
-    dbName: databaseName,
-    serverSelectionTimeoutMS: 5000,
-    maxPoolSize: 20,
-    minPoolSize: 2
-  });
+  // Reuse only an in-flight connection. A disconnected or failed connection
+  // must not leave a stale resolved promise in the global cache.
+  if (mongoose.connection.readyState !== 2) {
+    globalThis.__conventusMongo = undefined;
+  }
+
+  if (!globalThis.__conventusMongo) {
+    const connectionPromise = mongoose.connect(uri, {
+      dbName: databaseName,
+      serverSelectionTimeoutMS: 5000,
+      maxPoolSize: 20,
+      minPoolSize: 2
+    });
+
+    globalThis.__conventusMongo = connectionPromise;
+    connectionPromise.catch(() => {
+      if (globalThis.__conventusMongo === connectionPromise) {
+        globalThis.__conventusMongo = undefined;
+      }
+    });
+  }
 
   return globalThis.__conventusMongo;
 }
