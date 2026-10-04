@@ -7,6 +7,7 @@ import { jsonError, jsonOk } from "@/lib/http";
 import { getCompanyEntitlements } from "@/lib/plans-server";
 import { resolveMeetingDuration } from "@/lib/plans";
 import { getSession } from "@/lib/session";
+import { Types } from "mongoose";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,6 +31,7 @@ export async function GET(
   if (
     !date ||
     !meetingTypeId ||
+    !Types.ObjectId.isValid(meetingTypeId) ||
     !Number.isInteger(duration) ||
     duration <= 0
   ) {
