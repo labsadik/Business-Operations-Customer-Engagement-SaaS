@@ -39,6 +39,7 @@ import PublicPageShare from "@/components/public-page-share";
 import GoogleIntegrationNotice from "@/components/google-integration-notice";
 import PlatformAnnouncementBanner from "@/components/platform-announcement-banner";
 import WorkspaceFeedback from "@/components/workspace-feedback";
+import { playFeedbackSoundIfEnabled } from "@/lib/client-feedback-sound";
 
 type Address = {
   line1: string;
@@ -950,10 +951,15 @@ export default function WorkspaceDashboard({
     await endMeeting(action.id);
   }
 
-  function openModal(name: Exclude<ModalName, null>, section?: "announcements") {
+  function openModal(
+    name: Exclude<ModalName, null>,
+    section?: "announcements",
+    fromUserGesture = false
+  ) {
     setError("");
     setSettingsSection(section === "announcements" ? "announcements" : "public");
     setActiveModal(name);
+    if (name === "feedback" && fromUserGesture) void playFeedbackSoundIfEnabled();
     if (name === "meetings") void loadAllMeetings();
   }
 
@@ -1072,7 +1078,7 @@ export default function WorkspaceDashboard({
         adminManaged={adminManaged}
         activePanel={activeModal}
         activeSettingsSection={settingsSection}
-        onOpenPanel={(panel, section) => openModal(panel, section)}
+        onOpenPanel={(panel, section) => openModal(panel, section, true)}
       />
       <div className="lg:pl-72">
       <header className="sticky top-0 z-40 border-b border-slate-200/90 bg-[#faf9f1]/95 backdrop-blur-xl">
@@ -1585,15 +1591,12 @@ export default function WorkspaceDashboard({
         </div>
       </div>
 
-      <AppModal
+      <WorkspaceFeedback
         open={activeModal === "feedback"}
-        title="Feedback"
-        subtitle="Private customer feedback for this company, plus optional feedback about Conventus for the platform team."
-        size="lg"
         onClose={() => setActiveModal(null)}
-      >
-        <WorkspaceFeedback />
-      </AppModal>
+        canViewCustomerFeedback={canManage}
+        canSubmit={data.currentRole !== "PLATFORM_ADMIN"}
+      />
 
       <AppModal
         open={activeModal === "meetings"}
