@@ -19,7 +19,11 @@ export async function GET(request: Request) {
   const cursorValue = searchParams.get("cursor");
   const cursor = paginated ? decodeHistoryCursor(cursorValue) : null;
 
-  if (paginated && cursorValue && !cursor) {
+  if (
+    paginated &&
+    cursorValue &&
+    (!cursor || !Types.ObjectId.isValid(cursor.id))
+  ) {
     return jsonError("INVALID_HISTORY_CURSOR", 400);
   }
 
