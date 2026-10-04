@@ -128,6 +128,8 @@ export default function PublicBooking({
   const [modalOpen, setModalOpen] = useState(false);
   const observedStatusRef = useRef("");
   const observedMeetingUriRef = useRef("");
+  const bookingDialogCloseRef = useRef<HTMLButtonElement | null>(null);
+  const statusDialogCloseRef = useRef<HTMLButtonElement | null>(null);
 
   const calendarDays = useMemo(() => buildCalendarDays(calendarMonth), [calendarMonth]);
 
@@ -192,6 +194,29 @@ export default function PublicBooking({
       window.clearInterval(interval);
     };
   }, [access, loadAvailability, typeId]);
+
+  useEffect(() => {
+    if (!modalOpen && !bookingId) return;
+
+    const timer = window.setTimeout(() => {
+      (bookingId ? statusDialogCloseRef.current : bookingDialogCloseRef.current)?.focus();
+    }, 0);
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (bookingId) {
+        if (!pending) resetRequest();
+      } else {
+        setModalOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [bookingId, modalOpen, pending]);
 
   useEffect(() => {
     if (!bookingId) return;
@@ -369,14 +394,22 @@ export default function PublicBooking({
 
   return (
     <>
-      <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white shadow-2xl">
+      <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl shadow-slate-200/40">
         <div className="grid lg:grid-cols-[420px_minmax(0,1fr)]">
-          <aside className="border-b border-slate-200 bg-slate-50 p-5 sm:p-7 lg:border-b-0 lg:border-r">
+          <aside className="border-b border-slate-200 bg-[#faf9f1] p-5 sm:p-7 lg:border-b-0 lg:border-r">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
-                  Create meeting
-                </p>
+                <div className="flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                  <span className="text-blue-600">01</span>
+                  <span>Choose date</span>
+                  <span>•</span>
+                  <span className="text-blue-600">02</span>
+                  <span>Meeting</span>
+                  <span>•</span>
+                  <span className="text-blue-600">03</span>
+                  <span>Duration</span>
+                </div>
+                <p className="mt-3 text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Create meeting</p>
                 <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">
                   Pick your date
                 </h2>
@@ -432,6 +465,8 @@ export default function PublicBooking({
                       key={day.iso}
                       type="button"
                       disabled={disabled}
+                      aria-current={today ? "date" : undefined}
+                      aria-pressed={selectedDay}
                       onClick={() => selectDate(day.iso)}
                       className={[
                         "relative grid aspect-square place-items-center rounded-xl text-xs font-semibold transition",
@@ -492,6 +527,13 @@ export default function PublicBooking({
                 ))
               )}
             </div>
+
+            {companyDescription && (
+              <div className="mt-4 rounded-2xl border border-blue-100 bg-white p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-600">About {companyName}</p>
+                <p className="mt-2 text-xs leading-5 text-slate-600">{companyDescription}</p>
+              </div>
+            )}
 
             <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
               <div className="flex items-center justify-between gap-3">
@@ -642,10 +684,11 @@ export default function PublicBooking({
                 </h2>
               </div>
               <button
+                ref={bookingDialogCloseRef}
                 type="button"
                 onClick={() => setModalOpen(false)}
-                className="grid size-9 place-items-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"
-                aria-label="Close"
+                className="grid size-9 place-items-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                aria-label="Close meeting request confirmation"
               >
                 <X className="size-4" />
               </button>
@@ -737,10 +780,11 @@ export default function PublicBooking({
               </div>
               {!pending && (
                 <button
+                  ref={statusDialogCloseRef}
                   type="button"
                   onClick={resetRequest}
-                  className="grid size-9 place-items-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"
-                  aria-label="Close"
+                  className="grid size-9 place-items-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+                  aria-label="Close booking status"
                 >
                   <X className="size-4" />
                 </button>
@@ -807,13 +851,13 @@ export default function PublicBooking({
               )}
 
               {status === "EXPIRED" && (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
                   No employee accepted this request in time. The request is closed. Choose another date or time and create a new request.
                 </div>
               )}
 
               {status === "CANCELLED" && (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
                   This booking was cancelled. Please select a new time.
                 </div>
               )}
