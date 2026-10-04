@@ -10,6 +10,7 @@ import { getCompanyEntitlements } from "@/lib/plans-server";
 import { getMeetingDurationOptions } from "@/lib/plans";
 import PublicBooking from "@/components/public-booking";
 import PublicBookingHeader from "@/components/public-booking-header";
+import { isDevelopmentOnlyUrl } from "@/lib/public-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,11 @@ export default async function CompanyPublicPage({
   }).lean();
 
   if (!company) notFound();
+
+  const displayLogoUrl =
+    company.logoUrl && !isDevelopmentOnlyUrl(company.logoUrl)
+      ? company.logoUrl
+      : "";
 
   const session = await getSession();
 
