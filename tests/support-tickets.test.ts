@@ -110,8 +110,8 @@ test("admin ticket inbox and status endpoint require platform admin and bounded 
   assert.match(detailRoute, /previousStatus: currentStatus/);
   assert.match(detailRoute, /newStatus: nextStatus/);
 
-  assert.match(shell, /href: \"\\/admin\\/support-tickets\"/);
-  assert.match(shell, /label: \"Support tickets\"/);
+  assert.ok(shell.includes('href: "/admin/support-tickets"'));
+  assert.ok(shell.includes('label: "Support tickets"'));
 });
 
 test("viewing a ticket is not a status mutation and UI distinguishes all stable statuses", () => {
