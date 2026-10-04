@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Check, Loader2, CreditCard, ArrowRight } from "lucide-react";
@@ -95,7 +96,7 @@ export default function RazorpayPlanButton({
     if (loading || disabled) return;
 
     if (mode === "navigate") {
-      router.push("/billing/checkout?plan=" + encodeURIComponent(planId));
+      router.push(("/billing/checkout?plan=" + encodeURIComponent(planId)) as Route);
       return;
     }
 
@@ -211,8 +212,8 @@ export default function RazorpayPlanButton({
             onComplete?.();
 
             router.push(
-              "/billing/result?paymentId=" +
-              encodeURIComponent(paymentResponse.razorpay_payment_id)
+              ("/billing/result?paymentId=" +
+                encodeURIComponent(paymentResponse.razorpay_payment_id)) as Route
             );
           } catch (error) {
             onError?.(
