@@ -669,7 +669,7 @@ export async function GET(
       status: 200,
       headers: {
         "content-type": "application/pdf",
-        "content-disposition": "attachment; filename=""" + invoice.invoiceNumber.replace(/[^a-zA-Z0-9._-]+/g, "_") + ".pdf""",
+        "content-disposition": "attachment; filename=\"" + invoice.invoiceNumber.replace(/[^a-zA-Z0-9._-]+/g, "_") + ".pdf\"",
         "cache-control": "private, no-store, max-age=0"
       }
     });
