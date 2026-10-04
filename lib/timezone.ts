@@ -75,8 +75,42 @@ export function zonedDateTimeToUtc(dateIso: string, minute: number, timezone: st
   const firstOffset = timezoneOffsetMs(wallClockUtc, timezone);
   const firstUtc = new Date(wallClockUtc.getTime() - firstOffset);
   const correctedOffset = timezoneOffsetMs(firstUtc, timezone);
+  const result = new Date(wallClockUtc.getTime() - correctedOffset);
 
-  return new Date(wallClockUtc.getTime() - correctedOffset);
+  const actualParts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23"
+    })
+      .formatToParts(result)
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value])
+  );
+
+  const expectedParts = {
+    year: String(wallClockUtc.getUTCFullYear()),
+    month: String(wallClockUtc.getUTCMonth() + 1).padStart(2, "0"),
+    day: String(wallClockUtc.getUTCDate()).padStart(2, "0"),
+    hour: String(wallClockUtc.getUTCHours()).padStart(2, "0"),
+    minute: String(wallClockUtc.getUTCMinutes()).padStart(2, "0")
+  };
+
+  if (
+    actualParts.year !== expectedParts.year ||
+    actualParts.month !== expectedParts.month ||
+    actualParts.day !== expectedParts.day ||
+    actualParts.hour !== expectedParts.hour ||
+    actualParts.minute !== expectedParts.minute
+  ) {
+    throw new Error("INVALID_TIME");
+  }
+
+  return result;
 }
 
 export function getTodayIso(timezone: string, now = new Date()) {
