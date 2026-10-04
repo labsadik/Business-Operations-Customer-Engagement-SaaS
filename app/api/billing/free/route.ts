@@ -27,6 +27,21 @@ export async function POST(request: Request) {
 
     const current = await getCompanySubscription(session.companyId);
     const now = new Date();
+
+    // Never let the Free endpoint restart an already-active Free cycle. This
+    // prevents resetting the 14-day feature window through repeated requests.
+    if (
+      current.planId === "free" &&
+      current.source === "FREE" &&
+      current.status === "ACTIVE" &&
+      current.currentPeriodEnd.getTime() > now.getTime()
+    ) {
+      return jsonOk({
+        planId: "free",
+        periodStart: current.currentPeriodStart,
+        periodEnd: current.currentPeriodEnd
+      });
+    }
     if (
       current.source === "PAID" &&
       current.status === "ACTIVE" &&
