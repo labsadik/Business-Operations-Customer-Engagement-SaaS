@@ -7,6 +7,7 @@ import { User } from "@/models/user";
 import { GoogleAccount } from "@/models/google-account";
 import { Invitation } from "@/models/invitation";
 import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
+import { getPublicOriginString } from "@/lib/public-origin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
     });
 
-    const base = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const base = getPublicOriginString();
     return jsonOk({ id: String(invitation._id), inviteUrl: `${base}/invite/${token}`, expiresAt: invitation.expiresAt }, 201);
   } catch (error) {
     const code = error instanceof Error ? error.message : "INVITE_FAILED";
