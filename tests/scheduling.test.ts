@@ -260,3 +260,54 @@ test("fall-back DST keeps the configured local interval on the same scheduling d
   assert.equal(end.toISOString(), "2026-11-01T07:30:00.000Z");
   assert.equal((end.getTime() - start.getTime()) / 60_000, 120);
 });
+
+
+import { canTransition } from "../lib/booking-state.ts";
+import {
+  bookingErrorCode,
+  friendlyBookingMessage
+} from "../lib/booking-errors.ts";
+import {
+  decodeHistoryCursor,
+  encodeHistoryCursor
+} from "../lib/booking-history.ts";
+
+test("booking response state machine preserves processing and retry paths", () => {
+  assert.equal(canTransition("REQUESTED", "ASSIGNED"), true);
+  assert.equal(canTransition("ASSIGNED", "CREATING_MEETING"), true);
+  assert.equal(canTransition("CREATING_MEETING", "CONFIRMED"), true);
+  assert.equal(canTransition("CREATING_MEETING", "RETRYING"), true);
+  assert.equal(canTransition("CONFIRMED", "ASSIGNED"), false);
+  assert.equal(canTransition("COMPLETED", "RETRYING"), false);
+});
+
+test("booking API errors expose stable codes and never require raw Google error bodies", () => {
+  assert.equal(
+    bookingErrorCode(new Error("GOOGLE_API_500:{"email":"private@example.com"}")),
+    "GOOGLE_API_500"
+  );
+  assert.equal(
+    friendlyBookingMessage("GOOGLE_API_500"),
+    "Google Calendar returned a temporary server error. Conventus will retry safely."
+  );
+  assert.equal(
+    friendlyBookingMessage("BOOKING_ALREADY_ASSIGNED"),
+    "This request is already being handled by another team member."
+  );
+});
+
+test("history cursor round-trips a stable timestamp/id pair", () => {
+  const occurredAt = new Date("2026-10-04T08:30:00.000Z");
+  const id = "507f1f77bcf86cd799439011";
+  const cursor = encodeHistoryCursor(occurredAt, id);
+  assert.deepEqual(decodeHistoryCursor(cursor), { at: occurredAt, id });
+  assert.equal(decodeHistoryCursor("not-a-valid-cursor"), null);
+});
+
+test("plan concurrency limits remain plan-configured rather than hard-coded", () => {
+  assert.equal(PLANS.free.maxConcurrentMeetings, 1);
+  assert.equal(PLANS.starter.maxConcurrentMeetings, 10);
+  assert.equal(PLANS.elite.maxConcurrentMeetings, 25);
+  assert.equal(PLANS.pro.maxConcurrentMeetings, 50);
+  assert.equal(PLANS.plus.maxConcurrentMeetings, 100);
+});
