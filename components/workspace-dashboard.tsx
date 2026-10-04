@@ -34,6 +34,7 @@ import MeetingResponseCountdown from "@/components/meeting-response-countdown";
 import RazorpayPlanButton from "@/components/razorpay-plan-button";
 import { playMeetingSound, unlockMeetingSound } from "@/lib/client-meeting-sound";
 import { PLANS, type PlanId } from "@/lib/plans";
+import WorkspaceSidebar from "@/components/workspace-sidebar";
 
 type Address = {
   line1: string;
@@ -293,7 +294,7 @@ function AppModal({
 
 function DashboardSkeleton() {
   return (
-    <main className="min-h-screen bg-[#f7f8fb]">
+    <main className="min-h-screen bg-[#faf9f1]">
       <div className="mx-auto max-w-7xl px-5 py-6 sm:px-6 lg:px-8">
         <div className="h-16 animate-pulse rounded-2xl border border-slate-200 bg-white" />
         <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -334,6 +335,7 @@ export default function WorkspaceDashboard({
   const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
   const [teamTab, setTeamTab] = useState<TeamTab>("members");
   const [activeModal, setActiveModal] = useState<ModalName>(null);
+  const [settingsSection, setSettingsSection] = useState<"public" | "announcements">("public");
   const [teamActionFor, setTeamActionFor] = useState<string | null>(null);
   const [invitesLoading, setInvitesLoading] = useState(false);
   const [billingLoading, setBillingLoading] = useState(false);
@@ -483,6 +485,17 @@ export default function WorkspaceDashboard({
   }, [refreshAll, refreshLive]);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const panel = params.get("panel");
+    if (panel === "meetings" || panel === "team" || panel === "settings" || panel === "billing") {
+      setActiveModal(panel);
+      if (panel === "settings") {
+        setSettingsSection(params.get("section") === "announcements" ? "announcements" : "public");
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     const handle = window.setTimeout(() => {
       if (activeModal === "team") void loadInvitations();
       if (activeModal === "billing") void loadInvoices();
@@ -490,6 +503,14 @@ export default function WorkspaceDashboard({
     }, 0);
     return () => window.clearTimeout(handle);
   }, [activeModal, loadInvitations, loadInvoices]);
+
+  useEffect(() => {
+    if (activeModal !== "settings" || settingsSection !== "announcements") return;
+    const timer = window.setTimeout(() => {
+      document.getElementById("workspace-announcements")?.scrollIntoView({ block: "start", behavior: "smooth" });
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [activeModal, settingsSection]);
 
   useEffect(() => {
     if (!activeModal) return;
@@ -765,8 +786,9 @@ export default function WorkspaceDashboard({
     await endMeeting(action.id);
   }
 
-  function openModal(name: Exclude<ModalName, null>) {
+  function openModal(name: Exclude<ModalName, null>, section?: "announcements") {
     setError("");
+    setSettingsSection(section === "announcements" ? "announcements" : "public");
     setActiveModal(name);
     if (name === "meetings") void loadAllMeetings();
   }
@@ -775,7 +797,7 @@ export default function WorkspaceDashboard({
 
   if (!data) {
     return (
-      <main className="min-h-screen bg-[#f7f8fb]">
+      <main className="min-h-screen bg-[#faf9f1]">
         <div className="mx-auto flex min-h-screen max-w-2xl items-center px-5 py-10">
           <section className="w-full rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm sm:p-10">
             <div className="grid size-12 place-items-center rounded-2xl bg-slate-950 text-white">
@@ -830,8 +852,20 @@ export default function WorkspaceDashboard({
   }
 
   return (
-    <main className="min-h-screen bg-[#f7f8fb] text-slate-950">
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur-xl">
+    <main className="min-h-screen bg-[#faf9f1] text-slate-950">
+      <WorkspaceSidebar
+        companyName={data.company.name}
+        userName={user.name}
+        userEmail={user.email}
+        currentRole={data.currentRole}
+        canManage={canManage}
+        adminManaged={adminManaged}
+        activePanel={activeModal}
+        activeSettingsSection={settingsSection}
+        onOpenPanel={(panel, section) => openModal(panel, section)}
+      />
+      <div className="lg:pl-72">
+      <header className="sticky top-0 z-40 border-b border-slate-200/90 bg-[#faf9f1]/95 backdrop-blur-xl">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
           <Link href="/" className="flex min-w-0 items-center gap-3">
             <span className="grid size-9 place-items-center rounded-xl bg-slate-950 text-white shadow-sm">
@@ -894,7 +928,7 @@ export default function WorkspaceDashboard({
         </div>
       </header>
 
-      <div className="mx-auto max-w-7xl px-5 py-7 sm:px-6 lg:px-8 lg:py-9">
+      <div className="mx-auto max-w-[1400px] px-5 py-6 sm:px-6 lg:px-10 lg:py-8">
         {data.featureLocked && (
           <div className="mb-6 flex items-start justify-between gap-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-900">
             <div>
@@ -1105,8 +1139,8 @@ export default function WorkspaceDashboard({
                           )}
                           {actionable && (
                             <>
-                              <button type="button" disabled={actingRequestId === item.id} onClick={() => void act(item.id, "decline")} className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Decline</button>
-                              <button type="button" disabled={actingRequestId === item.id} onClick={() => void act(item.id, "accept")} className="rounded-xl bg-blue-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+                              <button type="button" disabled={actingRequestId === item.id} onClick={() => void act(item.id, "decline")} className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50">Decline</button>
+                              <button type="button" disabled={actingRequestId === item.id} onClick={() => void act(item.id, "accept")} className="rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">
                                 {actingRequestId === item.id ? "Accepting..." : "Accept"}
                               </button>
                             </>
@@ -1389,7 +1423,7 @@ export default function WorkspaceDashboard({
                           )}
                           {actionable && (
                             <>
-                              <button type="button" disabled={actingRequestId === item.id} onClick={() => void act(item.id, "decline")} className="rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700">Decline</button>
+                              <button type="button" disabled={actingRequestId === item.id} onClick={() => void act(item.id, "decline")} className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700">Decline</button>
                               <button type="button" disabled={actingRequestId === item.id} onClick={() => void act(item.id, "accept")} className="rounded-xl bg-blue-600 px-3.5 py-2.5 text-xs font-semibold text-white">{actingRequestId === item.id ? "Accepting..." : "Accept"}</button>
                             </>
                           )}
@@ -1479,7 +1513,7 @@ export default function WorkspaceDashboard({
             </div>
           </section>
 
-          <section className="mt-5 rounded-2xl border border-slate-200 bg-white">
+          <section id="workspace-announcements" className="mt-5 rounded-2xl border border-slate-200 bg-white">
             <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
               <div>
                 <p className="text-xs font-semibold text-slate-900">Announcements</p>
@@ -1992,6 +2026,7 @@ export default function WorkspaceDashboard({
         }}
         onConfirm={() => void confirmDialogAction()}
       />
+      </div>
     </main>
   );
 }
