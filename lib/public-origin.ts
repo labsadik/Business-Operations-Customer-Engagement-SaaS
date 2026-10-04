@@ -27,6 +27,11 @@ function parseOrigin(value: string) {
   }
 }
 
+export function getConfiguredPublicOrigin() {
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  return configured ? parseOrigin(configured) : null;
+}
+
 export function getPublicOrigin() {
   const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
 
@@ -34,7 +39,7 @@ export function getPublicOrigin() {
     return configured ? new URL(configured) : new URL(DEVELOPMENT_ORIGIN);
   }
 
-  const parsed = configured ? parseOrigin(configured) : null;
+  const parsed = getConfiguredPublicOrigin();
   if (!parsed) throw new Error("PUBLIC_ORIGIN_NOT_CONFIGURED");
   return parsed;
 }
