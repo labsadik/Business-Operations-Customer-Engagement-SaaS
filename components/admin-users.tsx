@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Search, UserRound } from "lucide-react";
+import UserAvatar from "@/components/user-avatar";
 import type { AdminUserListItem } from "@/lib/admin";
 
 function dateLabel(value: Date | null) {
