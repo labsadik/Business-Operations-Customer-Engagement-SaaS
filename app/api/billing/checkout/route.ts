@@ -7,11 +7,10 @@ import { Payment } from "@/models/payment";
 import { PLANS, type PlanId } from "@/lib/plans";
 import { createRazorpayOrder, razorpayKeyId } from "@/lib/razorpay";
 import { jsonError, jsonOk } from "@/lib/http";
-import { assertSameOrigin } from "@/lib/security";
+import { assertSameOrigin, randomToken } from "@/lib/security";
 import { PLATFORM_BRAND, platformLogoUrl } from "@/lib/platform";
 import { calculateInvoiceTaxFromBase, invoiceTaxConfig } from "@/lib/invoicing";
 import { withRedisLock } from "@/lib/redis-lock";
-import { randomToken } from "@/lib/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
