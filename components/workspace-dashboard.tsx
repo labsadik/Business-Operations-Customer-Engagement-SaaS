@@ -393,6 +393,7 @@ export default function WorkspaceDashboard({
   const initializedRequestsRef = useRef(false);
   const seenRequestIdsRef = useRef(new Set<string>());
   const router = useRouter();
+  const closeFeedbackModal = useCallback(() => setActiveModal(null), []);
 
   const canManage = Boolean(
     data && ["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(data.currentRole)
