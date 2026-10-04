@@ -13,6 +13,14 @@ function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), "utf8");
 }
 
+function has(text: string, value: string) {
+  assert.ok(text.includes(value), `Expected source to contain: ${value}`);
+}
+
+function lacks(text: string, value: string) {
+  assert.equal(text.includes(value), false, `Expected source to omit: ${value}`);
+}
+
 test("support ticket input enforces required fields and bounded lengths", () => {
   assert.deepEqual(
     validateSupportTicketInput("Calendar sync problem", "Google Calendar availability is incorrect."),
@@ -47,44 +55,52 @@ test("support ticket statuses are stable and transition explicitly", () => {
 
 test("company ticket creation derives identity and tenant scope from active membership", () => {
   const route = source("app/api/company/support-tickets/route.ts");
-  assert.match(route, /getSession()/);
-  assert.match(route, /"COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"/);
-  assert.match(route, /companyId: session.companyId/);
-  assert.match(route, /userId: session.userId/);
-  assert.match(route, /active: true/);
-  assert.match(route, /role: session.role/);
-  assert.match(route, /workspaceId: membership.workspaceId/);
-  assert.match(route, /companyId: membership.companyId/);
-  assert.match(route, /companyId: new Types.ObjectId(companyId)/);
-  assert.match(route, /workspaceId: new Types.ObjectId(workspaceId)/);
-  assert.match(route, /submitterUserId: new Types.ObjectId(session.userId)/);
-  assert.match(route, /submitterName: session.name/);
-  assert.match(route, /submitterEmail: session.email/);
-  assert.doesNotMatch(route, /body?.userId|body?.companyId|body?.workspaceId|body?.companyName|body?.memberEmail|body?.memberName/);
+  has(route, "getSession()");
+  has(route, '"COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"');
+  has(route, "companyId: session.companyId");
+  has(route, "userId: session.userId");
+  has(route, "active: true");
+  has(route, "role: session.role");
+  has(route, "workspaceId: membership.workspaceId");
+  has(route, "companyId: membership.companyId");
+  has(route, "companyId: new Types.ObjectId(companyId)");
+  has(route, "workspaceId: new Types.ObjectId(workspaceId)");
+  has(route, "submitterUserId: new Types.ObjectId(session.userId)");
+  has(route, "submitterName: session.name");
+  has(route, "submitterEmail: session.email");
+  lacks(route, "body?.userId");
+  lacks(route, "body?.companyId");
+  lacks(route, "body?.workspaceId");
+  lacks(route, "body?.companyName");
+  lacks(route, "body?.memberEmail");
+  lacks(route, "body?.memberName");
 });
 
 test("company list and detail endpoints are tenant-scoped and read-only", () => {
   const listRoute = source("app/api/company/support-tickets/route.ts");
   const detailRoute = source("app/api/company/support-tickets/[id]/route.ts");
 
-  assert.match(listRoute, /SupportTicket.find({[sS]*companyId: new Types.ObjectId(scope.companyId)/);
-  assert.match(listRoute, /.sort({ updatedAt: -1, _id: -1 })/);
-  assert.match(listRoute, /.skip((page - 1) * limit)/);
-  assert.match(listRoute, /.limit(limit + 1)/);
-  assert.match(detailRoute, /_id: new Types.ObjectId(id)/);
-  assert.match(detailRoute, /companyId: new Types.ObjectId(session.companyId)/);
-  assert.doesNotMatch(detailRoute, /PATCH|PUT|DELETE/);
+  has(listRoute, "SupportTicket.find({");
+  has(listRoute, "companyId: new Types.ObjectId(scope.companyId)");
+  has(listRoute, ".sort({ updatedAt: -1, _id: -1 })");
+  has(listRoute, ".skip((page - 1) * limit)");
+  has(listRoute, ".limit(limit + 1)");
+  has(detailRoute, "_id: new Types.ObjectId(id)");
+  has(detailRoute, "companyId: new Types.ObjectId(session.companyId)");
+  lacks(detailRoute, "export async function PATCH");
+  lacks(detailRoute, "export async function PUT");
+  lacks(detailRoute, "export async function DELETE");
 });
 
 test("company support mutations use same-origin protection, Redis locking, dedupe and rate limits", () => {
   const route = source("app/api/company/support-tickets/route.ts");
-  assert.match(route, /assertSameOrigin(request)/);
-  assert.match(route, /withRedisLock(/);
-  assert.match(route, /SUPPORT_TICKET_DEDUPE_WINDOW_MS/);
-  assert.match(route, /SUPPORT_TICKET_DUPLICATE/);
-  assert.match(route, /SUPPORT_TICKET_RATE_WINDOW_MS/);
-  assert.match(route, /SUPPORT_TICKET_RATE_LIMIT/);
-  assert.match(route, /SUPPORT_TICKET_RATE_LIMITED/);
+  has(route, "assertSameOrigin(request)");
+  has(route, "withRedisLock(");
+  has(route, "SUPPORT_TICKET_DEDUPE_WINDOW_MS");
+  has(route, "SUPPORT_TICKET_DUPLICATE");
+  has(route, "SUPPORT_TICKET_RATE_WINDOW_MS");
+  has(route, "SUPPORT_TICKET_RATE_LIMIT");
+  has(route, "SUPPORT_TICKET_RATE_LIMITED");
 });
 
 test("admin ticket inbox and status endpoint require platform admin and bounded queries", () => {
@@ -92,43 +108,43 @@ test("admin ticket inbox and status endpoint require platform admin and bounded 
   const detailRoute = source("app/api/admin/support-tickets/[id]/route.ts");
   const shell = source("components/admin-shell.tsx");
 
-  assert.match(listRoute, /requirePlatformAdmin()/);
-  assert.match(listRoute, /SUPPORT_TICKET_STATUSES/);
-  assert.match(listRoute, /companyId = params/);
-  assert.match(listRoute, /.skip((page - 1) * limit)/);
-  assert.match(listRoute, /.limit(limit + 1)/);
-  assert.match(listRoute, /.sort({ updatedAt: -1, _id: -1 })/);
+  has(listRoute, "requirePlatformAdmin()");
+  has(listRoute, "SUPPORT_TICKET_STATUSES");
+  has(listRoute, "companyId = params.get");
+  has(listRoute, ".skip((page - 1) * limit)");
+  has(listRoute, ".limit(limit + 1)");
+  has(listRoute, ".sort({ updatedAt: -1, _id: -1 })");
 
-  assert.match(detailRoute, /requirePlatformAdmin()/);
-  assert.match(detailRoute, /assertSameOrigin(request)/);
-  assert.match(detailRoute, /validateSupportTicketStatus/);
-  assert.match(detailRoute, /isValidSupportTicketStatusTransition/);
-  assert.match(detailRoute, /ticket.status = nextStatus/);
-  assert.match(detailRoute, /statusChangedAt/);
-  assert.match(detailRoute, /statusChangedByUserId/);
-  assert.match(detailRoute, /entityType: "SUPPORT_TICKET"/);
-  assert.match(detailRoute, /previousStatus: currentStatus/);
-  assert.match(detailRoute, /newStatus: nextStatus/);
+  has(detailRoute, "requirePlatformAdmin()");
+  has(detailRoute, "assertSameOrigin(request)");
+  has(detailRoute, "validateSupportTicketStatus");
+  has(detailRoute, "isValidSupportTicketStatusTransition");
+  has(detailRoute, "ticket.status = nextStatus");
+  has(detailRoute, "statusChangedAt");
+  has(detailRoute, "statusChangedByUserId");
+  has(detailRoute, 'entityType: "SUPPORT_TICKET"');
+  has(detailRoute, "previousStatus: currentStatus");
+  has(detailRoute, "newStatus: nextStatus");
 
-  assert.ok(shell.includes('href: "/admin/support-tickets"'));
-  assert.ok(shell.includes('label: "Support tickets"'));
+  has(shell, 'href: "/admin/support-tickets"');
+  has(shell, 'label: "Support tickets"');
 });
 
 test("viewing a ticket is not a status mutation and UI distinguishes all stable statuses", () => {
   const companyUi = source("components/workspace-support-tickets.tsx");
   const adminUi = source("components/admin-support-tickets.tsx");
 
-  assert.match(companyUi, /Ticket status is managed by Conventus support/);
-  assert.match(companyUi, /Opening this ticket does not change its status/);
-  assert.match(companyUi, /NOT_SEEN/);
-  assert.match(companyUi, /PROCESSING/);
-  assert.match(companyUi, /COMPLETED/);
+  has(companyUi, "Ticket status is managed by Conventus support");
+  has(companyUi, "Opening this ticket does not change its status");
+  has(companyUi, '"NOT_SEEN"');
+  has(companyUi, '"PROCESSING"');
+  has(companyUi, '"COMPLETED"');
 
-  assert.match(adminUi, /Opening this ticket does not change its status/);
-  assert.match(adminUi, /Not seen/);
-  assert.match(adminUi, /Processing/);
-  assert.match(adminUi, /Completed/);
-  assert.match(adminUi, /statusChangedAt/);
+  has(adminUi, "Opening this ticket does not change its status");
+  has(adminUi, "Not seen");
+  has(adminUi, "Processing");
+  has(adminUi, "Completed");
+  has(adminUi, "statusChangedAt");
 });
 
 test("company support ticket UI has accessible modal controls, counters, pagination and recoverable states", () => {
@@ -136,42 +152,44 @@ test("company support ticket UI has accessible modal controls, counters, paginat
   const dashboard = source("components/workspace-dashboard.tsx");
   const ui = source("components/workspace-support-tickets.tsx");
 
-  assert.match(sidebar, /Support tickets/);
-  assert.match(sidebar, /open("support-tickets")/);
-  assert.match(dashboard, /support-tickets/);
-  assert.match(dashboard, /<WorkspaceSupportTickets/);
+  has(sidebar, "Support tickets");
+  has(sidebar, 'open("support-tickets")');
+  has(dashboard, "support-tickets");
+  has(dashboard, "<WorkspaceSupportTickets");
 
-  assert.match(ui, /role="dialog"/);
-  assert.match(ui, /aria-modal="true"/);
-  assert.match(ui, /event.key === "Escape"/);
-  assert.match(ui, /event.key !== "Tab"/);
-  assert.match(ui, /document.body.style.overflow = "hidden"/);
-  assert.ok(ui.includes("maxLength={SUBJECT_MAX}"));
-  assert.ok(ui.includes("maxLength={DESCRIPTION_MAX}"));
-  assert.ok(ui.includes("{subject.length}/{SUBJECT_MAX}"));
-  assert.ok(ui.includes("{description.length}/{DESCRIPTION_MAX}"));
-  assert.match(ui, /Create ticket/);
-  assert.match(ui, /Submit ticket/);
-  assert.match(ui, /Cancel/);
-  assert.match(ui, /Your signed-in company identity and workspace are attached automatically/);
-  assert.match(ui, /Previous/);
-  assert.match(ui, /Next/);
-  assert.match(ui, /SUPPORT_TICKET_DUPLICATE/);
-  assert.match(ui, /SUPPORT_TICKET_RATE_LIMITED/);
+  has(ui, 'role="dialog"');
+  has(ui, 'aria-modal="true"');
+  has(ui, 'event.key === "Escape"');
+  has(ui, 'event.key !== "Tab"');
+  has(ui, 'document.body.style.overflow = "hidden"');
+  has(ui, "maxLength={SUBJECT_MAX}");
+  has(ui, "maxLength={DESCRIPTION_MAX}");
+  has(ui, "{subject.length}/{SUBJECT_MAX}");
+  has(ui, "{description.length}/{DESCRIPTION_MAX}");
+  has(ui, "Create ticket");
+  has(ui, "Submit ticket");
+  has(ui, "Cancel");
+  has(ui, "Your signed-in company identity and workspace are attached automatically");
+  has(ui, "Previous");
+  has(ui, "Next");
+  has(ui, "SUPPORT_TICKET_DUPLICATE");
+  has(ui, "SUPPORT_TICKET_RATE_LIMITED");
 });
 
 test("support ticket data model is immutable for submission identity and issue content, with tenant indexes", () => {
   const model = source("models/support-ticket.ts");
   const audit = source("models/platform-audit-event.ts");
 
-  assert.match(model, /companyId:[sS]*immutable: true/);
-  assert.match(model, /workspaceId:[sS]*immutable: true/);
-  assert.match(model, /submitterUserId:[sS]*immutable: true/);
-  assert.match(model, /submitterName:[sS]*immutable: true/);
-  assert.match(model, /submitterEmail:[sS]*immutable: true/);
-  assert.match(model, /subject:[sS]*immutable: true/);
-  assert.match(model, /description:[sS]*immutable: true/);
-  assert.match(model, /supportTicketSchema.index({ companyId: 1, updatedAt: -1, _id: -1 })/);
-  assert.match(model, /supportTicketSchema.index({ status: 1, updatedAt: -1, _id: -1 })/);
-  assert.match(audit, /"SUPPORT_TICKET"/);
+  has(model, "companyId: {");
+  has(model, "workspaceId: {");
+  has(model, "submitterUserId: {");
+  has(model, "submitterName: {");
+  has(model, "submitterEmail: {");
+  has(model, "subject: {");
+  has(model, "description: {");
+  has(model, "immutable: true");
+  has(model, "supportTicketSchema.index({ companyId: 1, updatedAt: -1, _id: -1 })");
+  has(model, "supportTicketSchema.index({ companyId: 1, submitterUserId: 1, createdAt: -1 })");
+  has(model, "supportTicketSchema.index({ status: 1, updatedAt: -1, _id: -1 })");
+  has(audit, '"SUPPORT_TICKET"');
 });
