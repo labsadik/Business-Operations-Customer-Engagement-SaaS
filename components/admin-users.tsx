@@ -41,14 +41,7 @@ export default function AdminUsers({ users }: { users: AdminUserListItem[] }) {
           {visible.map((user) => (
             <div key={user.id} className="grid gap-4 px-5 py-5 lg:grid-cols-[1.4fr_1fr_1fr_1fr] lg:items-center">
               <div className="flex min-w-0 items-center gap-3">
-                <div className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
-                  {user.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={user.image} alt="" className="size-full object-cover" />
-                  ) : (
-                    user.name.slice(0, 1).toUpperCase()
-                  )}
-                </div>
+                <UserAvatar name={user.name} email={user.email} image={user.image} size={40} />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold">{user.name}</p>
                   <p className="truncate text-xs text-slate-500">{user.email}</p>
