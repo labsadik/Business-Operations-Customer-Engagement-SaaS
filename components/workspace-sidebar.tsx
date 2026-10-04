@@ -1,0 +1,205 @@
+"use client";
+
+import Link from "next/link";
+import type { Route } from "next";
+import { usePathname } from "next/navigation";
+import {
+  ArrowUpRight,
+  BarChart3,
+  Building2,
+  CalendarDays,
+  CreditCard,
+  Globe2,
+  Megaphone,
+  Settings2,
+  ShieldCheck,
+  UsersRound
+} from "lucide-react";
+
+type Panel = "meetings" | "team" | "settings" | "billing";
+
+type WorkspaceSidebarProps = {
+  companyName: string;
+  userName: string;
+  userEmail: string;
+  currentRole: string;
+  canManage?: boolean;
+  adminManaged?: boolean;
+  activePanel?: Panel | null;
+  activeProfile?: boolean;
+  onOpenPanel?: (panel: Panel, section?: "announcements") => void;
+};
+
+const primaryItems = [
+  { key: "dashboard", href: "/dashboard", label: "Overview", icon: BarChart3 }
+] as const;
+
+export default function WorkspaceSidebar({
+  companyName,
+  userName,
+  userEmail,
+  currentRole,
+  canManage = false,
+  adminManaged = false,
+  activePanel = null,
+  activeProfile = false,
+  onOpenPanel
+}: WorkspaceSidebarProps) {
+  const pathname = usePathname();
+
+  const isDashboard = pathname === "/dashboard" && !activePanel;
+  const active = (key: "dashboard" | Panel | "profile") => {
+    if (key === "dashboard") return isDashboard;
+    if (key === "profile") return activeProfile;
+    return activePanel === key;
+  };
+
+  const open = (panel: Panel, section?: "announcements") => {
+    if (onOpenPanel) {
+      onOpenPanel(panel, section);
+      return;
+    }
+  };
+
+  const buttonClass = (selected: boolean) => [
+    "group flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-left text-sm font-semibold transition",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
+    selected
+      ? "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-100"
+      : "text-slate-600 hover:bg-slate-50 hover:text-slate-950"
+  ].join(" ");
+
+  const iconClass = (selected: boolean) =>
+    selected ? "text-blue-600" : "text-slate-400 group-hover:text-slate-700";
+
+  return (
+    <>
+      <aside className="fixed inset-y-0 left-0 z-50 hidden w-72 flex-col border-r border-slate-200/90 bg-white lg:flex">
+        <div className="flex h-20 items-center gap-3 border-b border-slate-200/80 px-5">
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-blue-600 text-white shadow-sm shadow-blue-600/20">
+            <Building2 className="size-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold tracking-tight text-slate-950">Conventus</p>
+            <p className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-600">Company workspace</p>
+          </div>
+        </div>
+
+        <div className="border-b border-slate-200/80 px-4 py-4">
+          <div className="rounded-2xl bg-[#faf9f1] p-3 ring-1 ring-inset ring-amber-100/80">
+            <p className="truncate text-xs font-semibold text-slate-950">{companyName}</p>
+            <div className="mt-2 flex items-center gap-2">
+              <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-blue-600 text-[10px] font-bold text-white">
+                {userName.slice(0, 1).toUpperCase() || "C"}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-[11px] font-semibold text-slate-800">{userName}</p>
+                <p className="truncate text-[10px] text-slate-500">{userEmail}</p>
+              </div>
+            </div>
+            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
+              <span className="size-1.5 rounded-full bg-emerald-500" />
+              {currentRole.replaceAll("_", " ")}
+            </div>
+          </div>
+        </div>
+
+        <nav aria-label="Company workspace navigation" className="flex-1 overflow-y-auto px-4 py-5">
+          <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Workspace</p>
+
+          <div className="space-y-1">
+            {primaryItems.map((item) => {
+              const selected = active("dashboard");
+              const Icon = item.icon;
+              return (
+                <Link key={item.href} href={item.href as Route} className={buttonClass(selected)}>
+                  <Icon className={`size-4 ${iconClass(selected)}`} />
+                  <span>{item.label}</span>
+                  {selected && <span className="ml-auto size-1.5 rounded-full bg-blue-600" />}
+                </Link>
+              );
+            })}
+
+            <button type="button" onClick={() => open("meetings")} className={buttonClass(active("meetings"))}>
+              <CalendarDays className={`size-4 ${iconClass(active("meetings"))}`} />
+              <span>Meetings</span>
+            </button>
+
+            <button type="button" onClick={() => open("team")} className={buttonClass(active("team"))}>
+              <UsersRound className={`size-4 ${iconClass(active("team"))}`} />
+              <span>Team</span>
+            </button>
+
+            {canManage && (
+              <>
+                <button type="button" onClick={() => open("settings", "announcements")} className={buttonClass(activePanel === "settings" && !activeProfile)}>
+                  <Megaphone className={`size-4 ${iconClass(activePanel === "settings" && !activeProfile)}`} />
+                  <span>Announcements</span>
+                </button>
+
+                <button type="button" onClick={() => open("billing")} className={buttonClass(active("billing"))}>
+                  <CreditCard className={`size-4 ${iconClass(active("billing"))}`} />
+                  <span>Billing</span>
+                </button>
+
+                <button type="button" onClick={() => open("settings")} className={buttonClass(active("settings"))}>
+                  <Settings2 className={`size-4 ${iconClass(active("settings"))}`} />
+                  <span>Workspace settings</span>
+                </button>
+              </>
+            )}
+
+            <Link href="/dashboard/company-profile" className={buttonClass(active("profile"))}>
+              <Building2 className={`size-4 ${iconClass(active("profile"))}`} />
+              <span>Company profile</span>
+            </Link>
+          </div>
+
+          <p className="mt-7 px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">External</p>
+
+          <div className="space-y-1">
+            <Link href="/" className={buttonClass(false)}>
+              <Globe2 className="size-4 text-slate-400 group-hover:text-slate-700" />
+              <span>Conventus home</span>
+              <ArrowUpRight className="ml-auto size-3.5 text-slate-300" />
+            </Link>
+            <Link href="/dashboard" className={buttonClass(false)}>
+              <ShieldCheck className="size-4 text-slate-400 group-hover:text-slate-700" />
+              <span>Workspace home</span>
+            </Link>
+          </div>
+        </nav>
+
+        <div className="border-t border-slate-200/80 p-4">
+          {adminManaged && (
+            <Link href="/admin" className="mb-2 flex items-center gap-3 rounded-xl px-3.5 py-3 text-xs font-semibold text-blue-700 hover:bg-blue-50">
+              <ShieldCheck className="size-4" />
+              Return to admin console
+              <ArrowUpRight className="ml-auto size-3.5" />
+            </Link>
+          )}
+          <p className="px-3 pb-2 text-[10px] text-slate-400">Signed in as {userEmail}</p>
+          <form action="/api/auth/logout" method="post">
+            <button className="flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-600 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+              Sign out
+            </button>
+          </form>
+        </div>
+      </aside>
+
+      <nav aria-label="Mobile company workspace navigation" className="border-b border-slate-200/90 bg-white/95 backdrop-blur-lg lg:hidden">
+        <div className="flex items-center gap-2 overflow-x-auto px-4 py-2.5">
+          <Link href="/dashboard" className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${isDashboard ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>
+            Overview
+          </Link>
+          <button type="button" onClick={() => open("meetings")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("meetings") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Meetings</button>
+          <button type="button" onClick={() => open("team")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("team") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Team</button>
+          {canManage && <button type="button" onClick={() => open("settings", "announcements")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${activePanel === "settings" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Announcements</button>}
+          {canManage && <button type="button" onClick={() => open("billing")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("billing") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Billing</button>}
+          {canManage && <button type="button" onClick={() => open("settings")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("settings") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Settings</button>}
+          <Link href="/dashboard/company-profile" className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("profile") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Profile</Link>
+        </div>
+      </nav>
+    </>
+  );
+}
