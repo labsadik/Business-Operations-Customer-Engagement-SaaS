@@ -34,12 +34,11 @@ function timezoneOffsetMs(date: Date, timezone: string) {
 }
 
 export function getDayOfWeekForDate(dateIso: string, timezone: string) {
-  const { year, month, day } = parseDateParts(dateIso);
-  const noonUtc = new Date(Date.UTC(year, month - 1, day, 12));
+  const localNoon = zonedDateTimeToUtc(dateIso, 12 * 60, timezone);
   const weekday = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
     weekday: "short"
-  }).format(noonUtc);
+  }).format(localNoon);
   const days: Record<string, number> = {
     Sun: 0,
     Mon: 1,
