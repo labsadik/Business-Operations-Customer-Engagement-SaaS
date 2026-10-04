@@ -1797,7 +1797,6 @@ export default function WorkspaceDashboard({
                           <RazorpayPlanButton
                             planId={id}
                             currentPlanId={planId}
-                            disabled={adminManaged}
                             onComplete={() => {
                               void loadInvoices();
                               void refreshAll();
@@ -1807,7 +1806,7 @@ export default function WorkspaceDashboard({
                         ) : (
                           <button
                             type="button"
-                            disabled={busy || isCurrent || adminManaged || paidAccessActive}
+                            disabled={busy || isCurrent || paidAccessActive}
                             onClick={() => {
                               setBusy(true);
                               void api("/api/billing/free", { method: "POST" })
