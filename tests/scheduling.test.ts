@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { classifyAccept, classifyDecline } from "../lib/booking-action-policy.ts";
+
 
 import {
   PLANS,
@@ -259,4 +261,141 @@ test("fall-back DST keeps the configured local interval on the same scheduling d
   assert.equal(start.toISOString(), "2026-11-01T05:30:00.000Z");
   assert.equal(end.toISOString(), "2026-11-01T07:30:00.000Z");
   assert.equal((end.getTime() - start.getTime()) / 60_000, 120);
+});
+
+
+import { canTransition } from "../lib/booking-state.ts";
+import {
+  bookingErrorCode,
+  friendlyBookingMessage
+} from "../lib/booking-error-codes.ts";
+import {
+  decodeHistoryCursor,
+  encodeHistoryCursor
+} from "../lib/history-cursor.ts";
+
+test("booking response state machine preserves processing and retry paths", () => {
+  assert.equal(canTransition("REQUESTED", "ASSIGNED"), true);
+  assert.equal(canTransition("ASSIGNED", "CREATING_MEETING"), true);
+  assert.equal(canTransition("CREATING_MEETING", "CONFIRMED"), true);
+  assert.equal(canTransition("CREATING_MEETING", "RETRYING"), true);
+  assert.equal(canTransition("CONFIRMED", "ASSIGNED"), false);
+  assert.equal(canTransition("COMPLETED", "RETRYING"), false);
+});
+
+test("booking API errors expose stable codes and never require raw Google error bodies", () => {
+  assert.equal(
+    bookingErrorCode(new Error(`GOOGLE_API_500:{"email":"private@example.com"}`)),
+    "GOOGLE_API_500"
+  );
+  assert.equal(
+    friendlyBookingMessage("GOOGLE_API_500"),
+    "Google Calendar returned a temporary server error. Conventus will retry safely."
+  );
+  assert.equal(
+    friendlyBookingMessage("BOOKING_ALREADY_ASSIGNED"),
+    "This request is already being handled by another team member."
+  );
+});
+
+test("history cursor round-trips a stable timestamp/id pair", () => {
+  const occurredAt = new Date("2026-10-04T08:30:00.000Z");
+  const id = "507f1f77bcf86cd799439011";
+  const cursor = encodeHistoryCursor(occurredAt, id);
+  assert.deepEqual(decodeHistoryCursor(cursor), { at: occurredAt, id });
+  assert.equal(decodeHistoryCursor("not-a-valid-cursor"), null);
+});
+
+test("plan concurrency limits remain plan-configured rather than hard-coded", () => {
+  assert.equal(PLANS.free.maxConcurrentMeetings, 1);
+  assert.equal(PLANS.starter.maxConcurrentMeetings, 10);
+  assert.equal(PLANS.elite.maxConcurrentMeetings, 25);
+  assert.equal(PLANS.pro.maxConcurrentMeetings, 50);
+  assert.equal(PLANS.plus.maxConcurrentMeetings, 100);
+});
+
+
+test("accept policy distinguishes idempotent, assigned, expired, and declined states", () => {
+  const future = new Date("2026-10-05T10:00:00.000Z");
+  const base = {
+    assignedEmployeeId: undefined,
+    declinedBy: [] as string[],
+    expiresAt: future,
+    userId: "employee-a"
+  };
+
+  assert.deepEqual(
+    classifyAccept({ ...base, status: "REQUESTED" }),
+    { kind: "ELIGIBLE" }
+  );
+  assert.deepEqual(
+    classifyAccept({ ...base, status: "ASSIGNED", assignedEmployeeId: "employee-a" }),
+    { kind: "IDEMPOTENT_PROCESSING" }
+  );
+  assert.deepEqual(
+    classifyAccept({ ...base, status: "ASSIGNED", assignedEmployeeId: "employee-b" }),
+    { kind: "ALREADY_ASSIGNED" }
+  );
+  assert.deepEqual(
+    classifyAccept({ ...base, status: "CONFIRMED", assignedEmployeeId: "employee-a" }),
+    { kind: "IDEMPOTENT_CONFIRMED" }
+  );
+  assert.deepEqual(
+    classifyAccept({ ...base, status: "CONFIRMED", assignedEmployeeId: "employee-b" }),
+    { kind: "ALREADY_CONFIRMED" }
+  );
+  assert.deepEqual(
+    classifyAccept({ ...base, status: "REQUESTED", expiresAt: new Date("2026-10-03T10:00:00.000Z") }),
+    { kind: "EXPIRED" }
+  );
+  assert.deepEqual(
+    classifyAccept({ ...base, status: "REQUESTED", declinedBy: ["employee-a"] }),
+    { kind: "DECLINED_BY_EMPLOYEE" }
+  );
+});
+
+test("decline policy is idempotent for one employee and still eligible for teammates", () => {
+  const future = new Date("2026-10-05T10:00:00.000Z");
+  assert.deepEqual(
+    classifyDecline({
+      status: "REQUESTED",
+      assignedEmployeeId: undefined,
+      declinedBy: ["employee-a"],
+      expiresAt: future,
+      userId: "employee-a"
+    }),
+    { kind: "IDEMPOTENT_PROCESSING" }
+  );
+  assert.deepEqual(
+    classifyDecline({
+      status: "RETRYING",
+      assignedEmployeeId: undefined,
+      declinedBy: ["employee-a"],
+      expiresAt: future,
+      userId: "employee-b"
+    }),
+    { kind: "ELIGIBLE" }
+  );
+});
+
+test("terminal booking states cannot be re-accepted or re-declined", () => {
+  const future = new Date("2026-10-05T10:00:00.000Z");
+  for (const status of ["EXPIRED", "COMPLETED", "CANCELLED", "FAILED"]) {
+    assert.notEqual(
+      classifyAccept({
+        status,
+        expiresAt: future,
+        userId: "employee-a"
+      }).kind,
+      "ELIGIBLE"
+    );
+    assert.notEqual(
+      classifyDecline({
+        status,
+        expiresAt: future,
+        userId: "employee-a"
+      }).kind,
+      "ELIGIBLE"
+    );
+  }
 });
