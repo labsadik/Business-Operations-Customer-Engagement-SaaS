@@ -7,6 +7,7 @@ import { Company } from "@/models/company";
 import { Workspace } from "@/models/workspace";
 import { Types } from "mongoose";
 import { randomToken, sha256 } from "@/lib/security";
+import { googleAvatarUrl } from "@/lib/avatar";
 
 const COOKIE_NAME = "conventus_session";
 export const ADMIN_MANAGED_COMPANY_COOKIE = "conventus_admin_company";
@@ -169,7 +170,7 @@ export async function getSession(): Promise<AuthSession | null> {
         role: "PLATFORM_ADMIN",
         email: String(user.email),
         name: String(user.name),
-        image: user.image ?? undefined
+        image: googleAvatarUrl(user.image) || undefined
       };
     }
 
@@ -186,7 +187,7 @@ export async function getSession(): Promise<AuthSession | null> {
           role: "PLATFORM_ADMIN",
           email: String(user.email),
           name: String(user.name),
-          image: user.image ?? undefined
+          image: googleAvatarUrl(user.image) || undefined
         };
       }
     }
@@ -198,7 +199,7 @@ export async function getSession(): Promise<AuthSession | null> {
       workspaceId: scopedWorkspaceId,
       email: String(user.email),
       name: String(user.name),
-      image: user.image ?? undefined
+      image: googleAvatarUrl(user.image) || undefined
     };
   }
 
@@ -233,7 +234,7 @@ export async function getSession(): Promise<AuthSession | null> {
     workspaceId: session.workspaceId ? String(session.workspaceId) : undefined,
     email: String(user.email),
     name: String(user.name),
-    image: user.image ?? undefined
+    image: googleAvatarUrl(user.image) || undefined
   };
 }
 
