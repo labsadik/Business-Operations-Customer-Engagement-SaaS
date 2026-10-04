@@ -253,6 +253,9 @@ export async function POST(request: Request) {
 
   const freePlan = await getManagedPlan("free", { includeArchived: true });
   if (!freePlan) return jsonError("FREE_PLAN_NOT_CONFIGURED", 503);
+  if (freePlan.archivedAt || freePlan.status !== "PUBLIC" || freePlan.requiresPayment) {
+    return jsonError("FREE_PLAN_UNAVAILABLE", 409);
+  }
 
   const now = new Date();
   const periodEnd = new Date(now);
