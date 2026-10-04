@@ -93,7 +93,8 @@ export default function CookieConsent() {
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        closeSettings();
+        setSettingsOpen(false);
+        window.setTimeout(() => triggerRef.current?.focus(), 0);
         return;
       }
 
