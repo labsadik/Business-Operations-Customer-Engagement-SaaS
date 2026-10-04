@@ -41,16 +41,21 @@ const FRIENDLY_MESSAGES: Record<string, string> = {
   GOOGLE_API_429: "Google Calendar is temporarily rate-limiting requests. Conventus will retry safely.",
   GOOGLE_API_500: "Google Calendar returned a temporary server error. Conventus will retry safely.",
   GOOGLE_API_502: "Google Calendar returned a temporary server error. Conventus will retry safely.",
-  GOOGLE_API_503: "Google Calendar is temporarily unavailable. Conventus will retry safely."
+  GOOGLE_API_503: "Google Calendar is temporarily unavailable. Conventus will retry safely.",
+  FREE_FEATURE_DAYS_EXHAUSTED: "The free-plan trial window has ended for this workspace.",
+  PLATFORM_ADMIN_CANNOT_ACCEPT_AS_EMPLOYEE: "Platform administrators cannot accept a meeting as an employee.",
+  CSRF_ORIGIN_INVALID: "The request origin could not be verified."
 };
 
 export function friendlyBookingMessage(code: string) {
+  const knownMessage = FRIENDLY_MESSAGES[code];
+  if (knownMessage) return knownMessage;
+
   if (/^GOOGLE_API_[45]\d\d$/.test(code)) {
-    return code === "GOOGLE_API_409"
-      ? FRIENDLY_MESSAGES.GOOGLE_API_409
-      : "Google Calendar returned a temporary or permission error. Conventus will refresh the meeting state and retry when safe.";
+    return "Google Calendar returned a temporary or permission error. Conventus will refresh the meeting state and retry when safe.";
   }
-  return FRIENDLY_MESSAGES[code] ?? "We could not complete that meeting action. The request will refresh to its current server state.";
+
+  return "We could not complete that meeting action. The request will refresh to its current server state.";
 }
 
 export function bookingErrorCode(error: unknown) {
