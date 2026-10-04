@@ -1604,7 +1604,6 @@ export default function WorkspaceDashboard({
                 </button>
               )}
             </div>
-          </section>
 
           <section id="workspace-announcements" className="mt-5 rounded-2xl border border-slate-200 bg-white">
             <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
