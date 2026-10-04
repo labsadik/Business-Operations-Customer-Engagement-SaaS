@@ -76,21 +76,23 @@ export async function POST(request: Request) {
 
     const session = await getSession();
     if (!session) return jsonError("UNAUTHENTICATED", 401);
-    if (!["COMPANY_OWNER", "COMPANY_ADMIN"].includes(session.role) || !session.companyId) {
+    if (!["COMPANY_OWNER", "COMPANY_ADMIN"].includes(session.role) || !companyId) {
       return jsonError("FORBIDDEN", 403);
     }
+
+    const companyId = companyId;
 
     await getMongo();
 
     const membership = await Membership.findOne({
-      companyId: session.companyId,
+      companyId: companyId,
       userId: session.userId,
       active: true,
       role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN"] }
     }).lean();
     if (!membership) return jsonError("FORBIDDEN", 403);
 
-    const company = await Company.findById(session.companyId).lean();
+    const company = await Company.findById(companyId).lean();
     if (!company) return jsonError("COMPANY_NOT_FOUND", 404);
 
     const body = await request.json().catch(() => null) as { planId?: string } | null;
@@ -109,13 +111,13 @@ export async function POST(request: Request) {
     }
 
     return await withRedisLock(
-      `billing:checkout:${session.companyId}`,
+      `billing:checkout:${companyId}`,
       15_000,
       async () => {
         // The lock is deliberately per company, not per plan. This guarantees
         // that a company cannot have two payable orders open at once.
         const existingPending = await Payment.findOne({
-          companyId: session.companyId,
+          companyId: companyId,
           merchantAccount: "CONVENTUS",
           status: "PENDING"
         }).sort({ createdAt: -1 }).lean();
@@ -150,7 +152,7 @@ export async function POST(request: Request) {
         // Keep the provider receipt comfortably below Razorpay's receipt
         // length limit and avoid prefix-only collisions from a truncated
         // millisecond timestamp.
-        const receipt = `conventus_${String(session.companyId).slice(-10)}_${Date.now().toString(36)}_${randomToken(6)}`.slice(0, 40);
+        const receipt = `conventus_${String(companyId).slice(-10)}_${Date.now().toString(36)}_${randomToken(6)}`.slice(0, 40);
 
         const order = await createRazorpayOrder({
           amount: tax.totalAmount,
@@ -158,7 +160,7 @@ export async function POST(request: Request) {
           receipt,
           notes: {
             merchant: PLATFORM_BRAND.name,
-            companyId: session.companyId,
+            companyId: companyId,
             planId: plan.id,
             baseAmount: String(tax.taxableAmount),
             gstAmount: String(tax.gstAmount),
@@ -171,10 +173,10 @@ export async function POST(request: Request) {
         let payment;
         try {
           payment = await Payment.create({
-            companyId: session.companyId,
+            companyId: companyId,
             planId: plan.id,
             merchantAccount: "CONVENTUS",
-            checkoutKey: String(session.companyId),
+            checkoutKey: String(companyId),
             providerOrderId: order.id,
             amount: order.amount,
             baseAmount: tax.taxableAmount,
@@ -188,7 +190,7 @@ export async function POST(request: Request) {
           // The unique checkoutKey is the final database-level duplicate
           // protection if Redis is unavailable or a second request races it.
           const existing = await Payment.findOne({
-            companyId: session.companyId,
+            companyId: companyId,
             status: "PENDING"
           }).sort({ createdAt: -1 }).lean();
 
