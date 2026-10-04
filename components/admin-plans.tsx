@@ -173,6 +173,15 @@ function statusLabel(status: Status) {
       : "Private";
 }
 
+function validPlanItems(value: unknown): Plan[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is Plan => {
+    if (!item || typeof item !== "object") return false;
+    const id = (item as { id?: unknown }).id;
+    return typeof id === "string" && id.trim().length > 0 && id !== "undefined";
+  });
+}
+
 export default function AdminPlans() {
   const [items, setItems] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -198,7 +207,7 @@ export default function AdminPlans() {
       const response = await fetch("/api/admin/plans", { cache: "no-store" });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.error || "PLAN_LIST_FAILED");
-      setItems(body.data?.items ?? []);
+      setItems(validPlanItems(body.data?.items));
       setError("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "PLAN_LIST_FAILED");
@@ -216,7 +225,7 @@ export default function AdminPlans() {
         const body = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(body.error || "PLAN_LIST_FAILED");
         if (cancelled) return;
-        setItems(body.data?.items ?? []);
+        setItems(validPlanItems(body.data?.items));
         setError("");
       } catch (error) {
         if (cancelled) return;
@@ -292,6 +301,10 @@ export default function AdminPlans() {
 
   async function submitSave() {
     if (saving) return;
+    if (editingId === "undefined") {
+      setError("PLAN_IDENTIFIER_INVALID");
+      return;
+    }
     setSaving(true);
     setError("");
     setNotice("");
@@ -338,6 +351,10 @@ export default function AdminPlans() {
 
   async function patchPlan(id: string, payload: Record<string, unknown>, success: string) {
     if (saving) return;
+    if (!id || id === "undefined") {
+      setError("PLAN_IDENTIFIER_INVALID");
+      return;
+    }
     setSaving(true);
     setError("");
     setNotice("");
