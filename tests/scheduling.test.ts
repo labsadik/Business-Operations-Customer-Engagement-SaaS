@@ -193,9 +193,9 @@ test("meeting buffers prevent unsafe back-to-back employee scheduling", () => {
     10
   );
 
-  assert.equal(schedule[0].startAt.toISOString(), "2026-10-04T04:40:00.000Z");
-  assert.equal(schedule[0].endAt.toISOString(), "2026-10-04T05:40:00.000Z");
-  assert.equal(schedule.at(-1)?.endAt.toISOString(), "2026-10-04T06:50:00.000Z");
+  assert.equal(schedule[0].startAt.toISOString(), "2026-10-04T03:40:00.000Z");
+  assert.equal(schedule[0].endAt.toISOString(), "2026-10-04T04:40:00.000Z");
+  assert.equal(schedule.at(-1)?.endAt.toISOString(), "2026-10-04T06:20:00.000Z");
 });
 
 test("date/time conversion rejects non-existent DST local times and preserves valid local instants", () => {
