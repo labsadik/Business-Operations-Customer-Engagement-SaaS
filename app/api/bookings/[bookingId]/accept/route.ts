@@ -15,6 +15,7 @@ import { bookingJsonError, bookingErrorCode, friendlyBookingMessage } from "@/li
 import { recordBookingActivity, reserveMeetingUsage, releaseMeetingUsage } from "@/lib/booking-history";
 import { assertSameOrigin } from "@/lib/security";
 import { after } from "next/server";
+import { classifyAccept } from "@/lib/booking-action-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,18 +55,14 @@ function responseForCurrentState(
   return null;
 }
 
-function conflictCodeForState(
-  status: string,
-  assignedEmployeeId: unknown,
-  userId: string
-) {
-  if (assignedEmployeeId && String(assignedEmployeeId) !== userId) {
-    return status === "CONFIRMED" || status === "IN_PROGRESS"
-      ? "BOOKING_ALREADY_CONFIRMED"
-      : "BOOKING_ALREADY_ASSIGNED";
-  }
-
-  switch (status) {
+function acceptDecisionError(decision: ReturnType<typeof classifyAccept>) {
+  switch (decision.kind) {
+    case "ALREADY_ASSIGNED":
+      return "BOOKING_ALREADY_ASSIGNED";
+    case "ALREADY_CONFIRMED":
+      return "BOOKING_ALREADY_CONFIRMED";
+    case "DECLINED_BY_EMPLOYEE":
+      return "BOOKING_DECLINED_BY_EMPLOYEE";
     case "EXPIRED":
       return "BOOKING_EXPIRED";
     case "COMPLETED":
@@ -74,14 +71,13 @@ function conflictCodeForState(
       return "BOOKING_CANCELLED";
     case "FAILED":
       return "BOOKING_FAILED";
-    case "CREATING_MEETING":
-    case "ASSIGNED":
+    case "IDEMPOTENT_PROCESSING":
       return "BOOKING_PROCESSING";
-    case "CONFIRMED":
-    case "IN_PROGRESS":
-      return "BOOKING_ALREADY_CONFIRMED";
-    default:
+    case "NO_LONGER_AVAILABLE":
       return "BOOKING_NO_LONGER_AVAILABLE";
+    case "ELIGIBLE":
+    case "IDEMPOTENT_CONFIRMED":
+      return null;
   }
 }
 
@@ -167,12 +163,23 @@ export async function POST(
           .select("status googleMeetingUri employeeId")
           .lean();
 
-        const currentResponse = responseForCurrentState(
-          scoped,
-          currentMeeting,
-          session.userId
-        );
-        if (currentResponse) return currentResponse;
+        const decision = classifyAccept({
+          status: scoped.status,
+          assignedEmployeeId: scoped.assignedEmployeeId,
+          declinedBy: scoped.declinedBy,
+          expiresAt: scoped.expiresAt,
+          userId: session.userId
+        });
+
+        if (
+          decision.kind === "IDEMPOTENT_PROCESSING" ||
+          decision.kind === "IDEMPOTENT_CONFIRMED"
+        ) {
+          return responseForCurrentState(scoped, currentMeeting, session.userId);
+        }
+
+        const decisionError = acceptDecisionError(decision);
+        if (decisionError) throw new Error(decisionError);
 
         if (scoped.status === "EXPIRED") throw new Error("BOOKING_EXPIRED");
         if (scoped.expiresAt.getTime() <= Date.now()) {
@@ -242,19 +249,6 @@ export async function POST(
             await tx.endSession();
           }
           throw new Error("BOOKING_EXPIRED");
-        }
-
-        const stateConflict = conflictCodeForState(
-          scoped.status,
-          scoped.assignedEmployeeId,
-          session.userId
-        );
-        if (stateConflict !== "BOOKING_NO_LONGER_AVAILABLE") {
-          throw new Error(stateConflict);
-        }
-
-        if (scoped.declinedBy?.some((id) => String(id) === session.userId)) {
-          throw new Error("BOOKING_DECLINED_BY_EMPLOYEE");
         }
 
         if (!["REQUESTED", "RETRYING"].includes(scoped.status)) {
@@ -342,23 +336,31 @@ export async function POST(
 
               if (!afterRace) throw new Error("BOOKING_NOT_FOUND");
 
-              const same = responseForCurrentState(
-                afterRace,
-                activeMeeting,
-                session.userId
-              );
-              if (same) {
-                response = same;
-                return;
+              const afterRaceDecision = classifyAccept({
+                status: afterRace.status,
+                assignedEmployeeId: afterRace.assignedEmployeeId,
+                declinedBy: afterRace.declinedBy,
+                expiresAt: afterRace.expiresAt,
+                userId: session.userId
+              });
+
+              if (
+                afterRaceDecision.kind === "IDEMPOTENT_PROCESSING" ||
+                afterRaceDecision.kind === "IDEMPOTENT_CONFIRMED"
+              ) {
+                const same = responseForCurrentState(
+                  afterRace,
+                  activeMeeting,
+                  session.userId
+                );
+                if (same) {
+                  response = same;
+                  return;
+                }
               }
 
-              throw new Error(
-                conflictCodeForState(
-                  afterRace.status,
-                  afterRace.assignedEmployeeId,
-                  session.userId
-                )
-              );
+              const afterRaceError = acceptDecisionError(afterRaceDecision);
+              throw new Error(afterRaceError ?? "BOOKING_NO_LONGER_AVAILABLE");
             }
 
             const concurrent = await BookingRequest.countDocuments({
