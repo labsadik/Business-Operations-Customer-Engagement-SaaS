@@ -355,6 +355,36 @@ export default function WorkspaceFeedback({
                 </button>
               </div>
               </form>
+
+              {sentFeedback.length > 0 && (
+                <section className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4" aria-labelledby="company-platform-feedback-title">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p id="company-platform-feedback-title" className="text-xs font-semibold text-slate-900">Company → Conventus feedback</p>
+                      <p className="mt-1 text-[10px] text-slate-500">Private feedback submitted by members of this company. Other companies cannot access it.</p>
+                    </div>
+                    <span className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-slate-500">{sentFeedback.length}</span>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {sentFeedback.map((item) => (
+                      <article key={item.id} className="rounded-xl border border-slate-200 bg-white p-3.5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-amber-500" aria-label={item.rating + " of 5 stars"}>
+                              {Array.from({ length: 5 }).map((_, index) => <span key={index}>{index < item.rating ? "★" : "☆"}</span>)}
+                            </div>
+                            <p className="mt-1 text-[10px] text-slate-400">
+                              {item.submitter?.name || "Company member"} · {new Date(item.createdAt).toLocaleString()}
+                            </p>
+                          </div>
+                          <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500">{item.reviewStatus}</span>
+                        </div>
+                        {item.description && <p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-slate-600">{item.description}</p>}
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              )}
             ) : (
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                 <p className="text-sm font-semibold text-slate-900">Feedback submission is unavailable in support mode</p>
@@ -394,17 +424,7 @@ export default function WorkspaceFeedback({
             </div>
           )}
 
-          {tab === "platform" && canViewCustomerFeedback && sentFeedback.length > 0 && (
-            <section className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4" aria-labelledby="sent-platform-feedback-title">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p id="sent-platform-feedback-title" className="text-xs font-semibold text-slate-900">Your company&apos;s previous platform feedback</p>
-                  <p className="mt-1 text-[10px] text-slate-500">Private and visible only to authorized company feedback viewers.</p>
-                </div>
-                <span className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-slate-500">{sentFeedback.length}</span>
-              </div>
-            </section>
-          )}
+
         </div>
       </div>
     </div>
