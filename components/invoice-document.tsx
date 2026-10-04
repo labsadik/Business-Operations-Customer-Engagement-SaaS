@@ -1,6 +1,6 @@
 
 import { Download, ExternalLink, FileText, ShieldCheck } from "lucide-react";
-import { getSafeWebsiteUrl } from "@/lib/public-origin";
+import { getSafeWebsiteUrl, isDevelopmentOnlyUrl } from "@/lib/public-origin";
 
 export type InvoiceDocumentData = {
   invoiceNumber: string;
@@ -160,7 +160,7 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentD
       : "No customer payment required";
   const safeWebsiteUrl = getSafeWebsiteUrl(invoice.merchant.websiteUrl);
   const safeLogoUrl =
-    invoice.merchant.logoUrl && !/^(?:https?:)?\/\/(localhost|127\\.0\\.0\\.1|0\\.0\\.0\\.0|\\[::1\\]|[^/]*\\.local(?:host)?)(?::\\d+)?(?:[/?#]|$)/i.test(invoice.merchant.logoUrl)
+    invoice.merchant.logoUrl && !isDevelopmentOnlyUrl(invoice.merchant.logoUrl)
       ? invoice.merchant.logoUrl
       : "/favicon.svg";
 
