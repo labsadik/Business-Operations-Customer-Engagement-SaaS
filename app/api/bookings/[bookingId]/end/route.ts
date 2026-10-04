@@ -50,7 +50,7 @@ export async function POST(
         let employeeId: string | null = null;
 
         try {
-          let result;
+          let result: { bookingId: string; status: "COMPLETED"; calendarEventRemoved: boolean } | undefined;
           await tx.withTransaction(async () => {
             const meeting = await Meeting.findOne({
               bookingRequestId: bookingId,
@@ -122,7 +122,6 @@ export async function POST(
           await tx.endSession();
         }
 
-        // unreachable
       }
     );
 
