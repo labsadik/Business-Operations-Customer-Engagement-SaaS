@@ -19,7 +19,7 @@ function humanizeError(error?: string) {
     google_email_not_verified: "The account email could not be verified.",
     google_auth_failed: "Sign-in could not be completed. Please try again."
   };
-  return error ? messages[error] ?? error.replaceAll("_", " ") : "";
+  return error ? messages[error] ?? "Sign-in could not be completed. Please try again." : "";
 }
 
 export async function generateMetadata({
@@ -104,7 +104,7 @@ export default async function CompanyLoginPage({
   const errorMessage = humanizeError(error);
 
   return (
-    <main className="min-h-screen bg-[#f7f8fb]">
+    <main className="min-h-screen bg-[#faf9f1]">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5 sm:px-6">
           <Link href={`/${company.slug}`} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-950">
