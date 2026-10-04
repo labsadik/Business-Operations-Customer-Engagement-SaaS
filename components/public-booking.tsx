@@ -932,10 +932,6 @@ export default function PublicBooking({
         </div>
       )}
 
-      {access === "customer" && (
-        <PublicFeedbackPrompt companySlug={companySlug} bookingId={bookingId || undefined} />
-      )}
-
       {bookingId && (
         <div
           className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4 backdrop-blur-sm"
