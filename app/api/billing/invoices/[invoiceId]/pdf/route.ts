@@ -1,3 +1,4 @@
+
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { Types } from "mongoose";
 import { getMongo } from "@/lib/mongodb";
@@ -13,92 +14,213 @@ export const dynamic = "force-dynamic";
 
 const PAGE_WIDTH = 595;
 const PAGE_HEIGHT = 842;
-const INK = rgb(0.058, 0.09, 0.164);
-const MUTED = rgb(0.35, 0.39, 0.46);
-const LIGHT = rgb(0.94, 0.95, 0.97);
+const MARGIN = 42;
+const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
+
+const INK = rgb(0.075, 0.09, 0.12);
+const MUTED = rgb(0.36, 0.40, 0.46);
+const SOFT = rgb(0.95, 0.96, 0.97);
 const BLUE = rgb(0.145, 0.388, 0.922);
-const GREEN = rgb(0.047, 0.48, 0.32);
+const PALE_BLUE = rgb(0.94, 0.97, 1);
+const GREEN = rgb(0.05, 0.48, 0.32);
+const PALE_GREEN = rgb(0.93, 0.98, 0.95);
 const WHITE = rgb(1, 1, 1);
 
 function money(minor: number, currency: string) {
-  return `${currency.toUpperCase()} ${(minor / 100).toFixed(2)}`;
+  return (currency || "INR").toUpperCase() + " " + (Math.max(0, minor) / 100).toFixed(2);
 }
 
-function dateLabel(value: Date | string | null | undefined, withTime = false) {
-  if (!value) return "—";
-  return new Intl.DateTimeFormat("en-IN", withTime
-    ? { dateStyle: "medium", timeStyle: "short" }
-    : { dateStyle: "medium" }
-  ).format(new Date(value));
+function dateLabel(value: Date | string | null | undefined) {
+  if (!value) return "-";
+  return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(new Date(value));
+}
+
+function splitLongToken(token: string, font: PDFFont, size: number, maxWidth: number) {
+  const parts: string[] = [];
+  let current = "";
+
+  for (const char of token) {
+    const candidate = current + char;
+    if (current && font.widthOfTextAtSize(candidate, size) > maxWidth) {
+      parts.push(current);
+      current = char;
+    } else {
+      current = candidate;
+    }
+  }
+
+  if (current) parts.push(current);
+  return parts;
 }
 
 function wrapText(text: string, font: PDFFont, size: number, maxWidth: number) {
-  const words = text.trim().split(/\s+/).filter(Boolean);
-  const lines: string[] = [];
-  let current = "";
+  const normalized = text.trim().replace(/\s+/g, " ");
+  if (!normalized) return ["-"];
 
-  for (const word of words) {
-    const candidate = current ? `${current} ${word}` : word;
-    if (font.widthOfTextAtSize(candidate, size) <= maxWidth || !current) {
-      current = candidate;
-      continue;
+  const lines: string[] = [];
+  for (const token of normalized.split(" ")) {
+    const chunks = font.widthOfTextAtSize(token, size) <= maxWidth
+      ? [token]
+      : splitLongToken(token, font, size, maxWidth);
+
+    for (const chunk of chunks) {
+      const candidate = lines.length === 0 ? chunk : lines[lines.length - 1] + " " + chunk;
+      if (lines.length > 0 && font.widthOfTextAtSize(candidate, size) > maxWidth) {
+        lines.push(chunk);
+      } else if (lines.length === 0) {
+        lines.push(chunk);
+      } else {
+        lines[lines.length - 1] = candidate;
+      }
     }
-    lines.push(current);
-    current = word;
   }
 
-  if (current) lines.push(current);
   return lines;
 }
 
-function drawText(page: PDFPage, text: string, x: number, y: number, font: PDFFont, size: number, color = INK) {
-  page.drawText(text || "—", { x, y, font, size, color });
+function drawText(
+  page: PDFPage,
+  text: string,
+  x: number,
+  y: number,
+  font: PDFFont,
+  size: number,
+  color = INK
+) {
+  page.drawText(text || "-", { x, y, font, size, color });
 }
 
-function drawRight(page: PDFPage, text: string, rightX: number, y: number, font: PDFFont, size: number, color = INK) {
+function drawRight(
+  page: PDFPage,
+  text: string,
+  rightX: number,
+  y: number,
+  font: PDFFont,
+  size: number,
+  color = INK
+) {
   const width = font.widthOfTextAtSize(text, size);
   drawText(page, text, rightX - width, y, font, size, color);
 }
 
-function drawWrapped(page: PDFPage, text: string, x: number, y: number, maxWidth: number, font: PDFFont, size: number, lineGap = 3, color = MUTED) {
-  const lineHeight = size + lineGap;
-  for (const [index, line] of wrapText(text, font, size, maxWidth).entries()) {
-    drawText(page, line, x, y - index * lineHeight, font, size, color);
-  }
-}
-
-function drawRule(page: PDFPage, y: number, x = 42, width = PAGE_WIDTH - 84) {
-  page.drawLine({
-    start: { x, y },
-    end: { x: x + width, y },
-    thickness: 0.8,
-    color: LIGHT
-  });
-}
-
-function drawLabelValue(
+function drawWrapped(
   page: PDFPage,
-  label: string,
-  value: string,
+  text: string,
   x: number,
   y: number,
-  width: number,
+  maxWidth: number,
   font: PDFFont,
+  size: number,
+  lineGap = 2,
+  color = MUTED
+) {
+  const lines = wrapText(text, font, size, maxWidth);
+  const lineHeight = size + lineGap;
+
+  lines.forEach((line, index) => {
+    drawText(page, line, x, y - index * lineHeight, font, size, color);
+  });
+
+  return lines.length * lineHeight;
+}
+
+function drawRule(page: PDFPage, y: number, color = SOFT) {
+  page.drawLine({
+    start: { x: MARGIN, y },
+    end: { x: PAGE_WIDTH - MARGIN, y },
+    thickness: 0.8,
+    color
+  });
+}
+
+function drawStatusBadge(
+  page: PDFPage,
+  source: "PAID" | "FREE" | "ADMIN_GRANTED",
+  x: number,
+  y: number,
   bold: PDFFont
 ) {
-  drawText(page, label.toUpperCase(), x, y, bold, 7, MUTED);
-  const lines = wrapText(value || "—", font, 9, width);
-  lines.slice(0, 2).forEach((line, index) => {
-    drawText(page, line, x, y - 13 - index * 11, font, 9, INK);
+  const label =
+    source === "PAID"
+      ? "PAID / CAPTURED"
+      : source === "ADMIN_GRANTED"
+        ? "ADMIN GRANTED"
+        : "FREE ACCESS";
+  const color = source === "PAID" ? GREEN : source === "ADMIN_GRANTED" ? BLUE : MUTED;
+  const width = bold.widthOfTextAtSize(label, 7.3) + 18;
+
+  page.drawRectangle({
+    x,
+    y,
+    width,
+    height: 17,
+    color
   });
+  drawText(page, label, x + 9, y + 5.3, bold, 7.3, WHITE);
+  return width;
 }
 
 function drawConventusMark(page: PDFPage, x: number, y: number, size: number) {
   page.drawRectangle({ x, y, width: size, height: size, color: INK });
-  page.drawCircle({ x: x + size * 0.66, y: y + size * 0.5, size: size * 0.055, color: BLUE });
-  page.drawCircle({ x: x + size * 0.5, y: y + size * 0.5, size: size * 0.29, color: WHITE });
-  page.drawCircle({ x: x + size * 0.58, y: y + size * 0.5, size: size * 0.19, color: INK });
+  page.drawCircle({
+    x: x + size * 0.66,
+    y: y + size * 0.5,
+    size: size * 0.055,
+    color: BLUE
+  });
+  page.drawCircle({
+    x: x + size * 0.5,
+    y: y + size * 0.5,
+    size: size * 0.29,
+    color: WHITE
+  });
+  page.drawCircle({
+    x: x + size * 0.58,
+    y: y + size * 0.5,
+    size: size * 0.19,
+    color: INK
+  });
+}
 
+function partyDetails(
+  page: PDFPage,
+  title: string,
+  name: string,
+  details: string[],
+  x: number,
+  topY: number,
+  width: number,
+  regular: PDFFont,
+  bold: PDFFont
+) {
+  const lines = details.filter(Boolean);
+  const boxTop = topY;
+  const boxBottom = topY - 112;
+
+  page.drawRectangle({
+    x,
+    y: boxBottom,
+    width,
+    height: boxTop - boxBottom,
+    color: WHITE,
+    borderColor: SOFT,
+    borderWidth: 0.9
+  });
+
+  drawText(page, title.toUpperCase(), x + 14, boxTop - 17, bold, 7, MUTED);
+  const nameLines = wrapText(name || "-", bold, 10, width - 28);
+  nameLines.forEach((line, index) => {
+    drawText(page, line, x + 14, boxTop - 35 - index * 12, bold, 10, INK);
+  });
+
+  let y = boxTop - 35 - nameLines.length * 12 - 4;
+  for (const value of lines) {
+    const wrapped = wrapText(value, regular, 7.5, width - 28);
+    wrapped.forEach((line, index) => {
+      drawText(page, line, x + 14, y - index * 9, regular, 7.5, MUTED);
+    });
+    y -= wrapped.length * 9 + 1.5;
+  }
 }
 
 export async function GET(
@@ -108,22 +230,35 @@ export async function GET(
   try {
     const session = await getSession();
     if (!session) return jsonError("UNAUTHENTICATED", 401);
-    if (!session.companyId || !["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role)) {
+    if (
+      !session.companyId ||
+      !["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role)
+    ) {
       return jsonError("FORBIDDEN", 403);
     }
 
     const { invoiceId } = await params;
-    if (!Types.ObjectId.isValid(invoiceId)) return jsonError("INVALID_INVOICE_ID", 400);
+    if (!Types.ObjectId.isValid(invoiceId)) {
+      return jsonError("INVALID_INVOICE_ID", 400);
+    }
 
     await getMongo();
+
     const invoice = await Invoice.findOne({
       _id: invoiceId,
       companyId: session.companyId
     }).lean();
+
     if (!invoice) return jsonError("INVOICE_NOT_FOUND", 404);
 
     const legacyMerchant = await platformLegalProfile();
-    const legacyTax = calculateInvoiceTax(invoice.amount, legacyMerchant.gst.ratePercent, legacyMerchant.gst.inclusive, legacyMerchant.gst.enabled);
+    const legacyTax = calculateInvoiceTax(
+      invoice.amount,
+      legacyMerchant.gst.ratePercent,
+      legacyMerchant.gst.inclusive,
+      legacyMerchant.gst.enabled
+    );
+
     const tax: InvoiceTaxSnapshot = invoice.taxSnapshot
       ? {
           enabled: invoice.taxSnapshot.enabled,
@@ -137,7 +272,6 @@ export async function GET(
     const merchant = {
       name: invoice.merchantSnapshot?.name || legacyMerchant.legalName,
       description: invoice.merchantSnapshot?.description || legacyMerchant.description,
-      logoUrl: invoice.merchantSnapshot?.logoUrl || legacyMerchant.logoUrl,
       websiteUrl: invoice.merchantSnapshot?.websiteUrl || legacyMerchant.websiteUrl,
       email: invoice.merchantSnapshot?.email || legacyMerchant.email,
       phone: invoice.merchantSnapshot?.phone || legacyMerchant.phone,
@@ -148,14 +282,16 @@ export async function GET(
     };
 
     const plan = getPlan(invoice.planId);
-    const planSnapshot = invoice.planSnapshot || (plan ? {
-      name: plan.name,
-      priceInr: plan.priceInr,
-      maxEmployees: plan.maxEmployees,
-      monthlyMeetingLimit: plan.monthlyMeetingLimit,
-      maxMeetingDurationMinutes: plan.maxMeetingDurationMinutes,
-      maxConcurrentMeetings: plan.maxConcurrentMeetings
-    } : null);
+    const planSnapshot = invoice.planSnapshot || (plan
+      ? {
+          name: plan.name,
+          priceInr: plan.priceInr,
+          maxEmployees: plan.maxEmployees,
+          monthlyMeetingLimit: plan.monthlyMeetingLimit,
+          maxMeetingDurationMinutes: plan.maxMeetingDurationMinutes,
+          maxConcurrentMeetings: plan.maxConcurrentMeetings
+        }
+      : null);
 
     if (!planSnapshot) return jsonError("PLAN_NOT_FOUND", 409);
 
@@ -168,158 +304,372 @@ export async function GET(
     };
 
     const pdfDoc = await PDFDocument.create();
-    pdfDoc.setTitle(`${invoice.invoiceNumber} — ${merchant.name}`);
+    pdfDoc.setTitle(invoice.invoiceNumber + " - " + merchant.name);
     pdfDoc.setAuthor(merchant.name);
-    pdfDoc.setSubject("Conventus tax invoice");
+    pdfDoc.setSubject("Conventus invoice");
     pdfDoc.setCreator("Conventus billing");
 
     const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
     const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-    page.drawRectangle({ x: 0, y: PAGE_HEIGHT - 8, width: PAGE_WIDTH, height: 8, color: BLUE });
-    drawConventusMark(page, 42, PAGE_HEIGHT - 68, 42);
-    drawText(page, merchant.name, 94, PAGE_HEIGHT - 43, bold, 15);
-    drawWrapped(page, merchant.description, 94, PAGE_HEIGHT - 58, 230, regular, 8.5, 2, MUTED);
-
-    const source = invoice.source ?? "PAID";
-    const accessLabel = source === "PAID" ? "PAID" : source === "ADMIN_GRANTED" ? "ADMIN GRANTED" : "FREE";
-    const accessColor = source === "PAID" ? GREEN : source === "ADMIN_GRANTED" ? BLUE : MUTED;
-    const badgeWidth = bold.widthOfTextAtSize(accessLabel, 7) + 18;
     page.drawRectangle({
-      x: PAGE_WIDTH - 42 - badgeWidth,
-      y: PAGE_HEIGHT - 79,
-      width: badgeWidth,
-      height: 16,
-      color: accessColor
-    });
-    drawText(page, accessLabel, PAGE_WIDTH - 42 - badgeWidth + 9, PAGE_HEIGHT - 74, bold, 7, WHITE);
-    drawRight(page, tax.enabled ? "TAX INVOICE" : "INVOICE", PAGE_WIDTH - 42, PAGE_HEIGHT - 38, bold, 8, BLUE);
-    drawRight(page, invoice.invoiceNumber, PAGE_WIDTH - 42, PAGE_HEIGHT - 54, bold, 14, INK);
-    drawRight(page, `Issued ${dateLabel(invoice.issuedAt)}`, PAGE_WIDTH - 42, PAGE_HEIGHT - 68, regular, 8.5, MUTED);
-
-    drawRule(page, PAGE_HEIGHT - 88);
-
-    const fromY = PAGE_HEIGHT - 116;
-    drawLabelValue(page, "Merchant", merchant.name, 42, fromY, 210, regular, bold);
-    drawLabelValue(page, "Bill to", company.name, 300, fromY, 210, regular, bold);
-
-    const merchantDetails = [
-      ...[merchant.address.line1, merchant.address.line2, merchant.address.city, merchant.address.state, merchant.address.postalCode, merchant.address.country].filter(Boolean),
-      merchant.email,
-      merchant.phone,
-      merchant.websiteUrl,
-      merchant.gstin ? `GSTIN: ${merchant.gstin}` : "",
-      merchant.taxId && merchant.taxId !== merchant.gstin ? `Tax ID: ${merchant.taxId}` : "",
-      merchant.sacCode ? `SAC: ${merchant.sacCode}` : ""
-    ].filter(Boolean);
-
-    let yLeft = fromY - 39;
-    merchantDetails.slice(0, 7).forEach((line) => {
-      const lines = wrapText(line, regular, 8, 218);
-      lines.slice(0, 2).forEach((part, index) => drawText(page, part, 42, yLeft - index * 10, regular, 8, MUTED));
-      yLeft -= lines.length * 10 + 1;
+      x: 0,
+      y: PAGE_HEIGHT - 7,
+      width: PAGE_WIDTH,
+      height: 7,
+      color: BLUE
     });
 
-    const companyDetails = [
-      ...[company.address.line1, company.address.line2, company.address.city, company.address.state, company.address.postalCode, company.address.country].filter(Boolean),
-      company.email,
-      company.phone,
-      company.taxId ? `Tax ID / GSTIN: ${company.taxId}` : ""
-    ].filter(Boolean);
-
-    let yRight = fromY - 39;
-    companyDetails.slice(0, 7).forEach((line) => {
-      const lines = wrapText(line, regular, 8, 218);
-      lines.slice(0, 2).forEach((part, index) => drawText(page, part, 300, yRight - index * 10, regular, 8, MUTED));
-      yRight -= lines.length * 10 + 1;
-    });
-
-    const sectionY = Math.min(yLeft, yRight) - 18;
-    page.drawRectangle({ x: 42, y: sectionY - 62, width: PAGE_WIDTH - 84, height: 62, color: rgb(0.965, 0.978, 1) });
-    drawText(page, "SUBSCRIPTION", 56, sectionY - 19, bold, 7, BLUE);
-    drawText(page, planSnapshot.name, 56, sectionY - 38, bold, 13, INK);
-    drawText(page, invoice.serviceDescription || `Conventus ${planSnapshot.name} monthly scheduling service`, 56, sectionY - 52, regular, 8, MUTED);
-
-    drawRight(page, "SERVICE PERIOD", PAGE_WIDTH - 58, sectionY - 20, bold, 7, MUTED);
-    drawRight(page, invoice.billingPeriodStart ? dateLabel(invoice.billingPeriodStart) : "One month", PAGE_WIDTH - 58, sectionY - 38, bold, 9, INK);
-    drawRight(page, invoice.billingPeriodEnd ? `to ${dateLabel(invoice.billingPeriodEnd)}` : "", PAGE_WIDTH - 58, sectionY - 51, regular, 8, MUTED);
-
-    const tableTop = sectionY - 86;
-    page.drawRectangle({ x: 42, y: tableTop - 27, width: PAGE_WIDTH - 84, height: 27, color: LIGHT });
-    drawText(page, "DESCRIPTION", 56, tableTop - 17, bold, 7, MUTED);
-    drawRight(page, "AMOUNT", PAGE_WIDTH - 56, tableTop - 17, bold, 7, MUTED);
-
-    drawText(page, invoice.serviceDescription || `Conventus ${planSnapshot.name} monthly scheduling service`, 56, tableTop - 48, bold, 9, INK);
-    drawText(page, "One-month subscription", 56, tableTop - 62, regular, 8, MUTED);
-    drawRight(page, money(tax.taxableAmount, invoice.currency), PAGE_WIDTH - 56, tableTop - 48, regular, 9, INK);
-
-    drawRule(page, tableTop - 78, 56, PAGE_WIDTH - 112);
-
-    const summaryTop = tableTop - 105;
-    const summaryX = 325;
-    drawText(page, "Taxable value", summaryX, summaryTop, regular, 8.5, MUTED);
-    drawRight(page, money(tax.taxableAmount, invoice.currency), PAGE_WIDTH - 56, summaryTop, regular, 8.5, INK);
+    drawConventusMark(page, MARGIN, 767, 38);
+    drawText(page, merchant.name, 94, 786, bold, 15, INK);
+    drawWrapped(
+      page,
+      merchant.description,
+      94,
+      771,
+      238,
+      regular,
+      8.1,
+      2,
+      MUTED
+    );
 
     drawText(
       page,
-      tax.enabled ? `GST @ ${tax.ratePercent.toFixed(2)}% ${tax.inclusive ? "(included)" : ""}`.trim() : "GST",
-      summaryX,
-      summaryTop - 19,
-      regular,
-      8.5,
-      MUTED
+      tax.enabled ? "TAX INVOICE" : "INVOICE",
+      PAGE_WIDTH - MARGIN - 168,
+      786,
+      bold,
+      8,
+      BLUE
     );
-    drawRight(page, money(tax.gstAmount, invoice.currency), PAGE_WIDTH - 56, summaryTop - 19, regular, 8.5, INK);
+    drawRight(page, invoice.invoiceNumber, PAGE_WIDTH - MARGIN, 767, bold, 12.5, INK);
+    drawRight(page, "Issued " + dateLabel(invoice.issuedAt), PAGE_WIDTH - MARGIN, 752, regular, 8, MUTED);
 
-    page.drawRectangle({ x: summaryX - 12, y: summaryTop - 68, width: PAGE_WIDTH - summaryX - 30, height: 52, color: INK });
-    drawText(page, "TOTAL PAID", summaryX + 2, summaryTop - 37, bold, 7, rgb(0.7, 0.73, 0.78));
-    drawRight(page, money(invoice.amount, invoice.currency), PAGE_WIDTH - 56, summaryTop - 38, bold, 15, WHITE);
-
-    const paymentY = summaryTop - 103;
-    drawText(page, "PAYMENT DETAILS", 42, paymentY, bold, 7, BLUE);
-    drawLabelValue(page, "Status", source === "PAID" ? "PAID / CAPTURED" : source === "ADMIN_GRANTED" ? "ADMIN GRANTED" : "FREE ACCESS", 42, paymentY - 13, 150, regular, bold);
-    drawLabelValue(
+    const badgeText =
+      invoice.source === "PAID"
+        ? "PAID / CAPTURED"
+        : invoice.source === "ADMIN_GRANTED"
+          ? "ADMIN GRANTED"
+          : "FREE ACCESS";
+    const badgeWidth = bold.widthOfTextAtSize(badgeText, 7.3) + 18;
+    drawStatusBadge(
       page,
-      source === "PAID" ? "Payment ID" : "Access",
-      source === "PAID" ? invoice.providerPaymentId : source === "ADMIN_GRANTED" ? "Granted by platform admin" : "Free plan",
-      205,
-      paymentY - 13,
-      175,
+      invoice.source,
+      PAGE_WIDTH - MARGIN - badgeWidth,
+      728,
+      bold
+    );
+
+    drawRule(page, 711);
+
+    const partyTop = 698;
+    const partyGap = 14;
+    const partyWidth = (CONTENT_WIDTH - partyGap) / 2;
+
+    const merchantDetails = [
+      merchant.address.line1,
+      merchant.address.line2,
+      merchant.address.city,
+      merchant.address.state,
+      merchant.address.postalCode,
+      merchant.address.country,
+      merchant.email,
+      merchant.phone,
+      merchant.websiteUrl,
+      merchant.gstin ? "GSTIN: " + merchant.gstin : "",
+      merchant.taxId && merchant.taxId !== merchant.gstin ? "Tax ID: " + merchant.taxId : "",
+      merchant.sacCode ? "SAC: " + merchant.sacCode : ""
+    ];
+
+    const companyDetails = [
+      company.address.line1,
+      company.address.line2,
+      company.address.city,
+      company.address.state,
+      company.address.postalCode,
+      company.address.country,
+      company.email,
+      company.phone,
+      company.taxId ? "Tax ID / GSTIN: " + company.taxId : ""
+    ];
+
+    partyDetails(
+      page,
+      "Merchant",
+      merchant.name,
+      merchantDetails,
+      MARGIN,
+      partyTop,
+      partyWidth,
       regular,
       bold
     );
-    drawLabelValue(page, "Currency", invoice.currency, 395, paymentY - 13, 120, regular, bold);
 
-    drawText(page, "PLAN ENTITLEMENTS", 42, paymentY - 65, bold, 7, BLUE);
-    const entitlements = [
-      `${planSnapshot.maxEmployees} employees`,
-      `${planSnapshot.monthlyMeetingLimit} meetings / month`,
-      `${planSnapshot.maxMeetingDurationMinutes} min max duration`,
-      `${planSnapshot.maxConcurrentMeetings} concurrent meetings`,
-      `${planSnapshot.validityDays ?? 30} days validity`,
-      ...(planSnapshot.freeFeatureDays ? [`${planSnapshot.freeFeatureDays} active feature days`] : [])
-    ];
-    entitlements.forEach((item, index) => {
-      const x = 42 + (index % 2) * 255;
-      const y = paymentY - 83 - Math.floor(index / 2) * 16;
-      drawText(page, "•", x, y, bold, 8, BLUE);
-      drawText(page, item, x + 10, y, regular, 8, MUTED);
+    partyDetails(
+      page,
+      "Bill to",
+      company.name,
+      companyDetails,
+      MARGIN + partyWidth + partyGap,
+      partyTop,
+      partyWidth,
+      regular,
+      bold
+    );
+
+    const subscriptionTop = 572;
+    page.drawRectangle({
+      x: MARGIN,
+      y: subscriptionTop - 60,
+      width: CONTENT_WIDTH,
+      height: 60,
+      color: PALE_BLUE
     });
 
-    const footerY = 63;
-    drawRule(page, footerY + 26);
-    drawText(page, `Generated electronically by ${merchant.name}.`, 42, footerY + 9, regular, 7.5, MUTED);
-    if (merchant.websiteUrl) drawRight(page, merchant.websiteUrl, PAGE_WIDTH - 42, footerY + 9, regular, 7.5, MUTED);
-    drawText(page, "Displayed subscription price is GST inclusive when indicated above.", 42, footerY - 5, regular, 7.2, MUTED);
-    drawRight(page, "No signature required", PAGE_WIDTH - 42, footerY - 5, regular, 7.2, MUTED);
+    drawText(page, "SUBSCRIPTION", MARGIN + 14, subscriptionTop - 17, bold, 7, BLUE);
+    drawWrapped(
+      page,
+      planSnapshot.name,
+      MARGIN + 14,
+      subscriptionTop - 34,
+      245,
+      bold,
+      12,
+      2,
+      INK
+    );
+
+    const serviceText =
+      invoice.serviceDescription ||
+      "Conventus " + planSnapshot.name + " monthly scheduling service";
+    drawWrapped(
+      page,
+      serviceText,
+      MARGIN + 14,
+      subscriptionTop - 49,
+      280,
+      regular,
+      7.7,
+      2,
+      MUTED
+    );
+
+    drawText(page, "SERVICE PERIOD", 375, subscriptionTop - 17, bold, 7, MUTED);
+    const periodText = invoice.billingPeriodStart
+      ? dateLabel(invoice.billingPeriodStart) +
+        (invoice.billingPeriodEnd ? " - " + dateLabel(invoice.billingPeriodEnd) : "")
+      : "One access period";
+    drawWrapped(page, periodText, 375, subscriptionTop - 34, 164, bold, 8.4, 2, INK);
+
+    const tableTop = 495;
+    page.drawRectangle({
+      x: MARGIN,
+      y: tableTop - 26,
+      width: CONTENT_WIDTH,
+      height: 26,
+      color: SOFT
+    });
+    drawText(page, "LINE ITEM", MARGIN + 14, tableTop - 16, bold, 7, MUTED);
+    drawRight(page, "TAXABLE VALUE", PAGE_WIDTH - MARGIN - 14, tableTop - 16, bold, 7, MUTED);
+
+    const rowBottom = tableTop - 74;
+    page.drawRectangle({
+      x: MARGIN,
+      y: rowBottom,
+      width: CONTENT_WIDTH,
+      height: 48,
+      color: WHITE,
+      borderColor: SOFT,
+      borderWidth: 0.9
+    });
+
+    drawWrapped(
+      page,
+      serviceText,
+      MARGIN + 14,
+      tableTop - 42,
+      320,
+      bold,
+      8.7,
+      2,
+      INK
+    );
+    drawText(page, planSnapshot.name + " subscription service", MARGIN + 14, tableTop - 61, regular, 7.4, MUTED);
+    drawRight(
+      page,
+      money(tax.taxableAmount, invoice.currency),
+      PAGE_WIDTH - MARGIN - 14,
+      tableTop - 45,
+      bold,
+      9,
+      INK
+    );
+
+    drawRule(page, rowBottom - 14);
+
+    const summaryY = 398;
+    const leftX = MARGIN;
+    const leftW = 278;
+    const rightX = 342;
+    const rightW = PAGE_WIDTH - MARGIN - rightX;
+
+    drawText(page, "PAYMENT & ACCESS", leftX, summaryY, bold, 7, BLUE);
+
+    drawText(page, "STATUS", leftX, summaryY - 18, bold, 7, MUTED);
+    drawText(
+      page,
+      invoice.source === "PAID"
+        ? "PAID / CAPTURED"
+        : invoice.source === "ADMIN_GRANTED"
+          ? "ADMIN GRANTED"
+          : "FREE ACCESS",
+      leftX,
+      summaryY - 31,
+      bold,
+      8.7,
+      INK
+    );
+
+    drawText(
+      page,
+      invoice.source === "PAID" ? "PAYMENT REFERENCE" : "ACCESS BASIS",
+      leftX,
+      summaryY - 49,
+      bold,
+      7,
+      MUTED
+    );
+    drawWrapped(
+      page,
+      invoice.source === "PAID"
+        ? invoice.providerPaymentId || "-"
+        : invoice.source === "ADMIN_GRANTED"
+          ? "Granted by platform administrator"
+          : "No customer payment required",
+      leftX,
+      summaryY - 62,
+      leftW,
+      regular,
+      7.8,
+      2,
+      INK
+    );
+
+    drawText(page, "CURRENCY", leftX + 188, summaryY - 18, bold, 7, MUTED);
+    drawText(page, invoice.currency.toUpperCase(), leftX + 188, summaryY - 31, bold, 8.7, INK);
+
+    const taxable = money(tax.taxableAmount, invoice.currency);
+    const gstText = tax.enabled
+      ? "GST @ " + tax.ratePercent.toFixed(2) + "%" + (tax.inclusive ? " (included)" : "")
+      : "GST not applicable";
+
+    drawText(page, "TAXABLE VALUE", rightX, summaryY, bold, 7, MUTED);
+    drawRight(page, taxable, PAGE_WIDTH - MARGIN, summaryY, regular, 8.5, INK);
+    drawText(page, gstText, rightX, summaryY - 18, bold, 7.2, MUTED);
+    drawRight(page, money(tax.gstAmount, invoice.currency), PAGE_WIDTH - MARGIN, summaryY - 18, regular, 8.5, INK);
+
+    page.drawRectangle({
+      x: rightX - 10,
+      y: summaryY - 74,
+      width: rightW + 10,
+      height: 50,
+      color: INK
+    });
+
+    drawText(
+      page,
+      invoice.source === "PAID" ? "TOTAL PAID" : "INVOICE TOTAL",
+      rightX + 4,
+      summaryY - 51,
+      bold,
+      7,
+      rgb(0.68, 0.71, 0.76)
+    );
+    drawRight(
+      page,
+      money(invoice.amount, invoice.currency),
+      PAGE_WIDTH - MARGIN - 4,
+      summaryY - 51,
+      bold,
+      14,
+      WHITE
+    );
+
+    const entitlementsTop = 292;
+    drawText(page, "PLAN ENTITLEMENTS", MARGIN, entitlementsTop, bold, 7, BLUE);
+    drawText(page, "Snapshot recorded on this invoice", MARGIN, entitlementsTop - 13, regular, 7.3, MUTED);
+
+    const entitlementItems = [
+      "Plan: " + planSnapshot.name,
+      "Plan list price: " + money(Math.round(planSnapshot.priceInr * 100), invoice.currency),
+      planSnapshot.maxEmployees + " employees",
+      planSnapshot.monthlyMeetingLimit + " meetings / month",
+      planSnapshot.maxMeetingDurationMinutes + " min max duration",
+      planSnapshot.maxConcurrentMeetings + " concurrent meetings",
+      (planSnapshot.validityDays ?? 30) + " days validity",
+      ...(planSnapshot.freeFeatureDays
+        ? [planSnapshot.freeFeatureDays + " active feature days"]
+        : [])
+    ];
+
+    entitlementItems.forEach((item, index) => {
+      const col = index % 2;
+      const row = Math.floor(index / 2);
+      const x = MARGIN + col * 258;
+      const y = entitlementsTop - 31 - row * 17;
+
+      page.drawRectangle({
+        x,
+        y: y - 3,
+        width: 5,
+        height: 5,
+        color: BLUE
+      });
+      drawWrapped(page, item, x + 11, y, 236, regular, 7.7, 1.5, MUTED);
+    });
+
+    const footerY = 59;
+    drawRule(page, footerY + 31);
+    drawText(
+      page,
+      "Generated electronically by " + merchant.name + ".",
+      MARGIN,
+      footerY + 14,
+      regular,
+      7.2,
+      MUTED
+    );
+    if (merchant.websiteUrl) {
+      drawRight(page, merchant.websiteUrl, PAGE_WIDTH - MARGIN, footerY + 14, regular, 7.2, MUTED);
+    }
+    drawText(
+      page,
+      "This document is an electronic invoice; no physical signature is required.",
+      MARGIN,
+      footerY,
+      regular,
+      7.1,
+      MUTED
+    );
+    drawRight(
+      page,
+      tax.inclusive ? "Displayed amounts include GST where applicable." : "GST is shown separately where applicable.",
+      PAGE_WIDTH - MARGIN,
+      footerY,
+      regular,
+      6.9,
+      MUTED
+    );
 
     const bytes = await pdfDoc.save();
+
     return new Response(Buffer.from(bytes), {
       status: 200,
       headers: {
         "content-type": "application/pdf",
-        "content-disposition": `attachment; filename="${invoice.invoiceNumber}.pdf"`,
+        "content-disposition": "attachment; filename=""" + invoice.invoiceNumber.replace(/[^a-zA-Z0-9._-]+/g, "_") + ".pdf""",
         "cache-control": "private, no-store, max-age=0"
       }
     });
