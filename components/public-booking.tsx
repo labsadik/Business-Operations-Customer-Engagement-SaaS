@@ -35,6 +35,7 @@ type AvailabilityReason =
   | "AVAILABLE"
   | "NO_ACTIVE_MEMBERS"
   | "NO_SCHEDULING_MEMBER"
+  | "NO_CONFIGURED_SCHEDULE"
   | "NO_FREE_SLOTS"
   | "AVAILABILITY_SERVICE_ERROR";
 
@@ -163,6 +164,29 @@ export default function PublicBooking({
         return "Sign in with Google to see live availability.";
       default:
         return "Availability could not be checked. Please try again.";
+    }
+  }, []);
+
+  const bookingErrorMessage = useCallback((code: string) => {
+    switch (code) {
+      case "INVALID_DURATION":
+        return "This meeting duration is no longer valid. Choose a current duration option and try again.";
+      case "MEETING_DURATION_NOT_CONFIGURED":
+        return "This meeting type has no supported duration configured right now.";
+      case "BOOKING_TIME_IN_PAST":
+        return "That time has already passed. Choose another available time.";
+      case "INVALID_TIME_RANGE":
+        return "That time is no longer available. Please choose another slot.";
+      case "NO_EMPLOYEE_AVAILABLE":
+        return "No eligible employee is available for that slot anymore. Choose another time.";
+      case "CONCURRENT_MEETING_LIMIT":
+        return "The company's meeting capacity is full for that time. Choose another slot.";
+      case "MONTHLY_MEETING_LIMIT":
+        return "This company has reached its current meeting limit.";
+      case "FREE_FEATURE_DAYS_EXHAUSTED":
+        return "This company's free scheduling period has ended.";
+      default:
+        return "The meeting request could not be created. Please try another slot.";
     }
   }, []);
 
@@ -475,7 +499,7 @@ export default function PublicBooking({
       );
     } catch (err) {
       const code = err instanceof Error ? err.message : "BOOKING_FAILED";
-      setError(availabilityErrorMessage(code));
+      setError(bookingErrorMessage(code));
     } finally {
       setLoading(false);
     }
