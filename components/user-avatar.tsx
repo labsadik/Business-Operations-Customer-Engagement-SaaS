@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { googleAvatarUrl } from "@/lib/avatar";
 
 export default function UserAvatar({
@@ -36,21 +35,29 @@ export default function UserAvatar({
       title={email || name}
       aria-label={name}
     >
+      <span
+        className="absolute inset-0 grid place-items-center"
+        aria-hidden="true"
+      >
+        {initials}
+      </span>
+
       {safeImage ? (
-        <Image
+        // Google profile images are rendered directly so a provider-side image
+        // response cannot be broken by the Next image optimizer/allowlist.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
           src={safeImage}
           alt=""
-          fill
-          sizes={String(size) + "px"}
-          className="object-cover"
-          unoptimized
+          width={size}
+          height={size}
+          className="absolute inset-0 size-full object-cover"
+          referrerPolicy="no-referrer"
           onError={(event) => {
             event.currentTarget.style.display = "none";
           }}
         />
-      ) : (
-        <span className="absolute inset-0 grid place-items-center">{initials}</span>
-      )}
+      ) : null}
     </div>
   );
 }
