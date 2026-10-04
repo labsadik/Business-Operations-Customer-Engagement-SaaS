@@ -855,43 +855,66 @@ export default function WorkspaceDashboard({
   async function act(id: string, action: "accept" | "decline") {
     setActingRequestId(id);
     setError("");
+
+    let actionError: (Error & { code?: string }) | null = null;
+
     try {
       await api(`/api/bookings/${encodeURIComponent(id)}/${action}`, {
         method: "POST"
       });
     } catch (err) {
-      const typed = err as Error & { code?: string };
-      let message = typed.message || "We could not complete that meeting action.";
+      actionError = err as Error & { code?: string };
+    }
 
-      if (typed.code && typed.code.startsWith("BOOKING_")) {
-        const latest = requests.find((item) => item.id === id);
+    try {
+      const [pending, history] = await Promise.all([
+        api<RequestItem[]>("/api/employee/requests?limit=6"),
+        api<MeetingHistoryItem[]>("/api/employee/meetings?paginated=true&limit=6")
+      ]);
+
+      setRequests(pending);
+      setMeetingHistory(history.items);
+
+      let latestMessage = actionError?.message ?? "";
+
+      if (actionError?.code?.startsWith("BOOKING_")) {
+        const latest = pending.find((item) => item.id === id);
+
         if (latest) {
-          message = actionStateMessage(
+          latestMessage = actionStateMessage(
             latest.status,
             latest.meeting?.status ?? null
           );
         } else if (
-          typed.code === "BOOKING_ALREADY_ASSIGNED" ||
-          typed.code === "BOOKING_ALREADY_CONFIRMED" ||
-          typed.code === "BOOKING_PROCESSING"
+          actionError.code === "BOOKING_ALREADY_ASSIGNED" ||
+          actionError.code === "BOOKING_ALREADY_CONFIRMED" ||
+          actionError.code === "BOOKING_PROCESSING"
         ) {
-          message = "The request is no longer available for your response. Another authorized state is current, and the request list has been refreshed.";
+          latestMessage =
+            "This request is no longer available for your response. The latest server state is shown above.";
         }
       }
 
-      setError(message);
-    } finally {
-      try {
-        const [pending, history] = await Promise.all([
-          api<RequestItem[]>("/api/employee/requests?limit=6"),
-          api<MeetingHistoryItem[]>("/api/employee/meetings?paginated=true&limit=6")
-        ]);
-        setRequests(pending);
-        setMeetingHistory(history.items);
-        if (activeModal === "meetings") await loadAllMeetings();
-      } catch {
-        // Preserve the last good dashboard data during a transient refresh failure.
+      if (activeModal === "meetings") {
+        await loadAllMeetings();
       }
+
+      if (actionError) {
+        setError(
+          latestMessage ||
+            "We could not complete that meeting action. The dashboard has been refreshed."
+        );
+      }
+    } catch {
+      if (actionError) {
+        setError(
+          actionError.message ||
+            "We could not complete that meeting action. The latest request state could not be refreshed."
+        );
+      } else {
+        setError("The action completed, but the dashboard could not refresh. Reload to see the latest state.");
+      }
+    } finally {
       setActingRequestId("");
     }
   }
