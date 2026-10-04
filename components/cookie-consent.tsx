@@ -3,18 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Cookie, ShieldCheck, X } from "lucide-react";
 import { usePathname } from "next/navigation";
-
-const STORAGE_KEY = "conventus_cookie_consent";
-const CONSENT_VERSION = "2026-10-04";
-
-type ConsentChoice = "accept-all" | "reject-optional" | "custom";
-
-type ConsentRecord = {
-  version: string;
-  timestamp: string;
-  choice: ConsentChoice;
-  essential: true;
-};
+import {
+  COOKIE_CONSENT_STORAGE_KEY,
+  COOKIE_COOKIE_CONSENT_VERSION,
+  createConsentRecord,
+  parseConsentRecord,
+  serializeConsentRecord,
+  type ConsentChoice,
+  type ConsentRecord
+} from "@/lib/cookie-consent";
 
 const RESERVED_ROOT_SEGMENTS = new Set([
   "admin",
@@ -42,41 +39,22 @@ function isPublicPath(pathname: string | null) {
   return segments.length === 1 && !RESERVED_ROOT_SEGMENTS.has(segments[0]);
 }
 
-function readConsent(): ConsentRecord | null {
+function readConsent() {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-
-    const parsed = JSON.parse(raw) as Partial<ConsentRecord>;
-    if (
-      parsed.version !== CONSENT_VERSION ||
-      typeof parsed.timestamp !== "string" ||
-      !["accept-all", "reject-optional", "custom"].includes(String(parsed.choice))
-    ) {
-      return null;
-    }
-
-    return {
-      version: CONSENT_VERSION,
-      timestamp: parsed.timestamp,
-      choice: parsed.choice as ConsentChoice,
-      essential: true
-    };
+    return parseConsentRecord(window.localStorage.getItem(COOKIE_CONSENT_STORAGE_KEY));
   } catch {
     return null;
   }
 }
 
-function saveConsent(choice: ConsentChoice): ConsentRecord {
-  const record: ConsentRecord = {
-    version: CONSENT_VERSION,
-    timestamp: new Date().toISOString(),
-    choice,
-    essential: true
-  };
+function saveConsent(choice: ConsentChoice) {
+  const record = createConsentRecord(choice);
 
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
+    window.localStorage.setItem(
+      COOKIE_CONSENT_STORAGE_KEY,
+      serializeConsentRecord(record)
+    );
   } catch {
     // Browser storage can be unavailable. The banner remains usable for the
     // current visit and will simply appear again later.
@@ -84,7 +62,6 @@ function saveConsent(choice: ConsentChoice): ConsentRecord {
 
   return record;
 }
-
 export default function CookieConsent() {
   const pathname = usePathname();
   const [ready, setReady] = useState(false);
@@ -147,7 +124,7 @@ export default function CookieConsent() {
 
   if (!ready || !isPublicPath(pathname)) return null;
 
-  const hasCurrentConsent = consent?.version === CONSENT_VERSION;
+  const hasCurrentConsent = consent?.version === COOKIE_CONSENT_VERSION;
 
   const commitChoice = (choice: ConsentChoice) => {
     setConsent(saveConsent(choice));
@@ -245,7 +222,7 @@ export default function CookieConsent() {
         </div>
 
         <p className="mt-4 text-[11px] leading-5 text-slate-400">
-          Choice version {CONSENT_VERSION}. The preference record contains only the consent choice, version, and timestamp.
+          Choice version {COOKIE_CONSENT_VERSION}. The preference record contains only the consent choice, version, and timestamp.
         </p>
       </div>
     </div>
