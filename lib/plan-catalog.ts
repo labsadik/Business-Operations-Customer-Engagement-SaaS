@@ -255,7 +255,9 @@ export async function listPublicPlans(): Promise<PublicPlan[]> {
 
 export async function listPlansForAdmin(): Promise<AdminPlan[]> {
   await ensurePlanCatalog();
-  const docs = await Plan.find({})
+  const docs = await Plan.find({
+    identifier: { $type: "string", $regex: /^[a-z][a-z0-9_-]{1,63}$/ }
+  })
     .sort({ archivedAt: 1, sortOrder: 1, createdAt: 1, _id: 1 })
     .limit(200)
     .lean();
