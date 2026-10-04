@@ -47,7 +47,15 @@ export async function POST(
         const db = await getMongo();
         const tx = await db.startSession();
         try {
-          let response: { bookingId: string; status: "COMPLETED"; calendarEventRemoved: boolean } | undefined;
+          let response:
+            | {
+                bookingId: string;
+                status: "COMPLETED";
+                calendarEventRemoved: boolean;
+                calendarEventId: string | null;
+                employeeId: string;
+              }
+            | undefined;
           await tx.withTransaction(async () => {
             const meeting = await Meeting.findOne({
               bookingRequestId: bookingId,
@@ -104,22 +112,17 @@ export async function POST(
               session: tx
             });
 
-            calendarEventId = meeting.googleCalendarEventId ?? null;
-            employeeId = String(meeting.employeeId);
-
             response = {
               bookingId,
               status: "COMPLETED",
-              calendarEventRemoved: true
+              calendarEventRemoved: true,
+              calendarEventId: meeting.googleCalendarEventId ?? null,
+              employeeId: String(meeting.employeeId)
             };
           });
 
           if (!response) throw new Error("MEETING_END_FAILED");
-          return {
-            response,
-            calendarEventId: response ? calendarEventId : null,
-            employeeId: response ? employeeId : null
-          };
+          return { response };
         } finally {
           await tx.endSession();
         }
