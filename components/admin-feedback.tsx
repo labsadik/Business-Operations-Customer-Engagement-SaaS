@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CheckCircle2, MessageSquareText } from "lucide-react";
 
 type CompanyOption = { id: string; name: string; slug: string };
@@ -38,15 +38,15 @@ export default function AdminFeedback() {
   const [page, setPage] = useState(1);
   const [hasNext, setHasNext] = useState(false);
 
-  async function loadCompanies() {
+  const loadCompanies = useCallback(async function loadCompanies() {
     try {
       setCompanies(await request<CompanyOption[]>("/api/admin/companies/options?limit=25"));
     } catch {
       setCompanies([]);
     }
-  }
+  }, []);
 
-  async function load() {
+  const load = useCallback(async function load() {
     setLoading(true);
     setError("");
     try {
@@ -67,10 +67,10 @@ export default function AdminFeedback() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [page, source, rating, companyId, reviewStatus, date]);
 
-  useEffect(() => { void load(); }, [page, source, rating, companyId, reviewStatus, date]);
-  useEffect(() => { void loadCompanies(); }, []);
+  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void loadCompanies(); }, [loadCompanies]);
 
   async function setStatus(id: string, next: FeedbackItem["reviewStatus"]) {
     if (savingId) return;
