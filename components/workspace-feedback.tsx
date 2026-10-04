@@ -46,7 +46,6 @@ export default function WorkspaceFeedback({
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
-  const onCloseRef = useRef(onClose);
   const [customerFeedback, setCustomerFeedback] = useState<FeedbackItem[]>([]);
   const [sentFeedback, setSentFeedback] = useState<FeedbackItem[]>([]);
   const [tab, setTab] = useState<"customer" | "platform">("platform");
@@ -54,8 +53,6 @@ export default function WorkspaceFeedback({
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
-  onCloseRef.current = onClose;
-  savingRef.current = saving;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -77,7 +74,7 @@ export default function WorkspaceFeedback({
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
-        if (!savingRef.current) onCloseRef.current();
+        if (!savingRef.current) onClose();
         return;
       }
       if (event.key !== "Tab") return;
@@ -110,7 +107,7 @@ export default function WorkspaceFeedback({
       document.body.style.overflow = previousOverflow;
       window.setTimeout(() => previousFocusRef.current?.focus(), 0);
     };
-  }, [open]);
+  }, [open, onClose]);
 
   useEffect(() => {
     if (!open || !canViewCustomerFeedback) return;
@@ -152,6 +149,7 @@ export default function WorkspaceFeedback({
 
   async function submit() {
     if (!canSubmit || !rating || saving) return;
+    savingRef.current = true;
     setSaving(true);
     setError("");
     setNotice("");
@@ -179,6 +177,7 @@ export default function WorkspaceFeedback({
           : "Feedback could not be sent. Your draft is still here, so you can retry."
       );
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
