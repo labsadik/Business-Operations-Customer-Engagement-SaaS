@@ -64,7 +64,9 @@ export default function WorkspaceFeedback({
       : null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    setSoundEnabled(isFeedbackSoundEnabled());
+    const soundTimer = window.setTimeout(() => {
+      setSoundEnabled(isFeedbackSoundEnabled());
+    }, 0);
 
     const focusTimer = window.setTimeout(() => closeButtonRef.current?.focus(), 0);
 
@@ -99,6 +101,7 @@ export default function WorkspaceFeedback({
     window.addEventListener("keydown", onKeyDown);
     return () => {
       window.clearTimeout(focusTimer);
+      window.clearTimeout(soundTimer);
       window.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previousOverflow;
       window.setTimeout(() => previousFocusRef.current?.focus(), 0);
