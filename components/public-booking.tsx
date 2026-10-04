@@ -228,7 +228,11 @@ export default function PublicBooking({
           const code = String(body.error || "AVAILABILITY_FAILED");
           if (
             code === "INVALID_DURATION" ||
-            code === "MEETING_DURATION_NOT_CONFIGURED"
+            code === "MEETING_DURATION_NOT_CONFIGURED" ||
+            code === "MEETING_TYPE_NOT_FOUND" ||
+            code === "WORKSPACE_NOT_FOUND" ||
+            code === "COMPANY_NOT_FOUND" ||
+            code === "CUSTOMER_LOGIN_REQUIRED"
           ) {
             availabilityPollingDisabledRef.current = true;
           }
