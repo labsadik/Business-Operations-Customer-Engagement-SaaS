@@ -6,6 +6,7 @@ import { jsonError, jsonOk } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
 import { randomToken, sha256 } from "@/lib/security";
 import { Types } from "mongoose";
+import { getPublicOriginString } from "@/lib/public-origin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,7 +49,7 @@ export async function POST(
     invitation.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await invitation.save();
 
-    const base = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const base = getPublicOriginString();
     return jsonOk({
       id: String(invitation._id),
       email: invitation.invitedEmail,
