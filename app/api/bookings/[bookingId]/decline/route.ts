@@ -1,6 +1,5 @@
 import { getMongo } from "@/lib/mongodb";
 import { BookingRequest } from "@/models/booking-request";
-import { Meeting } from "@/models/meeting";
 import { requireCompanyMember } from "@/lib/authz";
 import { withRedisLock } from "@/lib/redis-lock";
 import { jsonOk } from "@/lib/http";
