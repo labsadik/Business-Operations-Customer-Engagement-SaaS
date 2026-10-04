@@ -83,6 +83,14 @@ export function createEntitlementSnapshot(plan: PlanEntitlements): PlanEntitleme
   };
 }
 
+function isPositiveSafeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 1;
+}
+
+function isNonNegativeSafeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
+
 export function isValidEntitlementSnapshot(value: unknown): value is PlanEntitlements {
   if (!value || typeof value !== "object") return false;
   const item = value as Record<string, unknown>;
@@ -92,23 +100,16 @@ export function isValidEntitlementSnapshot(value: unknown): value is PlanEntitle
     typeof item.name === "string" &&
     typeof item.priceInr === "number" &&
     Number.isFinite(item.priceInr) &&
-    Number.isSafeInteger(item.maxWorkspaces) &&
-    item.maxWorkspaces >= 1 &&
-    Number.isSafeInteger(item.maxCompanies) &&
-    item.maxCompanies >= 1 &&
-    Number.isSafeInteger(item.maxEmployees) &&
-    item.maxEmployees >= 1 &&
-    Number.isSafeInteger(item.monthlyMeetingLimit) &&
-    item.monthlyMeetingLimit >= 1 &&
-    Number.isSafeInteger(item.maxMeetingDurationMinutes) &&
-    item.maxMeetingDurationMinutes >= 1 &&
-    Number.isSafeInteger(item.maxConcurrentMeetings) &&
-    item.maxConcurrentMeetings >= 1 &&
-    Number.isSafeInteger(item.validityDays) &&
-    item.validityDays >= 1 &&
+    isPositiveSafeInteger(item.maxWorkspaces) &&
+    isPositiveSafeInteger(item.maxCompanies) &&
+    isPositiveSafeInteger(item.maxEmployees) &&
+    isPositiveSafeInteger(item.monthlyMeetingLimit) &&
+    isPositiveSafeInteger(item.maxMeetingDurationMinutes) &&
+    isPositiveSafeInteger(item.maxConcurrentMeetings) &&
+    isPositiveSafeInteger(item.validityDays) &&
     (
       item.freeFeatureDays === null ||
-      (Number.isSafeInteger(item.freeFeatureDays) && item.freeFeatureDays >= 0)
+      isNonNegativeSafeInteger(item.freeFeatureDays)
     ) &&
     typeof item.requiresPayment === "boolean"
   );
@@ -287,7 +288,7 @@ export async function listPlansForAdmin(): Promise<AdminPlan[]> {
   });
 }
 
-export function serializePublicPlan(plan: PublicPlan) {
+export function serializePublicPlan(plan: ManagedPlan) {
   const pricing = calculatePlanPricing(plan.priceInr, plan.discountType, plan.discountValue);
   return {
     id: plan.id,
@@ -316,7 +317,7 @@ export function serializePublicPlan(plan: PublicPlan) {
 export function serializeAdminPlan(plan: AdminPlan) {
   const pricing = calculatePlanPricing(plan.priceInr, plan.discountType, plan.discountValue);
   return {
-    ...serializePublicPlan(plan as PublicPlan),
+    ...serializePublicPlan(plan),
     revision: plan.revision,
     sortOrder: plan.sortOrder,
     archivedAt: plan.archivedAt,
