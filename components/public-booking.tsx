@@ -118,7 +118,7 @@ export default function PublicBooking({
   const [duration, setDuration] = useState(type?.durationOptionsMinutes[0] ?? 0);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [selected, setSelected] = useState<Slot | null>(null);
-  const [loading, setLoading] = useState(access === "customer");
+  const [loading, setLoading] = useState(false);
   const [bookingId, setBookingId] = useState("");
   const [status, setStatus] = useState("");
   const [meetingUri, setMeetingUri] = useState("");
@@ -286,7 +286,9 @@ export default function PublicBooking({
       !typeId ||
       access !== "customer" ||
       duration <= 0 ||
-      !(type?.durationOptionsMinutes ?? []).includes(duration)
+      !(type?.durationOptionsMinutes ?? []).includes(duration) ||
+      modalOpen ||
+      Boolean(bookingId)
     ) {
       return () => cancelAvailability();
     }
@@ -309,8 +311,10 @@ export default function PublicBooking({
   }, [
     access,
     cancelAvailability,
+    bookingId,
     duration,
     loadAvailability,
+    modalOpen,
     type,
     typeId
   ]);
