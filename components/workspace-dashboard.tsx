@@ -1565,27 +1565,17 @@ export default function WorkspaceDashboard({
         onClose={() => setActiveModal(null)}
       >
         <div className="p-5 sm:p-6">
-          <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs font-semibold text-slate-900">Public booking page</p>
-                <p className="mt-1 text-[11px] leading-5 text-slate-500">
-                  {data.company.publicBookingEnabled
-                    ? "Customers can use the company booking page."
-                    : "The company booking page is currently in draft mode."}
-                </p>
-              </div>
-              {canManage && (
-                <button
-                  type="button"
-                  onClick={() => void updatePublishing()}
-                  disabled={busy || (!data.company.publicBookingEnabled && !data.canPublish)}
-                  className={`rounded-xl px-4 py-2.5 text-xs font-semibold ${data.company.publicBookingEnabled ? "border border-slate-300 bg-white text-slate-700" : "bg-slate-950 text-white"} disabled:opacity-40`}
-                >
-                  {data.company.publicBookingEnabled ? "Unpublish" : "Publish"}
-                </button>
-              )}
+          {canManage && (
+            <div className="mb-5">
+              <PublicPageShare
+                savedSlug={data.company.slug}
+                published={data.company.publicBookingEnabled}
+                canPublish={data.canPublish && !data.featureLocked}
+                busy={busy}
+                onPublishRequest={() => setConfirmation({ kind: "publish-page", published: data.company.publicBookingEnabled })}
+              />
             </div>
+          )}
             <div className="mt-4 flex flex-wrap gap-2">
               <Link href="/dashboard/company-profile" onClick={() => setActiveModal(null)} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
                 <Settings2 className="size-4" />
