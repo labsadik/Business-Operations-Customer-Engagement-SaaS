@@ -1,9 +1,10 @@
 import type { MetadataRoute } from "next";
+import { getPublicOrigin } from "@/lib/public-origin";
 
 export default function robots(): MetadataRoute.Robots {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const base = getPublicOrigin().toString().replace(/\/$/, "");
   return {
     rules: { userAgent: "*", allow: "/" },
-    sitemap: `${base}/sitemap.xml`
+    sitemap: base + "/sitemap.xml"
   };
 }
