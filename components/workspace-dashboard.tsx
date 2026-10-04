@@ -39,6 +39,7 @@ import PublicPageShare from "@/components/public-page-share";
 import GoogleIntegrationNotice from "@/components/google-integration-notice";
 import PlatformAnnouncementBanner from "@/components/platform-announcement-banner";
 import WorkspaceFeedback from "@/components/workspace-feedback";
+import WorkspaceSupportTickets from "@/components/workspace-support-tickets";
 import { playFeedbackSoundIfEnabled } from "@/lib/client-feedback-sound";
 
 type Address = {
@@ -210,7 +211,7 @@ type InvoiceItem = {
   };
 };
 
-type ModalName = "meetings" | "team" | "settings" | "billing" | "feedback" | null;
+type ModalName = "meetings" | "team" | "settings" | "billing" | "feedback" | "support-tickets" | null;
 type MeetingView = "new" | "old";
 type TeamTab = "members" | "invitations";
 
@@ -1599,6 +1600,19 @@ export default function WorkspaceDashboard({
         canViewCustomerFeedback={Boolean(data.currentRole && data.company?.id)}
         canSubmit={data.currentRole !== "PLATFORM_ADMIN"}
       />
+
+      {data.currentRole !== "PLATFORM_ADMIN" && (
+        <WorkspaceSupportTickets
+          open={activeModal === "support-tickets"}
+          onClose={closeFeedbackModal}
+          user={{ name: user.name, email: user.email }}
+          company={{
+            name: data.company.name,
+            email: data.company.email || "",
+            phone: data.company.phone || ""
+          }}
+        />
+      )}
 
       <AppModal
         open={activeModal === "meetings"}
