@@ -169,10 +169,7 @@ export default function WorkspaceSidebar({
               <span>Conventus home</span>
               <ArrowUpRight className="ml-auto size-3.5 text-slate-300" />
             </Link>
-            <Link href="/dashboard" className={buttonClass(false)}>
-              <ShieldCheck className="size-4 text-slate-400 group-hover:text-slate-700" />
-              <span>Workspace home</span>
-            </Link>
+
           </div>
         </nav>
 
