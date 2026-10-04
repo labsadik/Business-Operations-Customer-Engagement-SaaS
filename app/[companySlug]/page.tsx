@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Building2, CalendarDays, CheckCircle2, Clock3, LockKeyhole } from "lucide-react";
 import { getMongo } from "@/lib/mongodb";
