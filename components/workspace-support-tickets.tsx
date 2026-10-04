@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CheckCircle2,
   ChevronLeft,
@@ -157,7 +157,7 @@ export default function WorkspaceSupportTickets({
     };
   }, [open, onClose]);
 
-  async function loadTickets(nextPage = page) {
+  const loadTickets = useCallback(async (nextPage = page) => {
     setLoading(true);
     setError("");
     try {
@@ -174,7 +174,7 @@ export default function WorkspaceSupportTickets({
     } finally {
       setLoading(false);
     }
-  }
+  }, [page]);
 
   useEffect(() => {
     if (!open || view !== "list") return;
@@ -182,7 +182,7 @@ export default function WorkspaceSupportTickets({
       void loadTickets(page);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [open, page, view]);
+  }, [loadTickets, open, page, view]);
 
   function startCreate() {
     setView("create");
