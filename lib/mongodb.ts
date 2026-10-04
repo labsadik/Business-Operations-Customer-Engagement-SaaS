@@ -11,9 +11,16 @@ export async function getMongo() {
     throw new Error("MONGODB_URI is not configured");
   }
 
-  if (mongoose.connection.readyState === 1) return mongoose;
+  const databaseName = "Conventus";
+
+  if (mongoose.connection.readyState === 1) {
+    if (mongoose.connection.db?.databaseName === databaseName) return mongoose;
+    await mongoose.disconnect();
+    globalThis.__conventusMongo = undefined;
+  }
 
   globalThis.__conventusMongo ??= mongoose.connect(uri, {
+    dbName: databaseName,
     serverSelectionTimeoutMS: 5000,
     maxPoolSize: 20,
     minPoolSize: 2
