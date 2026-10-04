@@ -195,6 +195,18 @@ export default function PublicBooking({
     };
   }, [access, loadAvailability, typeId]);
 
+  const resetRequest = useCallback(() => {
+    setBookingId("");
+    setStatus("");
+    setMeetingUri("");
+    setExpiresAt("");
+    setRemainingSeconds(0);
+    setModalOpen(false);
+    setSelected(null);
+    setError("");
+    void loadAvailability(true);
+  }, [loadAvailability]);
+
   useEffect(() => {
     if (!modalOpen && !bookingId) return;
 
@@ -223,7 +235,7 @@ export default function PublicBooking({
       window.clearTimeout(timer);
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [bookingId, meetingUri, modalOpen, status]);
+  }, [bookingId, meetingUri, modalOpen, resetRequest, status]);
 
   useEffect(() => {
     if (!bookingId) return;
@@ -367,18 +379,6 @@ export default function PublicBooking({
     } finally {
       setLoading(false);
     }
-  }
-
-  function resetRequest() {
-    setBookingId("");
-    setStatus("");
-    setMeetingUri("");
-    setExpiresAt("");
-    setRemainingSeconds(0);
-    setModalOpen(false);
-    setSelected(null);
-    setError("");
-    void loadAvailability(true);
   }
 
   const currentMonth = monthStartForIso(todayIso);
