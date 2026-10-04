@@ -1,5 +1,6 @@
 import { getMongo } from "@/lib/mongodb";
 import { PlatformSettings } from "@/models/platform-settings";
+import { getPublicOriginString, getSafeWebsiteUrl } from "@/lib/public-origin";
 
 export const PLATFORM_BRAND = {
   name: process.env.NEXT_PUBLIC_APP_NAME?.trim() || "Conventus",
@@ -39,9 +40,9 @@ function emailValue(value: string) {
   return (match?.[1] ?? value).trim();
 }
 
-function defaultLogoUrl() {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || "http://localhost:3000";
-  return new URL(PLATFORM_BRAND.logoPath, baseUrl).toString();
+function defaultWebsiteUrl() {
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  return configured ? getPublicOriginString() : "";
 }
 
 export async function getPlatformSettings() {
@@ -56,8 +57,8 @@ export async function getPlatformSettings() {
         key: "default",
         legalName: PLATFORM_BRAND.name,
         description: PLATFORM_BRAND.description,
-        websiteUrl: process.env.NEXT_PUBLIC_APP_URL?.trim() || "",
-        logoUrl: defaultLogoUrl()
+        websiteUrl: defaultWebsiteUrl(),
+        logoUrl: PLATFORM_BRAND.logoPath
       }
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
@@ -69,14 +70,16 @@ export async function getPlatformSettings() {
 
 export async function platformLegalProfile(): Promise<PlatformLegalProfile> {
   const settings = await getPlatformSettings();
+  const configuredWebsite = getSafeWebsiteUrl(settings.websiteUrl);
+  const fallbackWebsite = configuredWebsite || defaultWebsiteUrl();
 
   return {
     legalName: settings.legalName?.trim() || PLATFORM_BRAND.name,
     description: settings.description?.trim() || PLATFORM_BRAND.description,
-    websiteUrl: settings.websiteUrl?.trim() || process.env.NEXT_PUBLIC_APP_URL?.trim() || "",
+    websiteUrl: fallbackWebsite,
     email: emailValue(settings.billingEmail?.trim() || ""),
     phone: settings.phone?.trim() || "",
-    logoUrl: defaultLogoUrl(),
+    logoUrl: PLATFORM_BRAND.logoPath,
     taxId: settings.taxId?.trim() || "",
     gstin: settings.gstin?.trim() || settings.taxId?.trim() || "",
     sacCode: settings.sacCode?.trim() || "",
