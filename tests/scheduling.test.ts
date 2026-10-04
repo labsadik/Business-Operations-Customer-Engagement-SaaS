@@ -283,7 +283,7 @@ test("booking response state machine preserves processing and retry paths", () =
 
 test("booking API errors expose stable codes and never require raw Google error bodies", () => {
   assert.equal(
-    bookingErrorCode(new Error("GOOGLE_API_500:{"email":"private@example.com"}")),
+    bookingErrorCode(new Error(`GOOGLE_API_500:{"email":"private@example.com"}`)),
     "GOOGLE_API_500"
   );
   assert.equal(
