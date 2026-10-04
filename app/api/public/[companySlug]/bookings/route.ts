@@ -4,8 +4,8 @@ import { Workspace } from "@/models/workspace";
 import { MeetingType } from "@/models/meeting-type";
 import { BookingRequest } from "@/models/booking-request";
 import { getSession } from "@/lib/session";
-import { assertMeetingCapacity } from "@/lib/plans-server";
 import {
+  assertMeetingCapacity,
   getCompanyEntitlements
 } from "@/lib/plans-server";
 import { resolveMeetingDuration } from "@/lib/plans";
