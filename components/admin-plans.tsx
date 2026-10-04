@@ -208,11 +208,29 @@ export default function AdminPlans() {
   }, []);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void load();
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [load]);
+    let cancelled = false;
+
+    async function fetchInitialPlans() {
+      try {
+        const response = await fetch("/api/admin/plans", { cache: "no-store" });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.error || "PLAN_LIST_FAILED");
+        if (cancelled) return;
+        setItems(body.data?.items ?? []);
+        setError("");
+      } catch (error) {
+        if (cancelled) return;
+        setError(error instanceof Error ? error.message : "PLAN_LIST_FAILED");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void fetchInitialPlans();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
