@@ -83,7 +83,7 @@ test("public feedback is explicit, modal-based, and signed-out users keep their 
   assert.match(modal, /motion-reduce:animate-none/);
   assert.match(modal, /Sound off/);
   assert.match(modal, /isFeedbackSoundEnabled/);
-  assert.match(modal, /onCloseRef/);
+  assert.match(modal, /savingRef/);
   assert.doesNotMatch(modal, /setOpen\(true\)/);
   assert.doesNotMatch(booking, /PublicFeedbackPrompt|PublicFeedbackEntry/);
 });
