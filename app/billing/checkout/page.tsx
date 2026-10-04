@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
@@ -90,7 +91,6 @@ export default async function BillingCheckoutPage({
   const isCurrentPlan =
     subscription.planId === plan.id &&
     subscription.status === "ACTIVE" &&
-    subscription.currentPeriodEnd.getTime() > Date.now() &&
     subscription.source === "PAID";
 
   const normalizedPhone = company.phone?.replace(/[^0-9+]/g, "") ?? "";
@@ -105,9 +105,11 @@ export default async function BillingCheckoutPage({
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex min-h-18 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
           <Link href="/dashboard" className="flex items-center gap-3">
-            <img
+            <Image
               src="/favicon.svg"
               alt="Conventus"
+              width={36}
+              height={36}
               className="size-9 rounded-xl object-contain"
             />
             <div>
