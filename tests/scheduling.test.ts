@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { classifyAccept, classifyDecline } from "../lib/booking-action-policy.ts";
+
 
 import {
   PLANS,
@@ -310,4 +312,90 @@ test("plan concurrency limits remain plan-configured rather than hard-coded", ()
   assert.equal(PLANS.elite.maxConcurrentMeetings, 25);
   assert.equal(PLANS.pro.maxConcurrentMeetings, 50);
   assert.equal(PLANS.plus.maxConcurrentMeetings, 100);
+});
+
+
+test("accept policy distinguishes idempotent, assigned, expired, and declined states", () => {
+  const future = new Date("2026-10-05T10:00:00.000Z");
+  const base = {
+    assignedEmployeeId: undefined,
+    declinedBy: [] as string[],
+    expiresAt: future,
+    userId: "employee-a"
+  };
+
+  assert.deepEqual(
+    classifyAccept({ ...base, status: "REQUESTED" }),
+    { kind: "ELIGIBLE" }
+  );
+  assert.deepEqual(
+    classifyAccept({ ...base, status: "ASSIGNED", assignedEmployeeId: "employee-a" }),
+    { kind: "IDEMPOTENT_PROCESSING" }
+  );
+  assert.deepEqual(
+    classifyAccept({ ...base, status: "ASSIGNED", assignedEmployeeId: "employee-b" }),
+    { kind: "ALREADY_ASSIGNED" }
+  );
+  assert.deepEqual(
+    classifyAccept({ ...base, status: "CONFIRMED", assignedEmployeeId: "employee-a" }),
+    { kind: "IDEMPOTENT_CONFIRMED" }
+  );
+  assert.deepEqual(
+    classifyAccept({ ...base, status: "CONFIRMED", assignedEmployeeId: "employee-b" }),
+    { kind: "ALREADY_CONFIRMED" }
+  );
+  assert.deepEqual(
+    classifyAccept({ ...base, status: "REQUESTED", expiresAt: new Date("2026-10-03T10:00:00.000Z") }),
+    { kind: "EXPIRED" }
+  );
+  assert.deepEqual(
+    classifyAccept({ ...base, status: "REQUESTED", declinedBy: ["employee-a"] }),
+    { kind: "DECLINED_BY_EMPLOYEE" }
+  );
+});
+
+test("decline policy is idempotent for one employee and still eligible for teammates", () => {
+  const future = new Date("2026-10-05T10:00:00.000Z");
+  assert.deepEqual(
+    classifyDecline({
+      status: "REQUESTED",
+      assignedEmployeeId: undefined,
+      declinedBy: ["employee-a"],
+      expiresAt: future,
+      userId: "employee-a"
+    }),
+    { kind: "IDEMPOTENT_PROCESSING" }
+  );
+  assert.deepEqual(
+    classifyDecline({
+      status: "RETRYING",
+      assignedEmployeeId: undefined,
+      declinedBy: ["employee-a"],
+      expiresAt: future,
+      userId: "employee-b"
+    }),
+    { kind: "ELIGIBLE" }
+  );
+});
+
+test("terminal booking states cannot be re-accepted or re-declined", () => {
+  const future = new Date("2026-10-05T10:00:00.000Z");
+  for (const status of ["EXPIRED", "COMPLETED", "CANCELLED", "FAILED"]) {
+    assert.notEqual(
+      classifyAccept({
+        status,
+        expiresAt: future,
+        userId: "employee-a"
+      }).kind,
+      "ELIGIBLE"
+    );
+    assert.notEqual(
+      classifyDecline({
+        status,
+        expiresAt: future,
+        userId: "employee-a"
+      }).kind,
+      "ELIGIBLE"
+    );
+  }
 });
