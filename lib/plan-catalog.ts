@@ -117,8 +117,9 @@ export function isValidEntitlementSnapshot(value: unknown): value is PlanEntitle
 }
 
 export function serializeManagedPlan(doc: any): ManagedPlan {
+  const id = identifierFrom(doc.identifier) || identifierFrom(doc.planId) || identifierFrom(doc.id);
   return {
-    id: String(doc.identifier),
+    id,
     name: doc.name,
     description: doc.description ?? "",
     priceInr: Number(doc.priceInr),
@@ -146,48 +147,47 @@ export function serializeManagedPlan(doc: any): ManagedPlan {
   };
 }
 
+function legacyPlanCandidateQuery(id: string, plan: PlanEntitlements) {
+  return {
+    $or: [
+      { planId: id },
+      { id },
+      { slug: id },
+      { code: id },
+      {
+        name: {
+          $regex: new RegExp("^" + plan.name.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&") + "$", "i")
+        }
+      }
+    ],
+    $and: [
+      {
+        $or: [
+          { identifier: { $exists: false } },
+          { identifier: null },
+          { identifier: "" }
+        ]
+      }
+    ]
+  };
+}
+
 async function seedLegacyPlans() {
   await Promise.all(
     PLAN_IDS.map(async (id, index) => {
       const plan = PLANS[id];
-      const existing = await Plan.findOne({ identifier: id }).select({ _id: 1 }).lean();
-      if (existing) return;
 
-      // Older installations may have plan rows without the new stable identifier.
-      // Repair a matching legacy row before creating a second plan so existing data
-      // keeps its identity and the admin catalog does not render an undefined id.
-      const legacyRow = await Plan.findOne({
-        identifier: { $exists: false },
-        name: plan.name
-      }).select({ _id: 1 }).lean();
+      const current = await Plan.findOne({ identifier: id }).select({ _id: 1 }).lean();
+      if (current) return;
+
+      const legacyRow = await Plan.findOne(
+        legacyPlanCandidateQuery(id, plan)
+      ).select({ _id: 1 }).lean();
 
       if (legacyRow) {
         await Plan.updateOne(
           { _id: legacyRow._id },
-          {
-            $set: {
-              identifier: id,
-              description: LEGACY_DESCRIPTIONS[id] ?? "",
-              status: "PUBLIC",
-              popular: false,
-              recommended: false,
-              priceInr: plan.priceInr,
-              discountType: "NONE",
-              discountValue: 0,
-              maxWorkspaces: plan.maxWorkspaces,
-              maxCompanies: plan.maxCompanies,
-              maxEmployees: plan.maxEmployees,
-              monthlyMeetingLimit: plan.monthlyMeetingLimit,
-              maxMeetingDurationMinutes: plan.maxMeetingDurationMinutes,
-              maxConcurrentMeetings: plan.maxConcurrentMeetings,
-              validityDays: plan.validityDays,
-              freeFeatureDays: plan.freeFeatureDays,
-              requiresPayment: plan.requiresPayment,
-              revision: 1,
-              sortOrder: index,
-              archivedAt: null
-            }
-          }
+          { $set: { identifier: id } }
         );
         return;
       }
@@ -326,8 +326,9 @@ export async function listPlansForAdmin(): Promise<AdminPlan[]> {
   const invoiceMap = new Map(invoiceCounts.map((row) => [row._id, row.count]));
 
   return docs
-    .filter((doc) => typeof doc.identifier === "string" && /^[a-z][a-z0-9_-]{1,63}$/.test(doc.identifier))
-    .map((doc) => {
+    .map((doc) => ({ doc, id: identifierFrom(doc.identifier) || identifierFrom(doc.planId) || identifierFrom(doc.id) }))
+    .filter(({ id }) => /^[a-z][a-z0-9_-]{1,63}$/.test(id))
+    .map(({ doc }) => {
       const plan = serializeManagedPlan(doc);
       return {
         ...plan,
