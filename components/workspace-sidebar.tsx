@@ -26,6 +26,7 @@ type WorkspaceSidebarProps = {
   canManage?: boolean;
   adminManaged?: boolean;
   activePanel?: Panel | null;
+  activeSettingsSection?: "public" | "announcements";
   activeProfile?: boolean;
   onOpenPanel?: (panel: Panel, section?: "announcements") => void;
 };
@@ -42,6 +43,7 @@ export default function WorkspaceSidebar({
   canManage = false,
   adminManaged = false,
   activePanel = null,
+  activeSettingsSection = "public",
   activeProfile = false,
   onOpenPanel
 }: WorkspaceSidebarProps) {
@@ -132,8 +134,8 @@ export default function WorkspaceSidebar({
 
             {canManage && (
               <>
-                <button type="button" onClick={() => open("settings", "announcements")} className={buttonClass(activePanel === "settings" && !activeProfile)}>
-                  <Megaphone className={`size-4 ${iconClass(activePanel === "settings" && !activeProfile)}`} />
+                <button type="button" onClick={() => open("settings", "announcements")} className={buttonClass(activePanel === "settings" && activeSettingsSection === "announcements" && !activeProfile)}>
+                  <Megaphone className={`size-4 ${iconClass(activePanel === "settings" && activeSettingsSection === "announcements" && !activeProfile)}`} />
                   <span>Announcements</span>
                 </button>
 
@@ -142,8 +144,8 @@ export default function WorkspaceSidebar({
                   <span>Billing</span>
                 </button>
 
-                <button type="button" onClick={() => open("settings")} className={buttonClass(active("settings"))}>
-                  <Settings2 className={`size-4 ${iconClass(active("settings"))}`} />
+                <button type="button" onClick={() => open("settings")} className={buttonClass(activePanel === "settings" && activeSettingsSection !== "announcements" && !activeProfile)}>
+                  <Settings2 className={`size-4 ${iconClass(activePanel === "settings" && activeSettingsSection !== "announcements" && !activeProfile)}`} />
                   <span>Workspace settings</span>
                 </button>
               </>
