@@ -35,6 +35,7 @@ import RazorpayPlanButton from "@/components/razorpay-plan-button";
 import { playMeetingSound, unlockMeetingSound } from "@/lib/client-meeting-sound";
 import { PLANS, type PlanId } from "@/lib/plans";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
+import PublicPageShare from "@/components/public-page-share";
 
 type Address = {
   line1: string;
@@ -192,6 +193,7 @@ type Confirmation =
   | { kind: "delete-announcement"; id: string; title: string }
   | { kind: "end-meeting"; id: string }
   | { kind: "respond-request"; id: string; customerName: string; action: "accept" | "decline" }
+  | { kind: "publish-page"; published: boolean }
   | null;
 
 async function api<T>(url: string, init?: RequestInit) {
@@ -817,6 +819,10 @@ export default function WorkspaceDashboard({
       await act(action.id, action.action);
       return;
     }
+    if (action.kind === "publish-page") {
+      await updatePublishing();
+      return;
+    }
     await endMeeting(action.id);
   }
 
@@ -892,7 +898,9 @@ export default function WorkspaceDashboard({
         ? "Delete announcement?"
         : confirmation?.kind === "respond-request"
           ? confirmation.action === "accept" ? "Accept meeting request?" : "Decline meeting request?"
-          : "End meeting?";
+          : confirmation?.kind === "publish-page"
+            ? confirmation.published ? "Unpublish public booking page?" : "Publish public booking page?"
+            : "End meeting?";
 
   const confirmationDescription =
     confirmation?.kind === "remove-employee"
@@ -905,7 +913,11 @@ export default function WorkspaceDashboard({
           ? confirmation.action === "accept"
             ? `Accept ${confirmation.customerName}'s meeting request? Conventus will continue with the existing scheduling flow.`
             : `Decline ${confirmation.customerName}'s meeting request? The request will no longer remain available for your response.`
-          : "End this meeting now? Access will close and the booking cannot be reused.";
+          : confirmation?.kind === "publish-page"
+            ? confirmation.published
+              ? "Unpublishing will prevent visitors from opening the public booking page. Existing customer requests are not deleted."
+              : "Publishing will make the public booking page accessible. Visitors must still sign in with Google before seeing availability or submitting a request."
+            : "End this meeting now? Access will close and the booking cannot be reused.";
 
   const confirmationLabel =
     confirmation?.kind === "remove-employee"
@@ -914,7 +926,9 @@ export default function WorkspaceDashboard({
         ? "Delete announcement"
         : confirmation?.kind === "respond-request"
           ? confirmation.action === "accept" ? "Accept request" : "Decline request"
-          : "End meeting";
+          : confirmation?.kind === "publish-page"
+            ? confirmation.published ? "Unpublish page" : "Publish page"
+            : "End meeting";
 
   const confirmationTone =
     confirmation?.kind === "respond-request" && confirmation.action === "accept"
@@ -1063,11 +1077,11 @@ export default function WorkspaceDashboard({
               {canManage && (
                 <button
                   type="button"
-                  onClick={() => void updatePublishing()}
+                  onClick={() => setConfirmation({ kind: "publish-page", published: data.company.publicBookingEnabled })}
                   disabled={busy || data.featureLocked || (!data.company.publicBookingEnabled && !data.canPublish)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+                  className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 ${data.company.publicBookingEnabled ? "border border-red-200 bg-red-50 text-red-700 hover:bg-red-100" : "bg-blue-600 text-white hover:bg-blue-700"}`}
                 >
-                  {data.company.publicBookingEnabled ? "Published" : "Publish page"}
+                  {data.company.publicBookingEnabled ? "Unpublish page" : "Publish page"}
                   <ArrowUpRight className="size-3.5" />
                 </button>
               )}
@@ -1094,6 +1108,18 @@ export default function WorkspaceDashboard({
             })}
           </div>
         </section>
+
+        {canManage && (
+          <div className="mt-5">
+            <PublicPageShare
+              savedSlug={data.company.slug}
+              published={data.company.publicBookingEnabled}
+              canPublish={data.canPublish && !data.featureLocked}
+              busy={busy}
+              onPublishRequest={() => setConfirmation({ kind: "publish-page", published: data.company.publicBookingEnabled })}
+            />
+          </div>
+        )}
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.45fr)_360px]">
           <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
