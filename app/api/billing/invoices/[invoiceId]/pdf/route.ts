@@ -7,6 +7,7 @@ import { Invoice } from "@/models/invoice";
 import { getPlan } from "@/lib/plans";
 import { calculateInvoiceTax, type InvoiceTaxSnapshot } from "@/lib/invoicing";
 import { platformLegalProfile } from "@/lib/platform";
+import { getSafeWebsiteUrl } from "@/lib/public-origin";
 import { jsonError } from "@/lib/http";
 
 export const runtime = "nodejs";
@@ -280,7 +281,9 @@ export async function GET(
     const merchant = {
       name: invoice.merchantSnapshot?.name || legacyMerchant.legalName,
       description: invoice.merchantSnapshot?.description || legacyMerchant.description,
-      websiteUrl: invoice.merchantSnapshot?.websiteUrl || legacyMerchant.websiteUrl,
+      websiteUrl: invoice.merchantSnapshot
+        ? getSafeWebsiteUrl(invoice.merchantSnapshot.websiteUrl)
+        : legacyMerchant.websiteUrl,
       email: invoice.merchantSnapshot?.email || legacyMerchant.email,
       phone: invoice.merchantSnapshot?.phone || legacyMerchant.phone,
       taxId: invoice.merchantSnapshot?.taxId || legacyMerchant.taxId,
