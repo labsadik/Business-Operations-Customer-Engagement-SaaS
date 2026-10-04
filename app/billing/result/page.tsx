@@ -141,7 +141,7 @@ export default async function BillingResultPage({
       : `${company?.name ?? "Your workspace"} is using the Conventus Free plan. The 30-day period includes up to 14 active feature days.`;
 
   return (
-    <main className="min-h-screen bg-[#f7f8fb] text-slate-950">
+    <main className="min-h-screen bg-[#faf9f1] text-slate-950">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex min-h-18 max-w-6xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
           <Link href="/dashboard" className="flex items-center gap-3">
