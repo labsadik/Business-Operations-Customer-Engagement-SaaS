@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, Building2, CheckCircle2, Download, FileText, ShieldCheck } from "lucide-react";
@@ -144,11 +145,12 @@ export default async function BillingResultPage({
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex min-h-18 max-w-6xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
           <Link href="/dashboard" className="flex items-center gap-3">
-            <img
+            <Image
               src="/favicon.svg"
               alt={PLATFORM_BRAND.name}
+              width={36}
+              height={36}
               className="size-9 rounded-xl object-contain"
-              referrerPolicy="no-referrer"
             />
             <div>
               <p className="text-sm font-semibold tracking-tight">{PLATFORM_BRAND.name}</p>
@@ -198,7 +200,14 @@ export default async function BillingResultPage({
                   <div className="mt-2 flex items-center gap-2.5">
                     <div className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-xl border border-slate-200 bg-white">
                       {company?.logoUrl ? (
-                        <img src={company.logoUrl} alt="" className="size-full object-contain p-1" referrerPolicy="no-referrer" />
+                        <Image
+                          src={company.logoUrl}
+                          alt=""
+                          width={36}
+                          height={36}
+                          unoptimized
+                          className="size-full object-contain p-1"
+                        />
                       ) : (
                         <Building2 className="size-4 text-slate-400" />
                       )}
