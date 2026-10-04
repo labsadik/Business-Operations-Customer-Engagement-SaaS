@@ -4,6 +4,9 @@ import NavigationProgress from "@/components/navigation-progress";
 import { getPublicOrigin } from "@/lib/public-origin";
 import "./globals.css";
 
+const configuredPublicOrigin = process.env.NEXT_PUBLIC_APP_URL?.trim();
+const publicOrigin = configuredPublicOrigin ? getPublicOrigin() : undefined;
+
 export const metadata: Metadata = {
   title: {
     default: "Conventus — Connect. Schedule. Meet.",
@@ -13,7 +16,7 @@ export const metadata: Metadata = {
     "Conventus helps companies let customers request meetings and automatically route them to available employees.",
   applicationName: "Conventus",
   keywords: ["meeting scheduling", "Google Meet", "Google Calendar", "customer booking", "team scheduling"],
-  metadataBase: getPublicOrigin(),
+  ...(publicOrigin ? { metadataBase: publicOrigin } : {}),
   robots: { index: true, follow: true },
   icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" }
 };
