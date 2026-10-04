@@ -57,7 +57,7 @@ export default async function CompanyPublicPage({
   }));
 
   return (
-    <main className="min-h-screen bg-[#f7f8fb] text-slate-950">
+    <main className="min-h-screen bg-[#faf9f1] text-slate-950">
       <PublicBookingHeader
         companyName={company.name}
         companySlug={company.slug}
