@@ -18,7 +18,7 @@ export async function POST(request: Request) {
 
     const session = await getSession();
     if (!session || !session.companyId) return jsonError("UNAUTHENTICATED", 401);
-    if (!["COMPANY_OWNER", "COMPANY_ADMIN"].includes(session.role)) return jsonError("FORBIDDEN", 403);
+    if (!["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role)) return jsonError("FORBIDDEN", 403);
 
     await getMongo();
 
