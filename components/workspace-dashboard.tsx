@@ -910,17 +910,10 @@ export default function WorkspaceDashboard({
       <div className="lg:pl-72">
       <header className="sticky top-0 z-40 border-b border-slate-200/90 bg-[#faf9f1]/95 backdrop-blur-xl">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
-          <Link href="/" className="flex min-w-0 items-center gap-3">
-            <span className="grid size-9 place-items-center rounded-xl bg-slate-950 text-white shadow-sm">
-              <Video className="size-4" />
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold tracking-tight">Conventus</p>
-              <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-400">
-                Workspace
-              </p>
-            </div>
-          </Link>
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-600">Workspace</p>
+            <h2 className="mt-1 truncate text-base font-semibold tracking-tight text-slate-950">{data.company.name}</h2>
+          </div>
 
           <div className="flex items-center gap-2">
             {adminManaged && (
@@ -945,24 +938,18 @@ export default function WorkspaceDashboard({
               </>
             )}
             <Link
-              href={"/dashboard/company-profile" as Route}
-              className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 sm:inline-flex"
-            >
-              <Settings2 className="size-4 text-blue-600" />
-              Company profile
-            </Link>
-            <Link
               href={`/${data.company.slug}`}
-              className="hidden items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 md:inline-flex"
+              className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 md:inline-flex"
             >
               <Globe2 className="size-4" />
-              Public page
+              Open public page
             </Link>
             <UserAvatar name={user.name} email={user.email} image={user.image} size={38} />
             <form action="/api/auth/logout" method="post">
               <button
+                type="submit"
                 aria-label="Sign out"
-                className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
               >
                 <LogOut className="size-4" />
               </button>
@@ -980,7 +967,7 @@ export default function WorkspaceDashboard({
                 Your Free plan remains active for this 30-day cycle, but scheduling features are locked after the first 14 days. The next cycle renews automatically.
               </p>
             </div>
-            <Link href="/dashboard?billing=1" className="shrink-0 rounded-xl bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">
+            <Link href="/dashboard?panel=billing" className="shrink-0 rounded-xl bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">
               View plans
             </Link>
           </div>
@@ -1049,7 +1036,7 @@ export default function WorkspaceDashboard({
                   type="button"
                   onClick={() => void updatePublishing()}
                   disabled={busy || data.featureLocked || (!data.company.publicBookingEnabled && !data.canPublish)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {data.company.publicBookingEnabled ? "Published" : "Publish page"}
                   <ArrowUpRight className="size-3.5" />
