@@ -92,6 +92,7 @@ async function recordFailure(
       : undefined;
     booking.lastMeetingErrorCode = code;
     booking.meetingCreationStartedAt = new Date();
+    booking.meetingCreationAttempts = (booking.meetingCreationAttempts ?? 0) + 1;
     await booking.save();
 
     await recordBookingActivity({
@@ -100,7 +101,7 @@ async function recordFailure(
       eventType: "MEETING_CREATION_FAILED",
       fromStatus: "CREATING_MEETING",
       toStatus: booking.status,
-      outcome: stillActive ? "RETRYING" : "EXPIRED",
+      outcome: stillActive ? "FAILED" : "EXPIRED",
       actorRole: "SYSTEM",
       employeeId: String(meeting.employeeId),
       reasonCode: code
@@ -144,7 +145,7 @@ async function recordFailure(
     eventType: "MEETING_CREATION_FAILED",
     fromStatus: "CREATING_MEETING",
     toStatus: booking.status,
-    outcome: stillActive ? "RETRYING" : "EXPIRED",
+    outcome: stillActive ? "FAILED" : "EXPIRED",
     actorRole: "SYSTEM",
     employeeId: meeting.employeeId ? String(meeting.employeeId) : null,
     reasonCode: code
@@ -329,7 +330,18 @@ export async function createMeetingForBooking(bookingId: string) {
     const eventId = meeting.googleCalendarEventId;
     if (!eventId) throw new Error("GOOGLE_CALENDAR_EVENT_MISSING");
 
-    const resolvedEvent = event ?? (await getCalendarEvent(String(meeting.employeeId), eventId));
+    let resolvedEvent: GoogleCalendarEvent;
+    try {
+      resolvedEvent = event ?? (await getCalendarEvent(String(meeting.employeeId), eventId));
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith("GOOGLE_API_404")) {
+        meeting.googleCalendarEventId = undefined;
+        meeting.calendarSyncStatus = "FAILED";
+        await meeting.save();
+      }
+      throw error;
+    }
+
     const meetingUri = await waitForGoogleMeet(
       String(meeting.employeeId),
       eventId,
