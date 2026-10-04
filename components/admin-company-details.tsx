@@ -202,14 +202,12 @@ export default function AdminCompanyDetailsView({ company }: { company: AdminCom
         <aside className="space-y-6">
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="grid size-11 place-items-center overflow-hidden rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
-                {company.owner?.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={company.owner.image} alt="" className="size-full object-cover" />
-                ) : (
-                  company.owner?.name.slice(0, 1).toUpperCase()
-                )}
-              </div>
+              <UserAvatar
+                name={company.owner?.name ?? "Unknown"}
+                email={company.owner?.email}
+                image={company.owner?.image}
+                size={44}
+              />
               <div className="min-w-0"><p className="text-[10px] uppercase tracking-[0.12em] text-slate-400">Company owner</p><p className="mt-1 truncate text-sm font-semibold">{company.owner?.name ?? "Unknown"}</p><p className="mt-1 truncate text-xs text-slate-500">{company.owner?.email ?? "Unknown email"}</p></div>
             </div>
           </section>
