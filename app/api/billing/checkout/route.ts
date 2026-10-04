@@ -174,7 +174,7 @@ export async function POST(request: Request) {
             companyId: session.companyId,
             planId: plan.id,
             merchantAccount: "CONVENTUS",
-            checkoutKey: session.companyId,
+            checkoutKey: String(session.companyId),
             providerOrderId: order.id,
             amount: order.amount,
             baseAmount: tax.taxableAmount,
