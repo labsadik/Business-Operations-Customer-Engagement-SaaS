@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import UserAvatar from "@/components/user-avatar";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
