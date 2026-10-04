@@ -91,12 +91,13 @@ export default function PublicPageShare({
       </div>
 
       <div className="mt-5 rounded-2xl border border-slate-200 bg-[#faf9f1] p-4">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Saved public URL</p>
-        <p className="mt-2 break-all text-sm font-semibold text-slate-900">{displayUrl}</p>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Current public URL</p>
+        <p className="mt-2 break-all text-sm font-semibold text-slate-900">{savedUrl}</p>
         {hasUnsavedSlug && (
-          <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-900">
-            The slug has unsaved changes. Copy and Preview still use the currently saved URL. Save the company profile to make the new URL live.
-          </p>
+          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[11px] leading-5 text-amber-900">
+            <p className="font-semibold">New URL after save: {displayUrl}</p>
+            <p className="mt-1">Copy and Open use the currently saved URL until you save the company profile.</p>
+          </div>
         )}
       </div>
 
