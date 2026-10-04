@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 import { PLAN_IDS, PLANS } from "../lib/plans.ts";
 import {
   calculatePlanPricing,
-  createEntitlementSnapshot,
   isPlanPubliclyPurchasable,
   validatePlanDraft
-} from "../lib/plan-catalog.ts";
+} from "../lib/plan-rules.ts";
+import { createEntitlementSnapshot } from "../lib/plan-catalog.ts";
 
 const baseDraft = {
   identifier: "growth",
