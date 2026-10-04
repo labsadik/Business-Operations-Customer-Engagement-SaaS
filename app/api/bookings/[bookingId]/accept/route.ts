@@ -133,10 +133,10 @@ export async function POST(
     return bookingJsonError(code, code === "UNAUTHENTICATED" ? 401 : 403);
   }
 
-  if (!companyId) {
+  if (!session.companyId) {
     return bookingJsonError("COMPANY_NOT_CONFIGURED", 403);
   }
-  const companyId = session.companyId;
+  const companyId: string = session.companyId;
 
   if (session.role === "PLATFORM_ADMIN") {
     return bookingJsonError("PLATFORM_ADMIN_CANNOT_ACCEPT_AS_EMPLOYEE", 403);
