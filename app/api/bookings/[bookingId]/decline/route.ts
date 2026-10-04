@@ -231,7 +231,36 @@ export async function POST(
 
     return jsonOk(result);
   } catch (error) {
-    const code = bookingErrorCode(error);
+    let code = bookingErrorCode(error);
+
+    if (code === "RESOURCE_BUSY") {
+      const current = await BookingRequest.findOne({
+        _id: bookingId,
+        companyId: session.companyId
+      }).lean();
+
+      if (
+        current?.declinedBy?.some((id) => String(id) === session.userId) &&
+        ["REQUESTED", "RETRYING"].includes(current.status) &&
+        current.expiresAt.getTime() > Date.now()
+      ) {
+        return jsonOk({
+          bookingId,
+          status: current.status,
+          nextRetryAt: current.nextRetryAt ?? null
+        });
+      }
+
+      if (current?.status === "ASSIGNED" || current?.status === "CREATING_MEETING") {
+        code =
+          String(current.assignedEmployeeId ?? "") === session.userId
+            ? "BOOKING_ALREADY_CONFIRMED"
+            : "BOOKING_ALREADY_ASSIGNED";
+      } else {
+        code = "BOOKING_PROCESSING";
+      }
+    }
+
     const status =
       code === "BOOKING_NOT_FOUND"
         ? 404
@@ -243,6 +272,7 @@ export async function POST(
             "BOOKING_CANCELLED",
             "BOOKING_ALREADY_COMPLETED",
             "BOOKING_NO_LONGER_AVAILABLE",
+            "BOOKING_PROCESSING",
             "RESOURCE_BUSY"
           ].includes(code)
           ? 409
