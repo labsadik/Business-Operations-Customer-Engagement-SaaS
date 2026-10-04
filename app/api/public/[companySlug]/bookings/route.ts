@@ -13,6 +13,7 @@ import { eligibleEmployees } from "@/lib/routing";
 import { withRedisLock } from "@/lib/redis-lock";
 import { jsonError, jsonOk } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
+import { Types } from "mongoose";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -57,6 +58,7 @@ export async function POST(
   const durationMinutes = body?.durationMinutes;
   if (
     !body?.meetingTypeId ||
+    !Types.ObjectId.isValid(body.meetingTypeId) ||
     !body.startAt ||
     !body.endAt ||
     typeof durationMinutes !== "number" ||
