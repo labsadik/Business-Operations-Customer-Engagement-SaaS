@@ -93,9 +93,10 @@ test("workspace feedback is an explicit accessible modal and does not expose cus
   const dashboard = source("components/workspace-dashboard.tsx");
   const modal = source("components/workspace-feedback.tsx");
 
-  assert.match(sidebar, /Send feedback/);
-  assert.match(sidebar, /currentRole !== "PLATFORM_ADMIN"/);
-  assert.doesNotMatch(sidebar, /canManage && currentRole !== "PLATFORM_ADMIN".*Send feedback/);
+  assert.match(sidebar, /Feedback/);
+  assert.match(sidebar, /onClick=\{\(\) => open\("feedback"\)\}/);
+  assert.doesNotMatch(sidebar, /currentRole !== "PLATFORM_ADMIN"[^\n]*Feedback/);
+  assert.doesNotMatch(sidebar, /canManage && currentRole !== "PLATFORM_ADMIN"[^\n]*Feedback/);
 
   assert.match(dashboard, /openModal\(panel, section, true\)/);
   assert.match(dashboard, /playFeedbackSoundIfEnabled/);
@@ -139,4 +140,31 @@ test("customer and company-member feedback stay distinct sources", () => {
   assert.match(companyRoute, /source: "COMPANY_PLATFORM"/);
   assert.match(adminRoute, /FEEDBACK_SOURCES/);
   assert.match(adminRoute, /source: item\.source/);
+});
+
+
+test("shared user avatars keep a visible fallback when Google image rendering fails", () => {
+  const avatar = source("components/user-avatar.tsx");
+  const session = source("lib/session.ts");
+  const oauth = source("app/api/auth/google/callback/route.ts");
+
+  assert.match(avatar, /googleAvatarUrl\(image\)/);
+  assert.match(avatar, /aria-hidden="true"/);
+  assert.match(avatar, /onError=\{\(event\) => \{/);
+  assert.match(avatar, /style\.display = "none"/);
+  assert.match(avatar, /referrerPolicy="no-referrer"/);
+  assert.match(session, /image: googleAvatarUrl\(user\.image\)/);
+  assert.match(oauth, /image: googleAvatarUrl\(googleUser\.picture\)/);
+});
+
+test("admin feedback inbox remains a separate platform ticket source", () => {
+  const shell = source("components/admin-shell.tsx");
+  const page = source("app/admin/feedback/page.tsx");
+  const api = source("app/api/admin/feedback/route.ts");
+
+  assert.match(shell, /href: "\/admin\/feedback"/);
+  assert.match(shell, /label: "Feedback"/);
+  assert.match(page, /AdminFeedback/);
+  assert.match(api, /requirePlatformAdmin/);
+  assert.match(api, /FEEDBACK_SOURCES/);
 });
