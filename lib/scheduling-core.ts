@@ -46,7 +46,7 @@ function addDaysIso(dateIso: string, days: number) {
   return value;
 }
 
-function isoDateAtTimezone(value: Date, timezone: string) {
+export function isoDateAtTimezone(value: Date, timezone: string) {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
     year: "numeric",
