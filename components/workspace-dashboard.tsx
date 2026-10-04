@@ -394,6 +394,7 @@ export default function WorkspaceDashboard({
   const canManage = Boolean(
     data && ["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(data.currentRole)
   );
+  const canRespondToMeetings = data?.currentRole !== "PLATFORM_ADMIN";
   const adminManaged = Boolean(data?.currentRole === "PLATFORM_ADMIN" && data.company?.id);
 
   const planId: PlanId = data?.subscription?.planId && PLANS[data.subscription.planId]
@@ -1290,7 +1291,7 @@ export default function WorkspaceDashboard({
             ) : meetingView === "new" ? (
               <div className="divide-y divide-slate-100">
                 {requests.slice(0, 5).map((item) => {
-                  const actionable = item.status === "REQUESTED" || item.status === "RETRYING";
+                  const actionable = canRespondToMeetings && (item.status === "REQUESTED" || item.status === "RETRYING");
                   const creating = item.status === "ASSIGNED" || item.status === "CREATING_MEETING";
                   const ready = item.meeting?.status === "READY" && Boolean(item.meeting.meetingUri);
                   const scheduled = item.status === "CONFIRMED" || item.status === "IN_PROGRESS";
@@ -1617,7 +1618,7 @@ export default function WorkspaceDashboard({
             ) : (
               <div className="space-y-3">
                 {modalRequests.map((item) => {
-                  const actionable = item.status === "REQUESTED" || item.status === "RETRYING";
+                  const actionable = canRespondToMeetings && (item.status === "REQUESTED" || item.status === "RETRYING");
                   const creating =
                     item.status === "ASSIGNED" ||
                     item.status === "CREATING_MEETING" ||
