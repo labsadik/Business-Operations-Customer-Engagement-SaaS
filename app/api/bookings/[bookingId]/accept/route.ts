@@ -1,11 +1,14 @@
 import { getMongo } from "@/lib/mongodb";
 import { BookingRequest } from "@/models/booking-request";
 import { Meeting } from "@/models/meeting";
+import { MeetingType } from "@/models/meeting-type";
+import { Workspace } from "@/models/workspace";
 import { Subscription } from "@/models/subscription";
 import { requireCompanyMember } from "@/lib/authz";
 import { withRedisLock } from "@/lib/redis-lock";
 import { eligibleEmployees } from "@/lib/routing";
 import { getCompanyEntitlements } from "@/lib/plans-server";
+import { resolveMeetingDuration } from "@/lib/plans";
 import { createMeetingForBooking } from "@/lib/meeting-service";
 import { jsonError, jsonOk } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
@@ -82,13 +85,44 @@ export async function POST(
 
       try {
         const plan = await getCompanyEntitlements(session.companyId!);
-        if (booking.requestedDurationMinutes > plan.maxMeetingDurationMinutes) throw new Error("MEETING_DURATION_LIMIT");
+        const [workspace, type] = await Promise.all([
+          Workspace.findOne({
+            _id: booking.workspaceId,
+            companyId: session.companyId,
+            active: true
+          }).select("_id").lean(),
+          MeetingType.findOne({
+            _id: booking.meetingTypeId,
+            companyId: session.companyId,
+            workspaceId: booking.workspaceId,
+            active: true
+          }).lean()
+        ]);
+
+        if (!workspace) throw new Error("WORKSPACE_NOT_FOUND");
+        if (!type) throw new Error("MEETING_TYPE_NOT_FOUND");
+
+        const resolved = resolveMeetingDuration(
+          plan.maxMeetingDurationMinutes,
+          type.durationOptionsMinutes,
+          booking.requestedDurationMinutes
+        );
+        if (
+          booking.requestedEndAt.getTime() - booking.requestedStartAt.getTime() !==
+          resolved.durationMinutes * 60_000
+        ) {
+          throw new Error("INVALID_TIME_RANGE");
+        }
 
         const employeeEligible = await eligibleEmployees(
           session.companyId!,
           booking.requestedStartAt,
           booking.requestedEndAt,
-          booking.declinedBy?.map(String) ?? []
+          booking.declinedBy?.map(String) ?? [],
+          {
+            bufferBeforeMinutes: type.bufferBeforeMinutes,
+            bufferAfterMinutes: type.bufferAfterMinutes
+          }
         );
         if (!employeeEligible.includes(session.userId)) {
           await BookingRequest.updateOne(
@@ -203,6 +237,11 @@ export async function POST(
       "EMPLOYEE_NOT_AVAILABLE",
       "CONCURRENT_MEETING_LIMIT",
       "MONTHLY_MEETING_LIMIT",
+      "WORKSPACE_NOT_FOUND",
+      "MEETING_TYPE_NOT_FOUND",
+      "INVALID_DURATION",
+      "MEETING_DURATION_NOT_CONFIGURED",
+      "INVALID_TIME_RANGE",
       "RESOURCE_BUSY"
     ].includes(code)
       ? 409
