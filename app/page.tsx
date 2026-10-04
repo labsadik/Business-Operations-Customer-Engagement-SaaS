@@ -104,15 +104,28 @@ const faqs = [
 
 export default async function Home() {
   const plans = Object.values(PLANS);
-  await getMongo();
-  const platformAnnouncements = await PlatformAnnouncement.find({
-    status: "PUBLISHED",
-    audience: "LANDING_PAGE"
-  })
-    .sort({ publishedAt: -1, createdAt: -1, _id: -1 })
-    .limit(5)
-    .select("_id title message audience publishedAt createdAt")
-    .lean();
+  let platformAnnouncements: Array<{
+    _id: unknown;
+    title: string;
+    message: string;
+    audience: string;
+    publishedAt?: Date | null;
+    createdAt: Date;
+  }> = [];
+
+  try {
+    await getMongo();
+    platformAnnouncements = await PlatformAnnouncement.find({
+      status: "PUBLISHED",
+      audience: "LANDING_PAGE"
+    })
+      .sort({ publishedAt: -1, createdAt: -1, _id: -1 })
+      .limit(5)
+      .select("_id title message audience publishedAt createdAt")
+      .lean();
+  } catch {
+    platformAnnouncements = [];
+  }
 
   return (
     <main className="min-h-screen bg-[#faf9f1] text-slate-950">
