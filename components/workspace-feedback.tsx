@@ -44,7 +44,10 @@ export default function WorkspaceFeedback() {
     }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   async function submit() {
     if (!rating || saving) return;
