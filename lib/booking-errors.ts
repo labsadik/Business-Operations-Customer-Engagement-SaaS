@@ -1,3 +1,5 @@
+import { NextResponse } from "next/server";
+
 const FRIENDLY_MESSAGES: Record<string, string> = {
   BOOKING_NOT_FOUND: "This meeting request could not be found.",
   BOOKING_ALREADY_ASSIGNED: "This request is already being handled by another team member.",
@@ -26,9 +28,48 @@ const FRIENDLY_MESSAGES: Record<string, string> = {
   EMPLOYEE_NOT_ASSIGNED: "No team member is currently assigned to this request.",
   MEETING_NOT_FOUND: "The meeting record could not be found.",
   MEETING_ALREADY_ENDED: "This meeting has already ended.",
-  MEETING_NOT_READY: "This meeting is still being prepared."
+  MEETING_NOT_READY: "This meeting is still being prepared.",
+  BOOKING_ALREADY_COMPLETED: "This booking has already been completed.",
+  BOOKING_CANCELLED: "This booking has been cancelled and can no longer be accepted.",
+  BOOKING_FAILED: "Meeting setup failed. The request can be retried after the underlying issue is resolved.",
+  UNAUTHENTICATED: "Please sign in again to respond to this meeting request.",
+  FORBIDDEN: "You do not have permission to respond to this meeting request.",
+  COMPANY_NOT_CONFIGURED: "Your workspace company is not configured correctly.",
+  GOOGLE_API_400: "Google Calendar rejected the meeting request. Please check the connected calendar settings.",
+  GOOGLE_API_401: "Google Calendar authentication needs to be refreshed.",
+  GOOGLE_API_403: "The connected Google account does not have the required Calendar permission.",
+  GOOGLE_API_404: "The Google Calendar event could not be found.",
+  GOOGLE_API_409: "Google Calendar already has the deterministic event for this booking. Conventus will recover it safely.",
+  GOOGLE_API_429: "Google Calendar is temporarily rate-limiting requests. Conventus will retry safely.",
+  GOOGLE_API_500: "Google Calendar returned a temporary server error. Conventus will retry safely.",
+  GOOGLE_API_502: "Google Calendar returned a temporary server error. Conventus will retry safely.",
+  GOOGLE_API_503: "Google Calendar is temporarily unavailable. Conventus will retry safely."
 };
 
 export function friendlyBookingMessage(code: string) {
+  if (/^GOOGLE_API_[45]\d\d$/.test(code)) {
+    return code === "GOOGLE_API_409"
+      ? FRIENDLY_MESSAGES.GOOGLE_API_409
+      : "Google Calendar returned a temporary or permission error. Conventus will refresh the meeting state and retry when safe.";
+  }
   return FRIENDLY_MESSAGES[code] ?? "We could not complete that meeting action. The request will refresh to its current server state.";
+}
+
+export function bookingJsonError(code: string, status: number, details?: unknown) {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: code,
+      message: friendlyBookingMessage(code),
+      ...(details !== undefined ? { details } : {})
+    },
+    { status }
+  );
+}
+
+export function bookingErrorCode(error: unknown) {
+  const raw = error instanceof Error ? error.message : "";
+  if (!raw) return "BOOKING_ACTION_FAILED";
+  if (raw.startsWith("GOOGLE_API_")) return raw.split(":")[0].slice(0, 100);
+  return raw.slice(0, 100);
 }
