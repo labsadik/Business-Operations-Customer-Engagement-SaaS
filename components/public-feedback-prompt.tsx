@@ -32,13 +32,15 @@ export default function PublicFeedbackPrompt({
       const timer = window.setTimeout(() => setOpen(true), remaining || 250);
       return () => window.clearTimeout(timer);
     } catch {
-      setOpen(true);
+      const timer = window.setTimeout(() => setOpen(true), 0);
+      return () => window.clearTimeout(timer);
     }
   }, [companySlug]);
 
   useEffect(() => {
     if (!open) return;
-    setLastPromptAt(Date.now());
+    const timer = window.setTimeout(() => setLastPromptAt(Date.now()), 0);
+    return () => window.clearTimeout(timer);
   }, [open]);
 
   const stars = useMemo(() => [1, 2, 3, 4, 5], []);
