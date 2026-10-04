@@ -124,10 +124,14 @@ export async function POST(request: Request) {
         }).sort({ createdAt: -1 });
 
         if (existingPending) {
-          if (
-            existingPending.planId !== plan.id ||
-            existingPending.planRevision !== plan.revision
-          ) {
+          if (existingPending.planId !== plan.id) {
+            return jsonError("PAYMENT_IN_PROGRESS", 409, {
+              planId: existingPending.planId,
+              orderId: existingPending.providerOrderId
+            });
+          }
+
+          if (existingPending.planRevision !== plan.revision) {
             existingPending.status = "FAILED";
             existingPending.failureReason = "PLAN_CONFIGURATION_CHANGED";
             existingPending.checkoutKey = undefined;
@@ -208,16 +212,30 @@ export async function POST(request: Request) {
           }).sort({ createdAt: -1 }).lean();
 
           if (existing) {
-            const logoUrl = await platformLogoUrl();
-            return jsonOk(
-              checkoutResponse({
-                payment: existing,
+            if (existing.planId !== plan.id) {
+              return jsonError("PAYMENT_IN_PROGRESS", 409, {
                 planId: existing.planId,
-                planName: existing.checkoutPlanSnapshot?.name ?? plan.name,
-                company,
-                logoUrl
-              })
-            );
+                orderId: existing.providerOrderId
+              });
+            }
+
+            if (existing.planRevision !== plan.revision) {
+              existing.status = "FAILED";
+              existing.failureReason = "PLAN_CONFIGURATION_CHANGED";
+              existing.checkoutKey = undefined;
+              await existing.save();
+            } else {
+              const logoUrl = await platformLogoUrl();
+              return jsonOk(
+                checkoutResponse({
+                  payment: existing,
+                  planId: existing.planId,
+                  planName: existing.checkoutPlanSnapshot?.name ?? plan.name,
+                  company,
+                  logoUrl
+                })
+              );
+            }
           }
           throw error;
         }
