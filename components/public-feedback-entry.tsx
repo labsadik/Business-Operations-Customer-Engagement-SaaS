@@ -3,7 +3,7 @@
 import { MessageSquareText } from "lucide-react";
 import PublicFeedbackPrompt from "@/components/public-feedback-prompt";
 import { playFeedbackSoundIfEnabled } from "@/lib/client-feedback-sound";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 export default function PublicFeedbackEntry({
   companySlug,
