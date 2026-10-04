@@ -1074,6 +1074,7 @@ export default function WorkspaceDashboard({
         companyName={data.company.name}
         userName={user.name}
         userEmail={user.email}
+        userImage={user.image}
         currentRole={data.currentRole}
         canManage={canManage}
         adminManaged={adminManaged}
