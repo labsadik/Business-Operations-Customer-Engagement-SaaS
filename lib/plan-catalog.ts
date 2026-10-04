@@ -386,10 +386,10 @@ export async function resolvePlanEntitlementsForSubscription(subscription: any):
     ? createEntitlementSnapshot(candidate)
     : legacyInvoiceSnapshot
       ? createEntitlementSnapshot(legacyInvoiceSnapshot)
-      : currentPlan
-        ? createEntitlementSnapshot(currentPlan)
-        : legacy
-          ? createEntitlementSnapshot(legacy)
+      : legacy
+        ? createEntitlementSnapshot(legacy)
+        : currentPlan
+          ? createEntitlementSnapshot(currentPlan)
           : createEntitlementSnapshot(PLANS.free);
 
   await Subscription.updateOne(
