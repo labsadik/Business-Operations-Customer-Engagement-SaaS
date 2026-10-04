@@ -40,7 +40,7 @@ export default function PublicFeedbackEntry({
 
       <PublicFeedbackPrompt
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={closeFeedback}
         companySlug={companySlug}
         authenticated={authenticated}
         loginHref={loginHref}
