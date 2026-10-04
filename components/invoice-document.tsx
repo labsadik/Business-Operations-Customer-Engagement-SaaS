@@ -1,5 +1,6 @@
 
 import { Download, ExternalLink, FileText, ShieldCheck } from "lucide-react";
+import { getSafeWebsiteUrl } from "@/lib/public-origin";
 
 export type InvoiceDocumentData = {
   invoiceNumber: string;
@@ -157,6 +158,11 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentD
     : invoice.source === "ADMIN_GRANTED"
       ? "Granted by platform administrator"
       : "No customer payment required";
+  const safeWebsiteUrl = getSafeWebsiteUrl(invoice.merchant.websiteUrl);
+  const safeLogoUrl =
+    invoice.merchant.logoUrl && !/^(?:https?:)?\/\/(localhost|127\\.0\\.0\\.1|0\\.0\\.0\\.0|\\[::1\\]|[^/]*\\.local(?:host)?)(?::\\d+)?(?:[/?#]|$)/i.test(invoice.merchant.logoUrl)
+      ? invoice.merchant.logoUrl
+      : "/favicon.svg";
 
   return (
     <div className="mx-auto max-w-[920px]">
@@ -187,7 +193,7 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentD
                 <div className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={invoice.merchant.logoUrl || "/favicon.svg"}
+                    src={safeLogoUrl || "/favicon.svg"}
                     alt=""
                     className="size-full object-contain"
                     referrerPolicy="no-referrer"
@@ -390,12 +396,12 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentD
                 <p>Generated electronically by {invoice.merchant.name}.</p>
                 <p className="mt-1">This document is an electronic invoice; no physical signature is required.</p>
               </div>
-              {invoice.merchant.websiteUrl && (
+              {safeWebsiteUrl && (
                 <a
                   href={invoice.merchant.websiteUrl}
                   className="inline-flex max-w-full items-start gap-1.5 break-all font-semibold text-slate-500 print:no-underline"
                 >
-                  {invoice.merchant.websiteUrl}
+                  {safeWebsiteUrl}
                   <ExternalLink className="mt-0.5 size-3 shrink-0" />
                 </a>
               )}
