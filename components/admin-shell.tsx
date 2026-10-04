@@ -88,24 +88,31 @@ export default function AdminShell({
 
         <nav className="flex-1 space-y-1 px-4 py-5">
           <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Management</p>
-          {nav.map((item) => {
+          {nav.map((item, index) => {
             const Icon = item.icon;
             const href = item.href as Route;
+            const selected = activePath(pathname, item.href);
             return (
-              <Link
-                key={item.href}
-                href={href}
-                className={[
-                  "flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition",
-                  activePath(pathname, item.href)
-                    ? "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-100"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-950"
-                ].join(" ")}
-              >
-                <Icon className="size-4" />
-                <span>{item.label}</span>
-                {activePath(pathname, item.href) && <ChevronRight className="ml-auto size-4 opacity-60" />}
-              </Link>
+              <div key={item.href}>
+                {index === 3 && (
+                  <p className="mb-2 mt-6 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                    Access & configuration
+                  </p>
+                )}
+                <Link
+                  href={href}
+                  className={[
+                    "flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition",
+                    selected
+                      ? "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-100"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-950"
+                  ].join(" ")}
+                >
+                  <Icon className="size-4" />
+                  <span>{item.label}</span>
+                  {selected && <ChevronRight className="ml-auto size-4 opacity-60" />}
+                </Link>
+              </div>
             );
           })}
         </nav>
