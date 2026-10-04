@@ -82,6 +82,7 @@ export async function reserveMeetingUsage(input: {
   const subscription = await Subscription.findOneAndUpdate(
     {
       companyId: input.companyId,
+      planId: input.plan.id,
       status: "ACTIVE",
       currentPeriodEnd: { $gt: now },
       monthlyMeetingsUsed: { $lt: input.plan.monthlyMeetingLimit }
