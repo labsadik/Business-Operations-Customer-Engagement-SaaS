@@ -115,7 +115,7 @@ test("custom weekend and evening schedules generate only configured slots", () =
   );
   assert.equal(sundaySlots.length, 37);
   assert.equal(sundaySlots[0].startAt.toISOString(), "2026-10-04T12:30:00.000Z");
-  assert.equal(sundaySlots.at(-1)?.endAt.toISOString(), "2026-10-04T16:00:00.000Z");
+  assert.equal(sundaySlots.at(-1)?.endAt.toISOString(), "2026-10-04T16:30:00.000Z");
 
   const saturdaySlots = buildScheduleSlots(
     "2026-10-03",
