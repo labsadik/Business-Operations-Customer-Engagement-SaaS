@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Check, Loader2, CreditCard, ArrowRight } from "lucide-react";
 import { PLANS, type PlanId } from "@/lib/plans";
@@ -85,6 +86,7 @@ export default function RazorpayPlanButton({
   onComplete?: () => void;
   onError?: (message: string) => void;
 }) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const plan = PLANS[planId];
   const isCurrent = Boolean(currentPlanId && planId === currentPlanId);
@@ -93,7 +95,7 @@ export default function RazorpayPlanButton({
     if (loading || disabled) return;
 
     if (mode === "navigate") {
-      window.location.assign("/billing/checkout?plan=" + encodeURIComponent(planId));
+      router.push("/billing/checkout?plan=" + encodeURIComponent(planId));
       return;
     }
 
@@ -208,7 +210,7 @@ export default function RazorpayPlanButton({
 
             onComplete?.();
 
-            window.location.assign(
+            router.push(
               "/billing/result?paymentId=" +
               encodeURIComponent(paymentResponse.razorpay_payment_id)
             );
