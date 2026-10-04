@@ -191,6 +191,7 @@ type Confirmation =
   | { kind: "remove-employee"; id: string; name: string; permanent: boolean }
   | { kind: "delete-announcement"; id: string; title: string }
   | { kind: "end-meeting"; id: string }
+  | { kind: "respond-request"; id: string; customerName: string; action: "accept" | "decline" }
   | null;
 
 async function api<T>(url: string, init?: RequestInit) {
@@ -783,6 +784,10 @@ export default function WorkspaceDashboard({
       await deleteAnnouncement(action.id);
       return;
     }
+    if (action.kind === "respond-request") {
+      await act(action.id, action.action);
+      return;
+    }
     await endMeeting(action.id);
   }
 
@@ -850,6 +855,44 @@ export default function WorkspaceDashboard({
       </main>
     );
   }
+
+  const confirmationTitle =
+    confirmation?.kind === "remove-employee"
+      ? confirmation.permanent ? "Delete employee forever?" : "Remove employee access?"
+      : confirmation?.kind === "delete-announcement"
+        ? "Delete announcement?"
+        : confirmation?.kind === "respond-request"
+          ? confirmation.action === "accept" ? "Accept meeting request?" : "Decline meeting request?"
+          : "End meeting?";
+
+  const confirmationDescription =
+    confirmation?.kind === "remove-employee"
+      ? confirmation.permanent
+        ? `This permanently deletes ${confirmation.name}'s employee account and access data. This action cannot be undone.`
+        : `Remove ${confirmation.name} from this company? Their user account remains available for future access.`
+      : confirmation?.kind === "delete-announcement"
+        ? `Delete “${confirmation.title}” permanently from this company?`
+        : confirmation?.kind === "respond-request"
+          ? confirmation.action === "accept"
+            ? `Accept ${confirmation.customerName}'s meeting request? Conventus will continue with the existing scheduling flow.`
+            : `Decline ${confirmation.customerName}'s meeting request? The request will no longer remain available for your response.`
+          : "End this meeting now? Access will close and the booking cannot be reused.";
+
+  const confirmationLabel =
+    confirmation?.kind === "remove-employee"
+      ? confirmation.permanent ? "Delete forever" : "Remove access"
+      : confirmation?.kind === "delete-announcement"
+        ? "Delete announcement"
+        : confirmation?.kind === "respond-request"
+          ? confirmation.action === "accept" ? "Accept request" : "Decline request"
+          : "End meeting";
+
+  const confirmationTone =
+    confirmation?.kind === "respond-request" && confirmation.action === "accept"
+      ? "success"
+      : confirmation?.kind === "respond-request" && confirmation.action === "decline"
+        ? "destructive"
+        : "destructive";
 
   return (
     <main className="min-h-screen bg-[#faf9f1] text-slate-950">
@@ -1139,8 +1182,8 @@ export default function WorkspaceDashboard({
                           )}
                           {actionable && (
                             <>
-                              <button type="button" disabled={actingRequestId === item.id} onClick={() => void act(item.id, "decline")} className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50">Decline</button>
-                              <button type="button" disabled={actingRequestId === item.id} onClick={() => void act(item.id, "accept")} className="rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">
+                              <button type="button" disabled={actingRequestId === item.id} onClick={() => setConfirmation({ kind: "respond-request", id: item.id, customerName: item.customer?.name ?? "Customer", action: "decline" })} className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50">Decline</button>
+                              <button type="button" disabled={actingRequestId === item.id} onClick={() => setConfirmation({ kind: "respond-request", id: item.id, customerName: item.customer?.name ?? "Customer", action: "accept" })} className="rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">
                                 {actingRequestId === item.id ? "Accepting..." : "Accept"}
                               </button>
                             </>
@@ -1423,8 +1466,8 @@ export default function WorkspaceDashboard({
                           )}
                           {actionable && (
                             <>
-                              <button type="button" disabled={actingRequestId === item.id} onClick={() => void act(item.id, "decline")} className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700">Decline</button>
-                              <button type="button" disabled={actingRequestId === item.id} onClick={() => void act(item.id, "accept")} className="rounded-xl bg-blue-600 px-3.5 py-2.5 text-xs font-semibold text-white">{actingRequestId === item.id ? "Accepting..." : "Accept"}</button>
+                              <button type="button" disabled={actingRequestId === item.id} onClick={() => setConfirmation({ kind: "respond-request", id: item.id, customerName: item.customer?.name ?? "Customer", action: "decline" })} className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700">Decline</button>
+                              <button type="button" disabled={actingRequestId === item.id} onClick={() => setConfirmation({ kind: "respond-request", id: item.id, customerName: item.customer?.name ?? "Customer", action: "accept" })} className="rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white">{actingRequestId === item.id ? "Accepting..." : "Accept"}</button>
                             </>
                           )}
                         </div>
@@ -1986,43 +2029,20 @@ export default function WorkspaceDashboard({
 
       <ConfirmDialog
         open={Boolean(confirmation)}
-        title={
-          confirmation?.kind === "remove-employee"
-            ? confirmation.permanent
-              ? "Delete employee forever?"
-              : "Remove employee access?"
-            : confirmation?.kind === "delete-announcement"
-              ? "Delete announcement?"
-              : "End meeting?"
-        }
-        description={
-          confirmation?.kind === "remove-employee"
-            ? confirmation.permanent
-              ? `This permanently deletes ${confirmation.name}'s employee account and access data. This action cannot be undone.`
-              : `Remove ${confirmation.name} from this company? Their user account remains available for future access.`
-            : confirmation?.kind === "delete-announcement"
-              ? `Delete “${confirmation.title}” permanently from this company?`
-              : "End this meeting now? Access will close and the booking cannot be reused."
-        }
-        confirmLabel={
-          confirmation?.kind === "remove-employee"
-            ? confirmation.permanent
-              ? "Delete forever"
-              : "Remove access"
-            : confirmation?.kind === "delete-announcement"
-              ? "Delete announcement"
-              : "End meeting"
-        }
-        destructive
+        title={confirmationTitle}
+        description={confirmationDescription}
+        confirmLabel={confirmationLabel}
+        tone={confirmationTone === "success" ? "success" : "neutral"}
+        destructive={confirmationTone === "destructive"}
         busy={
           confirmation?.kind === "remove-employee"
             ? deletingEmployeeId === confirmation.id
             : busy ||
-              (confirmation?.kind === "end-meeting" &&
-                endingRequestId === confirmation.id)
+              (confirmation?.kind === "end-meeting" && endingRequestId === confirmation.id) ||
+              (confirmation?.kind === "respond-request" && actingRequestId === confirmation.id)
         }
         onCancel={() => {
-          if (!busy && !deletingEmployeeId && !endingRequestId) setConfirmation(null);
+          if (!busy && !deletingEmployeeId && !endingRequestId && !actingRequestId) setConfirmation(null);
         }}
         onConfirm={() => void confirmDialogAction()}
       />
