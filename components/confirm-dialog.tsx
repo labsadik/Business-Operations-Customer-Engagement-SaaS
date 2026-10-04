@@ -74,7 +74,7 @@ export default function ConfirmDialog({
     >
       <div className="w-full max-w-md overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-2xl shadow-slate-950/15">
         <div className="flex items-start gap-4 px-6 py-6">
-          <div className={[`grid size-11 shrink-0 place-items-center rounded-2xl ${accent}`]}>
+          <div className={`grid size-11 shrink-0 place-items-center rounded-2xl ${accent}`}>
             <AlertTriangle className="size-5" />
           </div>
           <div className="min-w-0 flex-1">
@@ -110,7 +110,7 @@ export default function ConfirmDialog({
             type="button"
             onClick={onConfirm}
             disabled={busy}
-            className={[`rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${confirmClass}`]}
+            className={`rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${confirmClass}`}
           >
             {busy ? "Please wait..." : confirmLabel}
           </button>
