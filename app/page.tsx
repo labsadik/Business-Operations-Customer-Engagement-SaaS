@@ -324,7 +324,7 @@ export default function Home() {
               Choose capacity, not complexity.
             </h2>
             <p className="mt-4 text-base leading-7 text-slate-600">
-              These cards use the real plan configuration already used by Conventus. Prices are shown in INR and paid plans use the configured 30-day validity period.
+              These cards use the real plan configuration already used by Conventus. Prices are shown in INR and each plan card uses the validity period defined in the current plan configuration.
             </p>
           </div>
 
