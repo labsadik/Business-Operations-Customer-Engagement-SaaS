@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { PlanEntitlements } from "@/lib/plans";
@@ -191,7 +192,7 @@ export default function LandingPricingCarousel({
             </p>
           </div>
           <Link
-            href={checkoutHref}
+            href={checkoutHref as Route}
             className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
           >
             {selected.requiresPayment ? "Continue with " + selected.name : "Start with " + selected.name}
