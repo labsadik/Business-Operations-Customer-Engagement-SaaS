@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Building2, CheckCircle2, Edit3, Megaphone, Plus, Search, Trash2, X } from "lucide-react";
 import ConfirmDialog from "@/components/confirm-dialog";
 
@@ -50,16 +50,16 @@ export default function AdminAnnouncements() {
   const [publish, setPublish] = useState(false);
   const [selectedCompanies, setSelectedCompanies] = useState<CompanyOption[]>([]);
 
-  async function loadCompanies(query = "") {
+  const loadCompanies = useCallback(async function loadCompanies(query = "") {
     try {
       const options = await request<CompanyOption[]>(`/api/admin/companies/options?search=${encodeURIComponent(query)}&limit=25`);
       setCompanies(options);
     } catch {
       setCompanies([]);
     }
-  }
+  }, []);
 
-  async function load() {
+  const load = useCallback(async function load() {
     setLoading(true);
     setError("");
     try {
@@ -75,14 +75,14 @@ export default function AdminAnnouncements() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [page, statusFilter, audienceFilter, companyFilter]);
 
-  useEffect(() => { void load(); }, [page, statusFilter, audienceFilter, companyFilter]);
-  useEffect(() => { void loadCompanies(); }, []);
+  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void loadCompanies(); }, [loadCompanies]);
   useEffect(() => {
     const timer = window.setTimeout(() => { void loadCompanies(companySearch); }, 250);
     return () => window.clearTimeout(timer);
-  }, [companySearch]);
+  }, [companySearch, loadCompanies]);
 
   function openCreate() {
     setEditingId("");
