@@ -93,7 +93,7 @@ export default function CookieConsent() {
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setSettingsOpen(false);
+        closeSettings();
         return;
       }
 
@@ -130,9 +130,14 @@ export default function CookieConsent() {
 
   const hasCurrentConsent = consent?.version === COOKIE_CONSENT_VERSION;
 
+  const closeSettings = () => {
+    setSettingsOpen(false);
+    window.setTimeout(() => triggerRef.current?.focus(), 0);
+  };
+
   const commitChoice = (choice: ConsentChoice) => {
     setConsent(saveConsent(choice));
-    setSettingsOpen(false);
+    closeSettings();
   };
 
   const settings = (
@@ -164,7 +169,7 @@ export default function CookieConsent() {
 
           <button
             type="button"
-            onClick={() => setSettingsOpen(false)}
+            onClick={closeSettings}
             className="grid size-10 shrink-0 place-items-center rounded-xl border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
             aria-label="Close cookie settings"
           >
