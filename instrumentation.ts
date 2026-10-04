@@ -1,4 +1,5 @@
-import type { Instrumentation } from "next";
+import { createOnRequestError } from "@axiomhq/nextjs";
+import { logger } from "@/lib/axiom/server";
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
@@ -6,31 +7,4 @@ export async function register() {
   }
 }
 
-export const onRequestError: Instrumentation.onRequestError = async (
-  error,
-  request,
-  context
-) => {
-  if (process.env.NEXT_RUNTIME !== "nodejs") return;
-
-  const { logger } = await import("./lib/axiom/server");
-
-  try {
-    logger.error("Next.js request error", {
-      message: error.message,
-      digest: error.digest,
-      method: request.method,
-      path: request.path,
-      routerKind: context.routerKind,
-      routePath: context.routePath,
-      routeType: context.routeType,
-      renderSource: context.renderSource,
-      revalidateReason: context.revalidateReason,
-      renderType: context.renderType
-    });
-
-    await logger.flush();
-  } catch {
-    // Observability must never replace or mask the original application error.
-  }
-};
+export const onRequestError = createOnRequestError(logger);
