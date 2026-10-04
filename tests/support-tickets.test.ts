@@ -61,7 +61,7 @@ test("company ticket creation derives identity and tenant scope from active memb
   has(route, "userId: session.userId");
   has(route, "active: true");
   has(route, "role: session.role");
-  has(route, "workspaceId: membership.workspaceId");
+  has(route, "String(membership.workspaceId)");
   has(route, "companyId: membership.companyId");
   has(route, "companyId: new Types.ObjectId(companyId)");
   has(route, "workspaceId: new Types.ObjectId(workspaceId)");
