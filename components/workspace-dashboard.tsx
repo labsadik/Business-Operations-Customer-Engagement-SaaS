@@ -486,14 +486,17 @@ export default function WorkspaceDashboard({
   }, [refreshAll, refreshLive]);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const panel = params.get("panel");
-    if (panel === "meetings" || panel === "team" || panel === "settings" || panel === "billing") {
-      setActiveModal(panel);
-      if (panel === "settings") {
-        setSettingsSection(params.get("section") === "announcements" ? "announcements" : "public");
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      const panel = params.get("panel");
+      if (panel === "meetings" || panel === "team" || panel === "settings" || panel === "billing") {
+        setActiveModal(panel);
+        if (panel === "settings") {
+          setSettingsSection(params.get("section") === "announcements" ? "announcements" : "public");
+        }
       }
-    }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
