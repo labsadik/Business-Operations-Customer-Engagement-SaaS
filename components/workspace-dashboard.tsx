@@ -36,6 +36,7 @@ import { playMeetingSound, unlockMeetingSound } from "@/lib/client-meeting-sound
 import { PLANS, type PlanId } from "@/lib/plans";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
 import PublicPageShare from "@/components/public-page-share";
+import GoogleIntegrationNotice from "@/components/google-integration-notice";
 
 type Address = {
   line1: string;
@@ -1362,6 +1363,11 @@ export default function WorkspaceDashboard({
                 </button>
               </div>
 
+              {employees.some((employee) => !employee.googleConnected && employee.email === user.email) && (
+                <div className="mb-4">
+                  <GoogleIntegrationNotice mode="employee" />
+                </div>
+              )}
               <div className="mt-5 space-y-2.5">
                 {employees.slice(0, 5).map((employee) => (
                   <div key={employee.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 p-3">
@@ -1707,7 +1713,13 @@ export default function WorkspaceDashboard({
           </div>
 
           {teamTab === "members" ? (
-            <div className="mt-5 space-y-3">
+            <div>
+              {employees.some((employee) => !employee.googleConnected && employee.email === user.email) && (
+                <div className="mb-4">
+                  <GoogleIntegrationNotice mode="employee" />
+                </div>
+              )}
+              <div className="space-y-3">
               {employees.map((employee) => (
                 <div key={employee.id} className="relative rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="flex items-center gap-3">
@@ -1786,6 +1798,7 @@ export default function WorkspaceDashboard({
                   No team members yet.
                 </div>
               )}
+              </div>
             </div>
           ) : (
             <div className="mt-5">
