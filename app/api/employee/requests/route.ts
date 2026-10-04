@@ -51,28 +51,30 @@ async function historyResponse(
     session.role
   );
 
-  const scope = roleAllowsAll
-    ? {}
-    : {
-        $or: [
-          { actorId: session.userId },
-          { employeeId: session.userId }
-        ]
-      };
+  const historyFilters: Record<string, unknown>[] = [
+    { companyId: session.companyId }
+  ];
 
-  const cursorFilter = cursor
-    ? {
-        $or: [
-          { occurredAt: { $lt: cursor.at } },
-          { occurredAt: cursor.at, _id: { $lt: new Types.ObjectId(cursor.id) } }
-        ]
-      }
-    : {};
+  if (!roleAllowsAll) {
+    historyFilters.push({
+      $or: [
+        { actorId: session.userId },
+        { employeeId: session.userId }
+      ]
+    });
+  }
+
+  if (cursor) {
+    historyFilters.push({
+      $or: [
+        { occurredAt: { $lt: cursor.at } },
+        { occurredAt: cursor.at, _id: { $lt: new Types.ObjectId(cursor.id) } }
+      ]
+    });
+  }
 
   const activities = await BookingActivity.find({
-    companyId: session.companyId,
-    ...scope,
-    ...cursorFilter
+    $and: historyFilters
   })
     .sort({ occurredAt: -1, _id: -1 })
     .limit(limit + 1)
