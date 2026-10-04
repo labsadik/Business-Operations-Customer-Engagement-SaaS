@@ -3,6 +3,8 @@
 import Link from "next/link";
 import UserAvatar from "@/components/user-avatar";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
+import PublicPageShare from "@/components/public-page-share";
+import ConfirmDialog from "@/components/confirm-dialog";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
@@ -14,8 +16,7 @@ import {
   Phone,
   Save,
   ShieldCheck,
-  UsersRound,
-  ToggleRight
+  UsersRound
 } from "lucide-react";
 
 type ProfileData = {
@@ -44,6 +45,8 @@ type ProfileData = {
 type CompanyResponse = {
   company: ProfileData;
   memberCount: number;
+  canPublish: boolean;
+  featureLocked: boolean;
 };
 
 async function api<T>(url: string, init?: RequestInit) {
@@ -70,12 +73,15 @@ export default function CompanyProfile({
 }) {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [memberCount, setMemberCount] = useState(0);
+  const [canPublish, setCanPublish] = useState(false);
+  const [featureLocked, setFeatureLocked] = useState(false);
   const [form, setForm] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [publishConfirmationOpen, setPublishConfirmationOpen] = useState(false);
 
   async function load() {
     try {
@@ -83,6 +89,8 @@ export default function CompanyProfile({
       setProfile(data.company);
       setForm(data.company);
       setMemberCount(data.memberCount);
+      setCanPublish(data.canPublish);
+      setFeatureLocked(data.featureLocked);
       setError("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "REQUEST_FAILED");
@@ -121,6 +129,10 @@ export default function CompanyProfile({
 
   async function togglePublic() {
     if (!form || publishing) return;
+    if (!form.publicBookingEnabled && (!canPublish || featureLocked)) {
+      setError("PUBLISH_REQUIRES_READY_MEMBER");
+      return;
+    }
     setPublishing(true);
     setError("");
     setSaved(false);
@@ -137,9 +149,12 @@ export default function CompanyProfile({
       setError(err instanceof Error ? err.message : "PUBLIC_PAGE_UPDATE_FAILED");
     } finally {
       setPublishing(false);
+      setPublishConfirmationOpen(false);
       window.setTimeout(() => setSaved(false), 2500);
     }
   }
+
+  const slugChanged = form.slug !== profile.slug;
 
   async function save() {
     if (!form) return;
@@ -364,46 +379,24 @@ export default function CompanyProfile({
           </section>
 
           <aside className="space-y-6">
-            <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <span className={`grid size-10 place-items-center rounded-xl ${form.publicBookingEnabled ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-500"}`}>
-                    <Globe2 className="size-5" />
-                  </span>
-                  <div>
-                    <h2 className="text-sm font-semibold">Public page</h2>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {form.publicBookingEnabled ? "Customers can book through this workspace." : "Your page is private until you publish it."}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void togglePublic()}
-                  disabled={publishing || !complete}
-                  className={`inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold ${
-                    form.publicBookingEnabled
-                      ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
-                      : "bg-slate-950 text-white hover:bg-slate-800"
-                  } disabled:cursor-not-allowed disabled:opacity-40`}
-                >
-                  <ToggleRight className="size-4" />
-                  {publishing ? "Updating..." : form.publicBookingEnabled ? "Public" : "Make public"}
-                </button>
-              </div>
-              <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px]">
-                <span className={`rounded-full px-2.5 py-1 font-semibold ${form.publicBookingEnabled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
-                  {form.publicBookingEnabled ? "LIVE" : "DRAFT"}
-                </span>
-                <a
-                  href={`/${form.slug}`}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1 text-slate-600 hover:bg-slate-50"
-                >
-                  View page
-                  <Globe2 className="size-3.5" />
-                </a>
-              </div>
-            </section>
+            <PublicPageShare
+              savedSlug={profile.slug}
+              draftSlug={form.slug}
+              published={form.publicBookingEnabled}
+              canPublish={complete && canPublish && !featureLocked}
+              busy={publishing}
+              onPublishRequest={() => setPublishConfirmationOpen(true)}
+            />
+
+            {slugChanged && (
+              <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-700">Slug change</p>
+                <p className="mt-2 text-sm font-semibold text-amber-950">Save the company profile to apply the new public URL.</p>
+                <p className="mt-1 text-xs leading-5 text-amber-800">
+                  The current live page remains /{profile.slug}. After saving, the page URL will become /{form.slug}.
+                </p>
+              </section>
+            )}
 
             <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-center gap-3">
@@ -449,6 +442,23 @@ export default function CompanyProfile({
           </aside>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={publishConfirmationOpen}
+        title={form.publicBookingEnabled ? "Unpublish public booking page?" : "Publish public booking page?"}
+        description={
+          form.publicBookingEnabled
+            ? "Unpublishing will prevent visitors from opening the public booking page. Existing customer requests are not deleted."
+            : "Publishing will make the public booking page accessible. Visitors must still sign in with Google before seeing availability or submitting a request."
+        }
+        confirmLabel={form.publicBookingEnabled ? "Unpublish page" : "Publish page"}
+        tone={form.publicBookingEnabled ? "destructive" : "success"}
+        busy={publishing}
+        onCancel={() => {
+          if (!publishing) setPublishConfirmationOpen(false);
+        }}
+        onConfirm={() => void togglePublic()}
+      />
       </div>
     </main>
   );
