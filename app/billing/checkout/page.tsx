@@ -93,11 +93,12 @@ export default async function BillingCheckoutPage({
     subscription.currentPeriodEnd.getTime() > Date.now() &&
     subscription.source === "PAID";
 
-  const profileComplete = Boolean(
-    company.name?.trim() &&
-    company.email?.trim() &&
-    company.phone?.replace(/[^0-9+]/g, "").length
+  const normalizedPhone = company.phone?.replace(/[^0-9+]/g, "") ?? "";
+  const validEmail = Boolean(
+    company.email?.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(company.email)
   );
+  const validPhone = normalizedPhone.length >= 8 && normalizedPhone.length <= 18;
+  const profileComplete = Boolean(company.name?.trim() && validEmail && validPhone);
 
   return (
     <main className="min-h-screen bg-[#f7f8fb] text-slate-950">
@@ -317,9 +318,17 @@ export default async function BillingCheckoutPage({
               <RazorpayPlanButton
                 planId={plan.id}
                 currentPlanId={subscription.planId}
-                disabled={!profileComplete}
                 mode="pay"
+                onError={() => {
+                  // The payment API remains authoritative. Keep the CTA usable
+                  // and let the server return the exact blocking reason.
+                }}
               />
+              {!profileComplete && (
+                <p className="mt-2 text-[10px] leading-4 text-amber-700">
+                  Complete the billing profile above before payment can be processed.
+                </p>
+              )}
             </div>
 
             <div className="mt-4 flex items-start gap-2 text-[10px] leading-4 text-slate-400">
