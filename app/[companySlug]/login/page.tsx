@@ -2,6 +2,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CheckCircle2, ShieldCheck, UsersRound } from "lucide-react";
 import Link from "next/link";
+import GoogleSignInButton from "@/components/google-sign-in-button";
 import { getMongo } from "@/lib/mongodb";
 import { getSession } from "@/lib/session";
 import { Company } from "@/models/company";
@@ -52,7 +53,7 @@ export default async function CompanyLoginPage({
     ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"].includes(session.role)
   ) {
     return (
-      <main className="grid min-h-screen place-items-center bg-[#f7f8fb] px-5">
+      <main className="grid min-h-screen place-items-center bg-[#faf9f1] px-5">
         <section className="w-full max-w-md rounded-[2rem] border border-slate-200 bg-white p-8 text-center shadow-sm">
           <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-600">
             <CheckCircle2 className="size-6" />
@@ -164,13 +165,9 @@ export default async function CompanyLoginPage({
             </div>
           )}
 
-          <a
-            href={loginUrl}
-            className="mt-7 flex w-full items-center justify-center gap-3 rounded-2xl bg-slate-950 px-4 py-3.5 text-sm font-semibold text-white hover:bg-slate-800"
-          >
-            <span className="grid size-6 place-items-center rounded-full bg-white/10 text-xs font-bold">→</span>
-            Continue securely
-          </a>
+          <div className="mt-7">
+            <GoogleSignInButton href={loginUrl} label="Continue with Google" />
+          </div>
 
           <div className="mt-7 rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center justify-between gap-3">
