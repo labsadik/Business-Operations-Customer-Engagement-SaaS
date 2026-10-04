@@ -61,8 +61,8 @@ function assertBoolean(value: unknown, field: string) {
   return value;
 }
 
-function assertIntegerRange(value: unknown, field: string, min: number, max: number) {
-  if (!isSafeInteger(value) || value < min || value > max) {
+function assertIntegerRange(value: unknown, field: string, min: number, max: number): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < min || value > max) {
     throw new Error(field.toUpperCase() + "_INVALID");
   }
   return value;
