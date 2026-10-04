@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 const MAX_WAIT_MS = 8000;
+const SHOW_AFTER_MS = 120;
 
 function isModifiedClick(event: MouseEvent) {
   return event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
@@ -27,6 +28,7 @@ export default function NavigationProgress() {
   const searchParams = useSearchParams();
   const activeRef = useRef(false);
   const timerRef = useRef<number | null>(null);
+  const showTimerRef = useRef<number | null>(null);
   const finishTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -36,8 +38,10 @@ export default function NavigationProgress() {
 
     const stopTimers = () => {
       if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+      if (showTimerRef.current !== null) window.clearTimeout(showTimerRef.current);
       if (finishTimerRef.current !== null) window.clearTimeout(finishTimerRef.current);
       timerRef.current = null;
+      showTimerRef.current = null;
       finishTimerRef.current = null;
     };
 
@@ -56,14 +60,17 @@ export default function NavigationProgress() {
     const start = () => {
       stopTimers();
       activeRef.current = true;
-      bar.style.transform = "scaleX(0.18)";
-      bar.style.opacity = "1";
-      bar.dataset.active = "true";
-      if (status) status.textContent = "Loading next page";
+      showTimerRef.current = window.setTimeout(() => {
+        if (!activeRef.current) return;
+        bar.style.transform = "scaleX(0.18)";
+        bar.style.opacity = "1";
+        bar.dataset.active = "true";
+        if (status) status.textContent = "Loading next page";
 
-      requestAnimationFrame(() => {
-        if (activeRef.current) bar.style.transform = "scaleX(0.72)";
-      });
+        requestAnimationFrame(() => {
+          if (activeRef.current) bar.style.transform = "scaleX(0.72)";
+        });
+      }, SHOW_AFTER_MS);
 
       timerRef.current = window.setTimeout(finish, MAX_WAIT_MS);
     };
@@ -95,12 +102,16 @@ export default function NavigationProgress() {
 
     window.addEventListener("click", onClick, true);
     window.addEventListener("popstate", start);
+    window.addEventListener("error", finish);
+    window.addEventListener("unhandledrejection", finish);
 
     return () => {
       stopTimers();
       activeRef.current = false;
       window.removeEventListener("click", onClick, true);
       window.removeEventListener("popstate", start);
+      window.removeEventListener("error", finish);
+      window.removeEventListener("unhandledrejection", finish);
       window.history.pushState = originalPushState;
       window.history.replaceState = originalReplaceState;
     };
