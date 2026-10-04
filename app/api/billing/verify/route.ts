@@ -46,7 +46,6 @@ export async function POST(request: Request) {
 
     if (!payment) return jsonError("PAYMENT_NOT_FOUND", 404);
     if (payment.status === "REFUNDED") return jsonError("PAYMENT_REFUNDED", 409);
-    if (payment.status === "REFUNDED") return jsonError("PAYMENT_REFUNDED", 409);
 
     if (!verifyRazorpayPaymentSignature(orderId, providerPaymentId, signature)) {
       return jsonError("PAYMENT_SIGNATURE_INVALID", 400);
