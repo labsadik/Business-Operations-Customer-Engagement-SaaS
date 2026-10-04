@@ -324,7 +324,7 @@ export default function WorkspaceFeedback({
 
               <div className="flex items-center justify-between gap-3 text-[11px]">
                 <span aria-live="polite" className="text-slate-400">{description.length}/300</span>
-                {!message && <span className="text-slate-400">Optional comment</span>}
+                {!notice && <span className="text-slate-400">Optional comment</span>}
               </div>
 
               <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
