@@ -369,7 +369,6 @@ export default function WorkspaceDashboard({
   const paidAccessActive = Boolean(
     data?.subscription &&
     ["PAID", "ADMIN_GRANTED"].includes(data.subscription.source) &&
-    data.subscription.status === "ACTIVE" &&
     data.subscription.status === "ACTIVE"
   );
   const usagePercent = Math.min(
@@ -414,7 +413,7 @@ export default function WorkspaceDashboard({
       setLoading(false);
       refreshingRef.current = false;
     }
-  }
+  });
 
   const refreshLive = useCallback(async function refreshLive() {
     if (refreshingRef.current) return;
@@ -431,7 +430,7 @@ export default function WorkspaceDashboard({
     } finally {
       refreshingRef.current = false;
     }
-  }
+  });
 
   async function loadAllMeetings() {
     setMeetingsLoading(true);
@@ -460,7 +459,7 @@ export default function WorkspaceDashboard({
     } finally {
       setInvitesLoading(false);
     }
-  }
+  }, [canManage]);
 
   const loadInvoices = useCallback(async function loadInvoices() {
     if (!canManage) return;
@@ -472,7 +471,7 @@ export default function WorkspaceDashboard({
     } finally {
       setBillingLoading(false);
     }
-  }
+  }, [canManage]);
 
   useEffect(() => {
     const initialLoad = window.setTimeout(() => void refreshAll(), 0);
