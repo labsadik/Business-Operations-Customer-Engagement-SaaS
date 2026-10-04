@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { Building2, CheckCircle2, Loader2, Save, ShieldCheck } from "lucide-react";
 
@@ -99,7 +100,7 @@ export default function AdminPlatformSettings({ initial }: { initial: Settings }
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
             <span className="text-xs font-semibold text-slate-700">Conventus logo</span>
             <div className="mt-2 flex items-center gap-3">
-              <img src="/favicon.svg" alt="Conventus" className="size-10 rounded-xl object-cover" />
+              <Image src="/favicon.svg" alt="Conventus" width={40} height={40} className="size-10 rounded-xl object-cover" />
               <div>
                 <p className="text-xs font-semibold text-slate-900">Bundled locally</p>
                 <p className="mt-0.5 text-[11px] text-slate-500">Used by the app, dashboard, website, invoices and favicon.</p>
