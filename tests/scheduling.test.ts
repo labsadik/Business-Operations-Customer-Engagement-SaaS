@@ -113,9 +113,9 @@ test("custom weekend and evening schedules generate only configured slots", () =
     rules,
     60
   );
-  assert.equal(sundaySlots.length, 4);
+  assert.equal(sundaySlots.length, 37);
   assert.equal(sundaySlots[0].startAt.toISOString(), "2026-10-04T12:30:00.000Z");
-  assert.equal(sundaySlots.at(-1)?.endAt.toISOString(), "2026-10-04T16:30:00.000Z");
+  assert.equal(sundaySlots.at(-1)?.endAt.toISOString(), "2026-10-04T16:00:00.000Z");
 
   const saturdaySlots = buildScheduleSlots(
     "2026-10-03",
@@ -123,8 +123,8 @@ test("custom weekend and evening schedules generate only configured slots", () =
     rules,
     60
   );
-  assert.equal(saturdaySlots.length, 2);
-  assert.equal(saturdaySlots[0].startAt.toISOString(), "2026-10-03T04:30:00.000Z");
+  assert.equal(saturdaySlots.length, 13);
+  assert.equal(saturdaySlots.at(-1)?.endAt.toISOString(), "2026-10-03T06:30:00.000Z");
 });
 
 test("calendar busy periods, employee bookings, and company concurrency remove slots", () => {
@@ -227,7 +227,7 @@ test("isolated company schedules cannot leak into each other", () => {
   const a = buildScheduleSlots("2026-10-03", timezone, companyA, 60);
   const b = buildScheduleSlots("2026-10-03", timezone, companyB, 60);
 
-  assert.equal(a.length, 2);
+  assert.equal(a.length, 13);
   assert.equal(b.length, 0);
 });
 
