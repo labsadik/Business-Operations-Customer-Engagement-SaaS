@@ -1,15 +1,16 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { LogIn, LogOut, X } from "lucide-react";
+import { Building2, LogIn, LogOut, X } from "lucide-react";
 import UserAvatar from "@/components/user-avatar";
 
 export default function PublicBookingHeader({
   companyName,
   companySlug,
+  logoUrl,
   name,
   email,
   image,
@@ -17,24 +18,45 @@ export default function PublicBookingHeader({
 }: {
   companyName: string;
   companySlug: string;
+  logoUrl?: string;
   name?: string;
   email?: string;
   image?: string;
   authenticated: boolean;
 }) {
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (!logoutOpen) return;
+    const timer = window.setTimeout(() => closeButtonRef.current?.focus(), 0);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setLogoutOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [logoutOpen]);
 
   return (
     <>
       <header className="sticky top-0 z-40 border-b border-slate-200/90 bg-white/90 backdrop-blur-xl">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
-          <Link href={("/" + companySlug) as Route} className="flex min-w-0 items-center gap-3">
-            <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-slate-950 text-white shadow-sm">
-              <Image src="/favicon.svg" alt="" width={36} height={36} className="size-full object-cover" />
+          <Link href={("/" + companySlug) as Route} className="flex min-w-0 items-center gap-3 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2">
+            <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-2xl border border-blue-100 bg-blue-50 text-blue-700 shadow-sm">
+              {logoUrl ? (
+                // Company-provided logo URLs are not constrained to the Next image allowlist.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logoUrl} alt="" className="size-full object-cover" />
+              ) : (
+                <Building2 className="size-5" aria-hidden="true" />
+              )}
             </span>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold tracking-tight text-slate-950">{companyName}</p>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Public scheduling</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-600">Schedule with {companyName}</p>
             </div>
           </Link>
 
@@ -82,8 +104,9 @@ export default function PublicBookingHeader({
               </div>
               <button
                 type="button"
+                ref={closeButtonRef}
                 onClick={() => setLogoutOpen(false)}
-                className="grid size-9 place-items-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"
+                className="grid size-9 place-items-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
                 aria-label="Close"
               >
                 <X className="size-4" />
