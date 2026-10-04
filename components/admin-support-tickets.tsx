@@ -133,11 +133,17 @@ export default function AdminSupportTickets() {
   }, [page, status, companyId]);
 
   useEffect(() => {
-    void load();
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [load]);
 
   useEffect(() => {
-    void loadCompanies();
+    const timer = window.setTimeout(() => {
+      void loadCompanies();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [loadCompanies]);
 
   async function openDetail(id: string) {
