@@ -146,10 +146,10 @@ test("company support ticket UI has accessible modal controls, counters, paginat
   assert.match(ui, /event.key === "Escape"/);
   assert.match(ui, /event.key !== "Tab"/);
   assert.match(ui, /document.body.style.overflow = "hidden"/);
-  assert.match(ui, /maxLength={SUBJECT_MAX}/);
-  assert.match(ui, /maxLength={DESCRIPTION_MAX}/);
-  assert.match(ui, /{subject.length}/{SUBJECT_MAX}/);
-  assert.match(ui, /{description.length}/{DESCRIPTION_MAX}/);
+  assert.ok(ui.includes("maxLength={SUBJECT_MAX}"));
+  assert.ok(ui.includes("maxLength={DESCRIPTION_MAX}"));
+  assert.ok(ui.includes("{subject.length}/{SUBJECT_MAX}"));
+  assert.ok(ui.includes("{description.length}/{DESCRIPTION_MAX}"));
   assert.match(ui, /Create ticket/);
   assert.match(ui, /Submit ticket/);
   assert.match(ui, /Cancel/);
