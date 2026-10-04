@@ -78,6 +78,7 @@ const supportTicketSchema = new Schema(
 
 supportTicketSchema.index({ companyId: 1, updatedAt: -1, _id: -1 });
 supportTicketSchema.index({ companyId: 1, status: 1, updatedAt: -1, _id: -1 });
+supportTicketSchema.index({ companyId: 1, submitterUserId: 1, createdAt: -1 });
 supportTicketSchema.index({ status: 1, updatedAt: -1, _id: -1 });
 supportTicketSchema.index({ dedupeKey: 1, createdAt: -1 });
 
