@@ -148,6 +148,13 @@ export default async function LoginPage({
               </div>
             )}
 
+            <div className="mb-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-semibold text-slate-900">Signing in with Google does not automatically grant Calendar access</p>
+              <p className="mt-1 text-xs leading-5 text-slate-600">
+                Conventus only asks for additional Calendar permissions when a scheduling member explicitly starts Google setup.
+              </p>
+            </div>
+
             <div className="mt-7">
               <GoogleSignInButton href={startUrl} />
             </div>
