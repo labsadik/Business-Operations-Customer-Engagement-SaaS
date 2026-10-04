@@ -46,9 +46,6 @@ export async function POST(
       async () => {
         const db = await getMongo();
         const tx = await db.startSession();
-        let calendarEventId: string | null = null;
-        let employeeId: string | null = null;
-
         try {
           let response: { bookingId: string; status: "COMPLETED"; calendarEventRemoved: boolean } | undefined;
           await tx.withTransaction(async () => {
@@ -118,7 +115,11 @@ export async function POST(
           });
 
           if (!response) throw new Error("MEETING_END_FAILED");
-          return { response, calendarEventId, employeeId };
+          return {
+            response,
+            calendarEventId: response ? calendarEventId : null,
+            employeeId: response ? employeeId : null
+          };
         } finally {
           await tx.endSession();
         }
@@ -126,9 +127,9 @@ export async function POST(
       }
     );
 
-    if (calendarEventId && employeeId) {
+    if (result.calendarEventId && result.employeeId) {
       try {
-        await deleteCalendarEvent(employeeId, calendarEventId);
+        await deleteCalendarEvent(result.employeeId, result.calendarEventId);
       } catch {
         await Meeting.updateOne(
           { bookingRequestId: bookingId, companyId: session.companyId, status: "COMPLETED" },
