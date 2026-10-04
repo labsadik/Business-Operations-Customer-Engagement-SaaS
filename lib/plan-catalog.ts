@@ -322,10 +322,14 @@ export function serializePublicPlan(plan: ManagedPlan) {
 export function serializeAdminPlan(plan: AdminPlan) {
   const pricing = calculatePlanPricing(plan.priceInr, plan.discountType, plan.discountValue);
   const serialized = serializeManagedPlan(plan);
+  const pricingFields = {
+    discountAmountInr: pricing.discountAmountInr,
+    finalPriceInr: pricing.finalPriceInr
+  };
+
   return {
     ...serialized,
-    discountAmountInr: pricing.discountAmountInr,
-    finalPriceInr: pricing.finalPriceInr,
+    ...pricingFields,
     revision: plan.revision,
     sortOrder: plan.sortOrder,
     archivedAt: plan.archivedAt,
