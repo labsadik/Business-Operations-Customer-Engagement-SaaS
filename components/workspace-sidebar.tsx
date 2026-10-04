@@ -137,12 +137,10 @@ export default function WorkspaceSidebar({
               <span>Team</span>
             </button>
 
-            {currentRole !== "PLATFORM_ADMIN" && (
-              <button type="button" onClick={() => open("feedback")} className={buttonClass(active("feedback"))}>
-                <MessageSquareText className={`size-4 ${iconClass(active("feedback"))}`} />
-                <span>Send feedback</span>
-              </button>
-            )}
+            <button type="button" onClick={() => open("feedback")} className={buttonClass(active("feedback"))}>
+              <MessageSquareText className={`size-4 ${iconClass(active("feedback"))}`} />
+              <span>Feedback</span>
+            </button>
 
             {canManage && (
               <>
@@ -205,7 +203,7 @@ export default function WorkspaceSidebar({
           </Link>
           <button type="button" onClick={() => open("meetings")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("meetings") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Meetings</button>
           <button type="button" onClick={() => open("team")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("team") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Team</button>
-          {currentRole !== "PLATFORM_ADMIN" && <button type="button" onClick={() => open("feedback")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("feedback") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Send feedback</button>}
+          <button type="button" onClick={() => open("feedback")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("feedback") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Feedback</button>
           {canManage && <button type="button" onClick={() => open("settings", "announcements")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${activePanel === "settings" && activeSettingsSection === "announcements" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Announcements</button>}
           {canManage && <button type="button" onClick={() => open("billing")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("billing") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Billing</button>}
           {canManage && <button type="button" onClick={() => open("settings")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${activePanel === "settings" && activeSettingsSection !== "announcements" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Settings</button>}
