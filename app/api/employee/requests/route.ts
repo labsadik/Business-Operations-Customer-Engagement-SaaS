@@ -40,7 +40,12 @@ async function historyResponse(
     : 25;
   const cursorValue = url.searchParams.get("cursor");
   const cursor = decodeHistoryCursor(cursorValue);
-  if (cursorValue && !cursor) return jsonError("INVALID_HISTORY_CURSOR", 400);
+  if (
+    cursorValue &&
+    (!cursor || !Types.ObjectId.isValid(cursor.id))
+  ) {
+    return jsonError("INVALID_HISTORY_CURSOR", 400);
+  }
 
   const roleAllowsAll = ["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(
     session.role
