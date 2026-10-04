@@ -16,6 +16,7 @@ import { getCompanySubscription } from "@/lib/plans-server";
 import { PLANS, type PlanId } from "@/lib/plans";
 import { calculateInvoiceTaxFromBase, invoiceTaxConfig } from "@/lib/invoicing";
 import RazorpayPlanButton from "@/components/razorpay-plan-button";
+import { getServerNowMs } from "@/lib/server-time";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Checkout · Conventus" };
@@ -90,10 +91,12 @@ export default async function BillingCheckoutPage({
     taxConfig.enabled
   );
 
+  const nowMs = getServerNowMs();
   const isCurrentPlan =
     subscription.planId === plan.id &&
     subscription.status === "ACTIVE" &&
-    subscription.source === "PAID";
+    subscription.source === "PAID" &&
+    subscription.currentPeriodEnd.getTime() > nowMs;
 
   const normalizedPhone = company.phone?.replace(/[^0-9+]/g, "") ?? "";
   const validEmail = Boolean(
