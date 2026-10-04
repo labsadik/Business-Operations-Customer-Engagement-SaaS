@@ -111,15 +111,37 @@ type RequestItem = {
 };
 
 type MeetingHistoryItem = {
+  id: string;
+  bookingRequestId: string;
   startAt: string;
   endAt: string;
   endedAt: string;
   durationMinutes: number;
   status: string;
+  calendarSyncStatus?: string;
   employee: { name: string; email: string; image: string | null } | null;
   customer: { name: string; email: string; image: string | null } | null;
   scheduledBy: { name: string; email: string; image: string | null } | null;
 };
+
+type RequestHistoryItem = {
+  id: string;
+  bookingId: string;
+  eventType: string;
+  fromStatus: string;
+  toStatus: string;
+  outcome: string;
+  occurredAt: string;
+  reasonCode: string | null;
+  actor: { name: string; email: string; image: string | null; role: string } | null;
+  employee: { name: string; email: string; image: string | null } | null;
+  customer: { name: string; email: string; image: string | null } | null;
+  startAt: string | null;
+  endAt: string | null;
+  durationMinutes: number | null;
+};
+
+type MeetingModalView = "requests" | "meeting-history" | "request-history";
 
 type AnnouncementItem = {
   id: string;
@@ -208,10 +230,12 @@ async function api<T>(url: string, init?: RequestInit) {
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(body.error || "REQUEST_FAILED") as Error & {
+    const error = new Error(body.message || body.error || "REQUEST_FAILED") as Error & {
       details?: unknown;
+      code?: string;
     };
     error.details = body.details;
+    error.code = body.error;
     throw error;
   }
   return body.data as T;
@@ -332,8 +356,12 @@ export default function WorkspaceDashboard({
   const [meetingHistory, setMeetingHistory] = useState<MeetingHistoryItem[]>([]);
   const [modalRequests, setModalRequests] = useState<RequestItem[]>([]);
   const [modalMeetingHistory, setModalMeetingHistory] = useState<MeetingHistoryItem[]>([]);
+  const [modalRequestHistory, setModalRequestHistory] = useState<RequestHistoryItem[]>([]);
+  const [requestHistoryCursor, setRequestHistoryCursor] = useState<string | null>(null);
+  const [requestHistoryLoadingMore, setRequestHistoryLoadingMore] = useState(false);
   const [meetingsLoading, setMeetingsLoading] = useState(false);
   const [meetingView, setMeetingView] = useState<MeetingView>("new");
+  const [meetingModalView, setMeetingModalView] = useState<MeetingModalView>("requests");
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
   const [invitations, setInvitations] = useState<InvitationItem[]>([]);
   const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
