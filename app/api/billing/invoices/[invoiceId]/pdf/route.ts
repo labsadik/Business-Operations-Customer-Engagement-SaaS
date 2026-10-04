@@ -213,13 +213,13 @@ function partyDetails(
     drawText(page, line, x + 14, boxTop - 35 - index * 12, bold, 10, INK);
   });
 
-  let y = boxTop - 35 - nameLines.length * 12 - 4;
+  let y = boxTop - 35 - nameLines.length * 11.5 - 4;
   for (const value of lines) {
     const wrapped = wrapText(value, regular, 7.5, width - 28);
     wrapped.forEach((line, index) => {
-      drawText(page, line, x + 14, y - index * 9, regular, 7.5, MUTED);
+      drawText(page, line, x + 14, y - index * 8.1, regular, 7.1, MUTED);
     });
-    y -= wrapped.length * 9 + 1.5;
+    y -= wrapped.length * 8.1 + 1;
   }
 }
 
@@ -371,13 +371,10 @@ export async function GET(
     const merchantDetails = [
       merchant.address.line1,
       merchant.address.line2,
-      merchant.address.city,
-      merchant.address.state,
-      merchant.address.postalCode,
+      [merchant.address.city, merchant.address.state, merchant.address.postalCode].filter(Boolean).join(", "),
       merchant.address.country,
       merchant.email,
       merchant.phone,
-      merchant.websiteUrl,
       merchant.gstin ? "GSTIN: " + merchant.gstin : "",
       merchant.taxId && merchant.taxId !== merchant.gstin ? "Tax ID: " + merchant.taxId : "",
       merchant.sacCode ? "SAC: " + merchant.sacCode : ""
@@ -386,9 +383,7 @@ export async function GET(
     const companyDetails = [
       company.address.line1,
       company.address.line2,
-      company.address.city,
-      company.address.state,
-      company.address.postalCode,
+      [company.address.city, company.address.state, company.address.postalCode].filter(Boolean).join(", "),
       company.address.country,
       company.email,
       company.phone,
