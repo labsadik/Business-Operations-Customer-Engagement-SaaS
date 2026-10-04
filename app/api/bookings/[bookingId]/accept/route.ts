@@ -138,10 +138,6 @@ export async function POST(
   }
   const companyId: string = session.companyId;
 
-  if (session.role === "PLATFORM_ADMIN") {
-    return bookingJsonError("PLATFORM_ADMIN_CANNOT_ACCEPT_AS_EMPLOYEE", 403);
-  }
-
   await getMongo();
   const { bookingId } = await params;
 
@@ -292,6 +288,9 @@ export async function POST(
           throw new Error("INVALID_TIME_RANGE");
         }
 
+        const requiredEmployeeId =
+          session.role === "PLATFORM_ADMIN" ? undefined : session.userId;
+
         const eligible = await eligibleEmployees(
           companyId,
           scoped.requestedStartAt,
@@ -301,13 +300,16 @@ export async function POST(
             bufferBeforeMinutes: type.bufferBeforeMinutes,
             bufferAfterMinutes: type.bufferAfterMinutes,
             excludeBookingId: bookingId,
-            requiredEmployeeId: session.userId
+            requiredEmployeeId
           }
         );
 
-        if (!eligible.includes(session.userId)) {
+        if (eligible.length === 0) {
           throw new Error("EMPLOYEE_NOT_AVAILABLE");
         }
+
+        const assignedEmployeeId =
+          session.role === "PLATFORM_ADMIN" ? eligible[0] : session.userId;
 
         const db = await getMongo();
         const tx = await db.startSession();
@@ -385,7 +387,7 @@ export async function POST(
             }
 
             acceptedAt = new Date();
-            latest.assignedEmployeeId = session.userId;
+            latest.assignedEmployeeId = assignedEmployeeId;
             latest.status = "CREATING_MEETING";
             latest.acceptedAt = acceptedAt;
             latest.confirmedAt = undefined;
@@ -411,7 +413,7 @@ export async function POST(
               outcome: "ACCEPTED",
               actorId: session.userId,
               actorRole: session.role,
-              employeeId: session.userId,
+              employeeId: assignedEmployeeId,
               occurredAt: acceptedAt,
               session: tx
             });
