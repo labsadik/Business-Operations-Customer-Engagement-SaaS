@@ -46,6 +46,10 @@ export default function WorkspaceFeedback({
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  const savingRef = useRef(false);
+  onCloseRef.current = onClose;
+  savingRef.current = saving;
   const [customerFeedback, setCustomerFeedback] = useState<FeedbackItem[]>([]);
   const [sentFeedback, setSentFeedback] = useState<FeedbackItem[]>([]);
   const [tab, setTab] = useState<"customer" | "platform">("platform");
@@ -73,7 +77,7 @@ export default function WorkspaceFeedback({
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
-        if (!saving) onClose();
+        if (!savingRef.current) onCloseRef.current();
         return;
       }
       if (event.key !== "Tab") return;
@@ -106,7 +110,7 @@ export default function WorkspaceFeedback({
       document.body.style.overflow = previousOverflow;
       window.setTimeout(() => previousFocusRef.current?.focus(), 0);
     };
-  }, [open, onClose, saving]);
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
