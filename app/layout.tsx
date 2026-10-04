@@ -1,4 +1,7 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
+import NavigationProgress from "@/components/navigation-progress";
+import { getPublicOrigin } from "@/lib/public-origin";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -10,13 +13,13 @@ export const metadata: Metadata = {
     "Conventus helps companies let customers request meetings and automatically route them to available employees.",
   applicationName: "Conventus",
   keywords: ["meeting scheduling", "Google Meet", "Google Calendar", "customer booking", "team scheduling"],
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
+  metadataBase: getPublicOrigin(),
   robots: { index: true, follow: true },
   icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" }
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f7f8fb",
+  themeColor: "#faf9f1",
   colorScheme: "light"
 };
 
@@ -25,7 +28,12 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" data-scroll-behavior="smooth">
-      <body>{children}</body>
+      <body>
+        <Suspense fallback={null}>
+          <NavigationProgress />
+        </Suspense>
+        {children}
+      </body>
     </html>
   );
 }
