@@ -122,7 +122,11 @@ export async function POST(
           });
 
           if (!response) throw new Error("MEETING_END_FAILED");
-          return { response };
+          return {
+            response,
+            calendarEventId: response.calendarEventId,
+            employeeId: response.employeeId
+          };
         } finally {
           await tx.endSession();
         }
