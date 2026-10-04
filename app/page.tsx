@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { PLANS } from "@/lib/plans";
 import LandingPricingCarousel from "@/components/landing-pricing-carousel";
+import CookieSettingsButton from "@/components/cookie-settings-button";
 
 const howItWorks = [
   {
@@ -441,11 +442,14 @@ export default function Home() {
               Conventus
             </div>
             <div className="flex flex-wrap gap-5">
-              <a href="#how-it-works" className="hover:text-white">How it works</a>
-              <a href="#features" className="hover:text-white">Features</a>
-              <a href="#pricing" className="hover:text-white">Pricing</a>
-              <a href="#faq" className="hover:text-white">FAQ</a>
-              <Link href="/login" className="hover:text-white">Sign in</Link>
+              <a href="#how-it-works" className="rounded-lg py-1 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">How it works</a>
+              <a href="#features" className="rounded-lg py-1 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">Features</a>
+              <a href="#pricing" className="rounded-lg py-1 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">Pricing</a>
+              <a href="#faq" className="rounded-lg py-1 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">FAQ</a>
+              <Link href="/login" className="rounded-lg py-1 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">Sign in</Link>
+              <Link href="/terms" className="rounded-lg py-1 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">Terms</Link>
+              <Link href="/privacy" className="rounded-lg py-1 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">Privacy</Link>
+              <CookieSettingsButton className="py-1 text-white/55 hover:text-white" aria-label="Open cookie settings">Cookie settings</CookieSettingsButton>
             </div>
           </div>
         </footer>

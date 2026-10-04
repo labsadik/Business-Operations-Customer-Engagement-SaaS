@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, CalendarCheck2, Check, ShieldCheck, UsersRound, Video } from "lucide-react";
 import GoogleSignInButton from "@/components/google-sign-in-button";
+import CookieSettingsButton from "@/components/cookie-settings-button";
 
 export const metadata = {
   title: "Sign in · Conventus",
@@ -177,6 +178,12 @@ export default async function LoginPage({
               </span>
               <ArrowRight className="hidden size-4 shrink-0 text-slate-300 sm:block" />
             </div>
+
+            <nav aria-label="Legal links" className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
+              <Link href="/terms" className="rounded-md py-1 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Terms</Link>
+              <Link href="/privacy" className="rounded-md py-1 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Privacy</Link>
+              <CookieSettingsButton className="py-1" aria-label="Open cookie settings">Cookie settings</CookieSettingsButton>
+            </nav>
           </div>
         </section>
       </div>
