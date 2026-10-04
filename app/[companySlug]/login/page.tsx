@@ -5,6 +5,7 @@ import Link from "next/link";
 import GoogleSignInButton from "@/components/google-sign-in-button";
 import { getMongo } from "@/lib/mongodb";
 import { getSession } from "@/lib/session";
+import CookieSettingsButton from "@/components/cookie-settings-button";
 import { Company } from "@/models/company";
 import { Membership } from "@/models/membership";
 import { User } from "@/models/user";
@@ -61,9 +62,14 @@ export default async function CompanyLoginPage({
           <p className="mt-5 text-sm font-semibold text-blue-600">Already signed in</p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">{company.name}</h1>
           <p className="mt-2 text-sm leading-6 text-slate-600">Your company-scoped session is already active.</p>
-          <Link href="/dashboard" className="mt-6 inline-flex rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
+          <Link href="/dashboard" className="mt-6 inline-flex rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
             Open dashboard
           </Link>
+          <nav aria-label="Legal links" className="mt-6 flex flex-wrap justify-center gap-x-4 gap-y-2 border-t border-slate-200 pt-5 text-xs text-slate-500">
+            <Link href="/terms" className="rounded-md py-1 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Terms</Link>
+            <Link href="/privacy" className="rounded-md py-1 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Privacy</Link>
+            <CookieSettingsButton className="py-1" aria-label="Open cookie settings">Cookie settings</CookieSettingsButton>
+          </nav>
         </section>
       </main>
     );
@@ -211,10 +217,16 @@ export default async function CompanyLoginPage({
 
           <p className="mt-5 text-xs leading-5 text-slate-500">
             Not on the team?{" "}
-            <Link href={`/${company.slug}`} className="font-semibold text-blue-700">
+            <Link href={`/${company.slug}`} className="font-semibold text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
               Use the public scheduling page
             </Link>
           </p>
+
+          <nav aria-label="Company sign-in legal links" className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-200 pt-5 text-xs text-slate-500">
+            <Link href="/terms" className="rounded-md py-1 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Terms</Link>
+            <Link href="/privacy" className="rounded-md py-1 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Privacy</Link>
+            <CookieSettingsButton className="py-1" aria-label="Open cookie settings">Cookie settings</CookieSettingsButton>
+          </nav>
         </section>
       </div>
     </main>
