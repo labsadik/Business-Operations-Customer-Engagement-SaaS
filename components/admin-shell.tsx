@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import UserAvatar from "@/components/user-avatar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Route } from "next";
@@ -68,20 +69,7 @@ export default function AdminShell({
 
         <div className="border-b border-slate-200 px-5 py-5">
           <div className="flex items-center gap-3 rounded-2xl bg-[#faf9f1] p-3 ring-1 ring-inset ring-amber-100/80">
-            <div className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full bg-slate-950 text-xs font-semibold text-white">
-              {user.image ? (
-                <Image
-                  src={user.image}
-                  alt=""
-                  width={40}
-                  height={40}
-                  unoptimized
-                  className="size-full object-cover"
-                />
-              ) : (
-                user.name.slice(0, 1).toUpperCase()
-              )}
-            </div>
+            <UserAvatar name={user.name} email={user.email} image={user.image} size={40} className="border-0 bg-slate-950 text-white" />
             <div className="min-w-0">
               <p className="truncate text-xs font-semibold">{user.name}</p>
               <p className="truncate text-[11px] text-slate-500">{user.email}</p>
@@ -153,20 +141,7 @@ export default function AdminShell({
               <span className="hidden rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-[10px] font-semibold text-blue-700 sm:inline-flex">
                 Admin access enabled
               </span>
-              <div className="grid size-9 place-items-center overflow-hidden rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
-                {user.image ? (
-                  <Image
-                    src={user.image}
-                    alt=""
-                    width={40}
-                    height={40}
-                    unoptimized
-                    className="size-full object-cover"
-                  />
-                ) : (
-                  user.name.slice(0, 1).toUpperCase()
-                )}
-              </div>
+              <UserAvatar name={user.name} email={user.email} image={user.image} size={36} />
             </div>
           </div>
           <div className="border-b border-slate-200/80 bg-white lg:hidden">
