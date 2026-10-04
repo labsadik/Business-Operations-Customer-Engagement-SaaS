@@ -800,7 +800,7 @@ export default function PublicBooking({
                 <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-slate-500">
                   {availabilityReason === "NO_ACTIVE_MEMBERS"
                     ? "Please ask the company administrator to add or activate a scheduling member."
-                    : availabilityReason === "NO_SCHEDULING_MEMBER"
+                    : availabilityReason === "NO_GOOGLE_SCHEDULING_MEMBER"
                       ? "A company employee must connect the required Google Calendar permissions before live availability can be shown."
                       : availabilityReason === "NO_CONFIGURED_SCHEDULE"
                         ? "Choose another date or ask the company administrator to configure working hours."
