@@ -84,6 +84,9 @@ export async function POST(
           ...(bookingRequestId ? { bookingRequestId } : {}),
           rating: input.rating,
           description: input.description,
+          submitterName: session.name || undefined,
+          submitterEmail: session.email || undefined,
+          submitterImage: session.image || undefined,
           reviewStatus: "NEW"
         });
       }
