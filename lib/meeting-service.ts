@@ -6,6 +6,7 @@ import { Membership } from "@/models/membership";
 import {
   createCalendarEvent,
   getCalendarEvent,
+  deleteCalendarEvent,
   type GoogleCalendarEvent
 } from "@/lib/google-calendar";
 import { bookingErrorCode } from "@/lib/booking-errors";
@@ -347,6 +348,54 @@ export async function createMeetingForBooking(bookingId: string) {
       eventId,
       resolvedEvent
     );
+
+    const latestBooking = await BookingRequest.findOne({
+      _id: booking._id,
+      companyId: booking.companyId
+    }).lean();
+
+    if (
+      !latestBooking ||
+      latestBooking.expiresAt.getTime() <= Date.now() ||
+      !["CREATING_MEETING", "ASSIGNED"].includes(latestBooking.status) ||
+      String(latestBooking.assignedEmployeeId ?? "") !== String(meeting.employeeId)
+    ) {
+      meeting.status = "CANCELLED";
+      meeting.calendarSyncStatus = "SYNCED";
+      await meeting.save();
+
+      const previousStatus = booking.status;
+      booking.status = "EXPIRED";
+      booking.assignedEmployeeId = undefined;
+      booking.nextRetryAt = undefined;
+      await booking.save();
+
+      await releaseMeetingUsage({
+        bookingId,
+        companyId: String(booking.companyId)
+      });
+
+      await recordBookingActivity({
+        companyId: String(booking.companyId),
+        bookingRequestId: bookingId,
+        eventType: "REQUEST_EXPIRED",
+        fromStatus: previousStatus,
+        toStatus: "EXPIRED",
+        outcome: "EXPIRED",
+        actorRole: "SYSTEM",
+        employeeId: String(meeting.employeeId),
+        reasonCode: "BOOKING_EXPIRED"
+      });
+
+      try {
+        await deleteCalendarEvent(String(meeting.employeeId), eventId);
+      } catch {
+        meeting.calendarSyncStatus = "FAILED";
+        await meeting.save();
+      }
+
+      throw new Error("BOOKING_EXPIRED");
+    }
 
     meeting.googleMeetingUri = meetingUri;
     meeting.calendarSyncStatus = "SYNCED";
