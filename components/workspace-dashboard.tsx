@@ -394,7 +394,12 @@ export default function WorkspaceDashboard({
   const canManage = Boolean(
     data && ["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(data.currentRole)
   );
-  const canRespondToMeetings = data?.currentRole !== "PLATFORM_ADMIN";
+  const canRespondToMeetings = Boolean(data?.currentRole && [
+    "EMPLOYEE",
+    "COMPANY_OWNER",
+    "COMPANY_ADMIN",
+    "PLATFORM_ADMIN"
+  ].includes(data.currentRole));
   const adminManaged = Boolean(data?.currentRole === "PLATFORM_ADMIN" && data.company?.id);
 
   const planId: PlanId = data?.subscription?.planId && PLANS[data.subscription.planId]
