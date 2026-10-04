@@ -481,13 +481,13 @@ export default function WorkspaceDashboard({
     try {
       const [allRequests, allHistory, historyPage] = await Promise.all([
         api<RequestItem[]>("/api/employee/requests?limit=100"),
-        api<MeetingHistoryItem[]>("/api/employee/meetings?paginated=true&limit=50"),
+        api<{ items: MeetingHistoryItem[]; nextCursor: string | null }>("/api/employee/meetings?paginated=true&limit=50"),
         api<{ items: RequestHistoryItem[]; nextCursor: string | null }>(
           "/api/employee/requests?history=true&limit=25"
         )
       ]);
       setModalRequests(allRequests);
-      setModalMeetingHistory(historyPage.items);
+      setModalMeetingHistory(allHistory.items);
       setModalRequestHistory(historyPage.items);
       setRequestHistoryCursor(historyPage.nextCursor);
     } catch (err) {
