@@ -122,5 +122,21 @@ export default function NavigationProgress() {
     return () => window.clearTimeout(timer);
   }, [pathname, searchParams]);
 
-  return null;
+  return (
+    <>
+      <div
+        data-conventus-nav-progress
+        data-active="false"
+        aria-hidden="true"
+        className="pointer-events-none fixed left-0 top-0 z-[9999] h-0.5 w-full origin-left bg-gradient-to-r from-blue-600 via-blue-500 to-yellow-400 opacity-0 shadow-[0_0_10px_rgba(37,99,235,0.35)] transition-[transform,opacity] duration-200 motion-reduce:transition-none"
+        style={{ transform: "scaleX(0.18)" }}
+      />
+      <span
+        data-conventus-nav-status
+        className="sr-only"
+        aria-live="polite"
+        aria-atomic="true"
+      />
+    </>
+  );
 }
