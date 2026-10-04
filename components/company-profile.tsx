@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import UserAvatar from "@/components/user-avatar";
+import WorkspaceSidebar from "@/components/workspace-sidebar";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
@@ -168,7 +169,7 @@ export default function CompanyProfile({ user }: { user: { name: string; email: 
 
   if (loading || !form || !profile) {
     return (
-      <main className="min-h-screen bg-[#f7f8fb]">
+      <main className="min-h-screen bg-[#faf9f1]">
         <div className="mx-auto max-w-5xl px-5 py-8 sm:px-6 lg:px-8">
           <div className="h-10 w-40 animate-pulse rounded-xl bg-slate-200" />
           <div className="mt-6 h-56 animate-pulse rounded-[2rem] bg-white ring-1 ring-slate-200" />
@@ -182,8 +183,17 @@ export default function CompanyProfile({ user }: { user: { name: string; email: 
   }
 
   return (
-    <main className="min-h-screen bg-[#f7f8fb] text-slate-950">
-      <div className="mx-auto max-w-6xl px-5 py-6 sm:px-6 lg:px-8 lg:py-9">
+    <main className="min-h-screen bg-[#faf9f1] text-slate-950">
+      <WorkspaceSidebar
+        companyName={form.name}
+        userName={user.name}
+        userEmail={user.email}
+        currentRole="COMPANY_OWNER"
+        canManage
+        activeProfile
+      />
+      <div className="lg:pl-72">
+      <div className="mx-auto max-w-[1400px] px-5 py-6 sm:px-6 lg:px-10 lg:py-8">
         <Link
           href="/dashboard"
           className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
@@ -339,7 +349,7 @@ export default function CompanyProfile({ user }: { user: { name: string; email: 
                 type="button"
                 onClick={() => void save()}
                 disabled={saving || !complete}
-                className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Save className="size-4" />
                 {saving ? "Saving..." : "Save company profile"}
@@ -432,6 +442,7 @@ export default function CompanyProfile({ user }: { user: { name: string; email: 
             </section>
           </aside>
         </div>
+      </div>
       </div>
     </main>
   );
