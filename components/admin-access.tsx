@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import UserAvatar from "@/components/user-avatar";
 import {
   CheckCircle2,
   Loader2,
@@ -151,14 +152,7 @@ export default function AdminAccess({
             return (
               <article key={user.id} className="grid gap-4 px-5 py-5 lg:grid-cols-[1.4fr_1fr_1fr_auto] lg:items-center">
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
-                    {user.image ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={user.image} alt="" className="size-full object-cover" />
-                    ) : (
-                      user.name.slice(0, 1).toUpperCase()
-                    )}
-                  </div>
+                  <UserAvatar name={user.name} email={user.email} image={user.image} size={44} />
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="truncate text-sm font-semibold">{user.name}</p>
