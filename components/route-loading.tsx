@@ -54,7 +54,18 @@ export function WorkspaceLoading() {
 }
 
 export function CompanyProfileLoading() {
-  return <WorkspaceLoading />;
+  return (
+    <main className="min-h-screen bg-[#faf9f1]">
+      <div className="mx-auto max-w-[1400px] px-5 py-6 sm:px-6 lg:px-10">
+        <Pulse className="h-10 w-40" />
+        <Pulse className="mt-5 h-40 w-full rounded-[2rem]" />
+        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,.6fr)]">
+          <Pulse className="h-[700px] rounded-[2rem]" />
+          <div className="space-y-6"><Pulse className="h-64 rounded-[2rem]" /><Pulse className="h-52 rounded-[2rem]" /><Pulse className="h-48 rounded-[2rem]" /></div>
+        </div>
+      </div>
+    </main>
+  );
 }
 
 export function AdminContentLoading() {
@@ -66,7 +77,19 @@ export function BillingLoading() {
 }
 
 export function InvoiceLoading() {
-  return <BillingLoading />;
+  return (
+    <main className="min-h-screen bg-[#faf9f1]">
+      <div className="mx-auto max-w-[980px] px-5 py-8 sm:px-6 lg:px-8">
+        <Pulse className="h-10 w-40" />
+        <div className="mt-5 overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-6 sm:p-9">
+          <div className="flex justify-between gap-6"><div><Pulse className="h-12 w-12 rounded-2xl" /><Pulse className="mt-4 h-7 w-56" /><Pulse className="mt-3 h-4 w-80 max-w-full" /></div><Pulse className="h-36 w-56" /></div>
+          <Pulse className="mt-8 h-28 w-full" />
+          <Pulse className="mt-6 h-24 w-full" />
+          <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]"><Pulse className="h-64" /><Pulse className="h-72" /></div>
+        </div>
+      </div>
+    </main>
+  );
 }
 
 export function InviteLoading() {
