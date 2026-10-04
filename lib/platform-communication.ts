@@ -20,15 +20,19 @@ export function cleanPlainText(value: unknown, maxLength: number) {
 }
 
 export function validateAnnouncementContent(title: unknown, message: unknown) {
-  const cleanTitle = cleanPlainText(title, 120);
-  const cleanMessage = cleanPlainText(message, 500);
+  if (typeof title !== "string" || !title.trim()) {
+    throw new Error("ANNOUNCEMENT_TITLE_REQUIRED");
+  }
+  if (typeof message !== "string" || !message.trim()) {
+    throw new Error("ANNOUNCEMENT_MESSAGE_REQUIRED");
+  }
+  if (title.length > 120) throw new Error("ANNOUNCEMENT_TITLE_TOO_LONG");
+  if (message.length > 500) throw new Error("ANNOUNCEMENT_MESSAGE_TOO_LONG");
 
-  if (!cleanTitle) throw new Error("ANNOUNCEMENT_TITLE_REQUIRED");
-  if (cleanTitle.length > 120) throw new Error("ANNOUNCEMENT_TITLE_TOO_LONG");
-  if (!cleanMessage) throw new Error("ANNOUNCEMENT_MESSAGE_REQUIRED");
-  if (cleanMessage.length > 500) throw new Error("ANNOUNCEMENT_MESSAGE_TOO_LONG");
-
-  return { title: cleanTitle, message: cleanMessage };
+  return {
+    title: cleanPlainText(title, 120),
+    message: cleanPlainText(message, 500)
+  };
 }
 
 export function validateAnnouncementAudience(
