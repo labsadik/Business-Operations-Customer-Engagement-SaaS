@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Check, ShieldCheck } from "lucide-react";
 
@@ -16,7 +17,7 @@ export default async function LoginPage({
         <section className="hidden lg:block">
           <Link href="/" className="inline-flex items-center gap-2 font-semibold text-slate-950">
             <span className="grid size-9 place-items-center rounded-xl bg-slate-950 text-white">
-              <img src="/favicon.svg" alt="" className="size-6" />
+              <Image src="/favicon.svg" alt="" width={24} height={24} className="size-6" />
             </span>
             Conventus
           </Link>
