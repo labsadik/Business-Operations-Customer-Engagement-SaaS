@@ -46,21 +46,23 @@ export default async function BillingCheckoutPage({
 
   if (
     !session.companyId ||
-    !["COMPANY_OWNER", "COMPANY_ADMIN"].includes(session.role)
+    !["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role)
   ) {
     redirect("/dashboard");
   }
 
   await getMongo();
 
-  const membership = await Membership.findOne({
-    companyId: session.companyId,
-    userId: session.userId,
-    active: true,
-    role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN"] }
-  }).lean();
+  if (session.role !== "PLATFORM_ADMIN") {
+    const membership = await Membership.findOne({
+      companyId: session.companyId,
+      userId: session.userId,
+      active: true,
+      role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN"] }
+    }).lean();
 
-  if (!membership) redirect("/dashboard");
+    if (!membership) redirect("/dashboard");
+  }
 
   const { plan: rawPlanId } = await searchParams;
   const planId = rawPlanId as PlanId | undefined;
