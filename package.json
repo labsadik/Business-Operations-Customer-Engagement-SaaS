@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm run lint && npm run build",
     "admin:create": "node scripts/create-platform-admin.mjs",
-    "test": "node --experimental-strip-types --test tests/scheduling.test.ts tests/cookie-consent.test.ts tests/platform-communication.test.ts tests/feedback-flow.test.ts tests/support-tickets.test.ts tests/plan-management.test.ts"
+    "test": "node --experimental-strip-types --experimental-loader ./tests/path-alias-loader.mjs --test tests/scheduling.test.ts tests/cookie-consent.test.ts tests/platform-communication.test.ts tests/feedback-flow.test.ts tests/support-tickets.test.ts tests/plan-management.test.ts"
   },
   "dependencies": {
     "lucide-react": "1.51.0",
