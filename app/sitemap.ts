@@ -2,7 +2,9 @@ import type { MetadataRoute } from "next";
 import { getConfiguredPublicOrigin } from "@/lib/public-origin";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = getPublicOrigin().toString().replace(/\/$/, "");
+  const base = getConfiguredPublicOrigin()?.toString().replace(/\/$/, "");
+  if (!base) return [];
+
   const now = new Date();
 
   return [
