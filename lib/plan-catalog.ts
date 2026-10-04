@@ -335,8 +335,7 @@ export function serializeAdminPlan(plan: AdminPlan) {
     updatedByUserId: plan.updatedByUserId ?? null,
     activeSubscriptionCount: plan.activeSubscriptionCount,
     paymentCount: plan.paymentCount,
-    invoiceCount: plan.invoiceCount,
-    finalPriceInr: pricing.finalPriceInr
+    invoiceCount: plan.invoiceCount
   };
 }
 
