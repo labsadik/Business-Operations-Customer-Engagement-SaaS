@@ -91,7 +91,9 @@ async function serialize(items: Array<{
     description: item.description,
     createdAt: item.createdAt,
     reviewStatus: item.reviewStatus,
-    submitter: map.get(String(item.submitterUserId)) ?? null
+    submitter: item.submitterName
+      ? { name: item.submitterName }
+      : map.get(String(item.submitterUserId)) ?? null
   }));
 }
 
