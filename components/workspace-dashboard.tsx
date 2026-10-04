@@ -413,7 +413,7 @@ export default function WorkspaceDashboard({
       setLoading(false);
       refreshingRef.current = false;
     }
-  });
+  }, []);
 
   const refreshLive = useCallback(async function refreshLive() {
     if (refreshingRef.current) return;
@@ -430,7 +430,7 @@ export default function WorkspaceDashboard({
     } finally {
       refreshingRef.current = false;
     }
-  });
+  }, []);
 
   async function loadAllMeetings() {
     setMeetingsLoading(true);
