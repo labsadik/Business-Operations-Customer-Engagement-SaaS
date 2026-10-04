@@ -134,9 +134,11 @@ export async function POST(
     return bookingJsonError(code, code === "UNAUTHENTICATED" ? 401 : 403);
   }
 
-  if (!session.companyId) {
+  if (!companyId) {
     return bookingJsonError("COMPANY_NOT_CONFIGURED", 403);
   }
+  const companyId = companyId;
+
   if (session.role === "PLATFORM_ADMIN") {
     return bookingJsonError("PLATFORM_ADMIN_CANNOT_ACCEPT_AS_EMPLOYEE", 403);
   }
@@ -146,19 +148,19 @@ export async function POST(
 
   try {
     const result = await withRedisLock(
-      `booking:accept:${session.companyId}:${bookingId}`,
+      `booking:accept:${companyId}:${bookingId}`,
       10_000,
       async () => {
         const scoped = await BookingRequest.findOne({
           _id: bookingId,
-          companyId: session.companyId
+          companyId: companyId
         }).lean();
 
         if (!scoped) throw new Error("BOOKING_NOT_FOUND");
 
         const currentMeeting = await Meeting.findOne({
           bookingRequestId: bookingId,
-          companyId: session.companyId
+          companyId: companyId
         })
           .select("status googleMeetingUri employeeId")
           .lean();
@@ -189,7 +191,7 @@ export async function POST(
             await tx.withTransaction(async () => {
               const beforeExpiry = await BookingRequest.findOne({
                 _id: bookingId,
-                companyId: session.companyId,
+                companyId: companyId,
                 status: {
                   $in: [
                     "REQUESTED",
@@ -205,7 +207,7 @@ export async function POST(
                 ? await BookingRequest.findOneAndUpdate(
                 {
                   _id: bookingId,
-                  companyId: session.companyId,
+                  companyId: companyId,
                   status: {
                     $in: [
                       "REQUESTED",
@@ -230,11 +232,11 @@ export async function POST(
               if (expired) {
                 await releaseMeetingUsage({
                   bookingId,
-                  companyId: session.companyId!,
+                  companyId: companyId!,
                   session: tx
                 });
                 await recordBookingActivity({
-                  companyId: session.companyId!,
+                  companyId: companyId!,
                   bookingRequestId: bookingId,
                   eventType: "REQUEST_EXPIRED",
                   fromStatus: beforeExpiry?.status ?? "REQUESTED",
@@ -255,22 +257,22 @@ export async function POST(
           throw new Error("BOOKING_NO_LONGER_AVAILABLE");
         }
 
-        await assertFeatureAccess(session.companyId);
-        const plan = await getCompanyEntitlements(session.companyId);
+        await assertFeatureAccess(companyId);
+        const plan = await getCompanyEntitlements(companyId);
 
         const [workspace, type, activeMeeting] = await Promise.all([
           Workspace.findOne({
             _id: scoped.workspaceId,
-            companyId: session.companyId,
+            companyId: companyId,
             active: true
           }).select("_id timezone").lean(),
           MeetingType.findOne({
             _id: scoped.meetingTypeId,
-            companyId: session.companyId,
+            companyId: companyId,
             workspaceId: scoped.workspaceId,
             active: true
           }).lean(),
-          Meeting.findOne({ bookingRequestId: bookingId, companyId: session.companyId })
+          Meeting.findOne({ bookingRequestId: bookingId, companyId: companyId })
             .select("status googleCalendarEventId employeeId")
             .lean()
         ]);
@@ -292,7 +294,7 @@ export async function POST(
         }
 
         const eligible = await eligibleEmployees(
-          session.companyId,
+          companyId,
           scoped.requestedStartAt,
           scoped.requestedEndAt,
           scoped.declinedBy?.map(String) ?? [],
@@ -317,7 +319,7 @@ export async function POST(
           await tx.withTransaction(async () => {
             const latest = await BookingRequest.findOne({
               _id: bookingId,
-              companyId: session.companyId,
+              companyId: companyId,
               status: { $in: ["REQUESTED", "RETRYING"] },
               expiresAt: { $gt: new Date() },
               declinedBy: { $ne: session.userId },
@@ -330,7 +332,7 @@ export async function POST(
             if (!latest) {
               const afterRace = await BookingRequest.findOne({
                 _id: bookingId,
-                companyId: session.companyId
+                companyId: companyId
               })
                 .session(tx)
                 .lean();
@@ -366,7 +368,7 @@ export async function POST(
 
             const concurrent = await BookingRequest.countDocuments({
               _id: { $ne: latest._id },
-              companyId: session.companyId,
+              companyId: companyId,
               status: {
                 $in: [
                   "ASSIGNED",
@@ -396,13 +398,13 @@ export async function POST(
 
             await reserveMeetingUsage({
               bookingId,
-              companyId: session.companyId!,
+              companyId: companyId!,
               plan,
               session: tx
             });
 
             await recordBookingActivity({
-              companyId: session.companyId!,
+              companyId: companyId!,
               bookingRequestId: bookingId,
               eventType: "EMPLOYEE_ACCEPTED",
               fromStatus: scoped.status,
@@ -436,7 +438,7 @@ export async function POST(
     after(async () => {
       try {
         await withRedisLock(
-          `meeting:finalize:${session.companyId}:${bookingId}`,
+          `meeting:finalize:${companyId}:${bookingId}`,
           60_000,
           async () => {
             await createMeetingForBooking(bookingId);
@@ -457,7 +459,7 @@ export async function POST(
     if (code === "RESOURCE_BUSY") {
       const current = await currentIdempotentResponse(
         bookingId,
-        session.companyId!,
+        companyId!,
         session.userId
       ).catch(() => null);
 
@@ -465,7 +467,7 @@ export async function POST(
 
       const busyState = await safeStateDetails(
         bookingId,
-        session.companyId!,
+        companyId!,
         session.userId
       ).catch(() => undefined);
 
@@ -508,7 +510,7 @@ export async function POST(
 
     const details =
       status === 409
-        ? await safeStateDetails(bookingId, session.companyId!, session.userId).catch(
+        ? await safeStateDetails(bookingId, companyId!, session.userId).catch(
             () => undefined
           )
         : undefined;
