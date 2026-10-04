@@ -114,7 +114,7 @@ export default function PublicBooking({
   const [calendarMonth, setCalendarMonth] = useState(() => monthStartForIso(todayIso));
   const [typeId, setTypeId] = useState(types[0]?.id ?? "");
   const type = types.find((item) => item.id === typeId) ?? types[0];
-  const [duration, setDuration] = useState(type?.durationOptionsMinutes[0] ?? 20);
+  const [duration, setDuration] = useState(type?.durationOptionsMinutes[0] ?? 0);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [selected, setSelected] = useState<Slot | null>(null);
   const [loading, setLoading] = useState(access === "customer");
@@ -131,12 +131,61 @@ export default function PublicBooking({
   const observedMeetingUriRef = useRef("");
   const bookingDialogCloseRef = useRef<HTMLButtonElement | null>(null);
   const statusDialogCloseRef = useRef<HTMLButtonElement | null>(null);
+  const availabilityAbortRef = useRef<AbortController | null>(null);
+  const availabilityRequestRef = useRef(0);
+  const availabilityInFlightRef = useRef(false);
+  const availabilityPollingDisabledRef = useRef(false);
 
   const calendarDays = useMemo(() => buildCalendarDays(calendarMonth), [calendarMonth]);
 
+  const cancelAvailability = useCallback(() => {
+    availabilityRequestRef.current += 1;
+    availabilityAbortRef.current?.abort();
+    availabilityAbortRef.current = null;
+    availabilityInFlightRef.current = false;
+  }, []);
+
+  const availabilityErrorMessage = useCallback((code: string) => {
+    switch (code) {
+      case "INVALID_DURATION":
+        return "That duration is no longer available for this meeting type. Choose one of the current duration options.";
+      case "MEETING_DURATION_NOT_CONFIGURED":
+        return "This meeting type has no supported duration configured right now.";
+      case "DATE_IN_PAST":
+        return "Choose today or a future date.";
+      case "INVALID_DATE":
+        return "Choose a valid calendar date.";
+      case "NO_CONFIGURED_SCHEDULE":
+        return "There is no working schedule configured for this date.";
+      case "GOOGLE_CALENDAR_ERROR":
+        return "Google Calendar availability could not be checked. Please try another date.";
+      case "CUSTOMER_LOGIN_REQUIRED":
+        return "Sign in with Google to see live availability.";
+      default:
+        return "Availability could not be checked. Please try again.";
+    }
+  }, []);
+
   const loadAvailability = useCallback(
     async (silent = false) => {
-      if (!typeId || access !== "customer" || !date) return;
+      if (
+        !typeId ||
+        access !== "customer" ||
+        !date ||
+        duration <= 0 ||
+        !(type?.durationOptionsMinutes ?? []).includes(duration)
+      ) {
+        return;
+      }
+
+      if (silent && availabilityPollingDisabledRef.current) return;
+      if (availabilityInFlightRef.current) return;
+
+      availabilityInFlightRef.current = true;
+      const requestId = ++availabilityRequestRef.current;
+      const controller = new AbortController();
+      availabilityAbortRef.current = controller;
+
       if (!silent) setLoading(true);
       setError("");
 
@@ -145,12 +194,24 @@ export default function PublicBooking({
           `/api/public/${encodeURIComponent(companySlug)}/availability?date=${date}&meetingTypeId=${typeId}&duration=${duration}`,
           {
             cache: "no-store",
-            headers: { "Cache-Control": "no-cache" }
+            headers: { "Cache-Control": "no-cache" },
+            signal: controller.signal
           }
         );
 
         const body = await response.json();
-        if (!response.ok) throw new Error(body.error || "AVAILABILITY_FAILED");
+        if (!response.ok) {
+          const code = String(body.error || "AVAILABILITY_FAILED");
+          if (
+            code === "INVALID_DURATION" ||
+            code === "MEETING_DURATION_NOT_CONFIGURED"
+          ) {
+            availabilityPollingDisabledRef.current = true;
+          }
+          throw new Error(code);
+        }
+
+        if (requestId !== availabilityRequestRef.current) return;
 
         const nextSlots = Array.isArray(body.data?.slots)
           ? (body.data.slots as Slot[])
@@ -168,19 +229,45 @@ export default function PublicBooking({
             : null
         );
       } catch (err) {
+        if (controller.signal.aborted || requestId !== availabilityRequestRef.current) {
+          return;
+        }
+
+        const code = err instanceof Error ? err.message : "AVAILABILITY_FAILED";
         setSlots([]);
         setSelected(null);
         setAvailabilityReason(null);
-        setError(err instanceof Error ? err.message : "AVAILABILITY_FAILED");
+        setError(availabilityErrorMessage(code));
       } finally {
-        if (!silent) setLoading(false);
+        if (requestId === availabilityRequestRef.current) {
+          availabilityInFlightRef.current = false;
+          availabilityAbortRef.current = null;
+          if (!silent) setLoading(false);
+        }
       }
     },
-    [access, companySlug, date, duration, typeId]
+    [
+      access,
+      availabilityErrorMessage,
+      companySlug,
+      date,
+      duration,
+      type,
+      typeId
+    ]
   );
 
   useEffect(() => {
-    if (!typeId || access !== "customer") return;
+    if (
+      !typeId ||
+      access !== "customer" ||
+      duration <= 0 ||
+      !(type?.durationOptionsMinutes ?? []).includes(duration)
+    ) {
+      return () => cancelAvailability();
+    }
+
+    availabilityPollingDisabledRef.current = false;
 
     const initial = window.setTimeout(() => {
       void loadAvailability();
@@ -193,8 +280,16 @@ export default function PublicBooking({
     return () => {
       window.clearTimeout(initial);
       window.clearInterval(interval);
+      cancelAvailability();
     };
-  }, [access, loadAvailability, typeId]);
+  }, [
+    access,
+    cancelAvailability,
+    duration,
+    loadAvailability,
+    type,
+    typeId
+  ]);
 
   const resetRequest = useCallback(() => {
     setBookingId("");
@@ -205,6 +300,7 @@ export default function PublicBooking({
     setModalOpen(false);
     setSelected(null);
     setError("");
+    availabilityPollingDisabledRef.current = false;
     void loadAvailability(true);
   }, [loadAvailability]);
 
@@ -310,6 +406,8 @@ export default function PublicBooking({
 
   function selectDate(nextDate: string) {
     if (nextDate < todayIso) return;
+    cancelAvailability();
+    availabilityPollingDisabledRef.current = false;
     setDate(nextDate);
     setCalendarMonth(monthStartForIso(nextDate));
     setSelected(null);
@@ -376,7 +474,8 @@ export default function PublicBooking({
         )
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "BOOKING_FAILED");
+      const code = err instanceof Error ? err.message : "BOOKING_FAILED";
+      setError(availabilityErrorMessage(code));
     } finally {
       setLoading(false);
     }
@@ -515,8 +614,10 @@ export default function PublicBooking({
                     type="button"
                     aria-pressed={item.id === typeId}
                     onClick={() => {
+                      cancelAvailability();
+                      availabilityPollingDisabledRef.current = false;
                       setTypeId(item.id);
-                      setDuration(item.durationOptionsMinutes[0] ?? 20);
+                      setDuration(item.durationOptionsMinutes[0] ?? 0);
                       setSelected(null);
                     }}
                     className={[
@@ -554,13 +655,20 @@ export default function PublicBooking({
                 </div>
                 <Clock3 className="size-4 text-blue-600" />
               </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {(type?.durationOptionsMinutes ?? []).map((minutesOption) => (
+              {(type?.durationOptionsMinutes ?? []).length === 0 ? (
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[11px] leading-5 text-amber-800">
+                  No supported durations are currently configured for this meeting type.
+                </div>
+              ) : (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {(type?.durationOptionsMinutes ?? []).map((minutesOption) => (
                   <button
                     key={minutesOption}
                     type="button"
                     aria-pressed={duration === minutesOption}
                     onClick={() => {
+                      cancelAvailability();
+                      availabilityPollingDisabledRef.current = false;
                       setDuration(minutesOption);
                       setSelected(null);
                     }}
@@ -573,8 +681,9 @@ export default function PublicBooking({
                   >
                     {minutesOption} min
                   </button>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
           </aside>
@@ -647,7 +756,9 @@ export default function PublicBooking({
                     ? "Availability could not be checked"
                     : availabilityReason === "NO_SCHEDULING_MEMBER"
                       ? "No scheduling-ready employee is available"
-                      : "Employees are busy for this time"}
+                      : availabilityReason === "NO_CONFIGURED_SCHEDULE"
+                      ? "No working hours are configured for this date"
+                      : "Employees are busy or unavailable for this time"}
                 </p>
                 <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-slate-500">
                   {availabilityReason === "AVAILABILITY_SERVICE_ERROR"
