@@ -29,6 +29,7 @@ export async function eligibleEmployees(
     bufferBeforeMinutes?: number;
     bufferAfterMinutes?: number;
     excludeBookingId?: string;
+    requiredEmployeeId?: string;
   } = {}
 ) {
   if (endAt <= startAt) return [];
@@ -127,7 +128,12 @@ export async function eligibleEmployees(
     memberships.map(async (membership) => {
       const userId = String(membership.userId);
       const account = accountMap.get(userId);
-      if (!isGoogleSchedulingReady(account)) return null;
+      if (!isGoogleSchedulingReady(account)) {
+        if (options.requiredEmployeeId === userId) {
+          throw new Error("GOOGLE_SCHEDULING_CONNECTION_REQUIRED");
+        }
+        return null;
+      }
 
       const employeeRules = rulesByEmployee.get(userId) ?? [];
       const scheduleSlots = buildScheduleSlots(
@@ -172,7 +178,12 @@ export async function eligibleEmployees(
         });
 
         return available.length > 0 ? userId : null;
-      } catch {
+      } catch (error) {
+        if (options.requiredEmployeeId === userId) {
+          throw error instanceof Error
+            ? error
+            : new Error("GOOGLE_CALENDAR_UNAVAILABLE");
+        }
         return null;
       }
     })
