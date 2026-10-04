@@ -497,7 +497,8 @@ export async function POST(
             "RESOURCE_BUSY",
             "BOOKING_ALREADY_COMPLETED",
             "BOOKING_CANCELLED",
-            "BOOKING_FAILED"
+            "BOOKING_FAILED",
+            "FREE_FEATURE_DAYS_EXHAUSTED"
           ].includes(code)
         ? 409
         : code.startsWith("GOOGLE_API_") || code.startsWith("GOOGLE_")
