@@ -67,14 +67,31 @@ export async function POST(
 
         if (recent) throw new Error("FEEDBACK_COOLDOWN_ACTIVE");
 
+        const eligibleBookingStatuses = ["CONFIRMED", "IN_PROGRESS", "COMPLETED"] as const;
         let bookingRequestId: Types.ObjectId | undefined;
+
+        const eligibleBooking = await BookingRequest.findOne({
+          companyId: company._id,
+          customerId: session.userId,
+          status: { $in: eligibleBookingStatuses }
+        })
+          .sort({ requestedStartAt: -1, _id: -1 })
+          .select("_id")
+          .lean();
+
+        if (!eligibleBooking) throw new Error("BOOKING_REQUIRED_FOR_FEEDBACK");
+
         if (bookingReference) {
-          const booking = await BookingRequest.findOne({
+          const requestedBooking = await BookingRequest.findOne({
             _id: bookingReference,
             companyId: company._id,
-            customerId: session.userId
+            customerId: session.userId,
+            status: { $in: eligibleBookingStatuses }
           }).select("_id").lean();
-          if (booking) bookingRequestId = booking._id;
+
+          bookingRequestId = requestedBooking?._id ?? eligibleBooking._id;
+        } else {
+          bookingRequestId = eligibleBooking._id;
         }
 
         return Feedback.create({
@@ -100,6 +117,7 @@ export async function POST(
       code === "CUSTOMER_LOGIN_REQUIRED" ? 401 :
       code === "COMPANY_NOT_FOUND" ? 404 :
       code === "FEEDBACK_COOLDOWN_ACTIVE" ? 429 :
+      code === "BOOKING_REQUIRED_FOR_FEEDBACK" ? 403 :
       code.includes("INVALID") || code.includes("TOO_LONG") ? 400 : 500;
 
     return jsonError(code, status);
