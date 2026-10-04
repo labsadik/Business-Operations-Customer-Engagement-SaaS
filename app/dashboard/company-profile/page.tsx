@@ -16,6 +16,7 @@ export default async function CompanyProfilePage() {
   return (
     <CompanyProfile
       user={{ name: session.name, email: session.email, image: session.image }}
+      currentRole={session.role}
     />
   );
 }
