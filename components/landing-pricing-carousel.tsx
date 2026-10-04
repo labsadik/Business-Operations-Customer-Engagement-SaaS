@@ -20,7 +20,7 @@ export default function LandingPricingCarousel({
 }) {
   const [visibleCount, setVisibleCount] = useState(1);
   const [startIndex, setStartIndex] = useState(0);
-  const [selectedId, setSelectedId] = useState(plans[1]?.id ?? plans[0]?.id ?? "");
+  const [selectedId, setSelectedId] = useState(plans[0]?.id ?? "");
 
   useEffect(() => {
     const media = window.matchMedia("(min-width: 640px)");
@@ -98,6 +98,22 @@ export default function LandingPricingCarousel({
         role="listbox"
         aria-label="Conventus plans"
         aria-activedescendant={selected.id}
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowLeft") {
+            event.preventDefault();
+            move(-1);
+          } else if (event.key === "ArrowRight") {
+            event.preventDefault();
+            move(1);
+          } else if (event.key === "Home") {
+            event.preventDefault();
+            setStartIndex(0);
+          } else if (event.key === "End") {
+            event.preventDefault();
+            setStartIndex(maxStart);
+          }
+        }}
       >
         {visiblePlans.map((plan) => {
           const active = plan.id === selected.id;
