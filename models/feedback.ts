@@ -6,7 +6,8 @@ const feedbackSchema = new Schema(
       type: String,
       enum: ["CUSTOMER_BOOKING", "COMPANY_PLATFORM"],
       required: true,
-      index: true
+      index: true,
+      immutable: true
     },
     companyId: {
       type: Schema.Types.ObjectId,
