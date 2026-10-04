@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { googleAvatarUrl } from "@/lib/avatar";
 
 export default function UserAvatar({
   name,
@@ -15,6 +16,8 @@ export default function UserAvatar({
   className?: string;
   image?: string | null;
 }) {
+  const safeImage = googleAvatarUrl(image);
+
   const initials = name
     .trim()
     .split(/\s+/)
@@ -33,9 +36,9 @@ export default function UserAvatar({
       title={email || name}
       aria-label={name}
     >
-      {image ? (
+      {safeImage ? (
         <Image
-          src={image}
+          src={safeImage}
           alt=""
           fill
           sizes={String(size) + "px"}
