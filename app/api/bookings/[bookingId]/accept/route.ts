@@ -299,7 +299,8 @@ export async function POST(
           {
             bufferBeforeMinutes: type.bufferBeforeMinutes,
             bufferAfterMinutes: type.bufferAfterMinutes,
-            excludeBookingId: bookingId
+            excludeBookingId: bookingId,
+            requiredEmployeeId: session.userId
           }
         );
 
