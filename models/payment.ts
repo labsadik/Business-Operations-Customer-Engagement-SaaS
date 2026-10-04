@@ -9,8 +9,8 @@ const paymentSchema = new Schema(
     // One live checkout/order per company. The field is removed once the
     // payment is captured or permanently failed, so a company cannot create
     // duplicate Razorpay orders by double-clicking or racing requests.
-    checkoutKey: { type: String, sparse: true },
-    providerPaymentId: { type: String, sparse: true },
+    checkoutKey: { type: String },
+    providerPaymentId: { type: String },
     failurePaymentId: { type: String, sparse: true },
     amount: { type: Number, required: true, min: 0 },
     baseAmount: { type: Number, required: true, min: 0 },
