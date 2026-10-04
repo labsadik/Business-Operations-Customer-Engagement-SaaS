@@ -198,6 +198,13 @@ export default function PublicBooking({
   useEffect(() => {
     if (!modalOpen && !bookingId) return;
 
+    const statusIsBlockingClose =
+      Boolean(
+        bookingId &&
+        !meetingUri &&
+        !["EXPIRED", "CANCELLED"].includes(status)
+      );
+
     const timer = window.setTimeout(() => {
       (bookingId ? statusDialogCloseRef.current : bookingDialogCloseRef.current)?.focus();
     }, 0);
@@ -205,7 +212,7 @@ export default function PublicBooking({
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (bookingId) {
-        if (!pending) resetRequest();
+        if (!statusIsBlockingClose) resetRequest();
       } else {
         setModalOpen(false);
       }
@@ -216,7 +223,7 @@ export default function PublicBooking({
       window.clearTimeout(timer);
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [bookingId, modalOpen, pending]);
+  }, [bookingId, meetingUri, modalOpen, status]);
 
   useEffect(() => {
     if (!bookingId) return;
