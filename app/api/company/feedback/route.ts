@@ -108,7 +108,7 @@ export async function GET(request: Request) {
       })
         .sort({ createdAt: -1, _id: -1 })
         .limit(limit)
-        .select("_id rating description createdAt reviewStatus submitterUserId")
+        .select("_id rating description createdAt reviewStatus submitterUserId submitterName")
         .lean(),
       Feedback.find({
         source: "COMPANY_PLATFORM",
