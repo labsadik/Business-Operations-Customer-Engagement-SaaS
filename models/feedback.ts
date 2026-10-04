@@ -28,6 +28,9 @@ const feedbackSchema = new Schema(
       index: true,
       immutable: true
     },
+    submitterName: { type: String, trim: true, maxlength: 200, immutable: true },
+    submitterEmail: { type: String, trim: true, lowercase: true, maxlength: 254, immutable: true },
+    submitterImage: { type: String, trim: true, maxlength: 2000, immutable: true },
     bookingRequestId: {
       type: Schema.Types.ObjectId,
       ref: "BookingRequest",
