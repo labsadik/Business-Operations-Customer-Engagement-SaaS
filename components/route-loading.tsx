@@ -1,4 +1,4 @@
-function Pulse({ className }: { className: string }) {
+export function Pulse({ className }: { className: string }) {
   return <div className={"animate-pulse rounded-2xl bg-slate-200/80 " + className} aria-hidden="true" />;
 }
 
