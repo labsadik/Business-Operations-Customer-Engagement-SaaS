@@ -1,0 +1,2 @@
+import { BillingLoading } from "@/components/route-loading";
+export default function Loading() { return <BillingLoading />; }
