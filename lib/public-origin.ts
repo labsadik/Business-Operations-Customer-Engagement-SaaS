@@ -39,6 +39,15 @@ export function getPublicOrigin() {
   return parsed;
 }
 
+export function isDevelopmentOnlyUrl(value: string) {
+  try {
+    const url = new URL(value, "https://conventus.invalid");
+    return isDevelopmentOnlyHostname(url.hostname);
+  } catch {
+    return true;
+  }
+}
+
 export function getSafeWebsiteUrl(value?: string | null) {
   const raw = value?.trim();
   if (!raw) return "";
