@@ -49,7 +49,7 @@ if (!uri) {
   process.exit(1);
 }
 
-await mongoose.connect(uri);
+await mongoose.connect(uri, { dbName: "Conventus" });
 
 const db = mongoose.connection.db;
 if (!db) {
