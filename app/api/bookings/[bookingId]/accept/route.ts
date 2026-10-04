@@ -85,6 +85,21 @@ function conflictCodeForState(
   }
 }
 
+async function currentIdempotentResponse(
+  bookingId: string,
+  companyId: string,
+  userId: string
+) {
+  const [booking, meeting] = await Promise.all([
+    BookingRequest.findOne({ _id: bookingId, companyId }).lean(),
+    Meeting.findOne({ bookingRequestId: bookingId, companyId })
+      .select("status googleMeetingUri")
+      .lean()
+  ]);
+  if (!booking) return null;
+  return responseForCurrentState(booking, meeting, userId);
+}
+
 async function safeStateDetails(bookingId: string, companyId: string, userId: string) {
   const booking = await BookingRequest.findOne({ _id: bookingId, companyId })
     .select("status assignedEmployeeId expiresAt")
@@ -434,11 +449,32 @@ export async function POST(
 
     return jsonOk(result);
   } catch (error) {
-    const code = bookingErrorCode(error);
+    let code = bookingErrorCode(error);
+
+    if (code === "RESOURCE_BUSY") {
+      const current = await currentIdempotentResponse(
+        bookingId,
+        session.companyId!,
+        session.userId
+      ).catch(() => null);
+
+      if (current) return jsonOk(current);
+
+      const busyState = await safeStateDetails(
+        bookingId,
+        session.companyId!,
+        session.userId
+      ).catch(() => undefined);
+
+      code =
+        busyState?.status === "ASSIGNED" ||
+        busyState?.status === "CREATING_MEETING"
+          ? "BOOKING_ALREADY_ASSIGNED"
+          : "BOOKING_PROCESSING";
+    }
+
     const status =
-      [
-        "BOOKING_NOT_FOUND"
-      ].includes(code)
+      ["BOOKING_NOT_FOUND"].includes(code)
         ? 404
         : [
             "BOOKING_ALREADY_ASSIGNED",
