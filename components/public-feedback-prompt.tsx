@@ -86,17 +86,12 @@ export default function PublicFeedbackPrompt({
     };
   }, [open]);
 
-  useEffect(() => {
-    if (!open) {
-      setRating(0);
-      setDescription("");
-      setMessage("");
-      setSaving(false);
-    }
-  }, [open]);
-
   function close() {
     if (saving) return;
+    setRating(0);
+    setDescription("");
+    setMessage("");
+    setSaving(false);
     onClose();
   }
 
