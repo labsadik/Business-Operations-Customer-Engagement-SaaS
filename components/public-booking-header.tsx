@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
@@ -27,7 +28,7 @@ export default function PublicBookingHeader({
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
           <Link href={("/" + companySlug) as Route} className="flex min-w-0 items-center gap-3">
             <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-slate-950 text-white shadow-sm">
-              <img src="/favicon.svg" alt="" className="size-full object-cover" />
+              <Image src="/favicon.svg" alt="" width={36} height={36} className="size-full object-cover" />
             </span>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold tracking-tight text-slate-950">{companyName}</p>
