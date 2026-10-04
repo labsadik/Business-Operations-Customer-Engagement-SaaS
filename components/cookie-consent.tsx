@@ -5,7 +5,7 @@ import { Cookie, ShieldCheck, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import {
   COOKIE_CONSENT_STORAGE_KEY,
-  COOKIE_COOKIE_CONSENT_VERSION,
+  COOKIE_CONSENT_VERSION,
   createConsentRecord,
   parseConsentRecord,
   serializeConsentRecord,
