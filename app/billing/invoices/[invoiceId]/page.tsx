@@ -6,10 +6,10 @@ import { getMongo } from "@/lib/mongodb";
 import { getSession } from "@/lib/session";
 import { ensureInvoicesForCapturedPayments } from "@/lib/billing";
 import { Invoice } from "@/models/invoice";
-import { Subscription } from "@/models/subscription";
 import { getPlan } from "@/lib/plans";
 import { calculateInvoiceTax } from "@/lib/invoicing";
 import { platformLegalProfile } from "@/lib/platform";
+import { getCompanySubscription } from "@/lib/plans-server";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Invoice · Conventus" };
@@ -31,7 +31,7 @@ export default async function InvoicePage({
 
   const [invoice, subscription] = await Promise.all([
     Invoice.findOne({ _id: invoiceId, companyId: session.companyId }).lean(),
-    Subscription.findOne({ companyId: session.companyId }).lean()
+    getCompanySubscription(session.companyId)
   ]);
 
   if (!invoice) notFound();
