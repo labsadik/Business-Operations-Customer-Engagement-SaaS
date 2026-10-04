@@ -143,7 +143,14 @@ export default function AdminShell({
               <div className="grid size-9 place-items-center overflow-hidden rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
                 {user.image ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={user.image} alt="" className="size-full object-cover" />
+                  <Image
+                    src={user.image}
+                    alt=""
+                    width={40}
+                    height={40}
+                    unoptimized
+                    className="size-full object-cover"
+                  />
                 ) : (
                   user.name.slice(0, 1).toUpperCase()
                 )}
