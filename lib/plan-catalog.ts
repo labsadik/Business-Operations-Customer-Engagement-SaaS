@@ -41,7 +41,8 @@ export type ManagedPlan = PlanEntitlements & {
   updatedByUserId?: string;
 };
 
-export type PublicPlan = ManagedPlan & {
+export type PublicPlan = Omit<ManagedPlan, "status"> & {
+  status: Exclude<PlanStatus, "PRIVATE">;
   discountAmountInr: number;
   finalPriceInr: number;
 };
@@ -230,6 +231,10 @@ export async function listPublicPlans(): Promise<PublicPlan[]> {
 
     return docs
       .map(serializeManagedPlan)
+      .filter(
+        (plan): plan is ManagedPlan & { status: Exclude<PlanStatus, "PRIVATE"> } =>
+          plan.status !== "PRIVATE"
+      )
       .filter((plan) => {
         try {
           calculatePlanPricing(plan.priceInr, plan.discountType, plan.discountValue);
@@ -316,8 +321,11 @@ export function serializePublicPlan(plan: ManagedPlan) {
 
 export function serializeAdminPlan(plan: AdminPlan) {
   const pricing = calculatePlanPricing(plan.priceInr, plan.discountType, plan.discountValue);
+  const serialized = serializeManagedPlan(plan);
   return {
-    ...serializePublicPlan(plan),
+    ...serialized,
+    discountAmountInr: pricing.discountAmountInr,
+    finalPriceInr: pricing.finalPriceInr,
     revision: plan.revision,
     sortOrder: plan.sortOrder,
     archivedAt: plan.archivedAt,
