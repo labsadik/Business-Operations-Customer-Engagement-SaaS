@@ -418,14 +418,12 @@ export default function CompanyProfile({ user }: { user: { name: string; email: 
             <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Primary owner</p>
               <div className="mt-4 flex items-center gap-3">
-                <div className="grid size-11 place-items-center overflow-hidden rounded-full bg-slate-100 text-xs font-semibold text-slate-500">
-                  {form.owner?.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={form.owner.image} alt="" className="size-full object-cover" />
-                  ) : (
-                    (form.owner?.name || user.name).slice(0, 1).toUpperCase()
-                  )}
-                </div>
+                <UserAvatar
+                  name={form.owner?.name || user.name}
+                  email={form.owner?.email || user.email}
+                  image={form.owner?.image}
+                  size={44}
+                />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold">{form.owner?.name || user.name}</p>
                   <p className="truncate text-xs text-slate-500">{form.owner?.email || user.email}</p>
