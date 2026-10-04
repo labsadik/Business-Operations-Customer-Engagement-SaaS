@@ -273,7 +273,8 @@ export default function WorkspaceFeedback({
 
           {tab === "platform" ? (
             canSubmit ? (
-              <form onSubmit={(event) => { event.preventDefault(); void submit(); }} className="space-y-5">
+              <>
+                <form onSubmit={(event) => { event.preventDefault(); void submit(); }} className="space-y-5">
               <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
                 <p className="text-xs font-semibold text-slate-900">Private platform feedback</p>
                 <p className="mt-1 text-[11px] leading-5 text-slate-600">
@@ -366,7 +367,7 @@ export default function WorkspaceFeedback({
                     <span className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-slate-500">{sentFeedback.length}</span>
                   </div>
                   <div className="mt-3 space-y-2">
-                    {sentFeedback.map((item) => (
+                          {sentFeedback.map((item) => (
                       <article key={item.id} className="rounded-xl border border-slate-200 bg-white p-3.5">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
@@ -385,6 +386,7 @@ export default function WorkspaceFeedback({
                   </div>
                 </section>
               )}
+              </>
             ) : (
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                 <p className="text-sm font-semibold text-slate-900">Feedback submission is unavailable in support mode</p>
