@@ -3,17 +3,33 @@ import { Meeting } from "@/models/meeting";
 import { User } from "@/models/user";
 import { requireCompanyMember } from "@/lib/authz";
 import { jsonError, jsonOk } from "@/lib/http";
+import { encodeHistoryCursor, decodeHistoryCursor } from "@/lib/booking-history";
+import { Types } from "mongoose";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const requestedLimit = Number(searchParams.get("limit") ?? "500");
-  const limit = Number.isFinite(requestedLimit) ? Math.min(500, Math.max(1, Math.floor(requestedLimit))) : 500;
+  const requestedLimit = Number(searchParams.get("limit") ?? "50");
+  const limit = Number.isFinite(requestedLimit)
+    ? Math.min(100, Math.max(1, Math.floor(requestedLimit)))
+    : 50;
+  const paginated = searchParams.get("paginated") === "true";
+  const cursorValue = searchParams.get("cursor");
+  const cursor = paginated ? decodeHistoryCursor(cursorValue) : null;
+
+  if (paginated && cursorValue && !cursor) {
+    return jsonError("INVALID_HISTORY_CURSOR", 400);
+  }
+
   let session: { userId: string; companyId?: string; role: string };
   try {
-    const result = await requireCompanyMember(["EMPLOYEE", "COMPANY_OWNER", "COMPANY_ADMIN"]);
+    const result = await requireCompanyMember([
+      "EMPLOYEE",
+      "COMPANY_OWNER",
+      "COMPANY_ADMIN"
+    ]);
     session = result.session;
   } catch (error) {
     const code = error instanceof Error ? error.message : "UNAUTHENTICATED";
@@ -36,20 +52,38 @@ export async function GET(request: Request) {
     filter.employeeId = session.userId;
   }
 
+  if (paginated && cursor) {
+    filter.$and = [
+      {
+        $or: [
+          { startAt: { $lt: cursor.at } },
+          { startAt: cursor.at, _id: { $lt: new Types.ObjectId(cursor.id) } }
+        ]
+      }
+    ];
+  }
+
   const meetings = await Meeting.find(filter)
-    .sort({ startAt: -1 })
-    .limit(limit)
-    .select("employeeId customerId startAt endAt endedAt status calendarSyncStatus")
+    .sort({ startAt: -1, _id: -1 })
+    .limit(paginated ? limit + 1 : limit)
+    .select(
+      "_id bookingRequestId employeeId customerId startAt endAt endedAt status calendarSyncStatus"
+    )
     .lean();
 
-  const participantIds = meetings.flatMap((meeting) => [
+  const hasMore = paginated && meetings.length > limit;
+  const page = hasMore ? meetings.slice(0, limit) : meetings;
+
+  const participantIds = page.flatMap((meeting) => [
     meeting.employeeId,
     meeting.customerId
   ]);
 
   const participants = await User.find({
     _id: { $in: participantIds }
-  }).select("name email image").lean();
+  })
+    .select("name email image")
+    .lean();
 
   const participantMap = new Map(
     participants.map((participant) => [
@@ -62,24 +96,37 @@ export async function GET(request: Request) {
     ])
   );
 
-  return jsonOk(
-    meetings.map((meeting) => {
-      const durationMinutes = Math.max(
-        1,
-        Math.round((meeting.endAt.getTime() - meeting.startAt.getTime()) / 60000)
-      );
+  const items = page.map((meeting) => {
+    const durationMinutes = Math.max(
+      1,
+      Math.round((meeting.endAt.getTime() - meeting.startAt.getTime()) / 60000)
+    );
 
-      return {
-        startAt: meeting.startAt,
-        endAt: meeting.endAt,
-        endedAt: meeting.endedAt ?? meeting.endAt,
-        durationMinutes,
-        status: meeting.status,
-        calendarSyncStatus: meeting.calendarSyncStatus,
-        employee: participantMap.get(String(meeting.employeeId)) ?? null,
-        customer: participantMap.get(String(meeting.customerId)) ?? null,
-        scheduledBy: participantMap.get(String(meeting.customerId)) ?? null
-      };
-    })
-  );
+    return {
+      id: String(meeting._id),
+      bookingRequestId: String(meeting.bookingRequestId),
+      startAt: meeting.startAt,
+      endAt: meeting.endAt,
+      endedAt: meeting.endedAt ?? meeting.endAt,
+      durationMinutes,
+      status: meeting.status,
+      calendarSyncStatus: meeting.calendarSyncStatus,
+      employee: participantMap.get(String(meeting.employeeId)) ?? null,
+      customer: participantMap.get(String(meeting.customerId)) ?? null,
+      scheduledBy: participantMap.get(String(meeting.customerId)) ?? null
+    };
+  });
+
+  if (!paginated) return jsonOk(items);
+
+  return jsonOk({
+    items,
+    nextCursor:
+      hasMore && page.length > 0
+        ? encodeHistoryCursor(
+            page[page.length - 1].startAt,
+            String(page[page.length - 1]._id)
+          )
+        : null
+  });
 }
