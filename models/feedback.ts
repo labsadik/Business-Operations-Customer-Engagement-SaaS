@@ -15,6 +15,12 @@ const feedbackSchema = new Schema(
       index: true,
       immutable: true
     },
+    workspaceId: {
+      type: Schema.Types.ObjectId,
+      ref: "Workspace",
+      index: true,
+      immutable: true
+    },
     submitterUserId: {
       type: Schema.Types.ObjectId,
       ref: "User",
