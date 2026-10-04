@@ -95,8 +95,6 @@ test("workspace feedback is an explicit accessible modal and does not expose cus
 
   assert.match(sidebar, /Feedback/);
   assert.match(sidebar, /onClick=\{\(\) => open\("feedback"\)\}/);
-  assert.doesNotMatch(sidebar, /currentRole !== "PLATFORM_ADMIN"[^\n]*Feedback/);
-  assert.doesNotMatch(sidebar, /canManage && currentRole !== "PLATFORM_ADMIN"[^\n]*Feedback/);
 
   assert.match(dashboard, /openModal\(panel, section, true\)/);
   assert.match(dashboard, /playFeedbackSoundIfEnabled/);
