@@ -5,6 +5,7 @@ import { Workspace } from "@/models/workspace";
 import { PLANS } from "@/lib/plans";
 import { Company } from "@/models/company";
 import { ensureCurrentAccessInvoice } from "@/lib/billing";
+import { getCompanySubscription } from "@/lib/plans-server";
 import { jsonError, jsonOk } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
 
@@ -14,15 +15,34 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
+
     const session = await getSession();
     if (!session || !session.companyId) return jsonError("UNAUTHENTICATED", 401);
     if (!["COMPANY_OWNER", "COMPANY_ADMIN"].includes(session.role)) return jsonError("FORBIDDEN", 403);
 
     await getMongo();
+
     const company = await Company.findById(session.companyId).lean();
     if (!company) return jsonError("COMPANY_NOT_FOUND", 404);
 
+    const current = await getCompanySubscription(session.companyId);
     const now = new Date();
+    if (
+      current.source === "PAID" &&
+      current.status === "ACTIVE" &&
+      current.currentPeriodEnd.getTime() > now.getTime()
+    ) {
+      return jsonError("PAID_PLAN_ACTIVE", 409);
+    }
+
+    if (
+      current.source === "ADMIN_GRANTED" &&
+      current.status === "ACTIVE" &&
+      current.currentPeriodEnd.getTime() > now.getTime()
+    ) {
+      return jsonError("ADMIN_PLAN_ACTIVE", 409);
+    }
+
     const periodEnd = new Date(now);
     periodEnd.setDate(periodEnd.getDate() + PLANS.free.validityDays);
 
@@ -49,6 +69,7 @@ export async function POST(request: Request) {
       { companyId: session.companyId },
       { $set: { planId: "free" } }
     );
+
     await ensureCurrentAccessInvoice(session.companyId);
 
     return jsonOk({
@@ -58,6 +79,12 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     const code = error instanceof Error ? error.message : "FREE_PLAN_FAILED";
-    return jsonError(code, code === "CSRF_ORIGIN_INVALID" ? 403 : 500);
+    const status =
+      code === "CSRF_ORIGIN_INVALID" ||
+      code === "PAID_PLAN_ACTIVE" ||
+      code === "ADMIN_PLAN_ACTIVE"
+        ? 409
+        : 500;
+    return jsonError(code, status);
   }
 }
