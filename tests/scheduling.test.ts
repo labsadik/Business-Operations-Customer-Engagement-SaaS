@@ -272,7 +272,7 @@ import {
 import {
   decodeHistoryCursor,
   encodeHistoryCursor
-} from "../lib/booking-history.ts";
+} from "../lib/history-cursor.ts";
 
 test("booking response state machine preserves processing and retry paths", () => {
   assert.equal(canTransition("REQUESTED", "ASSIGNED"), true);
