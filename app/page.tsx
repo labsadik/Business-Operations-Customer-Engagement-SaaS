@@ -3,6 +3,7 @@ import Link from "next/link";
 import {
   ArrowRight,
   CalendarCheck2,
+  CalendarDays,
   CheckCircle2,
   Clock3,
   Command,
@@ -312,6 +313,40 @@ export default function Home() {
                 <p className="mt-2 text-sm leading-6 text-slate-600">{text}</p>
               </article>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="google" className="border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-7xl px-5 py-20 sm:px-6 lg:px-8">
+          <div className="grid gap-10 lg:grid-cols-[.75fr_1.25fr] lg:items-start">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">Google integration</p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+                Know what Google is doing before you connect it.
+              </h2>
+              <p className="mt-4 max-w-xl text-sm leading-6 text-slate-600">
+                Conventus uses Google differently for identity and scheduling. A normal sign-in identifies the user; a scheduling member can separately authorize Calendar access when the workflow needs it.
+              </p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              {[
+                [CalendarCheck2, "Google sign-in", "Used for account identity. Customer booking sign-in does not request Calendar access."],
+                [CalendarDays, "Calendar availability", "Scheduling members authorize Calendar free/busy access so Conventus can check the primary calendar before offering a time."],
+                [Video, "Meet after acceptance", "The existing meeting flow creates the Calendar event with a Google Meet conference after an eligible employee accepts the request."]
+              ].map(([Icon, title, text]) => {
+                const IntegrationIcon = Icon as typeof Video;
+                return (
+                  <article key={title as string} className="rounded-[1.75rem] border border-slate-200 bg-[#faf9f1] p-5">
+                    <div className="grid size-10 place-items-center rounded-xl bg-blue-50 text-blue-700">
+                      <IntegrationIcon className="size-4.5" />
+                    </div>
+                    <h3 className="mt-4 text-sm font-semibold text-slate-950">{title as string}</h3>
+                    <p className="mt-2 text-xs leading-5 text-slate-600">{text as string}</p>
+                  </article>
+                );
+              })}
+            </div>
           </div>
         </div>
       </section>
