@@ -2,7 +2,6 @@ import { getMongo } from "@/lib/mongodb";
 import { getSession } from "@/lib/session";
 import { Company } from "@/models/company";
 import { Membership } from "@/models/membership";
-import { Subscription } from "@/models/subscription";
 import { Payment } from "@/models/payment";
 import { PLANS, type PlanId } from "@/lib/plans";
 import { createRazorpayOrder, razorpayKeyId } from "@/lib/razorpay";
