@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, CalendarCheck2, Check, CircleCheck, Clock3, Command, Layers3, ShieldCheck, UsersRound, Video } from "lucide-react";
 import { PLANS } from "@/lib/plans";
@@ -17,7 +18,7 @@ export default function Home() {
       <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight text-slate-950">
-            <span className="grid size-8 place-items-center overflow-hidden rounded-xl bg-slate-950 text-white shadow-sm"><img src="/favicon.svg" alt="" className="size-full object-cover" /></span>
+            <span className="grid size-8 place-items-center overflow-hidden rounded-xl bg-slate-950 text-white shadow-sm"><Image src="/favicon.svg" alt="" width={32} height={32} className="size-full object-cover" /></span>
             Conventus
           </Link>
           <nav className="hidden items-center gap-7 text-sm font-medium text-slate-600 md:flex">
