@@ -91,8 +91,8 @@ export default async function InvoicePage({
   };
 
   return (
-    <main className="min-h-screen bg-[#f7f8fb] py-6 sm:py-10">
-      <div className="mx-auto max-w-[980px] px-4 sm:px-6">
+    <main className="min-h-screen bg-[#faf9f1] py-6 sm:py-10 print:bg-white print:py-0">
+      <div className="mx-auto max-w-[980px] px-4 sm:px-6 print:max-w-none print:px-0">
         <Link
           href="/dashboard"
           className="mb-5 inline-flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-slate-950 print:hidden"
