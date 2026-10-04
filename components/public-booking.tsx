@@ -512,13 +512,14 @@ export default function PublicBooking({
                   <button
                     key={item.id}
                     type="button"
+                    aria-pressed={item.id === typeId}
                     onClick={() => {
                       setTypeId(item.id);
                       setDuration(item.durationOptionsMinutes[0] ?? 20);
                       setSelected(null);
                     }}
                     className={[
-                      "w-full rounded-2xl border p-4 text-left transition",
+                      "w-full rounded-2xl border p-4 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2",
                       item.id === typeId
                         ? "border-blue-500 bg-blue-50"
                         : "border-slate-200 bg-white hover:border-slate-300"
@@ -557,12 +558,13 @@ export default function PublicBooking({
                   <button
                     key={minutesOption}
                     type="button"
+                    aria-pressed={duration === minutesOption}
                     onClick={() => {
                       setDuration(minutesOption);
                       setSelected(null);
                     }}
                     className={[
-                      "rounded-xl border px-3.5 py-2 text-xs font-semibold transition",
+                      "rounded-xl border px-3.5 py-2 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2",
                       duration === minutesOption
                         ? "border-blue-600 bg-blue-600 text-white"
                         : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
@@ -600,7 +602,7 @@ export default function PublicBooking({
             {error && (
               <div
                 role="alert"
-                className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800"
+                className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs leading-5 text-red-800"
               >
                 {error.replaceAll("_", " ")}
               </div>
@@ -614,7 +616,7 @@ export default function PublicBooking({
                   </div>
                   <p className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Customer access</p>
                   <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Sign in to see available times</h3>
-                  <p className="mt-3 text-sm leading-6 text-slate-500">Your Google account identifies the customer who creates the meeting request.</p>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">Your Google account identifies the customer attached to the request. Sign-in is required before Conventus reveals live availability or accepts a booking request.</p>
                   <a
                     href={loginUrl}
                     className="mt-7 inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
@@ -655,8 +657,15 @@ export default function PublicBooking({
                   <button
                     key={slot.startAt}
                     type="button"
+                    aria-label="Select available time"
+                    aria-pressed={selected?.startAt === slot.startAt}
                     onClick={() => chooseSlot(slot)}
-                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-left transition hover:-translate-y-0.5 hover:border-blue-400 hover:bg-blue-50/40 hover:shadow-sm"
+                    className={[
+                      "rounded-2xl border px-4 py-3.5 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2",
+                      selected?.startAt === slot.startAt
+                        ? "border-blue-600 bg-blue-50 shadow-sm"
+                        : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-blue-400 hover:bg-blue-50/40 hover:shadow-sm"
+                    ].join(" ")}
                   >
                     <span className="block text-sm font-semibold text-slate-950">
                       {formatTime(slot.startAt, timezone)}
@@ -859,13 +868,15 @@ export default function PublicBooking({
 
               {status === "EXPIRED" && (
                 <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
-                  No employee accepted this request in time. The request is closed. Choose another date or time and create a new request.
+                  <p className="font-semibold">Request expired</p>
+                  <p className="mt-1 leading-6">No employee accepted this request in time. The request is closed. Choose another date or time and create a new request.</p>
                 </div>
               )}
 
               {status === "CANCELLED" && (
                 <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
-                  This booking was cancelled. Please select a new time.
+                  <p className="font-semibold">Booking cancelled</p>
+                  <p className="mt-1 leading-6">This booking was cancelled. Please select a new time.</p>
                 </div>
               )}
 
