@@ -62,6 +62,7 @@ function saveConsent(choice: ConsentChoice) {
 
   return record;
 }
+
 export default function CookieConsent() {
   const pathname = usePathname();
   const [ready, setReady] = useState(false);
@@ -72,8 +73,10 @@ export default function CookieConsent() {
   const triggerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    setConsent(readConsent());
-    setReady(true);
+    const consentCheck = window.setTimeout(() => {
+      setConsent(readConsent());
+      setReady(true);
+    }, 0);
 
     const openSettings = () => {
       triggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -82,6 +85,7 @@ export default function CookieConsent() {
     window.addEventListener("conventus:open-cookie-settings", openSettings);
 
     return () => {
+      window.clearTimeout(consentCheck);
       window.removeEventListener("conventus:open-cookie-settings", openSettings);
     };
   }, []);
