@@ -318,11 +318,8 @@ export default async function BillingCheckoutPage({
               <RazorpayPlanButton
                 planId={plan.id}
                 currentPlanId={subscription.planId}
+                disabled={!profileComplete}
                 mode="pay"
-                onError={() => {
-                  // The payment API remains authoritative. Keep the CTA usable
-                  // and let the server return the exact blocking reason.
-                }}
               />
               {!profileComplete && (
                 <p className="mt-2 text-[10px] leading-4 text-amber-700">
