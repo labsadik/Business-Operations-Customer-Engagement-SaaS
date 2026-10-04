@@ -2,7 +2,7 @@ import type { ClientSession } from "mongoose";
 import { BookingActivity } from "@/models/booking-activity";
 import { BookingRequest } from "@/models/booking-request";
 import { Subscription } from "@/models/subscription";
-import { getPlan, type PlanEntitlements } from "@/lib/plans";
+import type { PlanEntitlements } from "@/lib/plans";
 
 export type BookingActivityEventType =
   | "REQUEST_CREATED"
@@ -149,13 +149,3 @@ export function decodeHistoryCursor(value: string | null) {
   }
 }
 
-export function planForBookingUsage(planId: string) {
-  return getPlan(planId) ?? getPlan("free")!;
-}
-
-export function errorCodeFromUnknown(error: unknown) {
-  const raw = error instanceof Error ? error.message : "";
-  if (!raw) return "UNKNOWN_ERROR";
-  if (raw.startsWith("GOOGLE_API_")) return raw.split(":")[0].slice(0, 100);
-  return raw.slice(0, 100);
-}
