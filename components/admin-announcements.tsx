@@ -77,8 +77,14 @@ export default function AdminAnnouncements() {
     }
   }, [page, statusFilter, audienceFilter, companyFilter]);
 
-  useEffect(() => { void load(); }, [load]);
-  useEffect(() => { void loadCompanies(); }, [loadCompanies]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void loadCompanies(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadCompanies]);
   useEffect(() => {
     const timer = window.setTimeout(() => { void loadCompanies(companySearch); }, 250);
     return () => window.clearTimeout(timer);
