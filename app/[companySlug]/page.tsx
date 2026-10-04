@@ -3,6 +3,7 @@ import { Building2, CalendarDays, CheckCircle2, Clock3, LockKeyhole } from "luci
 import { getMongo } from "@/lib/mongodb";
 import { Announcement } from "@/models/announcement";
 import { getSession } from "@/lib/session";
+import CookieSettingsButton from "@/components/cookie-settings-button";
 import { Company } from "@/models/company";
 import { Workspace } from "@/models/workspace";
 import { MeetingType } from "@/models/meeting-type";
@@ -174,9 +175,17 @@ export default async function CompanyPublicPage({
           />
         </section>
 
-        <footer className="mt-8 flex flex-col gap-2 border-t border-slate-200 px-1 pt-5 text-[10px] leading-5 text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-          <p>Secure scheduling for {company.name}.</p>
-          <p>Powered by <span className="font-semibold text-slate-600">Conventus</span> · secure company booking</p>
+        <footer className="mt-8 flex flex-col gap-4 border-t border-slate-200 px-1 pt-5 text-[10px] leading-5 text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p>Secure scheduling for {company.name}.</p>
+            <p className="mt-1">Powered by <span className="font-semibold text-slate-600">Conventus</span> · company-specific booking</p>
+          </div>
+          <nav aria-label="Company booking legal links" className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
+            <Link href="/terms" className="rounded-md py-1 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Terms</Link>
+            <Link href="/privacy" className="rounded-md py-1 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Privacy</Link>
+            <Link href={`/${company.slug}/login`} className="rounded-md py-1 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Team sign in</Link>
+            <CookieSettingsButton className="py-1" aria-label="Open cookie settings">Cookie settings</CookieSettingsButton>
+          </nav>
         </footer>
       </div>
 
