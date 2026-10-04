@@ -33,7 +33,13 @@ const bookingRequestSchema = new Schema(
     confirmedAt: { type: Date },
     idempotencyKey: { type: String, required: true, unique: true },
     declinedBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
-    nextRetryAt: { type: Date, index: true }
+    nextRetryAt: { type: Date, index: true },
+    meetingCreationAttempts: { type: Number, default: 0, min: 0 },
+    meetingCreationStartedAt: { type: Date },
+    lastMeetingErrorCode: { type: String, maxlength: 100 },
+    usageReservedAt: { type: Date },
+    usageReservationPeriodStart: { type: Date },
+    usageReleasedAt: { type: Date }
   },
   { timestamps: true }
 );
