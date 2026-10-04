@@ -2,10 +2,10 @@ import { getSession } from "@/lib/session";
 import { getMongo } from "@/lib/mongodb";
 import { Subscription } from "@/models/subscription";
 import { Workspace } from "@/models/workspace";
-import { PLANS } from "@/lib/plans";
 import { Company } from "@/models/company";
 import { ensureCurrentAccessInvoice } from "@/lib/billing";
 import { getCompanySubscription } from "@/lib/plans-server";
+import { createEntitlementSnapshot, getManagedPlan } from "@/lib/plan-catalog";
 import { jsonError, jsonOk } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
 
@@ -18,30 +18,46 @@ export async function POST(request: Request) {
 
     const session = await getSession();
     if (!session || !session.companyId) return jsonError("UNAUTHENTICATED", 401);
-    if (!["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role)) return jsonError("FORBIDDEN", 403);
+    if (!["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role)) {
+      return jsonError("FORBIDDEN", 403);
+    }
 
     await getMongo();
 
     const company = await Company.findById(session.companyId).lean();
     if (!company) return jsonError("COMPANY_NOT_FOUND", 404);
 
+    const body = await request.json().catch(() => null) as { planId?: string } | null;
+    const requestedPlanId = body?.planId?.trim().toLowerCase() || "free";
+    const freePlan = await getManagedPlan(requestedPlanId, { includeArchived: true });
+
+    if (!freePlan || freePlan.archivedAt) return jsonError("PLAN_NOT_FOUND", 404);
+    if (freePlan.status !== "PUBLIC") {
+      return jsonError(
+        freePlan.status === "COMING_SOON" ? "PLAN_COMING_SOON" : "PLAN_PRIVATE",
+        409
+      );
+    }
+    if (freePlan.requiresPayment || freePlan.priceInr > 0) {
+      return jsonError("PLAN_REQUIRES_PAYMENT", 409);
+    }
+
     const current = await getCompanySubscription(session.companyId);
     const now = new Date();
 
-    // Never let the Free endpoint restart an already-active Free cycle. This
-    // prevents resetting the 14-day feature window through repeated requests.
     if (
-      current.planId === "free" &&
+      current.planId === freePlan.id &&
       current.source === "FREE" &&
       current.status === "ACTIVE" &&
       current.currentPeriodEnd.getTime() > now.getTime()
     ) {
       return jsonOk({
-        planId: "free",
+        planId: current.planId,
         periodStart: current.currentPeriodStart,
         periodEnd: current.currentPeriodEnd
       });
     }
+
     if (
       current.source === "PAID" &&
       current.status === "ACTIVE" &&
@@ -59,13 +75,14 @@ export async function POST(request: Request) {
     }
 
     const periodEnd = new Date(now);
-    periodEnd.setDate(periodEnd.getDate() + PLANS.free.validityDays);
+    periodEnd.setDate(periodEnd.getDate() + freePlan.validityDays);
 
     const subscription = await Subscription.findOneAndUpdate(
       { companyId: session.companyId },
       {
         $set: {
-          planId: "free",
+          planId: freePlan.id,
+          entitlementSnapshot: createEntitlementSnapshot(freePlan),
           source: "FREE",
           status: "ACTIVE",
           currentPeriodStart: now,
@@ -82,13 +99,13 @@ export async function POST(request: Request) {
 
     await Workspace.updateOne(
       { companyId: session.companyId },
-      { $set: { planId: "free" } }
+      { $set: { planId: freePlan.id } }
     );
 
     await ensureCurrentAccessInvoice(session.companyId);
 
     return jsonOk({
-      planId: "free",
+      planId: subscription.planId,
       periodStart: subscription.currentPeriodStart,
       periodEnd: subscription.currentPeriodEnd
     });
@@ -97,7 +114,13 @@ export async function POST(request: Request) {
     const status =
       code === "CSRF_ORIGIN_INVALID"
         ? 403
-        : code === "PAID_PLAN_ACTIVE" || code === "ADMIN_PLAN_ACTIVE"
+        : [
+            "PAID_PLAN_ACTIVE",
+            "ADMIN_PLAN_ACTIVE",
+            "PLAN_COMING_SOON",
+            "PLAN_PRIVATE",
+            "PLAN_REQUIRES_PAYMENT"
+          ].includes(code)
           ? 409
           : 500;
     return jsonError(code, status);

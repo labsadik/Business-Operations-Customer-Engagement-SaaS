@@ -132,6 +132,11 @@ export async function buildInvoiceSnapshots(input: {
   plan: PlanEntitlements;
   amount: number;
   taxSnapshot?: InvoiceTaxSnapshot;
+  discount?: {
+    type: "NONE" | "PERCENTAGE" | "FIXED_AMOUNT";
+    value: number;
+    amountMinor: number;
+  };
 }) {
   const legal = await platformLegalProfile();
   const taxSnapshot = input.taxSnapshot ?? calculateInvoiceTax(
@@ -169,9 +174,15 @@ export async function buildInvoiceSnapshots(input: {
       taxId: input.company.taxId ?? ""
     },
     taxSnapshot,
+    discountType: input.discount?.type ?? "NONE",
+    discountValue: input.discount?.value ?? 0,
+    discountAmount: input.discount?.amountMinor ?? 0,
     planSnapshot: {
+      id: input.plan.id,
       name: input.plan.name,
       priceInr: input.plan.priceInr,
+      maxWorkspaces: input.plan.maxWorkspaces,
+      maxCompanies: input.plan.maxCompanies,
       maxEmployees: input.plan.maxEmployees,
       monthlyMeetingLimit: input.plan.monthlyMeetingLimit,
       maxMeetingDurationMinutes: input.plan.maxMeetingDurationMinutes,

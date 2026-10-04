@@ -1,9 +1,9 @@
 export const PLAN_IDS = ["free", "starter", "elite", "pro", "plus"] as const;
 
-export type PlanId = (typeof PLAN_IDS)[number];
+export type PlanId = string;
 
 export type PlanEntitlements = {
-  id: PlanId;
+  id: string;
   name: string;
   priceInr: number;
   maxWorkspaces: number;

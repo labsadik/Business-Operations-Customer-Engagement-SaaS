@@ -33,7 +33,7 @@ import UserAvatar from "@/components/user-avatar";
 import MeetingResponseCountdown from "@/components/meeting-response-countdown";
 import RazorpayPlanButton from "@/components/razorpay-plan-button";
 import { playMeetingSound, unlockMeetingSound } from "@/lib/client-meeting-sound";
-import { PLANS, type PlanId } from "@/lib/plans";
+import { PLANS } from "@/lib/plans";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
 import PublicPageShare from "@/components/public-page-share";
 import GoogleIntegrationNotice from "@/components/google-integration-notice";
@@ -49,6 +49,29 @@ type Address = {
   state: string;
   postalCode: string;
   country: string;
+};
+
+type DashboardPlan = {
+  id: string;
+  name: string;
+  description: string;
+  status: "PUBLIC" | "COMING_SOON" | "PRIVATE";
+  popular: boolean;
+  recommended: boolean;
+  priceInr: number;
+  discountType: "NONE" | "PERCENTAGE" | "FIXED_AMOUNT";
+  discountValue: number;
+  discountAmountInr: number;
+  finalPriceInr: number;
+  maxWorkspaces: number;
+  maxCompanies: number;
+  maxEmployees: number;
+  monthlyMeetingLimit: number;
+  maxMeetingDurationMinutes: number;
+  maxConcurrentMeetings: number;
+  validityDays: number;
+  freeFeatureDays: number | null;
+  requiresPayment: boolean;
 };
 
 type CompanyData = {
@@ -67,6 +90,8 @@ type CompanyData = {
     profileComplete: boolean;
     owner: { name: string; email: string; image: string } | null;
   };
+  currentPlan: DashboardPlan;
+  availablePlans: DashboardPlan[];
   workspace: {
     id: string;
     name: string;
@@ -74,7 +99,7 @@ type CompanyData = {
     planId: string;
   } | null;
   subscription: {
-    planId: PlanId;
+    planId: string;
     status: string;
     source: "FREE" | "PAID" | "ADMIN_GRANTED";
     monthlyMeetingsUsed: number;
@@ -168,7 +193,7 @@ type InvoiceItem = {
   id: string;
   invoiceNumber: string;
   source: "PAID" | "FREE" | "ADMIN_GRANTED";
-  planId: PlanId;
+  planId: string;
   providerOrderId: string;
   providerPaymentId: string;
   amount: number;
@@ -407,10 +432,16 @@ export default function WorkspaceDashboard({
   ].includes(data.currentRole));
   const adminManaged = Boolean(data?.currentRole === "PLATFORM_ADMIN" && data.company?.id);
 
-  const planId: PlanId = data?.subscription?.planId && PLANS[data.subscription.planId]
-    ? data.subscription.planId
-    : "free";
-  const plan = PLANS[planId];
+  const planId = data?.currentPlan?.id ?? data?.subscription?.planId ?? "free";
+  const plan = data?.currentPlan ?? PLANS[planId] ?? PLANS.free;
+  const billingPlans = data
+    ? [
+        ...(data.currentPlan && !data.availablePlans.some((item) => item.id === data.currentPlan.id)
+          ? [data.currentPlan]
+          : []),
+        ...data.availablePlans
+      ]
+    : [];
   const subscriptionSource = data?.subscription?.source ?? "FREE";
   const subscriptionPeriodEndMs = data?.subscription?.periodEnd
     ? Date.parse(data.subscription.periodEnd)
@@ -2187,12 +2218,14 @@ export default function WorkspaceDashboard({
                 </tr>
               </thead>
               <tbody>
-                {(Object.keys(PLANS) as PlanId[]).map((id) => {
-                  const item = PLANS[id];
+                {billingPlans.map((item) => {
+                  const id = item.id;
                   const isCurrent = id === planId;
                   const baseMinor = Math.round(item.priceInr * 100);
+                  const discountMinor = Math.round((item.discountAmountInr ?? 0) * 100);
+                  const discountedBaseMinor = Math.max(0, baseMinor - discountMinor);
                   const gstRate = data.gstEnabled ? (data.gstRatePercent || 0) : 0;
-                  const totalWithGst = data.gstInclusive ? baseMinor : Math.round(baseMinor * (1 + gstRate / 100));
+                  const totalWithGst = data.gstInclusive ? discountedBaseMinor : Math.round(discountedBaseMinor * (1 + gstRate / 100));
                   return (
                     <tr key={id} className="border-b border-slate-100 last:border-b-0">
                       <td className="px-4 py-4">
@@ -2205,7 +2238,8 @@ export default function WorkspaceDashboard({
                         )}
                       </td>
                       <td className="px-4 py-4">
-                        <p className="text-sm font-semibold">{item.priceInr === 0 ? "Free" : `₹${item.priceInr}`}</p>
+                        <p className="text-sm font-semibold">{item.finalPriceInr === 0 ? "Free" : `₹${item.finalPriceInr}`}</p>
+                        {item.priceInr > item.finalPriceInr && <p className="mt-1 text-[10px] font-semibold text-emerald-700">Save ₹{item.discountAmountInr.toFixed(2)}</p>}
                         {item.priceInr > 0 && (
                           <p className="mt-1 text-[10px] text-slate-400">+{data.gstEnabled ? data.gstRatePercent : 0}% GST · ₹{(totalWithGst / 100).toFixed(2)} total</p>
                         )}
@@ -2214,9 +2248,18 @@ export default function WorkspaceDashboard({
                       <td className="px-4 py-4 text-xs text-slate-600">{item.monthlyMeetingLimit}/month</td>
                       <td className="px-4 py-4 text-xs text-slate-600">{item.maxMeetingDurationMinutes} min</td>
                       <td className="px-4 py-4">
-                        {item.requiresPayment ? (
+                        {item.status !== "PUBLIC" ? (
+                          <button
+                            type="button"
+                            disabled
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-500 disabled:cursor-not-allowed"
+                          >
+                            {isCurrent ? "Current plan" : item.status === "COMING_SOON" ? "Coming soon" : "Private"}
+                          </button>
+                        ) : item.requiresPayment ? (
                           <RazorpayPlanButton
                             planId={id}
+                            planName={item.name}
                             currentPlanId={planId}
                             onComplete={() => {
                               void loadInvoices();
@@ -2230,7 +2273,10 @@ export default function WorkspaceDashboard({
                             disabled={busy || isCurrent || nowMs === null || paidAccessActive}
                             onClick={() => {
                               setBusy(true);
-                              void api("/api/billing/free", { method: "POST" })
+                              void api("/api/billing/free", {
+                                method: "POST",
+                                body: JSON.stringify({ planId: id })
+                              })
                                 .then(() => Promise.all([loadInvoices(), refreshAll()]))
                                 .catch((error) => setError(error instanceof Error ? error.message : "FREE_PLAN_FAILED"))
                                 .finally(() => setBusy(false));
@@ -2243,7 +2289,7 @@ export default function WorkspaceDashboard({
                                 ? "Checking subscription…"
                                 : paidAccessActive
                                   ? "Available after expiry"
-                                  : "Switch to Free"}
+                                  : "Select plan"}
                           </button>
                         )}
                       </td>

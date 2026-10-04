@@ -45,6 +45,8 @@ export async function POST(request: Request) {
     });
 
     if (!payment) return jsonError("PAYMENT_NOT_FOUND", 404);
+    if (payment.status === "REFUNDED") return jsonError("PAYMENT_REFUNDED", 409);
+    if (payment.status === "REFUNDED") return jsonError("PAYMENT_REFUNDED", 409);
 
     if (!verifyRazorpayPaymentSignature(orderId, providerPaymentId, signature)) {
       return jsonError("PAYMENT_SIGNATURE_INVALID", 400);
@@ -100,7 +102,16 @@ export async function POST(request: Request) {
 
     await payment.save();
 
-    await activatePaidPlan(String(payment._id));
+    try {
+      await activatePaidPlan(String(payment._id));
+    } catch (error) {
+      const activationCode = error instanceof Error ? error.message : "PAYMENT_ACTIVATION_FAILED";
+      const refreshed = await Payment.findById(payment._id).select("status").lean();
+      if (activationCode === "PLAN_CONFIGURATION_CHANGED" && refreshed?.status === "REFUNDED") {
+        return jsonError("PLAN_CONFIGURATION_CHANGED", 409);
+      }
+      throw error;
+    }
 
     return jsonOk({
       status: "CAPTURED",
@@ -112,7 +123,7 @@ export async function POST(request: Request) {
     const status =
       code === "CSRF_ORIGIN_INVALID" || code === "PAYMENT_MERCHANT_INVALID" ? 403 :
       code === "PAYMENT_NOT_CAPTURED" ? 409 :
-      code === "PAYMENT_ALREADY_RECORDED" || code === "PAYMENT_PROVIDER_ID_CONFLICT" ? 409 :
+      code === "PAYMENT_ALREADY_RECORDED" || code === "PAYMENT_PROVIDER_ID_CONFLICT" || code === "PAYMENT_REFUNDED" || code === "PLAN_CONFIGURATION_CHANGED" ? 409 :
       code.startsWith("RAZORPAY_API_") ? 502 :
       500;
     return jsonError(code, status);

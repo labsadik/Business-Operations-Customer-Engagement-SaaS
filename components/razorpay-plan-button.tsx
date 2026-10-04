@@ -4,7 +4,6 @@ import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Check, Loader2, CreditCard, ArrowRight } from "lucide-react";
-import { PLANS, type PlanId } from "@/lib/plans";
 
 declare global {
   interface Window {
@@ -74,14 +73,16 @@ function money(minor: number, currency = "INR") {
 
 export default function RazorpayPlanButton({
   planId,
+  planName,
   currentPlanId,
   disabled = false,
   mode = "navigate",
   onComplete,
   onError
 }: {
-  planId: PlanId;
-  currentPlanId: PlanId | null;
+  planId: string;
+  planName?: string;
+  currentPlanId: string | null;
   disabled?: boolean;
   mode?: "navigate" | "pay";
   onComplete?: () => void;
@@ -89,7 +90,7 @@ export default function RazorpayPlanButton({
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const plan = PLANS[planId];
+  const displayName = planName || "selected plan";
   const isCurrent = Boolean(currentPlanId && planId === currentPlanId);
 
   async function startCheckout() {
@@ -164,7 +165,7 @@ export default function RazorpayPlanButton({
         name: checkoutData.merchant?.name || "Conventus",
         image: new URL("/favicon.svg", window.location.origin).toString(),
         description:
-          (checkoutData.planName || plan.name) +
+          (checkoutData.planName || displayName) +
           " · " +
           money(checkoutData.pricing?.totalAmount ?? checkoutData.amount, checkoutData.currency) +
           " total",
@@ -260,7 +261,7 @@ export default function RazorpayPlanButton({
         ? mode === "pay" ? "Preparing payment..." : "Opening checkout..."
         : mode === "pay"
           ? isCurrent ? "Proceed to renewal" : "Proceed to Razorpay"
-          : isCurrent ? "Renew " + plan.name : "Choose " + plan.name}
+          : isCurrent ? "Renew " + displayName : "Choose " + displayName}
     </button>
   );
 }

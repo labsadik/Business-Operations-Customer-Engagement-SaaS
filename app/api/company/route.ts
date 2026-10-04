@@ -12,6 +12,7 @@ import { jsonError, jsonOk } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
 import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
 import { invoiceTaxConfig } from "@/lib/invoicing";
+import { listPublicPlans, resolvePlanEntitlementsForSubscription, getManagedPlan } from "@/lib/plan-catalog";
 import { GoogleAccount } from "@/models/google-account";
 
 export const runtime = "nodejs";
@@ -117,7 +118,7 @@ export async function GET() {
   const subscriptionPromise = import("@/lib/plans-server").then(({ getCompanySubscription }) =>
     getCompanySubscription(String(company._id))
   );
-  const [workspace, subscription, activeMembers, owner, taxConfig] = await Promise.all([
+  const [workspace, subscription, activeMembers, owner, taxConfig, availablePlans] = await Promise.all([
     Workspace.findOne({ companyId: company._id }).lean(),
     subscriptionPromise,
     Membership.find({
@@ -126,8 +127,12 @@ export async function GET() {
       role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] }
     }).select("userId").lean(),
     User.findById(company.ownerUserId).select("name email image").lean(),
-    invoiceTaxConfig()
+    invoiceTaxConfig(),
+    listPublicPlans()
   ]);
+
+  const currentEntitlements = await resolvePlanEntitlementsForSubscription(subscription);
+  const currentCatalogPlan = await getManagedPlan(subscription.planId, { includeArchived: true });
 
   const connectedAccounts = await GoogleAccount.find({
     userId: { $in: activeMembers.map((member) => member.userId) },
@@ -152,6 +157,39 @@ export async function GET() {
           planId: subscription.planId
         }
       : null,
+    currentPlan: {
+      ...currentEntitlements,
+      description: currentCatalogPlan?.description ?? "",
+      status: currentCatalogPlan?.status ?? "PRIVATE",
+      popular: currentCatalogPlan?.popular ?? false,
+      recommended: currentCatalogPlan?.recommended ?? false,
+      discountType: "NONE",
+      discountValue: 0,
+      discountAmountInr: 0,
+      finalPriceInr: currentEntitlements.priceInr
+    },
+    availablePlans: availablePlans.map((plan) => ({
+      id: plan.id,
+      name: plan.name,
+      description: plan.description,
+      status: plan.status,
+      popular: plan.popular,
+      recommended: plan.recommended,
+      priceInr: plan.priceInr,
+      discountType: plan.discountType,
+      discountValue: plan.discountValue,
+      discountAmountInr: plan.discountAmountInr,
+      finalPriceInr: plan.finalPriceInr,
+      maxWorkspaces: plan.maxWorkspaces,
+      maxCompanies: plan.maxCompanies,
+      maxEmployees: plan.maxEmployees,
+      monthlyMeetingLimit: plan.monthlyMeetingLimit,
+      maxMeetingDurationMinutes: plan.maxMeetingDurationMinutes,
+      maxConcurrentMeetings: plan.maxConcurrentMeetings,
+      validityDays: plan.validityDays,
+      freeFeatureDays: plan.freeFeatureDays,
+      requiresPayment: plan.requiresPayment
+    })),
     subscription: subscription
       ? {
           planId: subscription.planId,

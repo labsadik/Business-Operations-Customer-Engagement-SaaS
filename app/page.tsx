@@ -12,7 +12,7 @@ import {
   UsersRound,
   Video
 } from "lucide-react";
-import { PLANS } from "@/lib/plans";
+import { listPublicPlans } from "@/lib/plan-catalog";
 import LandingPricingCarousel from "@/components/landing-pricing-carousel";
 import CookieSettingsButton from "@/components/cookie-settings-button";
 import { getMongo } from "@/lib/mongodb";
@@ -103,7 +103,7 @@ const faqs = [
 ] as const;
 
 export default async function Home() {
-  const plans = Object.values(PLANS);
+  const plans = await listPublicPlans();
   let platformAnnouncements: Array<{
     _id: unknown;
     title: string;

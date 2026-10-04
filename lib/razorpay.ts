@@ -79,6 +79,20 @@ export async function fetchRazorpayPayment(paymentId: string) {
   }>("/payments/" + encodeURIComponent(paymentId), { method: "GET" });
 }
 
+export async function refundRazorpayPayment(paymentId: string) {
+  return razorpayRequest<{
+    id: string;
+    entity: string;
+    amount: number;
+    currency: string;
+    payment_id: string;
+    status?: string;
+  }>("/payments/" + encodeURIComponent(paymentId) + "/refund", {
+    method: "POST",
+    body: JSON.stringify({})
+  });
+}
+
 export function verifyRazorpayPaymentSignature(
   orderId: string,
   paymentId: string,

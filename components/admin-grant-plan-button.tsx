@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Check, Loader2, ShieldCheck } from "lucide-react";
-import { type PlanId } from "@/lib/plans";
 
 export default function AdminGrantPlanButton({
   companyId,
@@ -10,7 +9,7 @@ export default function AdminGrantPlanButton({
   currentPlanId
 }: {
   companyId: string;
-  planId: PlanId;
+  planId: string;
   currentPlanId: string | null;
 }) {
   const [busy, setBusy] = useState(false);

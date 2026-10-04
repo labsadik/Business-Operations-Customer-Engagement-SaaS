@@ -13,7 +13,7 @@ import { getMongo } from "@/lib/mongodb";
 import { Company } from "@/models/company";
 import { Membership } from "@/models/membership";
 import { getCompanySubscription } from "@/lib/plans-server";
-import { PLANS, type PlanId } from "@/lib/plans";
+import { calculatePlanPricing, getPlanForCheckout } from "@/lib/plan-catalog";
 import { calculateInvoiceTaxFromBase, invoiceTaxConfig } from "@/lib/invoicing";
 import RazorpayPlanButton from "@/components/razorpay-plan-button";
 import { getServerNowMs } from "@/lib/server-time";
@@ -66,11 +66,14 @@ export default async function BillingCheckoutPage({
   }
 
   const { plan: rawPlanId } = await searchParams;
-  const planId = rawPlanId as PlanId | undefined;
-  const plan = planId ? PLANS[planId] : undefined;
+  const planId = rawPlanId?.trim().toLowerCase();
 
-  if (!plan || !plan.requiresPayment || plan.priceInr <= 0) {
-    redirect("/dashboard?billing=1");
+  let plan;
+  try {
+    if (!planId) throw new Error("PLAN_NOT_FOUND");
+    plan = await getPlanForCheckout(planId);
+  } catch {
+    redirect("/dashboard?billing=1&billingError=PLAN_NOT_AVAILABLE");
   }
 
   const [company, subscription, taxConfig] = await Promise.all([
@@ -83,9 +86,9 @@ export default async function BillingCheckoutPage({
 
   if (!company) redirect("/dashboard");
 
-  const baseAmount = Math.round(plan.priceInr * 100);
+  const pricing = calculatePlanPricing(plan.priceInr, plan.discountType, plan.discountValue);
   const tax = calculateInvoiceTaxFromBase(
-    baseAmount,
+    pricing.discountedAmountMinor,
     taxConfig.ratePercent,
     taxConfig.inclusive,
     taxConfig.enabled
@@ -205,8 +208,16 @@ export default async function BillingCheckoutPage({
 
               <div className="mt-4 space-y-2.5 text-xs">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-slate-600">Plan price</span>
-                  <span className="font-semibold text-slate-900">{money(baseAmount)}</span>
+                  <span className="text-slate-600">Base price</span>
+                  <span className="font-semibold text-slate-900">{money(pricing.baseAmountMinor)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-slate-600">Discount</span>
+                  <span className="font-semibold text-emerald-700">−{money(pricing.discountAmountMinor)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-slate-600">Plan price after discount</span>
+                  <span className="font-semibold text-slate-900">{money(pricing.discountedAmountMinor)}</span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-slate-600">GST</span>
@@ -284,12 +295,17 @@ export default async function BillingCheckoutPage({
             <div className="space-y-3 py-5 text-sm">
               <div className="flex items-center justify-between gap-4">
                 <span className="text-slate-500">Plan price</span>
-                <span className="font-semibold text-slate-900">{money(baseAmount)}</span>
+                <span className="font-semibold text-slate-900">{money(pricing.baseAmountMinor)}</span>
               </div>
 
               <div className="flex items-center justify-between gap-4">
                 <span className="text-slate-500">Discount</span>
-                <span className="font-semibold text-slate-900">{money(0)}</span>
+                <span className="font-semibold text-emerald-700">−{money(pricing.discountAmountMinor)}</span>
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-slate-500">Plan price after discount</span>
+                <span className="font-semibold text-slate-900">{money(pricing.discountedAmountMinor)}</span>
               </div>
 
               <div className="flex items-start justify-between gap-4">
@@ -324,6 +340,7 @@ export default async function BillingCheckoutPage({
             <div className="mt-5">
               <RazorpayPlanButton
                 planId={plan.id}
+                planName={plan.name}
                 currentPlanId={subscription.planId}
                 disabled={!profileComplete}
                 mode="pay"

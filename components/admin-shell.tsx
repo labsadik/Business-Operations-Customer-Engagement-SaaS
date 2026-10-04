@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import type { Route } from "next";
 import {
   BarChart3,
+  BadgeDollarSign,
   Building2,
   ChevronRight,
   CircleDollarSign,
@@ -23,6 +24,7 @@ const nav = [
   { href: "/admin", label: "Overview", icon: BarChart3 },
   { href: "/admin/companies", label: "Companies", icon: Building2 },
   { href: "/admin/users", label: "Public users", icon: UsersRound },
+  { href: "/admin/plans", label: "Plans", icon: BadgeDollarSign },
   { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
   { href: "/admin/feedback", label: "Feedback", icon: MessageSquareText },
   { href: "/admin/support-tickets", label: "Support tickets", icon: LifeBuoy },
@@ -39,6 +41,7 @@ function pageTitle(pathname: string) {
   if (pathname.startsWith("/admin/companies/")) return "Company details";
   if (pathname.startsWith("/admin/companies")) return "Companies";
   if (pathname.startsWith("/admin/users")) return "Public users";
+  if (pathname.startsWith("/admin/plans")) return "Plans";
   if (pathname.startsWith("/admin/announcements")) return "Announcements";
   if (pathname.startsWith("/admin/feedback")) return "Feedback";
   if (pathname.startsWith("/admin/support-tickets")) return "Support tickets";
@@ -91,7 +94,7 @@ export default function AdminShell({
             const selected = activePath(pathname, item.href);
             return (
               <div key={item.href}>
-                {index === 3 && (
+                {index === 4 && (
                   <p className="mb-2 mt-6 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
                     Access & configuration
                   </p>

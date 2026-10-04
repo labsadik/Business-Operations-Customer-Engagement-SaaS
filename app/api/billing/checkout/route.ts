@@ -3,7 +3,8 @@ import { getSession } from "@/lib/session";
 import { Company } from "@/models/company";
 import { Membership } from "@/models/membership";
 import { Payment } from "@/models/payment";
-import { PLANS, type PlanId } from "@/lib/plans";
+import { getPlanForCheckout, createEntitlementSnapshot, calculatePlanPricing } from "@/lib/plan-catalog";
+import type { PlanId } from "@/lib/plans";
 import { createRazorpayOrder, razorpayKeyId } from "@/lib/razorpay";
 import { jsonError, jsonOk } from "@/lib/http";
 import { assertSameOrigin, randomToken } from "@/lib/security";
@@ -24,22 +25,10 @@ function validPhone(value?: string) {
 }
 
 function checkoutResponse(input: {
-  payment: {
-    providerOrderId: string;
-    amount: number;
-    currency: string;
-    baseAmount: number;
-    taxAmount: number;
-    taxRatePercent?: number;
-    taxInclusive?: boolean;
-  };
-  planId: PlanId;
+  payment: any;
+  planId: string;
   planName: string;
-  company: {
-    name: string;
-    email?: string;
-    phone?: string;
-  };
+  company: { name: string; email?: string; phone?: string };
   logoUrl: string;
 }) {
   const { payment, planId, planName, company, logoUrl } = input;
@@ -55,11 +44,12 @@ function checkoutResponse(input: {
     logoUrl,
     pricing: {
       baseAmount: payment.baseAmount,
+      discountAmount: payment.discountAmount ?? 0,
+      discountedBaseAmount: payment.baseAmount,
       gstAmount: payment.taxAmount,
       gstRatePercent: payment.taxRatePercent ?? 0,
       totalAmount: payment.amount,
-      gstInclusive: payment.taxInclusive ?? false,
-      discountAmount: 0
+      gstInclusive: payment.taxInclusive ?? false
     },
     customer: {
       name: company.name,
@@ -75,12 +65,14 @@ export async function POST(request: Request) {
 
     const session = await getSession();
     if (!session) return jsonError("UNAUTHENTICATED", 401);
-    if (!["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role) || !session.companyId) {
+    if (
+      !["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role) ||
+      !session.companyId
+    ) {
       return jsonError("FORBIDDEN", 403);
     }
 
     const companyId = session.companyId;
-
     await getMongo();
 
     if (session.role !== "PLATFORM_ADMIN") {
@@ -97,10 +89,18 @@ export async function POST(request: Request) {
     if (!company) return jsonError("COMPANY_NOT_FOUND", 404);
 
     const body = await request.json().catch(() => null) as { planId?: string } | null;
-    const planId = body?.planId as PlanId | undefined;
-    const plan = planId ? PLANS[planId] : undefined;
-    if (!plan || !plan.requiresPayment || plan.priceInr <= 0) {
-      return jsonError("PLAN_NOT_PAYABLE", 400);
+    const planId = body?.planId?.trim().toLowerCase();
+    if (!planId) return jsonError("PLAN_NOT_PAYABLE", 400);
+
+    let plan;
+    try {
+      plan = await getPlanForCheckout(planId);
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "PLAN_NOT_FOUND";
+      const status =
+        code === "PLAN_COMING_SOON" || code === "PLAN_PRIVATE" ? 409 :
+        code === "PLAN_NOT_FOUND" ? 404 : 400;
+      return jsonError(code, status);
     }
 
     const missingProfileFields: string[] = [];
@@ -108,51 +108,57 @@ export async function POST(request: Request) {
     if (!validEmail(company.email)) missingProfileFields.push("companyEmail");
     if (!validPhone(company.phone)) missingProfileFields.push("companyPhone");
     if (missingProfileFields.length > 0) {
-      return jsonError("COMPANY_PROFILE_INCOMPLETE", 409, { missingFields: missingProfileFields });
+      return jsonError("COMPANY_PROFILE_INCOMPLETE", 409, {
+        missingFields: missingProfileFields
+      });
     }
 
     return await withRedisLock(
       `billing:checkout:${companyId}`,
       15_000,
       async () => {
-        // The lock is deliberately per company, not per plan. This guarantees
-        // that a company cannot have two payable orders open at once.
         const existingPending = await Payment.findOne({
-          companyId: companyId,
+          companyId,
           merchantAccount: "CONVENTUS",
           status: "PENDING"
-        }).sort({ createdAt: -1 }).lean();
+        }).sort({ createdAt: -1 });
 
         if (existingPending) {
-          if (existingPending.planId !== plan.id) {
-            return jsonError("PAYMENT_IN_PROGRESS", 409, {
-              planId: existingPending.planId,
-              orderId: existingPending.providerOrderId
-            });
+          if (
+            existingPending.planId !== plan.id ||
+            existingPending.planRevision !== plan.revision
+          ) {
+            existingPending.status = "FAILED";
+            existingPending.failureReason = "PLAN_CONFIGURATION_CHANGED";
+            existingPending.checkoutKey = undefined;
+            await existingPending.save();
+          } else {
+            const logoUrl = await platformLogoUrl();
+            return jsonOk(
+              checkoutResponse({
+                payment: existingPending,
+                planId: plan.id,
+                planName: plan.name,
+                company,
+                logoUrl
+              })
+            );
           }
-
-          const logoUrl = await platformLogoUrl();
-          return jsonOk(checkoutResponse({
-            payment: existingPending,
-            planId: plan.id,
-            planName: plan.name,
-            company,
-            logoUrl
-          }));
         }
 
+        const pricing = calculatePlanPricing(
+          plan.priceInr,
+          plan.discountType,
+          plan.discountValue
+        );
         const taxConfig = await invoiceTaxConfig();
-        const baseAmount = Math.round(plan.priceInr * 100);
         const tax = calculateInvoiceTaxFromBase(
-          baseAmount,
+          pricing.discountedAmountMinor,
           taxConfig.ratePercent,
           taxConfig.inclusive,
           taxConfig.enabled
         );
 
-        // Keep the provider receipt comfortably below Razorpay's receipt
-        // length limit and avoid prefix-only collisions from a truncated
-        // millisecond timestamp.
         const receipt = `conventus_${String(companyId).slice(-10)}_${Date.now().toString(36)}_${randomToken(6)}`.slice(0, 40);
 
         const order = await createRazorpayOrder({
@@ -161,9 +167,12 @@ export async function POST(request: Request) {
           receipt,
           notes: {
             merchant: PLATFORM_BRAND.name,
-            companyId: companyId,
+            companyId,
             planId: plan.id,
-            baseAmount: String(tax.taxableAmount),
+            planRevision: String(plan.revision),
+            baseAmount: String(pricing.baseAmountMinor),
+            discountAmount: String(pricing.discountAmountMinor),
+            discountedBaseAmount: String(pricing.discountedAmountMinor),
             gstAmount: String(tax.gstAmount),
             gstRatePercent: String(tax.ratePercent),
             companyEmail: company.email!,
@@ -174,11 +183,16 @@ export async function POST(request: Request) {
         let payment;
         try {
           payment = await Payment.create({
-            companyId: companyId,
-            planId: plan.id,
+            companyId,
+            planId: plan.id as PlanId,
             merchantAccount: "CONVENTUS",
             checkoutKey: String(companyId),
             providerOrderId: order.id,
+            planRevision: plan.revision,
+            checkoutPlanSnapshot: createEntitlementSnapshot(plan),
+            discountType: plan.discountType,
+            discountValue: plan.discountValue,
+            discountAmount: pricing.discountAmountMinor,
             amount: order.amount,
             baseAmount: tax.taxableAmount,
             taxAmount: tax.gstAmount,
@@ -188,43 +202,43 @@ export async function POST(request: Request) {
             status: "PENDING"
           });
         } catch (error) {
-          // The unique checkoutKey is the final database-level duplicate
-          // protection if Redis is unavailable or a second request races it.
           const existing = await Payment.findOne({
-            companyId: companyId,
+            companyId,
             status: "PENDING"
           }).sort({ createdAt: -1 }).lean();
 
           if (existing) {
             const logoUrl = await platformLogoUrl();
-            return jsonOk(checkoutResponse({
-              payment: existing,
-              planId: existing.planId as PlanId,
-              planName: PLANS[existing.planId as PlanId]?.name ?? existing.planId,
-              company,
-              logoUrl
-            }));
+            return jsonOk(
+              checkoutResponse({
+                payment: existing,
+                planId: existing.planId,
+                planName: existing.checkoutPlanSnapshot?.name ?? plan.name,
+                company,
+                logoUrl
+              })
+            );
           }
           throw error;
         }
 
         const logoUrl = await platformLogoUrl();
-
-        return jsonOk(checkoutResponse({
-          payment,
-          planId: plan.id,
-          planName: plan.name,
-          company,
-          logoUrl
-        }));
+        return jsonOk(
+          checkoutResponse({
+            payment,
+            planId: plan.id,
+            planName: plan.name,
+            company,
+            logoUrl
+          })
+        );
       }
     );
   } catch (error) {
     const code = error instanceof Error ? error.message : "CHECKOUT_FAILED";
     const status =
       code === "CSRF_ORIGIN_INVALID" ? 403 :
-      code === "RESOURCE_BUSY" ? 409 :
-      code === "PAYMENT_IN_PROGRESS" ? 409 :
+      code === "RESOURCE_BUSY" || code === "PAYMENT_IN_PROGRESS" ? 409 :
       code.startsWith("RAZORPAY_API_") ? 502 :
       500;
     return jsonError(code, status);

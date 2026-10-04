@@ -121,16 +121,18 @@ export default function AdminCompanyDetailsView({ company }: { company: AdminCom
             <div className="border-t border-slate-200 p-6">
               <p className="text-xs font-semibold">Plan comparison</p>
               <div className="mt-4 grid gap-3 md:grid-cols-2">
-                {Object.values(company.plans).map((plan) => (
+                {Object.values(company.plans).filter((plan) => !plan.archivedAt || plan.id === company.planId).map((plan) => (
                   <div key={plan.id} className={`rounded-2xl border p-4 ${plan.id === company.planId ? "border-blue-200 bg-blue-50/50" : "border-slate-200 bg-white"}`}>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">{plan.archivedAt ? "Archived" : plan.status.replace("_", " ")}</span>
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-semibold">{plan.name}</p>
                       <div className="flex items-center gap-2">
                         {plan.id === company.planId ? <span className="rounded-full bg-blue-600 px-2 py-1 text-[10px] font-semibold text-white">Current</span> : <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500">Available</span>}
-                        <AdminGrantPlanButton companyId={company.id} planId={plan.id as import("@/lib/plans").PlanId} currentPlanId={company.planId} />
+                        <AdminGrantPlanButton companyId={company.id} planId={plan.id} currentPlanId={company.planId} />
                       </div>
                     </div>
-                    <p className="mt-2 text-xl font-semibold">₹{plan.priceInr}<span className="text-xs font-normal text-slate-400"> / month</span></p>
+                    <p className="mt-2 text-xl font-semibold">₹{plan.priceInr}<span className="text-xs font-normal text-slate-400"> / {plan.validityDays} days</span></p>
+                    {plan.discountType !== "NONE" && <p className="mt-1 text-[10px] font-semibold text-emerald-700">Discount: {plan.discountType === "PERCENTAGE" ? plan.discountValue + "%" : "₹" + plan.discountValue}</p>}
                     <p className="mt-2 text-xs leading-5 text-slate-500">{plan.maxEmployees} employees · {plan.monthlyMeetingLimit} meetings · {plan.maxMeetingDurationMinutes} min · {plan.maxConcurrentMeetings} concurrent</p>
                   </div>
                 ))}

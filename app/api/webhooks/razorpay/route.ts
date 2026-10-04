@@ -93,7 +93,16 @@ export async function POST(request: Request) {
         : payment.paidAt ?? new Date();
       await payment.save();
 
-      await activatePaidPlan(String(payment._id));
+      try {
+        await activatePaidPlan(String(payment._id));
+      } catch (error) {
+        const activationCode = error instanceof Error ? error.message : "PAYMENT_ACTIVATION_FAILED";
+        const refreshed = await Payment.findById(payment._id).select("status").lean();
+        if (activationCode === "PLAN_CONFIGURATION_CHANGED" && refreshed?.status === "REFUNDED") {
+          return NextResponse.json({ ok: true, refunded: true, reason: activationCode });
+        }
+        throw error;
+      }
     }
 
     if (event.event === "payment.failed") {
@@ -129,7 +138,7 @@ export async function POST(request: Request) {
     const status =
       code === "PAYMENT_AMOUNT_MISMATCH" ||
       code === "PAYMENT_CURRENCY_MISMATCH" ||
-      code === "PAYMENT_PROVIDER_ID_CONFLICT"
+      code === "PAYMENT_PROVIDER_ID_CONFLICT" || code === "PLAN_CONFIGURATION_CHANGED" || code === "PAYMENT_REFUNDED"
         ? 409
         : 500;
     return NextResponse.json({ ok: false, error: code }, { status });

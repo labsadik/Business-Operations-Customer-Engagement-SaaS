@@ -10,7 +10,10 @@ import { Meeting } from "@/models/meeting";
 import { BookingRequest } from "@/models/booking-request";
 import { Invoice } from "@/models/invoice";
 import { GoogleAccount } from "@/models/google-account";
-import { getPlan, PLANS } from "@/lib/plans";
+import type { PlanEntitlements } from "@/lib/plans";
+import type { AdminPlan } from "@/lib/plan-catalog";
+import { ensurePlanCatalog, listPlansForAdmin } from "@/lib/plan-catalog";
+import { Plan } from "@/models/plan";
 import { ensureInvoicesForCapturedPayments } from "@/lib/billing";
 
 export type AdminCompanyListItem = {
@@ -91,7 +94,7 @@ export type AdminCompanyDetails = AdminCompanyListItem & {
     employee: { name: string; email: string } | null;
     customer: { name: string; email: string } | null;
   }>;
-  plans: typeof PLANS;
+  plans: Record<string, AdminPlan>;
   alternativePlanId: string | null;
 };
 
@@ -178,14 +181,20 @@ async function buildCompanyRows(
   const employeeMap = new Map(memberAgg.map((item) => [String(item._id), item.employees]));
   const paymentMap = new Map(paymentAgg.map((item) => [String(item._id), item]));
   const meetingMap = new Map(meetingAgg.map((item) => [String(item._id), item]));
+  await ensurePlanCatalog();
+  const planDocs = await Plan.find({ identifier: { $in: [...new Set(subscriptions.map((item) => item.planId))] } })
+    .select("identifier name monthlyMeetingLimit")
+    .lean();
+  const planNameMap = new Map(planDocs.map((item) => [String(item.identifier), item.name]));
+  const planLimitMap = new Map(planDocs.map((item) => [String(item.identifier), Number(item.monthlyMeetingLimit ?? 0)]));
   const requestMap = new Map(requestAgg.map((item) => [String(item._id), item.meetingUsers]));
 
   return companies.map((company) => {
     const id = String(company._id);
     const subscription = subscriptionMap.get(id);
-    const plan = getPlan(subscription?.planId);
+    const planName = subscription?.planId ? planNameMap.get(String(subscription.planId)) : undefined;
     const monthlyUsed = subscription?.monthlyMeetingsUsed ?? 0;
-    const planLimit = plan?.monthlyMeetingLimit ?? 0;
+    const planLimit = subscription?.entitlementSnapshot?.monthlyMeetingLimit ?? (subscription?.planId ? planLimitMap.get(String(subscription.planId)) ?? 0 : 0);
 
     return {
       id,
@@ -200,7 +209,7 @@ async function buildCompanyRows(
         return owner ? { id: String(owner._id), name: owner.name, email: owner.email } : null;
       })(),
       planId: subscription?.planId ?? null,
-      planName: plan?.name ?? "No plan",
+      planName: planName ?? "No plan",
       periodEnd: subscription?.currentPeriodEnd ?? null,
       planLimit,
       monthlyMeetingsUsed: monthlyUsed,
@@ -253,6 +262,9 @@ export async function getAdminOverview() {
     ])
   ]);
 
+  await ensurePlanCatalog();
+  const catalogPlanIds = await Plan.find({}).select("identifier").limit(200).lean();
+
   return {
     totalCompanies,
     activeCompanies,
@@ -266,9 +278,9 @@ export async function getAdminOverview() {
     totalPayments: paymentCount,
     totalRevenue: paymentAggregate[0]?.total ?? 0,
     planMix: Object.fromEntries(
-      Object.keys(PLANS).map((id) => [
-        id,
-        planMix.find((item) => item._id === id)?.count ?? 0
+      catalogPlanIds.map((item) => [
+        String(item.identifier),
+        planMix.find((row) => row._id === item.identifier)?.count ?? 0
       ])
     ) as Record<string, number>
   };
@@ -347,10 +359,14 @@ export async function getAdminCompanyDetails(companyId: string) {
     }).select("name email").lean()).map((item) => [String(item._id), item])
   );
 
-  const currentPlan = getPlan(subscription?.planId);
+  const adminPlans = await listPlansForAdmin();
+  const plans = Object.fromEntries(
+    adminPlans.map((plan) => [plan.id, plan])
+  ) as Record<string, AdminPlan>;
+  const currentPlan = subscription?.planId ? plans[subscription.planId] : undefined;
   const alternativePlanId = currentPlan
-    ? Object.values(PLANS).find((plan) => plan.id !== currentPlan.id)?.id ?? null
-    : null;
+    ? adminPlans.find((plan) => plan.id !== currentPlan.id && !plan.archivedAt)?.id ?? null
+    : adminPlans.find((plan) => !plan.archivedAt)?.id ?? null;
 
   return {
     ...baseRow,
@@ -422,8 +438,8 @@ export async function getAdminCompanyDetails(companyId: string) {
           }
         : null
     })),
-    plans: PLANS,
-    alternativePlanId: alternativePlanId ?? (currentPlan ? Object.values(PLANS).find((plan) => plan.id !== currentPlan.id)?.id ?? null : null)
+    plans,
+    alternativePlanId
   } satisfies AdminCompanyDetails;
 }
 

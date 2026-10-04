@@ -1,12 +1,14 @@
 import { getMongo } from "@/lib/mongodb";
-import { PLANS, type PlanEntitlements, type PlanId } from "@/lib/plans";
+import { type PlanEntitlements, type PlanId } from "@/lib/plans";
+import { createEntitlementSnapshot, getManagedPlan, isValidEntitlementSnapshot } from "@/lib/plan-catalog";
+import { refundRazorpayPayment } from "@/lib/razorpay";
 import { Company } from "@/models/company";
 import { Invoice } from "@/models/invoice";
 import { Payment } from "@/models/payment";
 import { Subscription } from "@/models/subscription";
 import { Workspace } from "@/models/workspace";
 import { buildInvoiceSnapshots, type InvoiceTaxSnapshot } from "@/lib/invoicing";
-import { reconcileLatestPaidAccess } from "@/lib/plans-server";
+import { getCompanyEntitlements, reconcileLatestPaidAccess } from "@/lib/plans-server";
 
 function addValidityDays(from: Date, days: number) {
   const result = new Date(from);
@@ -115,14 +117,35 @@ async function createOrUpdateAccessInvoice({
 export async function activatePaidPlan(paymentId: string) {
   const db = await getMongo();
   const tx = await db.startSession();
+  let paymentForRefund: string | null = null;
 
   try {
     await tx.withTransaction(async () => {
       const payment = await Payment.findById(paymentId).session(tx);
       if (!payment) throw new Error("PAYMENT_NOT_FOUND");
 
-      const plan = PLANS[payment.planId as PlanId];
+      if (payment.status === "REFUNDED") throw new Error("PAYMENT_REFUNDED");
+
+      const catalogPlan = await getManagedPlan(payment.planId, { includeArchived: true });
+      const checkoutSnapshot = isValidEntitlementSnapshot(payment.checkoutPlanSnapshot)
+        ? createEntitlementSnapshot(payment.checkoutPlanSnapshot)
+        : null;
+      const plan: PlanEntitlements | null = checkoutSnapshot ?? catalogPlan;
       if (!plan || !plan.requiresPayment) throw new Error("PLAN_NOT_FOUND");
+
+      // A new checkout is tied to the exact catalog revision used to price it.
+      // If status or checkout-critical configuration changed before capture,
+      // do not grant the payment. The caller will refund the captured payment.
+      if (
+        payment.planRevision != null &&
+        (!catalogPlan ||
+          catalogPlan.archivedAt ||
+          catalogPlan.status !== "PUBLIC" ||
+          catalogPlan.revision !== payment.planRevision)
+      ) {
+        paymentForRefund = payment.providerPaymentId?.trim() || null;
+        throw new Error("PLAN_CONFIGURATION_CHANGED");
+      }
 
       if (payment.merchantAccount && payment.merchantAccount !== "CONVENTUS") {
         throw new Error("PAYMENT_MERCHANT_INVALID");
@@ -241,6 +264,7 @@ export async function activatePaidPlan(paymentId: string) {
           {
             $set: {
               planId: plan.id,
+              entitlementSnapshot: createEntitlementSnapshot(plan),
               source: "PAID",
               status: "ACTIVE",
               currentPeriodStart: periodStart,
@@ -280,7 +304,12 @@ export async function activatePaidPlan(paymentId: string) {
         },
         plan,
         amount: captured.amount,
-        taxSnapshot
+        taxSnapshot,
+        discount: {
+          type: captured.discountType ?? "NONE",
+          value: captured.discountValue ?? 0,
+          amountMinor: captured.discountAmount ?? 0
+        }
       });
 
       const invoiceNumber =
@@ -328,6 +357,24 @@ export async function activatePaidPlan(paymentId: string) {
         );
       }
     });
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "PAYMENT_ACTIVATION_FAILED";
+    if (paymentForRefund && code === "PLAN_CONFIGURATION_CHANGED") {
+      try {
+        await refundRazorpayPayment(paymentForRefund);
+        await Payment.updateOne(
+          { _id: paymentId, status: { $in: ["PENDING", "CAPTURED"] } },
+          {
+            $set: { status: "REFUNDED", failureReason: code },
+            $unset: { checkoutKey: "" }
+          }
+        );
+      } catch {
+        // Keep the payment unactivated so the provider webhook can retry the
+        // refund path. Never mark a payment refunded before the provider does.
+      }
+    }
+    throw error;
   } finally {
     await tx.endSession();
   }
@@ -338,8 +385,9 @@ export async function grantCompanyPlan(
   planId: PlanId,
   adminUserId: string
 ) {
-  const plan = PLANS[planId];
+  const plan = await getManagedPlan(planId, { includeArchived: true });
   if (!plan) throw new Error("PLAN_NOT_FOUND");
+  if (plan.archivedAt) throw new Error("PLAN_ARCHIVED");
 
   await getMongo();
   const company = await Company.findById(companyId).lean();
@@ -391,8 +439,7 @@ export async function ensureCurrentAccessInvoice(companyId: string) {
 
   if (!company || !subscription) return null;
 
-  const plan = PLANS[subscription.planId as PlanId];
-  if (!plan) return null;
+  const plan = await getCompanyEntitlements(companyId);
   if (!["FREE", "ADMIN_GRANTED"].includes(subscription.source)) return null;
 
   return createOrUpdateAccessInvoice({
@@ -419,20 +466,15 @@ export async function ensureInvoicesForCapturedPayments(companyId: string) {
   let createdOrUpdated = 0;
 
   for (const payment of payments) {
-    const plan = PLANS[payment.planId as PlanId];
+    const plan = await getManagedPlan(payment.planId, { includeArchived: true });
     if (!plan) continue;
 
     const issuedAt = payment.paidAt ?? payment.createdAt ?? new Date();
     const existing = await Invoice.findOne({ paymentId: payment._id }).lean();
-    const hasCompleteSnapshot = Boolean(
-      existing?.merchantSnapshot?.name &&
-      existing?.merchantSnapshot?.description &&
-      existing?.merchantSnapshot?.logoUrl &&
-      existing?.planSnapshot?.name &&
-      existing?.taxSnapshot
-    );
 
-    if (existing && existing.source === "PAID" && hasCompleteSnapshot) continue;
+    // Issued invoices are immutable. Missing historical invoices may be created,
+    // but an existing invoice is never rewritten after a plan catalog edit.
+    if (existing) continue;
 
     const billingPeriodStart = existing?.billingPeriodStart ?? issuedAt;
     const billingPeriodEnd =
@@ -457,7 +499,12 @@ export async function ensureInvoicesForCapturedPayments(companyId: string) {
       },
       plan,
       amount: payment.amount,
-      taxSnapshot
+      taxSnapshot,
+      discount: {
+        type: payment.discountType ?? "NONE",
+        value: payment.discountValue ?? 0,
+        amountMinor: payment.discountAmount ?? 0
+      }
     });
 
     const invoiceNumber =
@@ -467,7 +514,7 @@ export async function ensureInvoicesForCapturedPayments(companyId: string) {
     await Invoice.findOneAndUpdate(
       { paymentId: payment._id },
       {
-        $set: {
+        $setOnInsert: {
           companyId: payment.companyId,
           paymentId: payment._id,
           source: "PAID",

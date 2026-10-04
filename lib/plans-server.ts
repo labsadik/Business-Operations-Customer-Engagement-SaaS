@@ -1,4 +1,10 @@
-import { getPlan, type PlanEntitlements } from "@/lib/plans";
+import { type PlanEntitlements } from "@/lib/plans";
+import {
+  createEntitlementSnapshot,
+  getManagedPlan,
+  isValidEntitlementSnapshot,
+  resolvePlanEntitlementsForSubscription
+} from "@/lib/plan-catalog";
 import { Subscription } from "@/models/subscription";
 import { Payment } from "@/models/payment";
 import { Workspace } from "@/models/workspace";
@@ -20,9 +26,18 @@ function utcDayKey(date = new Date()) {
   return date.toISOString().slice(0, 10);
 }
 
+function paymentEntitlementSnapshot(payment: any): PlanEntitlements | null {
+  if (isValidEntitlementSnapshot(payment?.checkoutPlanSnapshot)) {
+    return createEntitlementSnapshot(payment.checkoutPlanSnapshot);
+  }
+  return null;
+}
+
 /**
  * Reconciles access only from a payment that is already CAPTURED.
  * PENDING/FAILED records are never allowed to grant paid entitlements.
+ * Stored checkout snapshots are preferred so catalog edits do not silently
+ * change historical paid access.
  */
 export async function reconcileLatestPaidAccess(companyId: string) {
   const [subscription, latestPayment] = await Promise.all([
@@ -40,10 +55,18 @@ export async function reconcileLatestPaidAccess(companyId: string) {
 
   if (!latestPayment) return subscription;
 
-  const plan = getPlan(latestPayment.planId);
+  const plan =
+    paymentEntitlementSnapshot(latestPayment) ??
+    await getManagedPlan(latestPayment.planId, { includeArchived: true });
+
   if (!plan?.requiresPayment) return subscription;
 
-  const activationStart = new Date(latestPayment.paidAt ?? latestPayment.activatedAt ?? latestPayment.createdAt ?? new Date());
+  const activationStart = new Date(
+    latestPayment.paidAt ??
+    latestPayment.activatedAt ??
+    latestPayment.createdAt ??
+    new Date()
+  );
   const periodEnd = addValidityDays(activationStart, plan.validityDays);
   const now = Date.now();
 
@@ -62,16 +85,19 @@ export async function reconcileLatestPaidAccess(companyId: string) {
     ["PAID", "ADMIN_GRANTED"].includes(subscription.source)
   );
   const paymentIsNewer = activationStart.getTime() > currentStart;
-  const planNeedsRepair = !subscription ||
+  const planNeedsRepair =
+    !subscription ||
     !currentAccessIsPaidOrGranted ||
     paymentIsNewer;
 
   if (planNeedsRepair) {
+    const entitlementSnapshot = createEntitlementSnapshot(plan);
     await Subscription.findOneAndUpdate(
       { companyId },
       {
         $set: {
           planId: plan.id,
+          entitlementSnapshot,
           source: "PAID",
           status: "ACTIVE",
           currentPeriodStart: activationStart,
@@ -99,12 +125,14 @@ async function ensureSubscription(companyId: string) {
   let subscription = await Subscription.findOne({ companyId });
 
   if (!subscription) {
-    const plan = getPlan("free")!;
+    const plan = await getManagedPlan("free", { includeArchived: true });
+    if (!plan) throw new Error("FREE_PLAN_NOT_CONFIGURED");
     const start = new Date();
 
     subscription = await Subscription.create({
       companyId,
       planId: plan.id,
+      entitlementSnapshot: createEntitlementSnapshot(plan),
       status: "ACTIVE",
       source: "FREE",
       currentPeriodStart: start,
@@ -121,13 +149,23 @@ async function ensureSubscription(companyId: string) {
     return subscription;
   }
 
+  if (!isValidEntitlementSnapshot(subscription.entitlementSnapshot)) {
+    await resolvePlanEntitlementsForSubscription(subscription);
+  }
+
   const now = new Date();
   if (subscription.currentPeriodEnd.getTime() <= now.getTime()) {
-    const plan = getPlan(subscription.planId);
-    const nextPlan = plan?.requiresPayment ? getPlan("free")! : plan!;
+    const currentPlan = await resolvePlanEntitlementsForSubscription(subscription);
+    const nextPlan = currentPlan.requiresPayment
+      ? await getManagedPlan("free", { includeArchived: true })
+      : currentPlan;
+
+    if (!nextPlan) throw new Error("FREE_PLAN_NOT_CONFIGURED");
+
     const start = now;
 
     subscription.planId = nextPlan.id;
+    subscription.entitlementSnapshot = createEntitlementSnapshot(nextPlan);
     subscription.source = nextPlan.id === "free" ? "FREE" : subscription.source;
     subscription.status = "ACTIVE";
     subscription.currentPeriodStart = start;
@@ -142,8 +180,6 @@ async function ensureSubscription(companyId: string) {
 
     await subscription.save();
 
-    // Workspace.planId is kept synchronized so legacy/read paths cannot
-    // expose a stale paid plan after the subscription has expired.
     await Workspace.updateOne(
       { companyId },
       { $set: { planId: nextPlan.id } }
@@ -163,18 +199,23 @@ export async function getCompanyEntitlements(companyId: string): Promise<PlanEnt
   await getMongo();
   await reconcileLatestPaidAccess(companyId);
   const subscription = await ensureSubscription(companyId);
-  return getPlan(subscription.planId) ?? getPlan("free")!;
+
+  if (isValidEntitlementSnapshot(subscription.entitlementSnapshot)) {
+    return createEntitlementSnapshot(subscription.entitlementSnapshot);
+  }
+
+  return resolvePlanEntitlementsForSubscription(subscription);
 }
 
 export async function assertFeatureAccess(companyId: string) {
-  await getMongo();
-  await reconcileLatestPaidAccess(companyId);
-  const subscription = await ensureSubscription(companyId);
-  const plan = getPlan(subscription.planId) ?? getPlan("free")!;
+  const plan = await getCompanyEntitlements(companyId);
+  const subscription = await getCompanySubscription(companyId);
 
   if (plan.id === "free") {
     const featureWindowEnd = new Date(subscription.currentPeriodStart);
-    featureWindowEnd.setDate(featureWindowEnd.getDate() + FREE_USAGE_LIMIT_DAYS);
+    featureWindowEnd.setDate(
+      featureWindowEnd.getDate() + (plan.freeFeatureDays ?? FREE_USAGE_LIMIT_DAYS)
+    );
 
     if (Date.now() >= featureWindowEnd.getTime()) {
       throw new Error("FREE_FEATURE_DAYS_EXHAUSTED");
@@ -191,7 +232,10 @@ export async function assertFeatureAccess(companyId: string) {
   return plan;
 }
 
-export async function assertMeetingCapacity(companyId: string, durationMinutes: number) {
+export async function assertMeetingCapacity(
+  companyId: string,
+  durationMinutes: number
+) {
   const plan = await assertFeatureAccess(companyId);
 
   if (durationMinutes > plan.maxMeetingDurationMinutes) {

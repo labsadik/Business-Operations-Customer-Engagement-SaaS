@@ -24,7 +24,7 @@ const invoiceSchema = new Schema(
       index: true
     },
     invoiceNumber: { type: String, required: true, unique: true, index: true },
-    planId: { type: String, enum: ["free", "starter", "elite", "pro", "plus"], required: true },
+    planId: { type: String, required: true, index: true, match: /^[a-z][a-z0-9_-]{1,63}$/ },
     providerOrderId: { type: String, default: "", index: true },
     providerPaymentId: { type: String, default: "", index: true },
     amount: { type: Number, required: true, min: 0 },
@@ -33,15 +33,22 @@ const invoiceSchema = new Schema(
     billingPeriodStart: { type: Date },
     billingPeriodEnd: { type: Date },
     serviceDescription: { type: String, required: true, default: "Conventus monthly scheduling service" },
+    discountType: { type: String, enum: ["NONE", "PERCENTAGE", "FIXED_AMOUNT"], default: "NONE" },
+    discountValue: { type: Number, min: 0, default: 0 },
+    discountAmount: { type: Number, min: 0, default: 0 },
     planSnapshot: {
+      id: { type: String, required: true, default: "" },
       name: { type: String, required: true, default: "" },
       priceInr: { type: Number, required: true, default: 0 },
+      maxWorkspaces: { type: Number, required: true, default: 1 },
+      maxCompanies: { type: Number, required: true, default: 1 },
       maxEmployees: { type: Number, required: true, default: 0 },
       monthlyMeetingLimit: { type: Number, required: true, default: 0 },
       maxMeetingDurationMinutes: { type: Number, required: true, default: 0 },
       maxConcurrentMeetings: { type: Number, required: true, default: 0 },
       validityDays: { type: Number, required: true, default: 30 },
-      freeFeatureDays: { type: Number, default: null }
+      freeFeatureDays: { type: Number, default: null },
+      requiresPayment: { type: Boolean, required: true, default: false }
     },
     merchantSnapshot: {
       name: { type: String, required: true },
@@ -74,5 +81,6 @@ const invoiceSchema = new Schema(
 );
 
 invoiceSchema.index({ companyId: 1, issuedAt: -1 });
+invoiceSchema.index({ planId: 1, issuedAt: -1 });
 
 export const Invoice = models.Invoice ?? model("Invoice", invoiceSchema);
