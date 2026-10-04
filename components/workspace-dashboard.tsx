@@ -980,13 +980,24 @@ export default function WorkspaceDashboard({
                 </button>
               </>
             )}
-            <Link
-              href={`/${data.company.slug}`}
-              className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 md:inline-flex"
-            >
-              <Globe2 className="size-4" />
-              Open public page
-            </Link>
+            {data.company.publicBookingEnabled ? (
+              <Link
+                href={`/${data.company.slug}`}
+                className="hidden items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 md:inline-flex"
+              >
+                <Globe2 className="size-4" />
+                Open live page
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => openModal("settings")}
+                className="hidden items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 md:inline-flex"
+              >
+                <Globe2 className="size-4" />
+                Prepare public page
+              </button>
+            )}
             <UserAvatar name={user.name} email={user.email} image={user.image} size={38} />
             <form action="/api/auth/logout" method="post">
               <button
@@ -1581,10 +1592,17 @@ export default function WorkspaceDashboard({
                 <Settings2 className="size-4" />
                 Company profile
               </Link>
-              <Link href={`/${data.company.slug}`} onClick={() => setActiveModal(null)} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                <Globe2 className="size-4" />
-                Open public page
-              </Link>
+              {data.company.publicBookingEnabled ? (
+                <Link href={`/${data.company.slug}`} onClick={() => setActiveModal(null)} className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">
+                  <Globe2 className="size-4" />
+                  Open live page
+                </Link>
+              ) : (
+                <button type="button" onClick={() => setActiveModal(null)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold text-slate-600">
+                  <Globe2 className="size-4" />
+                  Draft stays private
+                </button>
+              )}
             </div>
           </section>
 
