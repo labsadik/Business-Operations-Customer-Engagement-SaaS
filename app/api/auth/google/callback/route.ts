@@ -12,6 +12,7 @@ import { Workspace } from "@/models/workspace";
 import { Invitation } from "@/models/invitation";
 import { AvailabilityRule } from "@/models/availability-rule";
 import { clearGoogleAccessTokenCache } from "@/lib/google-calendar";
+import { googleAvatarUrl } from "@/lib/avatar";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -72,7 +73,7 @@ async function acceptPendingEmployeeInvitation(
     user = await User.create({
       email,
       name: googleUser.name || email.split("@")[0],
-      image: googleUser.picture,
+      image: googleAvatarUrl(googleUser.picture),
       role: "EMPLOYEE",
       googleSubject: googleUser.sub,
       googleEmail: email,
@@ -81,7 +82,7 @@ async function acceptPendingEmployeeInvitation(
   } else {
     user.set({
       name: googleUser.name || user.name,
-      image: googleUser.picture || user.image,
+      image: googleAvatarUrl(googleUser.picture),
       googleSubject: googleUser.sub,
       googleEmail: email,
       role: user.role === "PLATFORM_ADMIN" ? user.role : "EMPLOYEE",
@@ -216,7 +217,7 @@ export async function GET(request: Request) {
           $set: {
             name: googleUser.name || current.name,
             email: email,
-            image: googleUser.picture || current.image || "",
+            image: googleAvatarUrl(googleUser.picture),
             googleSubject: googleUser.sub,
             googleEmail: email,
             lastLoginAt: new Date()
@@ -268,7 +269,7 @@ export async function GET(request: Request) {
       if (membership) {
         user!.set({
           name: googleUser.name || user!.name,
-          image: googleUser.picture || user!.image,
+          image: googleAvatarUrl(googleUser.picture),
           googleSubject: googleUser.sub,
           googleEmail: email,
           lastLoginAt: new Date()
@@ -315,7 +316,7 @@ export async function GET(request: Request) {
         user = await User.create({
           email,
           name: googleUser.name || email.split("@")[0],
-          image: googleUser.picture,
+          image: googleAvatarUrl(googleUser.picture),
           role: "CUSTOMER",
           googleSubject: googleUser.sub,
           googleEmail: email,
@@ -324,7 +325,7 @@ export async function GET(request: Request) {
       } else {
         user.set({
           name: googleUser.name || user.name,
-          image: googleUser.picture || user.image,
+          image: googleAvatarUrl(googleUser.picture),
           googleSubject: googleUser.sub,
           googleEmail: email,
           role: user.role,
@@ -375,7 +376,7 @@ export async function GET(request: Request) {
         user = await User.create({
           email,
           name: googleUser.name || email.split("@")[0],
-          image: googleUser.picture,
+          image: googleAvatarUrl(googleUser.picture),
           role: "EMPLOYEE",
           googleSubject: googleUser.sub,
           googleEmail: email,
@@ -384,7 +385,7 @@ export async function GET(request: Request) {
       } else {
         user.set({
           name: googleUser.name || user.name,
-          image: googleUser.picture || user.image,
+          image: googleAvatarUrl(googleUser.picture),
           googleSubject: googleUser.sub,
           googleEmail: email,
           role: user.role === "PLATFORM_ADMIN" ? "PLATFORM_ADMIN" : "EMPLOYEE",
@@ -452,7 +453,7 @@ export async function GET(request: Request) {
       user = await User.create({
         email,
         name: googleUser.name || email.split("@")[0],
-        image: googleUser.picture,
+        image: googleAvatarUrl(googleUser.picture),
         role: "COMPANY_OWNER",
         googleSubject: googleUser.sub,
         googleEmail: email,
@@ -461,7 +462,7 @@ export async function GET(request: Request) {
     } else {
       user.set({
         name: googleUser.name || user.name,
-        image: googleUser.picture || user.image,
+        image: googleAvatarUrl(googleUser.picture),
         googleSubject: googleUser.sub,
         googleEmail: email,
         role: user.role,
