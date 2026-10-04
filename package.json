@@ -20,7 +20,16 @@
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "redis": "6.3.0",
-    "pdf-lib": "1.17.1"
+    "pdf-lib": "1.17.1",
+    "@axiomhq/js": "2.0.0",
+    "@axiomhq/logging": "0.4.1",
+    "@axiomhq/nextjs": "0.4.1",
+    "@microsoft/clarity": "1.0.2",
+    "mixpanel-browser": "2.83.0",
+    "@opentelemetry/auto-instrumentations-node": "0.80.0",
+    "@opentelemetry/exporter-trace-otlp-http": "0.222.0",
+    "@opentelemetry/resources": "2.11.0",
+    "@opentelemetry/sdk-node": "0.222.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.1",

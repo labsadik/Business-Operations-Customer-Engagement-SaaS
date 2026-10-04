@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import NavigationProgress from "@/components/navigation-progress";
 import CookieConsent from "@/components/cookie-consent";
+import AnalyticsProvider from "@/components/analytics-provider";
 import { getConfiguredPublicOrigin } from "@/lib/public-origin";
 import "./globals.css";
 
@@ -35,7 +36,9 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <NavigationProgress />
         </Suspense>
-        {children}
+        <AnalyticsProvider>
+          {children}
+        </AnalyticsProvider>
         <CookieConsent />
       </body>
     </html>
