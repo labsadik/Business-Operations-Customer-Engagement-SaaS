@@ -61,7 +61,7 @@ export default async function CompanyPublicPage({
       <PublicBookingHeader
         companyName={company.name}
         companySlug={company.slug}
-        logoUrl={company.logoUrl ?? ""}
+        logoUrl={displayLogoUrl}
         name={session?.role === "CUSTOMER" ? session.name : undefined}
         email={session?.role === "CUSTOMER" ? session.email : undefined}
         image={session?.role === "CUSTOMER" ? session.image : undefined}
@@ -76,10 +76,10 @@ export default async function CompanyPublicPage({
             <div className="max-w-3xl">
               <div className="flex items-start gap-4">
                 <div className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-2xl border border-blue-100 bg-blue-50 text-blue-700 shadow-sm sm:size-16">
-                  {company.logoUrl ? (
+                  {displayLogoUrl ? (
                     // Company-provided logo URLs are not constrained to the Next image allowlist.
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={company.logoUrl} alt="" className="size-full object-cover" />
+                    <img src={displayLogoUrl} alt="" className="size-full object-cover" />
                   ) : (
                     <Building2 className="size-6 sm:size-7" aria-hidden="true" />
                   )}
