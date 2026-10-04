@@ -194,13 +194,12 @@ export default function AdminPlans() {
   } | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
     try {
       const response = await fetch("/api/admin/plans", { cache: "no-store" });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.error || "PLAN_LIST_FAILED");
       setItems(body.data?.items ?? []);
+      setError("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "PLAN_LIST_FAILED");
     } finally {
