@@ -69,8 +69,14 @@ export default function AdminFeedback() {
     }
   }, [page, source, rating, companyId, reviewStatus, date]);
 
-  useEffect(() => { void load(); }, [load]);
-  useEffect(() => { void loadCompanies(); }, [loadCompanies]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void loadCompanies(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadCompanies]);
 
   async function setStatus(id: string, next: FeedbackItem["reviewStatus"]) {
     if (savingId) return;
