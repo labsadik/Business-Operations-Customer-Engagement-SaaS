@@ -70,8 +70,16 @@ export async function eligibleEmployees(
       companyId,
       assignedEmployeeId: { $in: employeeIds },
       status: { $in: ACTIVE_BOOKING_STATUSES },
-      requestedStartAt: { $lt: endAt },
-      requestedEndAt: { $gt: startAt }
+      requestedStartAt: {
+        $lt: new Date(
+          endAt.getTime() + (options.bufferAfterMinutes ?? 0) * 60_000
+        )
+      },
+      requestedEndAt: {
+        $gt: new Date(
+          startAt.getTime() - (options.bufferBeforeMinutes ?? 0) * 60_000
+        )
+      }
     })
       .select("assignedEmployeeId requestedStartAt requestedEndAt")
       .lean()
@@ -140,7 +148,11 @@ export async function eligibleEmployees(
       }
 
       try {
-        const freeBusy = await queryFreeBusy(userId, startAt, endAt);
+        const freeBusy = await queryFreeBusy(
+          userId,
+          new Date(startAt.getTime() - (options.bufferBeforeMinutes ?? 0) * 60_000),
+          new Date(endAt.getTime() + (options.bufferAfterMinutes ?? 0) * 60_000)
+        );
         const busyIntervals: TimeInterval[] = (
           freeBusy.calendars?.primary?.busy ?? []
         ).map((item) => ({
