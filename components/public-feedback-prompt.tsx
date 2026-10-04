@@ -117,9 +117,11 @@ export default function PublicFeedbackPrompt({
     } catch (error) {
       const code = error instanceof Error ? error.message : "FEEDBACK_SUBMISSION_FAILED";
       setMessage(
-        code === "FEEDBACK_COOLDOWN_ACTIVE"
-          ? "Feedback was already submitted recently. Please try again later."
-          : "Feedback could not be submitted. Your text is still here, so you can try again."
+        code === "BOOKING_REQUIRED_FOR_FEEDBACK"
+          ? "You can give feedback after you have a confirmed meeting with this company."
+          : code === "FEEDBACK_COOLDOWN_ACTIVE"
+            ? "Feedback was already submitted recently. Please try again later."
+            : "Feedback could not be submitted. Your text is still here, so you can try again."
       );
     } finally {
       savingRef.current = false;
