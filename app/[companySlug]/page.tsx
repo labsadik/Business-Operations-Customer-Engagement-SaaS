@@ -11,6 +11,7 @@ import { MeetingType } from "@/models/meeting-type";
 import { getCompanyEntitlements } from "@/lib/plans-server";
 import { getMeetingDurationOptions } from "@/lib/plans";
 import PublicBooking from "@/components/public-booking";
+import PublicFeedbackEntry from "@/components/public-feedback-entry";
 import PublicBookingHeader from "@/components/public-booking-header";
 import { isDevelopmentOnlyUrl } from "@/lib/public-origin";
 
@@ -156,14 +157,20 @@ export default async function CompanyPublicPage({
         )}
 
         <section className="mt-5" aria-labelledby="booking-experience-title">
-          <div className="mb-3 flex items-center justify-between gap-3 px-1">
+          <div className="mb-3 flex flex-col gap-3 px-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-600">Availability</p>
               <h2 id="booking-experience-title" className="mt-1 text-lg font-semibold tracking-tight text-slate-950">Choose a time that works.</h2>
             </div>
-            <span className="hidden rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-medium text-slate-500 shadow-sm sm:inline-flex">
-              {workspace?.timezone || "Asia/Kolkata"}
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-medium text-slate-500 shadow-sm">
+                {workspace?.timezone || "Asia/Kolkata"}
+              </span>
+              <PublicFeedbackEntry
+                companySlug={company.slug}
+                authenticated={session?.role === "CUSTOMER"}
+              />
+            </div>
           </div>
 
           <PublicBooking
