@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { getTodayIso, zonedDateTimeToUtc } from "@/lib/timezone";
 import { playMeetingSound, unlockMeetingSound } from "@/lib/client-meeting-sound";
+import GoogleIntegrationNotice from "@/components/google-integration-notice";
 
 type Type = {
   id: string;
