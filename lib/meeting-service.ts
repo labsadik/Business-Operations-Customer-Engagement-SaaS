@@ -11,6 +11,7 @@ import {
 } from "@/lib/google-calendar";
 import { bookingErrorCode } from "@/lib/booking-errors";
 import { recordBookingActivity, releaseMeetingUsage } from "@/lib/booking-history";
+import type { Document } from "mongoose";
 
 function calendarEventIdForBooking(bookingId: string) {
   return `conventus${bookingId}`;
@@ -59,23 +60,31 @@ async function waitForGoogleMeet(
   throw new Error("GOOGLE_MEET_PENDING");
 }
 
+type BookingDocument = Document & {
+  companyId: unknown;
+  _id: unknown;
+  status: string;
+  expiresAt: Date;
+  assignedEmployeeId?: unknown;
+  nextRetryAt?: Date;
+  meetingCreationAttempts?: number;
+  meetingCreationStartedAt?: Date;
+  lastMeetingErrorCode?: string;
+};
+
+type MeetingDocument = Document & {
+  companyId: unknown;
+  _id: unknown;
+  googleCalendarEventId?: string;
+  employeeId: unknown;
+  status: string;
+  calendarSyncStatus: string;
+  googleMeetingUri?: string;
+};
+
 async function recordFailure(
-  booking: {
-    companyId: unknown;
-    _id: unknown;
-    status: string;
-    expiresAt: Date;
-    assignedEmployeeId?: unknown;
-    nextRetryAt?: Date;
-  },
-  meeting: {
-    companyId: unknown;
-    _id: unknown;
-    googleCalendarEventId?: string;
-    employeeId: unknown;
-    status: string;
-    calendarSyncStatus: string;
-  },
+  booking: BookingDocument,
+  meeting: MeetingDocument,
   error: unknown
 ) {
   const code = bookingErrorCode(error);
