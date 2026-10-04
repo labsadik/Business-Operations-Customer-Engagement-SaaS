@@ -30,19 +30,19 @@ export default function LandingPricingCarousel({
       setVisibleCount(large.matches ? 3 : media.matches ? 2 : 1);
     };
 
-    update();
+    const initial = window.setTimeout(update, 0);
     media.addEventListener("change", update);
     large.addEventListener("change", update);
+
     return () => {
+      window.clearTimeout(initial);
       media.removeEventListener("change", update);
       large.removeEventListener("change", update);
     };
   }, []);
 
-  useEffect(() => {
-    const maxStart = Math.max(0, plans.length - visibleCount);
-    setStartIndex((current) => Math.min(current, maxStart));
-  }, [plans.length, visibleCount]);
+  const maxStart = Math.max(0, plans.length - visibleCount);
+  const safeStartIndex = Math.min(startIndex, maxStart);
 
   const selected = useMemo(
     () => plans.find((plan) => plan.id === selectedId) ?? plans[0],
@@ -51,10 +51,9 @@ export default function LandingPricingCarousel({
 
   if (!selected || plans.length === 0) return null;
 
-  const maxStart = Math.max(0, plans.length - visibleCount);
-  const canPrevious = startIndex > 0;
-  const canNext = startIndex < maxStart;
-  const visiblePlans = plans.slice(startIndex, startIndex + visibleCount);
+  const canPrevious = safeStartIndex > 0;
+  const canNext = safeStartIndex < maxStart;
+  const visiblePlans = plans.slice(safeStartIndex, safeStartIndex + visibleCount);
   const checkoutHref = selected.requiresPayment
     ? "/login?returnTo=" + encodeURIComponent("/billing/checkout?plan=" + selected.id)
     : "/login";
