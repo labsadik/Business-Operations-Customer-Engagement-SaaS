@@ -75,7 +75,7 @@ test("public feedback is explicit, modal-based, and signed-out users keep their 
   assert.match(modal, /description\.length/);
   assert.match(modal, /Continue with Google/);
   assert.match(modal, /Escape/);
-  assert.match(modal, /event\.key === "Tab"/);
+  assert.match(modal, /event\.key !== "Tab"/);
   assert.match(modal, /document\.body\.style\.overflow = "hidden"/);
   assert.match(modal, /motion-reduce:animate-none/);
   assert.match(modal, /Sound off/);
@@ -107,7 +107,7 @@ test("workspace feedback is an explicit accessible modal and does not expose cus
   assert.match(modal, /maxLength=\{300\}/);
   assert.match(modal, /description\.length/);
   assert.match(modal, /event\.key === "Escape"/);
-  assert.match(modal, /event\.key === "Tab"/);
+  assert.match(modal, /event\.key !== "Tab"/);
   assert.match(modal, /document\.body\.style\.overflow = "hidden"/);
   assert.match(modal, /motion-reduce:animate-none/);
   assert.match(modal, /Sound off/);
