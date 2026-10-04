@@ -3,7 +3,7 @@ import { Meeting } from "@/models/meeting";
 import { User } from "@/models/user";
 import { requireCompanyMember } from "@/lib/authz";
 import { jsonError, jsonOk } from "@/lib/http";
-import { encodeHistoryCursor, decodeHistoryCursor } from "@/lib/booking-history";
+import { encodeHistoryCursor, decodeHistoryCursor } from "@/lib/history-cursor";
 import { Types } from "mongoose";
 
 export const runtime = "nodejs";
