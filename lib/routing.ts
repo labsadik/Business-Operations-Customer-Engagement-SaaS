@@ -28,6 +28,7 @@ export async function eligibleEmployees(
   options: {
     bufferBeforeMinutes?: number;
     bufferAfterMinutes?: number;
+    excludeBookingId?: string;
   } = {}
 ) {
   if (endAt <= startAt) return [];
@@ -68,6 +69,7 @@ export async function eligibleEmployees(
       .lean(),
     BookingRequest.find({
       companyId,
+      ...(options.excludeBookingId ? { _id: { $ne: options.excludeBookingId } } : {}),
       assignedEmployeeId: { $in: employeeIds },
       status: { $in: ACTIVE_BOOKING_STATUSES },
       requestedStartAt: {
