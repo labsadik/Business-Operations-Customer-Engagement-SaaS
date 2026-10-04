@@ -92,7 +92,7 @@ export async function GET(request: Request) {
       .sort({ createdAt: -1, _id: -1 })
       .skip((page - 1) * limit)
       .limit(limit + 1)
-      .select("_id source companyId submitterUserId bookingRequestId rating description reviewStatus createdAt")
+      .select("_id source companyId submitterUserId submitterName bookingRequestId rating description reviewStatus createdAt")
       .lean();
 
     const hasNext = raw.length > limit;
