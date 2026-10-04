@@ -10,6 +10,8 @@ import {
   ChevronRight,
   CircleDollarSign,
   LogOut,
+  MessageSquareText,
+  Megaphone,
   ShieldCheck,
   UsersRound,
   SlidersHorizontal
@@ -19,6 +21,8 @@ const nav = [
   { href: "/admin", label: "Overview", icon: BarChart3 },
   { href: "/admin/companies", label: "Companies", icon: Building2 },
   { href: "/admin/users", label: "Public users", icon: UsersRound },
+  { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
+  { href: "/admin/feedback", label: "Feedback", icon: MessageSquareText },
   { href: "/admin/access", label: "Admin access", icon: ShieldCheck },
   { href: "/admin/platform-settings", label: "Platform settings", icon: SlidersHorizontal }
 ] as const;
@@ -32,6 +36,8 @@ function pageTitle(pathname: string) {
   if (pathname.startsWith("/admin/companies/")) return "Company details";
   if (pathname.startsWith("/admin/companies")) return "Companies";
   if (pathname.startsWith("/admin/users")) return "Public users";
+  if (pathname.startsWith("/admin/announcements")) return "Announcements";
+  if (pathname.startsWith("/admin/feedback")) return "Feedback";
   if (pathname.startsWith("/admin/access")) return "Admin access";
   if (pathname.startsWith("/admin/platform-settings")) return "Platform settings";
   return "Overview";
