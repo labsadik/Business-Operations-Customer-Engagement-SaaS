@@ -13,6 +13,7 @@ export default function PublicFeedbackEntry({
   authenticated: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const closeFeedback = useCallback(() => setOpen(false), []);
 
   function openFeedback() {
     void playFeedbackSoundIfEnabled();
