@@ -101,13 +101,38 @@ export function getMeetingDurationOptions(
   planMaxMinutes: number,
   configured: number[] = []
 ) {
-  const configuredOptions = configured
-    .filter((minutes) => Number.isInteger(minutes) && minutes >= 5 && minutes <= planMaxMinutes)
+  if (!Number.isInteger(planMaxMinutes) || planMaxMinutes <= 0) return [];
+
+  return [...new Set(configured)]
+    .filter(
+      (minutes) =>
+        Number.isInteger(minutes) &&
+        minutes > 0 &&
+        minutes <= planMaxMinutes
+    )
     .sort((a, b) => a - b);
+}
 
-  const source = configuredOptions.length === 0 || (configuredOptions.length === 1 && configuredOptions[0] === 20)
-    ? STANDARD_MEETING_DURATIONS_MINUTES
-    : configuredOptions;
+export function resolveMeetingDuration(
+  planMaxMinutes: number,
+  configured: number[],
+  requestedDurationMinutes: number
+) {
+  const options = getMeetingDurationOptions(planMaxMinutes, configured);
 
-  return source.filter((minutes) => minutes <= planMaxMinutes);
+  if (options.length === 0) {
+    throw new Error("MEETING_DURATION_NOT_CONFIGURED");
+  }
+
+  if (
+    !Number.isInteger(requestedDurationMinutes) ||
+    !options.includes(requestedDurationMinutes)
+  ) {
+    throw new Error("INVALID_DURATION");
+  }
+
+  return {
+    durationMinutes: requestedDurationMinutes,
+    allowedDurationsMinutes: options
+  };
 }
