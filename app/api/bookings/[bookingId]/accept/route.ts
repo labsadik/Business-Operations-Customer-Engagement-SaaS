@@ -3,7 +3,6 @@ import { BookingRequest } from "@/models/booking-request";
 import { Meeting } from "@/models/meeting";
 import { MeetingType } from "@/models/meeting-type";
 import { Workspace } from "@/models/workspace";
-import { Membership } from "@/models/membership";
 import { requireCompanyMember } from "@/lib/authz";
 import { withRedisLock } from "@/lib/redis-lock";
 import { eligibleEmployees } from "@/lib/routing";
@@ -11,7 +10,7 @@ import { getCompanyEntitlements, assertFeatureAccess } from "@/lib/plans-server"
 import { resolveMeetingDuration } from "@/lib/plans";
 import { createMeetingForBooking } from "@/lib/meeting-service";
 import { jsonOk } from "@/lib/http";
-import { bookingJsonError, bookingErrorCode, friendlyBookingMessage } from "@/lib/booking-errors";
+import { bookingJsonError, bookingErrorCode } from "@/lib/booking-errors";
 import { recordBookingActivity, reserveMeetingUsage, releaseMeetingUsage } from "@/lib/booking-history";
 import { assertSameOrigin } from "@/lib/security";
 import { after } from "next/server";
