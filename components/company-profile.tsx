@@ -61,7 +61,13 @@ async function api<T>(url: string, init?: RequestInit) {
   return body.data as T;
 }
 
-export default function CompanyProfile({ user }: { user: { name: string; email: string; image?: string } }) {
+export default function CompanyProfile({
+  user,
+  currentRole
+}: {
+  user: { name: string; email: string; image?: string };
+  currentRole: string;
+}) {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [memberCount, setMemberCount] = useState(0);
   const [form, setForm] = useState<ProfileData | null>(null);
@@ -188,7 +194,7 @@ export default function CompanyProfile({ user }: { user: { name: string; email: 
         companyName={form.name}
         userName={user.name}
         userEmail={user.email}
-        currentRole="COMPANY_OWNER"
+        currentRole={currentRole}
         canManage
         activeProfile
       />
