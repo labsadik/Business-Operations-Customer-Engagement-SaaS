@@ -347,6 +347,7 @@ export default function WorkspaceDashboard({
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteLink, setInviteLink] = useState("");
   const [loading, setLoading] = useState(true);
+  const [nowMs, setNowMs] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [actingRequestId, setActingRequestId] = useState("");
@@ -369,10 +370,19 @@ export default function WorkspaceDashboard({
     : "free";
   const plan = PLANS[planId];
   const subscriptionSource = data?.subscription?.source ?? "FREE";
+  const subscriptionPeriodEndMs = data?.subscription?.periodEnd
+    ? Date.parse(data.subscription.periodEnd)
+    : Number.NaN;
+  const subscriptionPeriodActive = Boolean(
+    nowMs !== null &&
+    Number.isFinite(subscriptionPeriodEndMs) &&
+    subscriptionPeriodEndMs > nowMs
+  );
   const paidAccessActive = Boolean(
     data?.subscription &&
     ["PAID", "ADMIN_GRANTED"].includes(data.subscription.source) &&
-    data.subscription.status === "ACTIVE"
+    data.subscription.status === "ACTIVE" &&
+    subscriptionPeriodActive
   );
   const usagePercent = Math.min(
     100,
@@ -475,6 +485,22 @@ export default function WorkspaceDashboard({
       setBillingLoading(false);
     }
   }, [canManage]);
+
+  useEffect(() => {
+    const syncNow = () => setNowMs(Date.now());
+    syncNow();
+
+    const clock = window.setInterval(syncNow, 30_000);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") syncNow();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      window.clearInterval(clock);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, []);
 
   useEffect(() => {
     const initialLoad = window.setTimeout(() => void refreshAll(), 0);
@@ -1873,7 +1899,7 @@ export default function WorkspaceDashboard({
                         ) : (
                           <button
                             type="button"
-                            disabled={busy || isCurrent || paidAccessActive}
+                            disabled={busy || isCurrent || nowMs === null || paidAccessActive}
                             onClick={() => {
                               setBusy(true);
                               void api("/api/billing/free", { method: "POST" })
@@ -1883,7 +1909,13 @@ export default function WorkspaceDashboard({
                             }}
                             className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                           >
-                            {isCurrent ? "Current plan" : paidAccessActive ? "Available after expiry" : "Switch to Free"}
+                            {isCurrent
+                              ? "Current plan"
+                              : nowMs === null
+                                ? "Checking subscription…"
+                                : paidAccessActive
+                                  ? "Available after expiry"
+                                  : "Switch to Free"}
                           </button>
                         )}
                       </td>
