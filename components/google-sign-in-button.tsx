@@ -14,7 +14,7 @@ export default function GoogleSignInButton({
 
   return (
     <a
-      href={loading ? undefined : href}
+      href={href}
       aria-disabled={loading}
       aria-busy={loading}
       onClick={(event) => {
