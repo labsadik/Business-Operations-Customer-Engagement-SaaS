@@ -113,21 +113,6 @@ export default function WorkspaceFeedback({
   }, [open]);
 
   useEffect(() => {
-    if (!open) {
-      setRating(0);
-      setDescription("");
-      setError("");
-      setNotice("");
-      setSaving(false);
-      return;
-    }
-
-    setTab("platform");
-    setError("");
-    setNotice("");
-  }, [open, canSubmit]);
-
-  useEffect(() => {
     if (!open || !canViewCustomerFeedback) return;
 
     const timer = window.setTimeout(() => {
@@ -150,6 +135,12 @@ export default function WorkspaceFeedback({
 
   function close() {
     if (saving) return;
+    setRating(0);
+    setDescription("");
+    setError("");
+    setNotice("");
+    setSaving(false);
+    setTab("platform");
     onClose();
   }
 
