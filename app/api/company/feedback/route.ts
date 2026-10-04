@@ -16,20 +16,34 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function requireCompanyFeedbackManager() {
+async function requireCompanyFeedbackViewer() {
   const session = await getSession();
   if (!session) throw new Error("UNAUTHENTICATED");
-  if (!session.companyId || !canSeeCompanyPlatformFeedback(session.role)) {
+  if (!session.companyId) throw new Error("FORBIDDEN");
+
+  await getMongo();
+
+  if (session.role === "PLATFORM_ADMIN") {
+    if (!session.workspaceId) throw new Error("FORBIDDEN");
+    const workspace = await Workspace.findOne({
+      _id: session.workspaceId,
+      companyId: session.companyId,
+      active: true
+    }).select("_id").lean();
+    if (!workspace) throw new Error("FORBIDDEN");
+    return session;
+  }
+
+  if (!canSeeCompanyPlatformFeedback(session.role)) {
     throw new Error("FORBIDDEN");
   }
 
-  await getMongo();
   const membership = await Membership.findOne({
     companyId: session.companyId,
     userId: session.userId,
     active: true,
-    role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN"] }
-  }).select("_id").lean();
+    role: session.role
+  }).select("_id companyId workspaceId").lean();
 
   if (!membership) throw new Error("FORBIDDEN");
   return session;
@@ -99,7 +113,7 @@ async function serialize(items: Array<{
 
 export async function GET(request: Request) {
   try {
-    const session = await requireCompanyFeedbackManager();
+    const session = await requireCompanyFeedbackViewer();
     const rawLimit = Number(new URL(request.url).searchParams.get("limit") ?? "25");
     const limit = Number.isFinite(rawLimit) ? Math.min(50, Math.max(1, Math.floor(rawLimit))) : 25;
 
@@ -118,7 +132,7 @@ export async function GET(request: Request) {
       })
         .sort({ createdAt: -1, _id: -1 })
         .limit(limit)
-        .select("_id rating description createdAt reviewStatus submitterUserId")
+        .select("_id rating description createdAt reviewStatus submitterUserId submitterName")
         .lean()
     ]);
 
