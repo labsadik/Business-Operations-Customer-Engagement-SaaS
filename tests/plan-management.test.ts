@@ -106,3 +106,29 @@ test("public purchase eligibility is status-controlled, not client visibility co
 });
 
 
+
+
+test("custom identifiers normalize without changing the stable identity", () => {
+  const draft = validatePlanDraft({ ...baseDraft, identifier: "Growth_2026" });
+  assert.equal(draft.identifier, "growth_2026");
+});
+
+test("invalid price and discount boundaries are rejected server-side", () => {
+  assert.throws(() => validatePlanDraft({ ...baseDraft, priceInr: -1 }), /PLAN_PRICE_INVALID/);
+  assert.throws(() => validatePlanDraft({ ...baseDraft, priceInr: 10000001 }), /PLAN_PRICE_INVALID/);
+  assert.throws(
+    () => validatePlanDraft({ ...baseDraft, discountType: "PERCENTAGE", discountValue: 100.01 }),
+    /DISCOUNT_PERCENTAGE_INVALID/
+  );
+  assert.throws(
+    () => validatePlanDraft({ ...baseDraft, discountType: "FIXED_AMOUNT", discountValue: 1000.01 }),
+    /DISCOUNT_FIXED_INVALID/
+  );
+});
+
+test("unsupported plan statuses are rejected server-side", () => {
+  assert.throws(
+    () => validatePlanDraft({ ...baseDraft, status: "DRAFT" as never }),
+    /PLAN_STATUS_INVALID/
+  );
+});

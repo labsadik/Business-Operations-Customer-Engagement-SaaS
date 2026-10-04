@@ -43,7 +43,9 @@ function checkoutResponse(input: {
     merchant: PLATFORM_BRAND,
     logoUrl,
     pricing: {
-      baseAmount: payment.baseAmount,
+      baseAmount: payment.checkoutPlanSnapshot?.priceInr != null
+        ? Math.round(Number(payment.checkoutPlanSnapshot.priceInr) * 100)
+        : payment.baseAmount + (payment.discountAmount ?? 0),
       discountAmount: payment.discountAmount ?? 0,
       discountedBaseAmount: payment.baseAmount,
       gstAmount: payment.taxAmount,

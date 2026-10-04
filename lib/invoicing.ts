@@ -188,7 +188,8 @@ export async function buildInvoiceSnapshots(input: {
       maxMeetingDurationMinutes: input.plan.maxMeetingDurationMinutes,
       maxConcurrentMeetings: input.plan.maxConcurrentMeetings,
       validityDays: input.plan.validityDays,
-      freeFeatureDays: input.plan.freeFeatureDays
+      freeFeatureDays: input.plan.freeFeatureDays,
+      requiresPayment: input.plan.requiresPayment
     },
     serviceDescription: input.plan.id === "free"
       ? "Conventus Free plan access"

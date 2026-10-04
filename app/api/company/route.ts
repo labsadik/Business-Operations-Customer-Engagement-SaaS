@@ -12,7 +12,7 @@ import { jsonError, jsonOk } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
 import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
 import { invoiceTaxConfig } from "@/lib/invoicing";
-import { listPublicPlans, resolvePlanEntitlementsForSubscription, getManagedPlan } from "@/lib/plan-catalog";
+import { listPublicPlans, resolvePlanEntitlementsForSubscription, getManagedPlan, createEntitlementSnapshot } from "@/lib/plan-catalog";
 import { GoogleAccount } from "@/models/google-account";
 
 export const runtime = "nodejs";
@@ -142,7 +142,10 @@ export async function GET() {
   const connectedMemberCount = connectedAccounts.filter(isGoogleSchedulingReady).length;
   const memberCount = activeMembers.length;
   const freeFeatureEndsAt = subscription.planId === "free"
-    ? new Date(subscription.currentPeriodStart.getTime() + 14 * 24 * 60 * 60 * 1000)
+    ? new Date(
+        subscription.currentPeriodStart.getTime() +
+          (currentEntitlements.freeFeatureDays ?? 14) * 24 * 60 * 60 * 1000
+      )
     : null;
   const featureLocked = Boolean(freeFeatureEndsAt && freeFeatureEndsAt.getTime() <= Date.now());
 
@@ -248,9 +251,12 @@ export async function POST(request: Request) {
   const collision = await Company.findOne({ slug }).lean();
   if (collision) return jsonError("COMPANY_SLUG_TAKEN", 409);
 
+  const freePlan = await getManagedPlan("free", { includeArchived: true });
+  if (!freePlan) return jsonError("FREE_PLAN_NOT_CONFIGURED", 503);
+
   const now = new Date();
   const periodEnd = new Date(now);
-  periodEnd.setDate(periodEnd.getDate() + 30);
+  periodEnd.setDate(periodEnd.getDate() + freePlan.validityDays);
 
   const db = await getMongo();
   const tx = await db.startSession();
@@ -274,7 +280,8 @@ export async function POST(request: Request) {
 
       await Subscription.create([{
         companyId: company._id,
-        planId: "free",
+        planId: freePlan.id,
+        entitlementSnapshot: createEntitlementSnapshot(freePlan),
         source: "FREE",
         status: "ACTIVE",
         currentPeriodStart: now,

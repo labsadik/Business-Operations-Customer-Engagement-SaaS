@@ -33,7 +33,6 @@ import UserAvatar from "@/components/user-avatar";
 import MeetingResponseCountdown from "@/components/meeting-response-countdown";
 import RazorpayPlanButton from "@/components/razorpay-plan-button";
 import { playMeetingSound, unlockMeetingSound } from "@/lib/client-meeting-sound";
-import { PLANS } from "@/lib/plans";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
 import PublicPageShare from "@/components/public-page-share";
 import GoogleIntegrationNotice from "@/components/google-integration-notice";
@@ -433,7 +432,7 @@ export default function WorkspaceDashboard({
   const adminManaged = Boolean(data?.currentRole === "PLATFORM_ADMIN" && data.company?.id);
 
   const planId = data?.currentPlan?.id ?? data?.subscription?.planId ?? "free";
-  const plan = data?.currentPlan ?? PLANS[planId] ?? PLANS.free;
+  const plan = data?.currentPlan;
   const billingPlans = data
     ? [
         ...(data.currentPlan && !data.availablePlans.some((item) => item.id === data.currentPlan.id)
@@ -457,10 +456,12 @@ export default function WorkspaceDashboard({
     data.subscription.status === "ACTIVE" &&
     subscriptionPeriodActive
   );
-  const usagePercent = Math.min(
-    100,
-    Math.round(((data?.subscription?.monthlyMeetingsUsed ?? 0) / plan.monthlyMeetingLimit) * 100)
-  );
+  const usagePercent = plan
+    ? Math.min(
+        100,
+        Math.round(((data?.subscription?.monthlyMeetingsUsed ?? 0) / plan.monthlyMeetingLimit) * 100)
+      )
+    : 0;
   const readyCount = requests.filter(
     (item) => item.meeting?.status === "READY" && item.meeting.meetingUri
   ).length;
@@ -1053,6 +1054,8 @@ export default function WorkspaceDashboard({
       </main>
     );
   }
+
+  if (!plan) return <DashboardSkeleton />;
 
   const confirmationTitle =
     confirmation?.kind === "remove-employee"
