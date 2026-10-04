@@ -26,12 +26,12 @@ export default function PublicFeedbackPrompt({
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
-  const savingRef = useRef(false);
-  onCloseRef.current = onClose;
-  savingRef.current = saving;
   const [rating, setRating] = useState(0);
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  onCloseRef.current = onClose;
+  savingRef.current = saving;
   const [message, setMessage] = useState("");
   const [soundEnabled, setSoundEnabled] = useState(false);
 
