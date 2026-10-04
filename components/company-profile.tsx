@@ -188,9 +188,7 @@ export default function CompanyProfile({
   }
 
   if (loading || !form || !profile) {
-    const slugChanged = form.slug !== profile.slug;
-
-  return (
+    return (
       <main className="min-h-screen bg-[#faf9f1]">
         <div className="mx-auto max-w-5xl px-5 py-8 sm:px-6 lg:px-8">
           <div className="h-10 w-40 animate-pulse rounded-xl bg-slate-200" />
@@ -203,6 +201,8 @@ export default function CompanyProfile({
       </main>
     );
   }
+
+  const slugChanged = form.slug !== profile.slug;
 
   return (
     <main className="min-h-screen bg-[#faf9f1] text-slate-950">
