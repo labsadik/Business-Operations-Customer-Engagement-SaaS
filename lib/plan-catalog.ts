@@ -12,7 +12,6 @@ import {
   PLAN_STATUSES,
   validatePlanDraft,
   type PlanDiscountType,
-  type PlanDraftInput,
   type PlanPricing,
   type PlanStatus
 } from "@/lib/plan-rules";
@@ -24,6 +23,97 @@ export {
   PLAN_STATUSES,
   validatePlanDraft
 } from "@/lib/plan-rules";
+
+export type { PlanDiscountType, PlanPricing, PlanStatus } from "@/lib/plan-rules";
+
+export type ManagedPlan = PlanEntitlements & {
+  description: string;
+  status: PlanStatus;
+  popular: boolean;
+  recommended: boolean;
+  discountType: PlanDiscountType;
+  discountValue: number;
+  revision: number;
+  sortOrder: number;
+  archivedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  createdByUserId?: string;
+  updatedByUserId?: string;
+};
+
+export type PublicPlan = ManagedPlan & {
+  discountAmountInr: number;
+  finalPriceInr: number;
+};
+
+export type AdminPlan = ManagedPlan & {
+  activeSubscriptionCount: number;
+  paymentCount: number;
+  invoiceCount: number;
+};
+
+const LEGACY_DESCRIPTIONS: Record<string, string> = {
+  free: "A small workspace for trying the core scheduling workflow.",
+  starter: "For small teams that need reliable scheduling capacity.",
+  elite: "For growing teams with higher meeting and employee limits.",
+  pro: "For established teams running scheduling at higher volume.",
+  plus: "The highest standard capacity in the current Conventus catalog."
+};
+
+const seedPromiseState: { promise: Promise<void> | null } = { promise: null };
+
+function identifierFrom(value: unknown) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+export function createEntitlementSnapshot(plan: PlanEntitlements): PlanEntitlements {
+  return {
+    id: plan.id,
+    name: plan.name,
+    priceInr: plan.priceInr,
+    maxWorkspaces: plan.maxWorkspaces,
+    maxCompanies: plan.maxCompanies,
+    maxEmployees: plan.maxEmployees,
+    monthlyMeetingLimit: plan.monthlyMeetingLimit,
+    maxMeetingDurationMinutes: plan.maxMeetingDurationMinutes,
+    maxConcurrentMeetings: plan.maxConcurrentMeetings,
+    validityDays: plan.validityDays,
+    freeFeatureDays: plan.freeFeatureDays,
+    requiresPayment: plan.requiresPayment
+  };
+}
+
+export function isValidEntitlementSnapshot(value: unknown): value is PlanEntitlements {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Record<string, unknown>;
+
+  return (
+    typeof item.id === "string" &&
+    typeof item.name === "string" &&
+    typeof item.priceInr === "number" &&
+    Number.isFinite(item.priceInr) &&
+    Number.isSafeInteger(item.maxWorkspaces) &&
+    item.maxWorkspaces >= 1 &&
+    Number.isSafeInteger(item.maxCompanies) &&
+    item.maxCompanies >= 1 &&
+    Number.isSafeInteger(item.maxEmployees) &&
+    item.maxEmployees >= 1 &&
+    Number.isSafeInteger(item.monthlyMeetingLimit) &&
+    item.monthlyMeetingLimit >= 1 &&
+    Number.isSafeInteger(item.maxMeetingDurationMinutes) &&
+    item.maxMeetingDurationMinutes >= 1 &&
+    Number.isSafeInteger(item.maxConcurrentMeetings) &&
+    item.maxConcurrentMeetings >= 1 &&
+    Number.isSafeInteger(item.validityDays) &&
+    item.validityDays >= 1 &&
+    (
+      item.freeFeatureDays === null ||
+      (Number.isSafeInteger(item.freeFeatureDays) && item.freeFeatureDays >= 0)
+    ) &&
+    typeof item.requiresPayment === "boolean"
+  );
+}
 
 export function serializeManagedPlan(doc: any): ManagedPlan {
   return {
@@ -113,10 +203,6 @@ export async function getManagedPlan(identifier: string, options: { includeArchi
     ...(options.includeArchived ? {} : { archivedAt: null })
   }).lean();
   return doc ? serializeManagedPlan(doc) : null;
-}
-
-export function isPlanPubliclyPurchasable(plan: { status: PlanStatus; archivedAt: Date | null }) {
-  return plan.status === "PUBLIC" && plan.archivedAt === null;
 }
 
 export async function getPlanForCheckout(identifier: string) {
