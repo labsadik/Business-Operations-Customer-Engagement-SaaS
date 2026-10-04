@@ -63,6 +63,7 @@ export default async function CompanyPublicPage({
         companySlug={company.slug}
         name={session?.role === "CUSTOMER" ? session.name : undefined}
         email={session?.role === "CUSTOMER" ? session.email : undefined}
+        image={session?.role === "CUSTOMER" ? session.image : undefined}
         authenticated={session?.role === "CUSTOMER"}
       />
 
