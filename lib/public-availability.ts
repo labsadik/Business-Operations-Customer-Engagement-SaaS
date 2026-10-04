@@ -147,7 +147,6 @@ export async function getAvailableSlots(
     employeeBookingIntervals.set(employeeId, current);
   }
 
-  let schedulingReadyMemberCount = 0;
   let scheduleConfiguredMemberCount = 0;
   let calendarErrorCount = 0;
 
@@ -185,8 +184,6 @@ export async function getAvailableSlots(
           slots: [] as Slot[]
         };
       }
-
-      schedulingReadyMemberCount += 1;
 
       let freeBusy;
       try {
