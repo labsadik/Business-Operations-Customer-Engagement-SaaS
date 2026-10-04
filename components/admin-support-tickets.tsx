@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CheckCircle2,
   ChevronLeft,
@@ -97,6 +97,8 @@ export default function AdminSupportTickets() {
   const [savingId, setSavingId] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const detailDialogRef = useRef<HTMLDivElement | null>(null);
+  const detailCloseRef = useRef<HTMLButtonElement | null>(null);
 
   const loadCompanies = useCallback(async () => {
     try {
@@ -145,6 +147,46 @@ export default function AdminSupportTickets() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, [loadCompanies]);
+
+  useEffect(() => {
+    if (!selected) return;
+
+    const focusTimer = window.setTimeout(() => detailCloseRef.current?.focus(), 0);
+
+    function onDetailKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setSelected(null);
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const root = detailDialogRef.current;
+      if (!root) return;
+      const focusable = Array.from(
+        root.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), select:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled])'
+        )
+      );
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    window.addEventListener("keydown", onDetailKeyDown);
+    return () => {
+      window.clearTimeout(focusTimer);
+      window.removeEventListener("keydown", onDetailKeyDown);
+    };
+  }, [selected]);
 
   async function openDetail(id: string) {
     setDetailLoading(true);
@@ -365,6 +407,7 @@ export default function AdminSupportTickets() {
           }}
         >
           <div
+            ref={detailDialogRef}
             className="max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-[1.75rem] border border-slate-200 bg-white shadow-2xl"
             role="dialog"
             aria-modal="true"
@@ -376,6 +419,7 @@ export default function AdminSupportTickets() {
                 <h2 id="admin-support-ticket-title" className="mt-1 text-xl font-semibold tracking-tight text-slate-950">{selected.subject}</h2>
               </div>
               <button
+                ref={detailCloseRef}
                 type="button"
                 onClick={() => setSelected(null)}
                 className="grid size-9 shrink-0 place-items-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"
