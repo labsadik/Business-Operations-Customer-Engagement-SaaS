@@ -50,7 +50,7 @@ export async function POST(
         let employeeId: string | null = null;
 
         try {
-          let result: { bookingId: string; status: "COMPLETED"; calendarEventRemoved: boolean } | undefined;
+          let response: { bookingId: string; status: "COMPLETED"; calendarEventRemoved: boolean } | undefined;
           await tx.withTransaction(async () => {
             const meeting = await Meeting.findOne({
               bookingRequestId: bookingId,
@@ -110,14 +110,15 @@ export async function POST(
             calendarEventId = meeting.googleCalendarEventId ?? null;
             employeeId = String(meeting.employeeId);
 
-            result = {
+            response = {
               bookingId,
               status: "COMPLETED",
               calendarEventRemoved: true
             };
           });
 
-          return result;
+          if (!response) throw new Error("MEETING_END_FAILED");
+          return { response, calendarEventId, employeeId };
         } finally {
           await tx.endSession();
         }
@@ -133,11 +134,11 @@ export async function POST(
           { bookingRequestId: bookingId, companyId: session.companyId, status: "COMPLETED" },
           { $set: { calendarSyncStatus: "FAILED" } }
         );
-        result.calendarEventRemoved = false;
+        result.response.calendarEventRemoved = false;
       }
     }
 
-    return jsonOk(result);
+    return jsonOk(result.response);
   } catch (error) {
     const code = error instanceof Error ? error.message : "MEETING_END_FAILED";
     const status =
