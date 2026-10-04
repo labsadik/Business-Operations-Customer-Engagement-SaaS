@@ -58,24 +58,32 @@ function wrapText(text: string, font: PDFFont, size: number, maxWidth: number) {
   if (!normalized) return ["-"];
 
   const lines: string[] = [];
-  for (const token of normalized.split(" ")) {
-    const chunks = font.widthOfTextAtSize(token, size) <= maxWidth
-      ? [token]
-      : splitLongToken(token, font, size, maxWidth);
+  let current = "";
 
-    for (const chunk of chunks) {
-      const candidate = lines.length === 0 ? chunk : lines[lines.length - 1] + " " + chunk;
-      if (lines.length > 0 && font.widthOfTextAtSize(candidate, size) > maxWidth) {
-        lines.push(chunk);
-      } else if (lines.length === 0) {
-        lines.push(chunk);
-      } else {
-        lines[lines.length - 1] = candidate;
+  for (const token of normalized.split(" ")) {
+    if (font.widthOfTextAtSize(token, size) > maxWidth) {
+      if (current) {
+        lines.push(current);
+        current = "";
       }
+
+      const chunks = splitLongToken(token, font, size, maxWidth);
+      lines.push(...chunks.slice(0, -1));
+      current = chunks[chunks.length - 1] || "";
+      continue;
+    }
+
+    const candidate = current ? current + " " + token : token;
+    if (current && font.widthOfTextAtSize(candidate, size) > maxWidth) {
+      lines.push(current);
+      current = token;
+    } else {
+      current = candidate;
     }
   }
 
-  return lines;
+  if (current) lines.push(current);
+  return lines.length ? lines : ["-"];
 }
 
 function drawText(
@@ -217,9 +225,9 @@ function partyDetails(
   for (const value of lines) {
     const wrapped = wrapText(value, regular, 7.5, width - 28);
     wrapped.forEach((line, index) => {
-      drawText(page, line, x + 14, y - index * 8.1, regular, 7.1, MUTED);
+      drawText(page, line, x + 14, y - index * 7.8, regular, 6.9, MUTED);
     });
-    y -= wrapped.length * 8.1 + 1;
+    y -= wrapped.length * 7.8 + 1;
   }
 }
 
