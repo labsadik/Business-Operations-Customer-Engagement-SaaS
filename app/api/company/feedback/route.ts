@@ -3,6 +3,7 @@ import { getMongo } from "@/lib/mongodb";
 import { Feedback } from "@/models/feedback";
 import { User } from "@/models/user";
 import { Membership } from "@/models/membership";
+import { Workspace } from "@/models/workspace";
 import { getSession } from "@/lib/session";
 import { withRedisLock } from "@/lib/redis-lock";
 import { assertSameOrigin } from "@/lib/security";
@@ -32,6 +33,41 @@ async function requireCompanyFeedbackManager() {
 
   if (!membership) throw new Error("FORBIDDEN");
   return session;
+}
+
+async function requireCompanyFeedbackMember() {
+  const session = await getSession();
+  if (!session) throw new Error("UNAUTHENTICATED");
+  if (
+    !session.companyId ||
+    !["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"].includes(session.role)
+  ) {
+    throw new Error("FORBIDDEN");
+  }
+
+  await getMongo();
+  const membership = await Membership.findOne({
+    companyId: session.companyId,
+    userId: session.userId,
+    active: true,
+    role: session.role
+  }).select("_id companyId workspaceId").lean();
+
+  if (!membership) throw new Error("FORBIDDEN");
+
+  const workspace = await Workspace.findOne({
+    _id: membership.workspaceId,
+    companyId: membership.companyId,
+    active: true
+  }).select("_id").lean();
+
+  if (!workspace) throw new Error("FORBIDDEN");
+
+  return {
+    session,
+    companyId: String(membership.companyId),
+    workspaceId: String(membership.workspaceId)
+  };
 }
 
 async function serialize(items: Array<{
@@ -96,7 +132,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
-    const session = await requireCompanyFeedbackManager();
+    const { session, companyId, workspaceId } = await requireCompanyFeedbackMember();
     const body = await request.json().catch(() => null) as {
       rating?: unknown;
       description?: unknown;
@@ -109,7 +145,7 @@ export async function POST(request: Request) {
       async () => {
         const recent = await Feedback.findOne({
           source: "COMPANY_PLATFORM",
-          companyId: session.companyId,
+          companyId,
           submitterUserId: session.userId,
           createdAt: { $gte: new Date(Date.now() - 10 * 60 * 1000) }
         }).select("_id").lean();
@@ -118,7 +154,8 @@ export async function POST(request: Request) {
 
         return Feedback.create({
           source: "COMPANY_PLATFORM",
-          companyId: new Types.ObjectId(session.companyId),
+          companyId: new Types.ObjectId(companyId),
+          workspaceId: new Types.ObjectId(workspaceId),
           submitterUserId: new Types.ObjectId(session.userId),
           rating: input.rating,
           description: input.description,
