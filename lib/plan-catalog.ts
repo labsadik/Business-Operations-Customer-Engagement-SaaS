@@ -165,7 +165,8 @@ function legacyPlanCandidateQuery(id: string, plan: PlanEntitlements) {
         $or: [
           { identifier: { $exists: false } },
           { identifier: null },
-          { identifier: "" }
+          { identifier: "" },
+          { identifier: "undefined" }
         ]
       }
     ]
