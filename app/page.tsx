@@ -178,8 +178,8 @@ export default async function Home() {
           title: item.title,
           message: item.message,
           audience: item.audience,
-          publishedAt: item.publishedAt ?? null,
-          createdAt: item.createdAt
+          publishedAt: item.publishedAt?.toISOString() ?? null,
+          createdAt: item.createdAt.toISOString()
         }))}
         endpoint=""
         scope="landing"
