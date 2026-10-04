@@ -6,11 +6,37 @@ import { jsonOk } from "@/lib/http";
 import { bookingJsonError, bookingErrorCode } from "@/lib/booking-errors";
 import { recordBookingActivity, releaseMeetingUsage } from "@/lib/booking-history";
 import { assertSameOrigin } from "@/lib/security";
+import { classifyDecline } from "@/lib/booking-action-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type Session = { userId: string; companyId?: string; role: string };
+
+
+function declineDecisionError(decision: ReturnType<typeof classifyDecline>) {
+  switch (decision.kind) {
+    case "ALREADY_ASSIGNED":
+      return "BOOKING_ALREADY_ASSIGNED";
+    case "ALREADY_CONFIRMED":
+      return "BOOKING_ALREADY_CONFIRMED";
+    case "EXPIRED":
+      return "BOOKING_EXPIRED";
+    case "COMPLETED":
+      return "BOOKING_ALREADY_COMPLETED";
+    case "CANCELLED":
+      return "BOOKING_CANCELLED";
+    case "FAILED":
+      return "BOOKING_FAILED";
+    case "IDEMPOTENT_PROCESSING":
+    case "ELIGIBLE":
+      return null;
+    case "NO_LONGER_AVAILABLE":
+      return "BOOKING_NO_LONGER_AVAILABLE";
+    case "DECLINED_BY_EMPLOYEE":
+      return null;
+  }
+}
 
 export async function POST(
   _request: Request,
@@ -54,15 +80,15 @@ export async function POST(
 
         if (!current) throw new Error("BOOKING_NOT_FOUND");
 
-        const alreadyDeclined = current.declinedBy?.some(
-          (id) => String(id) === session.userId
-        );
+        const decision = classifyDecline({
+          status: current.status,
+          assignedEmployeeId: current.assignedEmployeeId,
+          declinedBy: current.declinedBy,
+          expiresAt: current.expiresAt,
+          userId: session.userId
+        });
 
-        if (
-          alreadyDeclined &&
-          ["REQUESTED", "RETRYING"].includes(current.status) &&
-          current.expiresAt.getTime() > Date.now()
-        ) {
+        if (decision.kind === "IDEMPOTENT_PROCESSING") {
           return {
             bookingId,
             status: current.status,
@@ -70,16 +96,11 @@ export async function POST(
           };
         }
 
-        if (
-          current.expiresAt.getTime() <= Date.now() &&
-          [
-            "REQUESTED",
-            "RETRYING",
-            "ASSIGNED",
-            "CREATING_MEETING"
-          ].includes(current.status)
-        ) {
-          const db = await getMongo();
+        const decisionError = declineDecisionError(decision);
+        if (decisionError) throw new Error(decisionError);
+
+        if (current.status === "REQUESTED" || current.status === "RETRYING") {
+        const db = await getMongo();
           const tx = await db.startSession();
           try {
             await tx.withTransaction(async () => {
