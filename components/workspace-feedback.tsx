@@ -262,7 +262,16 @@ export default function WorkspaceFeedback({
             </div>
           )}
 
-          {tab === "platform" ? (
+          {!canSubmit && (
+            <div className="mb-5 rounded-2xl border border-violet-100 bg-violet-50/70 p-4">
+              <p className="text-xs font-semibold text-violet-950">Platform admin support mode</p>
+              <p className="mt-1 text-[11px] leading-5 text-violet-800">
+                This company workspace is being viewed by a platform administrator. Customer feedback can be reviewed here, but only an active company member may submit workspace feedback.
+              </p>
+            </div>
+          )}
+
+          {tab === "platform" && canSubmit ? (
             <form onSubmit={(event) => { event.preventDefault(); void submit(); }} className="space-y-5">
               <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
                 <p className="text-xs font-semibold text-slate-900">Private platform feedback</p>
