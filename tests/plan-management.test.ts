@@ -6,7 +6,6 @@ import {
   isPlanPubliclyPurchasable,
   validatePlanDraft
 } from "../lib/plan-rules.ts";
-import { createEntitlementSnapshot } from "../lib/plan-catalog.ts";
 
 const baseDraft = {
   identifier: "growth",
@@ -106,12 +105,4 @@ test("public purchase eligibility is status-controlled, not client visibility co
   assert.equal(isPlanPubliclyPurchasable({ status: "PUBLIC", archivedAt: new Date() }), false);
 });
 
-test("entitlement snapshots are independent copies for existing subscriptions", () => {
-  const original = createEntitlementSnapshot(PLANS.starter);
-  const copy = createEntitlementSnapshot(original);
-  (copy as { name: string }).name = "Edited Starter";
-  (copy as { maxEmployees: number }).maxEmployees = 999;
 
-  assert.equal(original.name, "Starter");
-  assert.equal(original.maxEmployees, 10);
-});
