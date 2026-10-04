@@ -142,7 +142,6 @@ export default function AdminShell({
               </span>
               <div className="grid size-9 place-items-center overflow-hidden rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
                 {user.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <Image
                     src={user.image}
                     alt=""
