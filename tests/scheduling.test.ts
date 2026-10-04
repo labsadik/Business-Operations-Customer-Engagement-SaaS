@@ -230,3 +230,33 @@ test("isolated company schedules cannot leak into each other", () => {
   assert.equal(a.length, 2);
   assert.equal(b.length, 0);
 });
+
+
+test("extreme positive-offset timezones use the local date for weekday resolution", () => {
+  const timezone = "Pacific/Kiritimati";
+  const sunday = buildScheduleSlots(
+    "2026-10-04",
+    timezone,
+    [{ dayOfWeek: 0, startMinute: 9 * 60, endMinute: 10 * 60, timezone }],
+    60
+  );
+  const saturday = buildScheduleSlots(
+    "2026-10-03",
+    timezone,
+    [{ dayOfWeek: 0, startMinute: 9 * 60, endMinute: 10 * 60, timezone }],
+    60
+  );
+
+  assert.equal(sunday.length, 1);
+  assert.equal(saturday.length, 0);
+});
+
+test("fall-back DST keeps the configured local interval on the same scheduling date", () => {
+  const timezone = "America/New_York";
+  const start = zonedDateTimeToUtc("2026-11-01", 1 * 60 + 30, timezone);
+  const end = zonedDateTimeToUtc("2026-11-01", 2 * 60 + 30, timezone);
+
+  assert.equal(start.toISOString(), "2026-11-01T05:30:00.000Z");
+  assert.equal(end.toISOString(), "2026-11-01T07:30:00.000Z");
+  assert.equal((end.getTime() - start.getTime()) / 60_000, 120);
+});
