@@ -83,6 +83,10 @@ export function calculatePlanPricing(
   const baseAmountMinor = Math.round(normalizedPrice * 100);
   let discountAmountMinor = 0;
 
+  if (baseAmountMinor === 0 && discountType !== "NONE" && normalizedDiscount !== 0) {
+    throw new Error("DISCOUNT_ON_FREE_PLAN_INVALID");
+  }
+
   if (discountType === "NONE") {
     if (normalizedDiscount !== 0) throw new Error("DISCOUNT_VALUE_INVALID");
   } else if (discountType === "PERCENTAGE") {
@@ -97,10 +101,6 @@ export function calculatePlanPricing(
     discountAmountMinor = Math.round(normalizedDiscount * 100);
   } else {
     throw new Error("DISCOUNT_TYPE_INVALID");
-  }
-
-  if (baseAmountMinor === 0 && discountAmountMinor !== 0) {
-    throw new Error("DISCOUNT_ON_FREE_PLAN_INVALID");
   }
 
   const discountedAmountMinor = Math.max(0, baseAmountMinor - discountAmountMinor);
