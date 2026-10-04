@@ -139,12 +139,6 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => null) as {
       subject?: unknown;
       description?: unknown;
-      userId?: unknown;
-      companyId?: unknown;
-      workspaceId?: unknown;
-      companyName?: unknown;
-      memberEmail?: unknown;
-      memberName?: unknown;
     } | null;
 
     const input = validateSupportTicketInput(body?.subject, body?.description);
