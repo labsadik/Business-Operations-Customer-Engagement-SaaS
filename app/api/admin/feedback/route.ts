@@ -139,7 +139,9 @@ export async function GET(request: Request) {
         description: item.description,
         createdAt: item.createdAt,
         reviewStatus: item.reviewStatus,
-        submitter: submitterMap.get(String(item.submitterUserId)) ?? null,
+        submitter: item.submitterName
+          ? { name: item.submitterName }
+          : submitterMap.get(String(item.submitterUserId)) ?? null,
         booking: item.bookingRequestId
           ? {
               id: String(item.bookingRequestId),
