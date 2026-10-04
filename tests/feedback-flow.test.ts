@@ -169,3 +169,28 @@ test("admin feedback inbox remains a separate platform ticket source", () => {
   assert.match(api, /requirePlatformAdmin/);
   assert.match(api, /FEEDBACK_SOURCES/);
 });
+
+test("company feedback reads are tenant-scoped for every active company role", () => {
+  const policy = source("lib/platform-communication.ts");
+  const route = source("app/api/company/feedback/route.ts");
+  const dashboard = source("components/workspace-dashboard.tsx");
+
+  assert.match(policy, /role === "EMPLOYEE"/);
+  assert.match(route, /active: true/);
+  assert.match(route, /role: session\.role/);
+  assert.match(route, /companyId: session\.companyId/);
+  assert.match(route, /source: "CUSTOMER_BOOKING"/);
+  assert.match(route, /source: "COMPANY_PLATFORM"/);
+  assert.match(dashboard, /canViewCustomerFeedback=\{Boolean\(data\.currentRole && data\.company\?\.id\)\}/);
+});
+
+test("public customer feedback requires and server-attaches an eligible company booking", () => {
+  const route = source("app/api/public/[companySlug]/feedback/route.ts");
+  const prompt = source("components/public-feedback-prompt.tsx");
+
+  assert.match(route, /status: \{ \$in: eligibleBookingStatuses \}/);
+  assert.match(route, /customerId: session\.userId/);
+  assert.match(route, /if \(!eligibleBooking\) throw new Error\("BOOKING_REQUIRED_FOR_FEEDBACK"\)/);
+  assert.match(route, /bookingRequestId = eligibleBooking\._id/);
+  assert.match(prompt, /BOOKING_REQUIRED_FOR_FEEDBACK/);
+});
