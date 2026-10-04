@@ -14,6 +14,7 @@ import {
   ReceiptText,
   UsersRound
 } from "lucide-react";
+import UserAvatar from "@/components/user-avatar";
 import type { AdminCompanyDetails } from "@/lib/admin";
 import AdminManageCompanyButton from "@/components/admin-manage-company-button";
 import AdminGrantPlanButton from "@/components/admin-grant-plan-button";
