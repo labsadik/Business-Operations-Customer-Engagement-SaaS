@@ -75,7 +75,7 @@ export async function POST(request: Request) {
 
     const session = await getSession();
     if (!session) return jsonError("UNAUTHENTICATED", 401);
-    if (!["COMPANY_OWNER", "COMPANY_ADMIN"].includes(session.role) || !session.companyId) {
+    if (!["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role) || !session.companyId) {
       return jsonError("FORBIDDEN", 403);
     }
 
@@ -83,13 +83,15 @@ export async function POST(request: Request) {
 
     await getMongo();
 
-    const membership = await Membership.findOne({
-      companyId: companyId,
-      userId: session.userId,
-      active: true,
-      role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN"] }
-    }).lean();
-    if (!membership) return jsonError("FORBIDDEN", 403);
+    if (session.role !== "PLATFORM_ADMIN") {
+      const membership = await Membership.findOne({
+        companyId,
+        userId: session.userId,
+        active: true,
+        role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN"] }
+      }).lean();
+      if (!membership) return jsonError("FORBIDDEN", 403);
+    }
 
     const company = await Company.findById(companyId).lean();
     if (!company) return jsonError("COMPANY_NOT_FOUND", 404);
