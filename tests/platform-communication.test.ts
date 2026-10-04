@@ -53,10 +53,10 @@ test("feedback validation enforces 1-5 stars and 300 character description limit
   );
 });
 
-test("workspace platform feedback is restricted to company owners/admins", () => {
+test("company feedback visibility is available to every company role but not customers", () => {
   assert.equal(canSeeCompanyPlatformFeedback("COMPANY_OWNER"), true);
   assert.equal(canSeeCompanyPlatformFeedback("COMPANY_ADMIN"), true);
-  assert.equal(canSeeCompanyPlatformFeedback("EMPLOYEE"), false);
+  assert.equal(canSeeCompanyPlatformFeedback("EMPLOYEE"), true);
   assert.equal(canSeeCompanyPlatformFeedback("PLATFORM_ADMIN"), false);
   assert.equal(canSeeCompanyPlatformFeedback("CUSTOMER"), false);
 });
