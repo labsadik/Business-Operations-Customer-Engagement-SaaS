@@ -1796,7 +1796,7 @@ export default function WorkspaceDashboard({
                           <RazorpayPlanButton
                             planId={id}
                             currentPlanId={planId}
-                            disabled={busy || !data.company.profileComplete || adminManaged}
+                            disabled={adminManaged}
                             onComplete={() => {
                               void loadInvoices();
                               void refreshAll();
