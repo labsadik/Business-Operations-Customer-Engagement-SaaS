@@ -255,6 +255,6 @@ export default function LandingPricingCarousel({ plans }: { plans: PublicPlan[] 
   );
 }
 
-function statusLabel(status: "PUBLIC" | "COMING_SOON") {
-  return status === "PUBLIC" ? "Public" : "Coming soon";
+function statusLabel(status: "PUBLIC" | "COMING_SOON" | "PRIVATE") {
+  return status === "PUBLIC" ? "Public" : status === "COMING_SOON" ? "Coming soon" : "Private";
 }
