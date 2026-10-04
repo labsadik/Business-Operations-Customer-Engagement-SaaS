@@ -165,7 +165,22 @@ export async function POST(
           const tx = await db.startSession();
           try {
             await tx.withTransaction(async () => {
-              const expired = await BookingRequest.findOneAndUpdate(
+              const beforeExpiry = await BookingRequest.findOne({
+                _id: bookingId,
+                companyId: session.companyId,
+                status: {
+                  $in: [
+                    "REQUESTED",
+                    "RETRYING",
+                    "ASSIGNED",
+                    "CREATING_MEETING"
+                  ]
+                },
+                expiresAt: { $lte: new Date() }
+              }).session(tx);
+
+              const expired = beforeExpiry
+                ? await BookingRequest.findOneAndUpdate(
                 {
                   _id: bookingId,
                   companyId: session.companyId,
@@ -187,7 +202,8 @@ export async function POST(
                   }
                 },
                 { new: true, session: tx }
-              );
+                  )
+                : null;
 
               if (expired) {
                 await releaseMeetingUsage({
@@ -199,7 +215,7 @@ export async function POST(
                   companyId: session.companyId!,
                   bookingRequestId: bookingId,
                   eventType: "REQUEST_EXPIRED",
-                  fromStatus: expired.status === "EXPIRED" ? "REQUESTED" : expired.status,
+                  fromStatus: beforeExpiry?.status ?? "REQUESTED",
                   toStatus: "EXPIRED",
                   outcome: "EXPIRED",
                   actorRole: "SYSTEM",
