@@ -37,6 +37,8 @@ import { PLANS, type PlanId } from "@/lib/plans";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
 import PublicPageShare from "@/components/public-page-share";
 import GoogleIntegrationNotice from "@/components/google-integration-notice";
+import PlatformAnnouncementBanner from "@/components/platform-announcement-banner";
+import WorkspaceFeedback from "@/components/workspace-feedback";
 
 type Address = {
   line1: string;
@@ -207,7 +209,7 @@ type InvoiceItem = {
   };
 };
 
-type ModalName = "meetings" | "team" | "settings" | "billing" | null;
+type ModalName = "meetings" | "team" | "settings" | "billing" | "feedback" | null;
 type MeetingView = "new" | "old";
 type TeamTab = "members" | "invitations";
 
@@ -589,7 +591,7 @@ export default function WorkspaceDashboard({
     const timer = window.setTimeout(() => {
       const params = new URLSearchParams(window.location.search);
       const panel = params.get("panel");
-      if (panel === "meetings" || panel === "team" || panel === "settings" || panel === "billing") {
+      if (panel === "meetings" || panel === "team" || panel === "settings" || panel === "billing" || panel === "feedback") {
         setActiveModal(panel);
         if (panel === "settings") {
           setSettingsSection(params.get("section") === "announcements" ? "announcements" : "public");
@@ -1134,6 +1136,8 @@ export default function WorkspaceDashboard({
         </div>
       </header>
 
+      <PlatformAnnouncementBanner scope={"company:" + data.company.id} />
+
       <div className="mx-auto max-w-[1400px] px-5 py-6 sm:px-6 lg:px-10 lg:py-8">
         {data.featureLocked && (
           <div className="mb-6 flex items-start justify-between gap-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-900">
@@ -1580,6 +1584,16 @@ export default function WorkspaceDashboard({
           </div>
         </div>
       </div>
+
+      <AppModal
+        open={activeModal === "feedback"}
+        title="Feedback"
+        subtitle="Private customer feedback for this company, plus optional feedback about Conventus for the platform team."
+        size="lg"
+        onClose={() => setActiveModal(null)}
+      >
+        <WorkspaceFeedback />
+      </AppModal>
 
       <AppModal
         open={activeModal === "meetings"}
