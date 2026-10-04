@@ -15,6 +15,9 @@ import {
 import { PLANS } from "@/lib/plans";
 import LandingPricingCarousel from "@/components/landing-pricing-carousel";
 import CookieSettingsButton from "@/components/cookie-settings-button";
+import { getMongo } from "@/lib/mongodb";
+import { PlatformAnnouncement } from "@/models/platform-announcement";
+import PlatformAnnouncementBanner from "@/components/platform-announcement-banner";
 
 const howItWorks = [
   {
@@ -99,8 +102,17 @@ const faqs = [
   }
 ] as const;
 
-export default function Home() {
+export default async function Home() {
   const plans = Object.values(PLANS);
+  await getMongo();
+  const platformAnnouncements = await PlatformAnnouncement.find({
+    status: "PUBLISHED",
+    audience: "LANDING_PAGE"
+  })
+    .sort({ publishedAt: -1, createdAt: -1, _id: -1 })
+    .limit(5)
+    .select("_id title message audience publishedAt createdAt")
+    .lean();
 
   return (
     <main className="min-h-screen bg-[#faf9f1] text-slate-950">
@@ -146,6 +158,19 @@ export default function Home() {
           </div>
         </div>
       </header>
+
+      <PlatformAnnouncementBanner
+        initialAnnouncements={platformAnnouncements.map((item) => ({
+          id: String(item._id),
+          title: item.title,
+          message: item.message,
+          audience: item.audience,
+          publishedAt: item.publishedAt ?? null,
+          createdAt: item.createdAt
+        }))}
+        endpoint=""
+        scope="landing"
+      />
 
       <section className="relative overflow-hidden border-b border-slate-200 bg-white">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_10%,_rgba(254,240,138,0.28),_transparent_30%),radial-gradient(circle_at_86%_12%,_rgba(37,99,235,0.11),_transparent_34%)]" />
