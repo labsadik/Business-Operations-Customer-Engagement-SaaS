@@ -9,7 +9,7 @@ type PublicPlan = {
   id: string;
   name: string;
   description: string;
-  status: "PUBLIC" | "COMING_SOON";
+  status: "PUBLIC" | "COMING_SOON" | "PRIVATE";
   popular: boolean;
   recommended: boolean;
   priceInr: number;
@@ -232,13 +232,13 @@ export default function LandingPricingCarousel({ plans }: { plans: PublicPlan[] 
               {selected.maxEmployees} employees · {selected.monthlyMeetingLimit} meetings/month · {selected.maxMeetingDurationMinutes} minute maximum · {selected.maxConcurrentMeetings} concurrent meetings.
             </p>
           </div>
-          {selected.status === "COMING_SOON" ? (
+          {selected.status !== "PUBLIC" ? (
             <button
               type="button"
               disabled
               className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-semibold text-white/45 disabled:cursor-not-allowed"
             >
-              Coming soon
+              {selected.status === "COMING_SOON" ? "Coming soon" : "Unavailable"}
             </button>
           ) : (
             <Link
