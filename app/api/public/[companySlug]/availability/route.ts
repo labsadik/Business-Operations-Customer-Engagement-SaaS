@@ -1,10 +1,11 @@
 import { getMongo } from "@/lib/mongodb";
 import { Company } from "@/models/company";
 import { MeetingType } from "@/models/meeting-type";
+import { Workspace } from "@/models/workspace";
 import { getAvailableSlots } from "@/lib/public-availability";
 import { jsonError, jsonOk } from "@/lib/http";
 import { getCompanyEntitlements } from "@/lib/plans-server";
-import { getMeetingDurationOptions } from "@/lib/plans";
+import { resolveMeetingDuration } from "@/lib/plans";
 import { getSession } from "@/lib/session";
 
 export const runtime = "nodejs";
@@ -15,7 +16,9 @@ export async function GET(
   { params }: { params: Promise<{ companySlug: string }> }
 ) {
   const session = await getSession();
-  if (!session || session.role !== "CUSTOMER") return jsonError("CUSTOMER_LOGIN_REQUIRED", 401);
+  if (!session || session.role !== "CUSTOMER") {
+    return jsonError("CUSTOMER_LOGIN_REQUIRED", 401);
+  }
 
   await getMongo();
   const { companySlug } = await params;
@@ -24,32 +27,70 @@ export async function GET(
   const meetingTypeId = url.searchParams.get("meetingTypeId");
   const duration = Number(url.searchParams.get("duration") || 0);
 
-  if (!date || !meetingTypeId || !Number.isInteger(duration) || duration <= 0) return jsonError("INVALID_AVAILABILITY_QUERY");
+  if (
+    !date ||
+    !meetingTypeId ||
+    !Number.isInteger(duration) ||
+    duration <= 0
+  ) {
+    return jsonError("INVALID_AVAILABILITY_QUERY");
+  }
 
-  const company = await Company.findOne({ slug: companySlug.toLowerCase(), publicBookingEnabled: true }).lean();
+  const company = await Company.findOne({
+    slug: companySlug.toLowerCase(),
+    publicBookingEnabled: true
+  }).lean();
+
   if (!company) return jsonError("COMPANY_NOT_FOUND", 404);
 
-  const type = await MeetingType.findOne({ _id: meetingTypeId, companyId: company._id, active: true }).lean();
+  const workspace = await Workspace.findOne({
+    companyId: company._id,
+    active: true
+  })
+    .select("_id timezone")
+    .lean();
+
+  if (!workspace) return jsonError("WORKSPACE_NOT_FOUND", 404);
+
+  const type = await MeetingType.findOne({
+    _id: meetingTypeId,
+    companyId: company._id,
+    workspaceId: workspace._id,
+    active: true
+  }).lean();
+
   if (!type) return jsonError("MEETING_TYPE_NOT_FOUND", 404);
 
   const plan = await getCompanyEntitlements(String(company._id));
-  if (
-    duration < 10 ||
-    duration > plan.maxMeetingDurationMinutes ||
-    !getMeetingDurationOptions(plan.maxMeetingDurationMinutes, type.durationOptionsMinutes).includes(duration)
-  ) {
-    return jsonError("INVALID_DURATION", 400);
-  }
 
   try {
-    const availability = await getAvailableSlots(String(company._id), date, duration);
+    const resolved = resolveMeetingDuration(
+      plan.maxMeetingDurationMinutes,
+      type.durationOptionsMinutes,
+      duration
+    );
+
+    const availability = await getAvailableSlots(
+      String(company._id),
+      date,
+      resolved.durationMinutes,
+      {
+        bufferBeforeMinutes: type.bufferBeforeMinutes,
+        bufferAfterMinutes: type.bufferAfterMinutes,
+        maxConcurrentMeetings: plan.maxConcurrentMeetings
+      }
+    );
+
     return jsonOk({
       date,
-      duration,
+      duration: resolved.durationMinutes,
+      allowedDurationsMinutes: resolved.allowedDurationsMinutes,
       slots: availability.slots,
       availability: {
         reason: availability.reason,
         schedulingReadyMemberCount: availability.schedulingReadyMemberCount,
+        scheduleConfiguredMemberCount:
+          availability.scheduleConfiguredMemberCount,
         calendarErrorCount: availability.calendarErrorCount
       }
     });
