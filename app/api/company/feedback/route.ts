@@ -77,6 +77,7 @@ async function serialize(items: Array<{
   createdAt: Date;
   reviewStatus: string;
   submitterUserId: unknown;
+  submitterName?: string;
 }>) {
   const ids = [...new Set(items.map((item) => String(item.submitterUserId)))];
   const users = ids.length
