@@ -25,13 +25,10 @@ export default function PublicFeedbackPrompt({
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
-  const onCloseRef = useRef(onClose);
   const [rating, setRating] = useState(0);
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
-  onCloseRef.current = onClose;
-  savingRef.current = saving;
   const [message, setMessage] = useState("");
   const [soundEnabled, setSoundEnabled] = useState(false);
 
@@ -51,7 +48,7 @@ export default function PublicFeedbackPrompt({
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
-        if (!savingRef.current) onCloseRef.current();
+        if (!savingRef.current) onClose();
         return;
       }
       if (event.key !== "Tab") return;
@@ -84,7 +81,7 @@ export default function PublicFeedbackPrompt({
       document.body.style.overflow = previousOverflow;
       window.setTimeout(() => previousFocusRef.current?.focus(), 0);
     };
-  }, [open]);
+  }, [open, onClose]);
 
   function close() {
     if (saving) return;
@@ -103,6 +100,7 @@ export default function PublicFeedbackPrompt({
 
   async function submit() {
     if (!authenticated || !rating || saving) return;
+    savingRef.current = true;
     setSaving(true);
     setMessage("");
 
@@ -124,6 +122,7 @@ export default function PublicFeedbackPrompt({
           : "Feedback could not be submitted. Your text is still here, so you can try again."
       );
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
