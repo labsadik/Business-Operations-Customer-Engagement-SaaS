@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeft, FileText, ShieldCheck } from "lucide-react";
 import CookieSettingsButton from "@/components/cookie-settings-button";
@@ -6,7 +7,7 @@ import { LEGAL_CONFIG } from "@/lib/legal";
 export type LegalSection = {
   id: string;
   title: string;
-  content: React.ReactNode;
+  content: ReactNode;
 };
 
 export default function LegalPageShell({
@@ -20,7 +21,7 @@ export default function LegalPageShell({
   summary: string;
   sections: LegalSection[];
 }) {
-  const icon = kind === "privacy" ? ShieldCheck : FileText;
+  const Icon = kind === "privacy" ? ShieldCheck : FileText;
 
   return (
     <main className="min-h-screen bg-[#faf9f1] text-slate-950">
@@ -49,10 +50,7 @@ export default function LegalPageShell({
           <aside className="lg:sticky lg:top-6">
             <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-blue-600">
-                {(() => {
-                  const Icon = icon;
-                  return <Icon className="size-4" aria-hidden="true" />;
-                })()}
+                <Icon className="size-4" aria-hidden="true" />
                 Legal
               </div>
               <nav aria-label="Page sections" className="mt-4 space-y-1">
