@@ -401,6 +401,7 @@ export async function grantCompanyPlan(
     {
       $set: {
         planId,
+        entitlementSnapshot: createEntitlementSnapshot(plan),
         source: "ADMIN_GRANTED",
         status: "ACTIVE",
         currentPeriodStart: now,
@@ -466,7 +467,10 @@ export async function ensureInvoicesForCapturedPayments(companyId: string) {
   let createdOrUpdated = 0;
 
   for (const payment of payments) {
-    const plan = await getManagedPlan(payment.planId, { includeArchived: true });
+    const historicalSnapshot = isValidEntitlementSnapshot(payment.checkoutPlanSnapshot)
+      ? createEntitlementSnapshot(payment.checkoutPlanSnapshot)
+      : null;
+    const plan = historicalSnapshot ?? await getManagedPlan(payment.planId, { includeArchived: true });
     if (!plan) continue;
 
     const issuedAt = payment.paidAt ?? payment.createdAt ?? new Date();
