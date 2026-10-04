@@ -120,7 +120,7 @@ export default function LandingPricingCarousel({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-blue-600">
-                    {plan.id === "free" ? "Start here" : "30-day access"}
+                    {plan.id === "free" ? "Start here" : plan.validityDays + "-day access"}
                   </p>
                   <h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">{plan.name}</h3>
                 </div>
@@ -137,7 +137,7 @@ export default function LandingPricingCarousel({
                   {plan.priceInr === 0 ? "Free" : money(plan.priceInr)}
                 </span>
                 <span className="pb-1.5 text-xs text-slate-500">
-                  {plan.priceInr === 0 ? "per 30-day cycle" : "per 30-day cycle"}
+                  {plan.validityDays + "-day cycle"}
                 </span>
               </div>
 
