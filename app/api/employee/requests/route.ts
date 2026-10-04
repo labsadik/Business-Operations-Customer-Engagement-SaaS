@@ -5,7 +5,7 @@ import { User } from "@/models/user";
 import { Meeting } from "@/models/meeting";
 import { requireCompanyMember } from "@/lib/authz";
 import { jsonError, jsonOk } from "@/lib/http";
-import { decodeHistoryCursor, encodeHistoryCursor } from "@/lib/booking-history";
+import { decodeHistoryCursor, encodeHistoryCursor } from "@/lib/history-cursor";
 import { Types } from "mongoose";
 
 export const runtime = "nodejs";
