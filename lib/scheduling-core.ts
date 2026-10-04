@@ -2,7 +2,7 @@ import {
   getDayOfWeekForDate,
   nextDateIso,
   zonedDateTimeToUtc
-} from "@/lib/timezone";
+} from "./timezone";
 
 export const SCHEDULING_SLOT_STEP_MINUTES = 5;
 
