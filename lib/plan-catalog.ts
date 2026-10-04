@@ -156,7 +156,7 @@ function legacyPlanCandidateQuery(id: string, plan: PlanEntitlements) {
       { code: id },
       {
         name: {
-          $regex: new RegExp("^" + plan.name.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&") + "$", "i")
+          $regex: new RegExp("^" + plan.name + "$", "i")
         }
       }
     ],
