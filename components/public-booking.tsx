@@ -617,6 +617,9 @@ export default function PublicBooking({
                   <p className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Customer access</p>
                   <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Sign in to see available times</h3>
                   <p className="mt-3 text-sm leading-6 text-slate-600">Your Google account identifies the customer attached to the request. Sign-in is required before Conventus reveals live availability or accepts a booking request.</p>
+                  <div className="mt-5 text-left">
+                    <GoogleIntegrationNotice mode="customer" />
+                  </div>
                   <a
                     href={loginUrl}
                     className="mt-7 inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-6 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-slate-800"
