@@ -1594,7 +1594,7 @@ export default function WorkspaceDashboard({
 
       <WorkspaceFeedback
         open={activeModal === "feedback"}
-        onClose={() => setActiveModal(null)}
+        onClose={closeFeedbackModal}
         canViewCustomerFeedback={canManage}
         canSubmit={data.currentRole !== "PLATFORM_ADMIN"}
       />
