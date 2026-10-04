@@ -147,39 +147,82 @@ export function serializeManagedPlan(doc: any): ManagedPlan {
 }
 
 async function seedLegacyPlans() {
-  const operations = PLAN_IDS.map((id, index) => {
-    const plan = PLANS[id];
-    return Plan.updateOne(
-      { identifier: id },
-      {
-        $setOnInsert: {
-          identifier: id,
-          name: plan.name,
-          description: LEGACY_DESCRIPTIONS[id] ?? "",
-          status: "PUBLIC",
-          popular: false,
-          recommended: false,
-          priceInr: plan.priceInr,
-          discountType: "NONE",
-          discountValue: 0,
-          maxWorkspaces: plan.maxWorkspaces,
-          maxCompanies: plan.maxCompanies,
-          maxEmployees: plan.maxEmployees,
-          monthlyMeetingLimit: plan.monthlyMeetingLimit,
-          maxMeetingDurationMinutes: plan.maxMeetingDurationMinutes,
-          maxConcurrentMeetings: plan.maxConcurrentMeetings,
-          validityDays: plan.validityDays,
-          freeFeatureDays: plan.freeFeatureDays,
-          requiresPayment: plan.requiresPayment,
-          revision: 1,
-          sortOrder: index,
-          archivedAt: null
-        }
-      },
-      { upsert: true }
-    );
-  });
-  await Promise.all(operations);
+  await Promise.all(
+    PLAN_IDS.map(async (id, index) => {
+      const plan = PLANS[id];
+      const existing = await Plan.findOne({ identifier: id }).select({ _id: 1 }).lean();
+      if (existing) return;
+
+      // Older installations may have plan rows without the new stable identifier.
+      // Repair a matching legacy row before creating a second plan so existing data
+      // keeps its identity and the admin catalog does not render an undefined id.
+      const legacyRow = await Plan.findOne({
+        identifier: { $exists: false },
+        name: plan.name
+      }).select({ _id: 1 }).lean();
+
+      if (legacyRow) {
+        await Plan.updateOne(
+          { _id: legacyRow._id },
+          {
+            $set: {
+              identifier: id,
+              description: LEGACY_DESCRIPTIONS[id] ?? "",
+              status: "PUBLIC",
+              popular: false,
+              recommended: false,
+              priceInr: plan.priceInr,
+              discountType: "NONE",
+              discountValue: 0,
+              maxWorkspaces: plan.maxWorkspaces,
+              maxCompanies: plan.maxCompanies,
+              maxEmployees: plan.maxEmployees,
+              monthlyMeetingLimit: plan.monthlyMeetingLimit,
+              maxMeetingDurationMinutes: plan.maxMeetingDurationMinutes,
+              maxConcurrentMeetings: plan.maxConcurrentMeetings,
+              validityDays: plan.validityDays,
+              freeFeatureDays: plan.freeFeatureDays,
+              requiresPayment: plan.requiresPayment,
+              revision: 1,
+              sortOrder: index,
+              archivedAt: null
+            }
+          }
+        );
+        return;
+      }
+
+      await Plan.updateOne(
+        { identifier: id },
+        {
+          $setOnInsert: {
+            identifier: id,
+            name: plan.name,
+            description: LEGACY_DESCRIPTIONS[id] ?? "",
+            status: "PUBLIC",
+            popular: false,
+            recommended: false,
+            priceInr: plan.priceInr,
+            discountType: "NONE",
+            discountValue: 0,
+            maxWorkspaces: plan.maxWorkspaces,
+            maxCompanies: plan.maxCompanies,
+            maxEmployees: plan.maxEmployees,
+            monthlyMeetingLimit: plan.monthlyMeetingLimit,
+            maxMeetingDurationMinutes: plan.maxMeetingDurationMinutes,
+            maxConcurrentMeetings: plan.maxConcurrentMeetings,
+            validityDays: plan.validityDays,
+            freeFeatureDays: plan.freeFeatureDays,
+            requiresPayment: plan.requiresPayment,
+            revision: 1,
+            sortOrder: index,
+            archivedAt: null
+          }
+        },
+        { upsert: true }
+      );
+    })
+  );
 }
 
 export async function ensurePlanCatalog() {
@@ -255,9 +298,7 @@ export async function listPublicPlans(): Promise<PublicPlan[]> {
 
 export async function listPlansForAdmin(): Promise<AdminPlan[]> {
   await ensurePlanCatalog();
-  const docs = await Plan.find({
-    identifier: { $type: "string", $regex: /^[a-z][a-z0-9_-]{1,63}$/ }
-  })
+  const docs = await Plan.find({})
     .sort({ archivedAt: 1, sortOrder: 1, createdAt: 1, _id: 1 })
     .limit(200)
     .lean();
@@ -284,15 +325,17 @@ export async function listPlansForAdmin(): Promise<AdminPlan[]> {
   const paymentMap = new Map(paymentCounts.map((row) => [row._id, row.count]));
   const invoiceMap = new Map(invoiceCounts.map((row) => [row._id, row.count]));
 
-  return docs.map((doc) => {
-    const plan = serializeManagedPlan(doc);
-    return {
-      ...plan,
-      activeSubscriptionCount: activeMap.get(plan.id) ?? 0,
-      paymentCount: paymentMap.get(plan.id) ?? 0,
-      invoiceCount: invoiceMap.get(plan.id) ?? 0
-    };
-  });
+  return docs
+    .filter((doc) => typeof doc.identifier === "string" && /^[a-z][a-z0-9_-]{1,63}$/.test(doc.identifier))
+    .map((doc) => {
+      const plan = serializeManagedPlan(doc);
+      return {
+        ...plan,
+        activeSubscriptionCount: activeMap.get(plan.id) ?? 0,
+        paymentCount: paymentMap.get(plan.id) ?? 0,
+        invoiceCount: invoiceMap.get(plan.id) ?? 0
+      };
+    });
 }
 
 export function serializePublicPlan(plan: ManagedPlan) {
