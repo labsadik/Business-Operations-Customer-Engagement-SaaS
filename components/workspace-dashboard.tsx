@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import type { Route } from "next";
-import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Activity,
   ArrowUpRight,
@@ -353,6 +354,7 @@ export default function WorkspaceDashboard({
   const refreshingRef = useRef(false);
   const initializedRequestsRef = useRef(false);
   const seenRequestIdsRef = useRef(new Set<string>());
+  const router = useRouter();
 
   const canManage = Boolean(
     data && ["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(data.currentRole)
@@ -368,7 +370,7 @@ export default function WorkspaceDashboard({
     data?.subscription &&
     ["PAID", "ADMIN_GRANTED"].includes(data.subscription.source) &&
     data.subscription.status === "ACTIVE" &&
-    new Date(data.subscription.periodEnd).getTime() > Date.now()
+    data.subscription.status === "ACTIVE"
   );
   const usagePercent = Math.min(
     100,
@@ -384,7 +386,7 @@ export default function WorkspaceDashboard({
   const hasMoreMeetings =
     meetingView === "new" ? requests.length > 5 : meetingHistory.length > 5;
 
-  async function refreshAll() {
+  const refreshAll = useCallback(async function refreshAll() {
     if (refreshingRef.current) return;
     refreshingRef.current = true;
     try {
@@ -414,8 +416,8 @@ export default function WorkspaceDashboard({
     }
   }
 
-  async function refreshLive() {
-    if (refreshingRef.current || !data) return;
+  const refreshLive = useCallback(async function refreshLive() {
+    if (refreshingRef.current) return;
     refreshingRef.current = true;
     try {
       const [pending, history] = await Promise.all([
@@ -448,7 +450,7 @@ export default function WorkspaceDashboard({
     }
   }
 
-  async function loadInvitations() {
+  const loadInvitations = useCallback(async function loadInvitations() {
     if (!canManage) return;
     setInvitesLoading(true);
     try {
@@ -460,7 +462,7 @@ export default function WorkspaceDashboard({
     }
   }
 
-  async function loadInvoices() {
+  const loadInvoices = useCallback(async function loadInvoices() {
     if (!canManage) return;
     setBillingLoading(true);
     try {
@@ -479,7 +481,7 @@ export default function WorkspaceDashboard({
       window.clearTimeout(initialLoad);
       window.clearInterval(poll);
     };
-  }, []);
+  }, [refreshAll, refreshLive]);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -488,7 +490,7 @@ export default function WorkspaceDashboard({
       if (!activeModal) setTeamActionFor(null);
     }, 0);
     return () => window.clearTimeout(handle);
-  }, [activeModal]);
+  }, [activeModal, loadInvitations, loadInvoices]);
 
   useEffect(() => {
     if (!activeModal) return;
@@ -858,7 +860,7 @@ export default function WorkspaceDashboard({
                   type="button"
                   onClick={async () => {
                     await fetch("/api/admin/companies/unmanage", { method: "POST" });
-                    window.location.assign("/admin");
+                    router.push("/admin");
                   }}
                   className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 sm:inline-flex"
                 >
