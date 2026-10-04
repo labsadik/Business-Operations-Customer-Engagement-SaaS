@@ -17,13 +17,18 @@ function at(dateIso: string, minute: number, timezone: string) {
 }
 
 test("every supported plan resolves configured durations against its own maximum", () => {
-  const cases = [
+  const cases: Array<{
+    plan: keyof typeof PLANS;
+    configured: number[];
+    valid: number;
+    invalid: number;
+  }> = [
     { plan: "free", configured: [5, 10], valid: 5, invalid: 10 },
     { plan: "starter", configured: [5, 10, 20, 25], valid: 20, invalid: 25 },
     { plan: "elite", configured: [10, 20, 45, 60, 90], valid: 60, invalid: 90 },
     { plan: "pro", configured: [15, 30, 60, 90, 120], valid: 90, invalid: 120 },
     { plan: "plus", configured: [30, 60, 90, 120, 180], valid: 120, invalid: 180 }
-  ] as const;
+  ];
 
   for (const item of cases) {
     const plan = PLANS[item.plan];
