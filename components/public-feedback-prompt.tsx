@@ -25,6 +25,10 @@ export default function PublicFeedbackPrompt({
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  const savingRef = useRef(false);
+  onCloseRef.current = onClose;
+  savingRef.current = saving;
   const [rating, setRating] = useState(0);
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
@@ -47,7 +51,7 @@ export default function PublicFeedbackPrompt({
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
-        if (!saving) onClose();
+        if (!savingRef.current) onCloseRef.current();
         return;
       }
       if (event.key !== "Tab") return;
@@ -80,7 +84,7 @@ export default function PublicFeedbackPrompt({
       document.body.style.overflow = previousOverflow;
       window.setTimeout(() => previousFocusRef.current?.focus(), 0);
     };
-  }, [open, onClose, saving]);
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
