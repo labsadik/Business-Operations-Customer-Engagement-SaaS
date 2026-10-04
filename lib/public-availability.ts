@@ -248,12 +248,12 @@ export async function getAvailableSlots(
     a.startAt.localeCompare(b.startAt)
   );
 
+  const schedulingReadyMemberCount = results.filter((result) => result.ready).length;
+
   let reason: AvailabilityResult["reason"] = "AVAILABLE";
   if (sortedSlots.length === 0) {
     if (schedulingReadyMemberCount === 0) {
-      reason = accountMap.size === 0
-        ? "NO_GOOGLE_SCHEDULING_MEMBER"
-        : "NO_CONFIGURED_SCHEDULE";
+      reason = "NO_GOOGLE_SCHEDULING_MEMBER";
     } else if (scheduleConfiguredMemberCount === 0) {
       reason = "NO_CONFIGURED_SCHEDULE";
     } else if (calendarErrorCount === scheduleConfiguredMemberCount) {
