@@ -74,6 +74,9 @@ test("public feedback is explicit, modal-based, and signed-out users keep their 
   assert.match(modal, /maxLength=\{300\}/);
   assert.match(modal, /description\.length/);
   assert.match(modal, /Continue with Google/);
+  assert.match(modal, /Feedback could not be submitted/);
+  assert.match(modal, /Your text is still here/);
+  assert.match(modal, /flex items-end justify-center/);
   assert.match(modal, /Escape/);
   assert.match(modal, /event\.key !== "Tab"/);
   assert.match(modal, /document\.body\.style\.overflow = "hidden"/);
@@ -111,6 +114,7 @@ test("workspace feedback is an explicit accessible modal and does not expose cus
   assert.match(modal, /document\.body\.style\.overflow = "hidden"/);
   assert.match(modal, /motion-reduce:animate-none/);
   assert.match(modal, /Sound off/);
+  assert.match(modal, /aria-pressed/);
 });
 
 test("feedback sound is off by default, first-party persisted, and never scheduled on page load", () => {
