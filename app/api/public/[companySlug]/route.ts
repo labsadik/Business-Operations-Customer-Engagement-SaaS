@@ -3,6 +3,7 @@ import { Company } from "@/models/company";
 import { MeetingType } from "@/models/meeting-type";
 import { Workspace } from "@/models/workspace";
 import { getCompanyEntitlements } from "@/lib/plans-server";
+import { getMeetingDurationOptions } from "@/lib/plans";
 import { jsonError, jsonOk } from "@/lib/http";
 
 export const runtime = "nodejs";
@@ -22,14 +23,21 @@ export async function GET(
   if (!workspace) return jsonError("WORKSPACE_NOT_FOUND", 404);
 
   const plan = await getCompanyEntitlements(String(company._id));
-  const meetingTypes = await MeetingType.find({ companyId: company._id, active: true }).lean();
+  const meetingTypes = await MeetingType.find({
+    companyId: company._id,
+    workspaceId: workspace._id,
+    active: true
+  }).lean();
 
   return jsonOk({
     company: { id: String(company._id), name: company.name, slug: company.slug, description: company.description },
     timezone: workspace.timezone,
     limits: { maxMeetingDurationMinutes: plan.maxMeetingDurationMinutes },
     meetingTypes: meetingTypes.map((type) => ({
-      id: String(type._id), name: type.name, slug: type.slug, description: type.description, durationOptionsMinutes: type.durationOptionsMinutes
+      id: String(type._id), name: type.name, slug: type.slug, description: type.description, durationOptionsMinutes: getMeetingDurationOptions(
+          plan.maxMeetingDurationMinutes,
+          type.durationOptionsMinutes
+        )
     }))
   });
 }
