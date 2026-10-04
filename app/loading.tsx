@@ -1,30 +1,15 @@
+import { Pulse } from "@/components/route-loading";
+
 export default function Loading() {
   return (
-    <main className="min-h-screen bg-[#f7f8fb]">
-      <div className="mx-auto max-w-7xl px-5 py-6 sm:px-6 lg:px-8">
-        <div className="h-16 animate-pulse rounded-2xl border border-slate-200 bg-white" />
-
-        <div className="mt-6 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
-          <div className="h-3 w-24 animate-pulse rounded-full bg-slate-200" />
-          <div className="mt-4 h-9 w-72 max-w-full animate-pulse rounded-xl bg-slate-200" />
-          <div className="mt-3 h-4 w-full max-w-xl animate-pulse rounded-lg bg-slate-100" />
-
-          <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="h-20 animate-pulse rounded-2xl border border-slate-200 bg-slate-50" />
-            ))}
-          </div>
+    <main className="min-h-screen bg-[#faf9f1] px-5 py-10 sm:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-[70vh] max-w-3xl items-center justify-center">
+        <div className="w-full rounded-[2rem] border border-slate-200 bg-white p-7 text-center shadow-sm sm:p-9">
+          <Pulse className="mx-auto h-9 w-32" />
+          <Pulse className="mx-auto mt-6 h-6 w-64 max-w-full" />
+          <Pulse className="mx-auto mt-3 h-4 w-96 max-w-full" />
+          <Pulse className="mx-auto mt-8 h-11 w-32" />
         </div>
-
-        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.45fr)_360px]">
-          <div className="h-[520px] animate-pulse rounded-3xl border border-slate-200 bg-white" />
-          <div className="space-y-6">
-            <div className="h-56 animate-pulse rounded-3xl border border-slate-200 bg-white" />
-            <div className="h-64 animate-pulse rounded-3xl border border-slate-200 bg-white" />
-          </div>
-        </div>
-
-        <div className="mt-6 h-28 animate-pulse rounded-3xl border border-slate-200 bg-white" />
       </div>
     </main>
   );
