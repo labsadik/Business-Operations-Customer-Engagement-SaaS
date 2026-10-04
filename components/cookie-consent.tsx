@@ -69,12 +69,16 @@ export default function CookieConsent() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const firstFocusableRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     setConsent(readConsent());
     setReady(true);
 
-    const openSettings = () => setSettingsOpen(true);
+    const openSettings = () => {
+      triggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      setSettingsOpen(true);
+    };
     window.addEventListener("conventus:open-cookie-settings", openSettings);
 
     return () => {
@@ -182,9 +186,17 @@ export default function CookieConsent() {
                   </p>
                 </div>
               </div>
-              <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700">
+              <label className="flex shrink-0 items-center gap-2 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700">
+                <input
+                  type="checkbox"
+                  checked
+                  disabled
+                  aria-label="Essential authentication and security storage"
+                  className="size-3.5 accent-emerald-600"
+                  readOnly
+                />
                 Always on
-              </span>
+              </label>
             </div>
           </section>
 
