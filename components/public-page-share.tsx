@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { Check, Copy, ExternalLink, Globe2, LockKeyhole } from "lucide-react";
 
 export default function PublicPageShare({
@@ -19,6 +19,7 @@ export default function PublicPageShare({
   onPublishRequest: () => void;
 }) {
   const [origin, setOrigin] = useState("");
+  const titleId = useId();
   const [copyState, setCopyState] = useState<"idle" | "success" | "error">("idle");
 
   useEffect(() => {
@@ -37,7 +38,8 @@ export default function PublicPageShare({
 
   async function copyLink() {
     try {
-      await navigator.clipboard.writeText(savedUrl);
+      const exactUrl = `${origin || window.location.origin}${savedPath}`;
+      await navigator.clipboard.writeText(exactUrl);
       setCopyState("success");
     } catch {
       setCopyState("error");
@@ -46,7 +48,7 @@ export default function PublicPageShare({
   }
 
   return (
-    <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="public-page-share-title">
+    <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby={titleId}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-3">
           <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${published ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
@@ -54,7 +56,7 @@ export default function PublicPageShare({
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 id="public-page-share-title" className="text-sm font-semibold text-slate-950">Public booking page</h2>
+              <h2 id={titleId} className="text-sm font-semibold text-slate-950">Public booking page</h2>
               <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${published ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
                 {published ? "Live" : "Draft"}
               </span>
