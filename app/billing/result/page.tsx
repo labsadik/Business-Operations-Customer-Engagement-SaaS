@@ -7,11 +7,11 @@ import { getSession } from "@/lib/session";
 import { Company } from "@/models/company";
 import { Payment } from "@/models/payment";
 import { Invoice } from "@/models/invoice";
-import { Subscription } from "@/models/subscription";
 import { getPlan } from "@/lib/plans";
 import { ensureInvoicesForCapturedPayments } from "@/lib/billing";
 import { calculateInvoiceTax } from "@/lib/invoicing";
 import { platformLegalProfile, PLATFORM_BRAND } from "@/lib/platform";
+import { getCompanySubscription } from "@/lib/plans-server";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Billing · Conventus" };
@@ -43,7 +43,7 @@ export default async function BillingResultPage({
     Company.findById(session.companyId)
       .select("name logoUrl description email phone websiteUrl taxId address")
       .lean(),
-    Subscription.findOne({ companyId: session.companyId }).lean(),
+    getCompanySubscription(session.companyId),
     paymentId
       ? Payment.findOne({
           providerPaymentId: paymentId.trim(),
