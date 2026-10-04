@@ -268,7 +268,7 @@ import { canTransition } from "../lib/booking-state.ts";
 import {
   bookingErrorCode,
   friendlyBookingMessage
-} from "../lib/booking-errors.ts";
+} from "../lib/booking-error-codes.ts";
 import {
   decodeHistoryCursor,
   encodeHistoryCursor
