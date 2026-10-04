@@ -80,11 +80,11 @@ export async function POST(request: Request) {
   } catch (error) {
     const code = error instanceof Error ? error.message : "FREE_PLAN_FAILED";
     const status =
-      code === "CSRF_ORIGIN_INVALID" ||
-      code === "PAID_PLAN_ACTIVE" ||
-      code === "ADMIN_PLAN_ACTIVE"
-        ? 409
-        : 500;
+      code === "CSRF_ORIGIN_INVALID"
+        ? 403
+        : code === "PAID_PLAN_ACTIVE" || code === "ADMIN_PLAN_ACTIVE"
+          ? 409
+          : 500;
     return jsonError(code, status);
   }
 }
