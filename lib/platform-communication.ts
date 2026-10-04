@@ -81,6 +81,17 @@ export function validateFeedbackInput(rating: unknown, description: unknown) {
   };
 }
 
+export function platformAnnouncementVisibleInCompany(
+  audience: PlatformAnnouncementAudience,
+  companyId: string,
+  targetCompanyIds: string[] = []
+) {
+  if (!companyId) return false;
+  if (audience === "LANDING_PAGE") return false;
+  if (audience === "ALL_COMPANIES") return true;
+  return targetCompanyIds.includes(companyId);
+}
+
 export function canSeeCompanyPlatformFeedback(role: string) {
   return role === "COMPANY_OWNER" || role === "COMPANY_ADMIN";
 }
