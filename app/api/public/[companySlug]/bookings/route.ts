@@ -41,13 +41,6 @@ export async function POST(
   await getMongo();
   const { companySlug } = await params;
 
-  const company = await Company.findOne({
-    slug: companySlug.toLowerCase(),
-    publicBookingEnabled: true
-  }).lean();
-
-  if (!company) return jsonError("COMPANY_NOT_FOUND", 404);
-
   const body = await request.json().catch(() => null) as {
     meetingTypeId?: string;
     startAt?: string;
@@ -77,112 +70,142 @@ export async function POST(
     return jsonError("INVALID_TIME_RANGE");
   }
 
-  const workspace = await Workspace.findOne({
-    companyId: company._id,
-    active: true
-  })
-    .select("_id timezone")
-    .lean();
-
-  if (!workspace) return jsonError("WORKSPACE_NOT_FOUND", 404);
-
-  const type = await MeetingType.findOne({
-    _id: body.meetingTypeId,
-    companyId: company._id,
-    workspaceId: workspace._id,
-    active: true
+  const company = await Company.findOne({
+    slug: companySlug.toLowerCase(),
+    publicBookingEnabled: true
   }).lean();
 
-  if (!type) return jsonError("MEETING_TYPE_NOT_FOUND", 404);
+  if (!company) return jsonError("COMPANY_NOT_FOUND", 404);
 
-  const existing = await BookingRequest.findOne({
-    idempotencyKey,
-    companyId: company._id,
-    customerId: session.userId
-  }).lean();
-  if (existing) {
-    return jsonOk({
-      bookingId: String(existing._id),
-      status: existing.status,
-      expiresAt: existing.expiresAt
-    });
-  }
+  const lockKey = `booking:create:${company._id}:${startAt.toISOString()}`;
 
   try {
-    const plan = await getCompanyEntitlements(String(company._id));
-    const resolved = resolveMeetingDuration(
-      plan.maxMeetingDurationMinutes,
-      type.durationOptionsMinutes,
-      durationMinutes
-    );
+    const result = await withRedisLock(lockKey, 5000, async () => {
+      const existing = await BookingRequest.findOne({
+        idempotencyKey,
+        companyId: company._id,
+        customerId: session.userId
+      }).lean();
 
-    if (
-      endAt.getTime() - startAt.getTime() !==
-      resolved.durationMinutes * 60_000
-    ) {
-      throw new Error("INVALID_TIME_RANGE");
-    }
-
-    if (startAt.getTime() <= Date.now()) {
-      throw new Error("BOOKING_TIME_IN_PAST");
-    }
-
-    await assertMeetingCapacity(String(company._id), resolved.durationMinutes);
-
-    const busyForCompany = await BookingRequest.countDocuments({
-      companyId: company._id,
-      status: {
-        $in: ["ASSIGNED", "CREATING_MEETING", "CONFIRMED", "IN_PROGRESS"]
-      },
-      requestedStartAt: { $lt: endAt },
-      requestedEndAt: { $gt: startAt }
-    });
-
-    if (busyForCompany >= plan.maxConcurrentMeetings) {
-      throw new Error("CONCURRENT_MEETING_LIMIT");
-    }
-
-    const eligible = await eligibleEmployees(
-      String(company._id),
-      startAt,
-      endAt,
-      [],
-      {
-        bufferBeforeMinutes: type.bufferBeforeMinutes,
-        bufferAfterMinutes: type.bufferAfterMinutes
+      if (existing) {
+        return {
+          created: false,
+          bookingId: String(existing._id),
+          status: existing.status,
+          expiresAt: existing.expiresAt
+        };
       }
-    );
 
-    if (eligible.length === 0) {
-      throw new Error("NO_EMPLOYEE_AVAILABLE");
-    }
+      const currentCompany = await Company.findOne({
+        _id: company._id,
+        publicBookingEnabled: true
+      }).lean();
 
-    const booking = await withRedisLock(
-      `booking:create:${company._id}:${startAt.toISOString()}`,
-      5000,
-      async () =>
-        BookingRequest.create({
-          companyId: company._id,
-          workspaceId: workspace._id,
-          customerId: session.userId,
-          meetingTypeId: type._id,
-          requestedStartAt: startAt,
-          requestedEndAt: endAt,
-          requestedDurationMinutes: resolved.durationMinutes,
-          status: "REQUESTED",
-          expiresAt: new Date(Date.now() + 5 * 60_000),
-          idempotencyKey,
-          declinedBy: []
-        })
-    );
+      if (!currentCompany) throw new Error("COMPANY_NOT_FOUND");
 
-    return jsonOk(
-      {
+      const workspace = await Workspace.findOne({
+        companyId: currentCompany._id,
+        active: true
+      })
+        .select("_id timezone")
+        .lean();
+
+      if (!workspace) throw new Error("WORKSPACE_NOT_FOUND");
+
+      const type = await MeetingType.findOne({
+        _id: body.meetingTypeId,
+        companyId: currentCompany._id,
+        workspaceId: workspace._id,
+        active: true
+      }).lean();
+
+      if (!type) throw new Error("MEETING_TYPE_NOT_FOUND");
+
+      const plan = await getCompanyEntitlements(String(currentCompany._id));
+      const resolved = resolveMeetingDuration(
+        plan.maxMeetingDurationMinutes,
+        type.durationOptionsMinutes,
+        durationMinutes
+      );
+
+      if (
+        endAt.getTime() - startAt.getTime() !==
+        resolved.durationMinutes * 60_000
+      ) {
+        throw new Error("INVALID_TIME_RANGE");
+      }
+
+      if (startAt.getTime() <= Date.now()) {
+        throw new Error("BOOKING_TIME_IN_PAST");
+      }
+
+      await assertMeetingCapacity(
+        String(currentCompany._id),
+        resolved.durationMinutes
+      );
+
+      const busyForCompany = await BookingRequest.countDocuments({
+        companyId: currentCompany._id,
+        status: {
+          $in: [
+            "ASSIGNED",
+            "CREATING_MEETING",
+            "CONFIRMED",
+            "IN_PROGRESS"
+          ]
+        },
+        requestedStartAt: { $lt: endAt },
+        requestedEndAt: { $gt: startAt }
+      });
+
+      if (busyForCompany >= plan.maxConcurrentMeetings) {
+        throw new Error("CONCURRENT_MEETING_LIMIT");
+      }
+
+      const eligible = await eligibleEmployees(
+        String(currentCompany._id),
+        startAt,
+        endAt,
+        [],
+        {
+          bufferBeforeMinutes: type.bufferBeforeMinutes,
+          bufferAfterMinutes: type.bufferAfterMinutes
+        }
+      );
+
+      if (eligible.length === 0) {
+        throw new Error("NO_EMPLOYEE_AVAILABLE");
+      }
+
+      const booking = await BookingRequest.create({
+        companyId: currentCompany._id,
+        workspaceId: workspace._id,
+        customerId: session.userId,
+        meetingTypeId: type._id,
+        requestedStartAt: startAt,
+        requestedEndAt: endAt,
+        requestedDurationMinutes: resolved.durationMinutes,
+        status: "REQUESTED",
+        expiresAt: new Date(Date.now() + 5 * 60_000),
+        idempotencyKey,
+        declinedBy: []
+      });
+
+      return {
+        created: true,
         bookingId: String(booking._id),
         status: booking.status,
         expiresAt: booking.expiresAt
+      };
+    });
+
+    return jsonOk(
+      {
+        bookingId: result.bookingId,
+        status: result.status,
+        expiresAt: result.expiresAt
       },
-      201
+      result.created ? 201 : 200
     );
   } catch (error) {
     const code =
@@ -197,7 +220,13 @@ export async function POST(
       "FREE_FEATURE_DAYS_EXHAUSTED"
     ].includes(code)
       ? 409
-      : 400;
+      : [
+          "COMPANY_NOT_FOUND",
+          "WORKSPACE_NOT_FOUND",
+          "MEETING_TYPE_NOT_FOUND"
+        ].includes(code)
+        ? 404
+        : 400;
 
     return jsonError(code, status);
   }
