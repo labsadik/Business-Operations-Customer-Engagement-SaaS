@@ -34,7 +34,7 @@ type Access = "anonymous" | "customer";
 type AvailabilityReason =
   | "AVAILABLE"
   | "NO_ACTIVE_MEMBERS"
-  | "NO_SCHEDULING_MEMBER"
+  | "NO_GOOGLE_SCHEDULING_MEMBER"
   | "NO_CONFIGURED_SCHEDULE"
   | "GOOGLE_CALENDAR_ERROR"
   | "NO_FREE_SLOTS"
@@ -787,7 +787,7 @@ export default function PublicBooking({
                 <p className="mt-3 text-sm font-semibold text-slate-900">
                   {availabilityReason === "NO_ACTIVE_MEMBERS"
                     ? "This company has no active scheduling members"
-                    : availabilityReason === "NO_SCHEDULING_MEMBER"
+                    : availabilityReason === "NO_GOOGLE_SCHEDULING_MEMBER"
                       ? "No employee is ready for Google scheduling"
                       : availabilityReason === "NO_CONFIGURED_SCHEDULE"
                         ? "No working hours are configured for this date"
