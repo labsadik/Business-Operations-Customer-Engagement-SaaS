@@ -7,7 +7,7 @@ export default function Error({
   reset: () => void;
 }) {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#f7f8fb] px-6">
+    <main className="flex min-h-screen items-center justify-center bg-[#faf9f1] px-6">
       <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
         <p className="text-sm font-semibold text-blue-600">Conventus</p>
         <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
