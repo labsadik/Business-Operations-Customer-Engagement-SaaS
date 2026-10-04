@@ -863,19 +863,20 @@ export default function WorkspaceDashboard({
       const typed = err as Error & { code?: string };
       let message = typed.message || "We could not complete that meeting action.";
 
-      try {
-        const latest = await api<{
-          booking: { status: string };
-          meeting: { status: string; meetingUri: string | null } | null;
-        }>(`/api/bookings/${encodeURIComponent(id)}`);
-        if (typed.code && typed.code.startsWith("BOOKING_")) {
+      if (typed.code && typed.code.startsWith("BOOKING_")) {
+        const latest = requests.find((item) => item.id === id);
+        if (latest) {
           message = actionStateMessage(
-            latest.booking.status,
+            latest.status,
             latest.meeting?.status ?? null
           );
+        } else if (
+          typed.code === "BOOKING_ALREADY_ASSIGNED" ||
+          typed.code === "BOOKING_ALREADY_CONFIRMED" ||
+          typed.code === "BOOKING_PROCESSING"
+        ) {
+          message = "The request is no longer available for your response. Another authorized state is current, and the request list has been refreshed.";
         }
-      } catch {
-        // Keep the original server-provided message if the latest-state read is unavailable.
       }
 
       setError(message);
@@ -886,11 +887,7 @@ export default function WorkspaceDashboard({
           api<MeetingHistoryItem[]>("/api/employee/meetings?paginated=true&limit=6")
         ]);
         setRequests(pending);
-        if (Array.isArray(history)) {
-          setMeetingHistory(history);
-        } else {
-          setMeetingHistory(history.items);
-        }
+        setMeetingHistory(history.items);
         if (activeModal === "meetings") await loadAllMeetings();
       } catch {
         // Preserve the last good dashboard data during a transient refresh failure.
