@@ -3,7 +3,6 @@ import Link from "next/link";
 import {
   ArrowLeft,
   ArrowRight,
-  CalendarCheck2,
   CalendarPlus,
   CheckCircle2,
   Route,
