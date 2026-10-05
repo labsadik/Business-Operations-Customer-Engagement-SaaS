@@ -1,10 +1,17 @@
 import { createOnRequestError } from "@axiomhq/nextjs";
 import { logger } from "@/lib/axiom/server";
 
+function isGenuineNodeProcess() {
+  return (
+    typeof process !== "undefined" &&
+    process.release?.name === "node" &&
+    typeof process.cpuUsage === "function"
+  );
+}
+
 export async function register() {
-  if (process.env.NEXT_RUNTIME === "nodejs") {
-    await import("./instrumentation.node");
-  }
+  if (!isGenuineNodeProcess()) return;
+  await import("./instrumentation.node");
 }
 
 export const onRequestError = createOnRequestError(logger);
