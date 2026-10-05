@@ -120,6 +120,7 @@ function createRedisClient(): ConventusRedis {
 
   const client = createClient({
     url,
+    disableOfflineQueue: true,
     socket: {
       connectTimeout: REDIS_CONNECT_TIMEOUT_MS,
       socketTimeout: REDIS_COMMAND_TIMEOUT_MS,
