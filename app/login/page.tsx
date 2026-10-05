@@ -82,17 +82,17 @@ function WorkflowIllustration() {
       aria-labelledby="workflow-heading"
       className="relative"
     >
-      <div className="mb-5 md:mb-6">
+      <div className="mb-3 md:mb-5">
         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-700">
           How scheduling works
         </p>
         <h2
           id="workflow-heading"
-          className="mt-1.5 text-xl font-semibold tracking-[-0.03em] text-slate-950 sm:text-2xl"
+          className="mt-1 text-lg font-semibold leading-tight tracking-[-0.03em] text-slate-950 sm:text-2xl"
         >
           From request to confirmed meeting.
         </h2>
-        <p className="mt-1.5 max-w-xl text-xs leading-5 text-slate-500">
+        <p className="mt-1 max-w-xl text-[11px] leading-4.5 text-slate-500">
           An illustrative explanation of the Conventus scheduling flow.
         </p>
       </div>
@@ -168,7 +168,7 @@ function WorkflowIllustration() {
 
           <g className="md:hidden">
             <path
-              d="M 50 6 V 94"
+              d="M 50 5 V 95"
               fill="none"
               stroke="rgb(148 163 184 / 0.34)"
               strokeWidth="0.8"
@@ -176,7 +176,7 @@ function WorkflowIllustration() {
               strokeLinecap="round"
             />
             <path
-              d="M 50 6 V 94"
+              d="M 50 5 V 95"
               fill="none"
               stroke="url(#login-workflow-route)"
               strokeWidth="1.4"
@@ -201,7 +201,7 @@ function WorkflowIllustration() {
                   calcMode="spline"
                   keyTimes="0;0.15;0.5;0.85;1"
                   keySplines="0.18 0.7 0.25 1;0.42 0 0.58 1;0.42 0 0.58 1;0.65 0 0.82 0.25"
-                  path="M 50 6 V 94"
+                  path="M 50 5 V 95"
                 />
                 <animate
                   attributeName="opacity"
@@ -216,7 +216,7 @@ function WorkflowIllustration() {
           </g>
         </svg>
 
-        <ol className="relative grid gap-3.5 md:grid-cols-2 md:gap-x-16 md:gap-y-9">
+        <ol className="relative grid gap-2.5 md:grid-cols-2 md:gap-x-16 md:gap-y-8">
           {workflowSteps.map((step, index) => {
             const Icon = step.icon;
 
@@ -225,24 +225,24 @@ function WorkflowIllustration() {
                 key={step.label}
                 className={`relative z-10 min-w-0 ${index === 1 ? "md:row-start-1 md:col-start-2" : ""} ${index === 2 ? "md:row-start-2 md:col-start-2" : ""} ${index === 3 ? "md:row-start-2 md:col-start-1" : ""}`}
               >
-                <div className="min-h-[88px] rounded-2xl border border-slate-200 bg-white/95 p-3.5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur-sm">
+                <div className="min-h-0 rounded-2xl border border-slate-200 bg-white/95 p-2.5 shadow-[0_10px_24px_rgba(15,23,42,0.045)] backdrop-blur-sm sm:p-3">
                   <div className="flex items-start gap-3">
                     <span
-                      className={`grid size-9 shrink-0 place-items-center rounded-xl border ${toneClasses[step.tone]}`}
+                      className={`grid size-8 shrink-0 place-items-center rounded-xl border ${toneClasses[step.tone]}`}
                       aria-hidden="true"
                     >
-                      <Icon className="size-4" />
+                      <Icon className="size-3.5" />
                     </span>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-bold tabular-nums text-slate-400">
+                        <span className="text-[8px] font-bold tabular-nums text-slate-400">
                           0{index + 1}
                         </span>
-                        <p className="text-xs font-semibold text-slate-950">
+                        <p className="text-[11px] font-semibold text-slate-950 sm:text-xs">
                           {step.label}
                         </p>
                       </div>
-                      <p className="mt-1 text-[11px] leading-4.5 text-slate-500">
+                      <p className="mt-0.5 text-[10px] leading-4 text-slate-500 sm:text-[11px] sm:leading-4.5">
                         {step.description}
                       </p>
                     </div>
@@ -282,7 +282,7 @@ export default async function LoginPage({
       <div className="mx-auto grid min-h-[100svh] max-w-[1440px] lg:h-full lg:min-h-0 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
         <section
           aria-labelledby="login-heading"
-          className="relative flex min-h-[100svh] flex-col border-r border-slate-200 bg-white md:min-h-[100svh] lg:min-h-0"
+          className="relative flex flex-col border-r border-slate-200 bg-white lg:min-h-0"
         >
           <div className="pointer-events-none absolute -left-28 top-14 size-64 rounded-full bg-blue-50/70 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-24 right-0 size-72 rounded-full bg-yellow-100/35 blur-3xl" />
@@ -314,18 +314,18 @@ export default async function LoginPage({
               </Link>
             </header>
 
-            <div className="flex flex-1 items-center py-7 sm:py-8 md:py-6 lg:py-4">
+            <div className="flex flex-1 items-center py-6 sm:py-7 md:py-6 lg:py-4">
               <div className="w-full">
                 <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-600">
                   Welcome back
                 </p>
                 <h1
                   id="login-heading"
-                  className="mt-2.5 max-w-xl text-[2.2rem] font-semibold leading-[1.05] tracking-[-0.04em] text-slate-950 sm:text-5xl md:text-[2.5rem] lg:text-[2.65rem]"
+                  className="mt-2 max-w-xl text-[2rem] font-semibold leading-[1.04] tracking-[-0.04em] text-slate-950 sm:text-5xl md:text-[2.5rem] lg:text-[2.6rem]"
                 >
                   Sign in to your workspace.
                 </h1>
-                <p className="mt-3.5 max-w-xl text-[15px] leading-6 text-slate-600 sm:text-base">
+                <p className="mt-3 max-w-xl text-[14px] leading-5.5 text-slate-600 sm:text-base sm:leading-6">
                   Continue securely with your Google account to access your Conventus workspace and pick up where you left off.
                 </p>
 
@@ -367,12 +367,12 @@ export default async function LoginPage({
                   <GoogleSignInButton href={startUrl} showGoogleLogo />
                 </div>
 
-                <div className="mt-4 flex items-start gap-3 border-t border-slate-200 pt-4">
+                <div className="mt-3 flex items-start gap-3 border-t border-slate-200 pt-3">
                   <CheckCircle2
                     className="mt-0.5 size-3.5 shrink-0 text-blue-600"
                     aria-hidden="true"
                   />
-                  <p className="text-[11px] leading-4.5 text-slate-500">
+                  <p className="text-[10px] leading-4 text-slate-500">
                     No password form is exposed because the current application does not provide a separate password-based login or recovery route.
                   </p>
                 </div>
@@ -415,10 +415,10 @@ export default async function LoginPage({
 
         <aside
           aria-labelledby="workflow-heading"
-          className="relative bg-[linear-gradient(145deg,#f8fafc_0%,#f1f5f9_58%,#f8f5e8_100%)] md:flex md:min-h-[100svh] lg:min-h-0"
+          className="relative border-t border-slate-200 bg-slate-50 md:flex md:min-h-0 md:border-t-0 lg:min-h-0"
         >
-          <div className="absolute inset-0 opacity-60 [background-image:linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] [background-size:36px_36px]" />
-          <div className="relative flex min-h-[280px] w-full items-center px-5 py-9 sm:px-7 md:min-h-[100svh] md:px-8 md:py-10 lg:min-h-0 lg:px-9 xl:px-12">
+          <div className="absolute inset-0 opacity-40 [background-image:radial-gradient(circle_at_20%_20%,rgba(37,99,235,0.08),transparent_30%),radial-gradient(circle_at_80%_80%,rgba(250,204,21,0.07),transparent_26%)]" />
+          <div className="relative flex w-full items-center px-5 py-7 sm:px-7 sm:py-8 md:min-h-[100%] md:px-8 md:py-9 lg:px-9 xl:px-12">
             <div className="mx-auto w-full max-w-3xl">
               <WorkflowIllustration />
             </div>
