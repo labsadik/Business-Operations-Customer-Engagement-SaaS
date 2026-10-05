@@ -34,6 +34,7 @@ import MeetingResponseCountdown from "@/components/meeting-response-countdown";
 import RazorpayPlanButton from "@/components/razorpay-plan-button";
 import { playMeetingSound, unlockMeetingSound } from "@/lib/client-meeting-sound";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
+import { useNavigationLabels } from "@/components/navigation-labels-provider";
 import PublicPageShare from "@/components/public-page-share";
 import GoogleIntegrationNotice from "@/components/google-integration-notice";
 import PlatformAnnouncementBanner from "@/components/platform-announcement-banner";
@@ -418,6 +419,7 @@ export default function WorkspaceDashboard({
   const initializedRequestsRef = useRef(false);
   const seenRequestIdsRef = useRef(new Set<string>());
   const router = useRouter();
+  const { labels } = useNavigationLabels();
   const closeFeedbackModal = useCallback(() => setActiveModal(null), []);
 
   const canManage = Boolean(
@@ -1121,7 +1123,7 @@ export default function WorkspaceDashboard({
       <header className="sticky top-0 z-40 border-b border-slate-200/90 bg-[#faf9f1]/95 backdrop-blur-xl">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-600">Workspace</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-600">{labels.dashboard}</p>
             <h2 className="mt-1 truncate text-base font-semibold tracking-tight text-slate-950">{data.company.name}</h2>
           </div>
 
@@ -1296,7 +1298,7 @@ export default function WorkspaceDashboard({
                 <div>
                   <div className="flex items-center gap-2">
                     <CalendarDays className="size-4 text-blue-600" />
-                    <h2 className="text-base font-semibold">Meetings</h2>
+                    <h2 className="text-base font-semibold">{labels.meetings}</h2>
                   </div>
                   <p className="mt-1 text-xs leading-5 text-slate-500">
                     Showing five at a time. Open the meeting popup for the full list.
@@ -1500,7 +1502,7 @@ export default function WorkspaceDashboard({
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Team</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">{labels.team}</p>
                   <h2 className="mt-2 text-base font-semibold">Members</h2>
                   <p className="mt-1 text-xs leading-5 text-slate-500">
                     {data.memberCount} people in this workspace.
@@ -1563,7 +1565,7 @@ export default function WorkspaceDashboard({
               <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Billing</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">{labels.billing}</p>
                     <h2 className="mt-2 text-base font-semibold">{plan.name} plan</h2>
                     <p className="mt-1 text-xs leading-5 text-slate-500">
                       {adminManaged
@@ -1880,7 +1882,7 @@ export default function WorkspaceDashboard({
 
       <AppModal
         open={activeModal === "settings"}
-        title="Workspace settings"
+        title={labels.workspaceSettings}
         subtitle="Public page and company announcements are managed here without opening another settings page."
         size="lg"
         onClose={() => setActiveModal(null)}
