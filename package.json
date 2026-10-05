@@ -5,7 +5,8 @@
   "description": "Conventus - real-time customer meeting scheduling for teams.",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "opennextjs-cloudflare build",
+    "next:build": "next build",
     "start": "next start",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
@@ -42,7 +43,6 @@
     "@types/react": "^19.2.3",
     "@types/react-dom": "^19.2.3",
     "eslint": "9.39.5",
-    "eslint-config-next": "16.3.8",
     "postcss": "^8.5.6",
     "tailwindcss": "4.3.1",
     "typescript": "^5.9.2",
