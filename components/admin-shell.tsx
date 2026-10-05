@@ -4,6 +4,7 @@ import Image from "next/image";
 import UserAvatar from "@/components/user-avatar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useNavigationLabels } from "@/components/navigation-labels-provider";
 import type { Route } from "next";
 import {
   BarChart3,
@@ -21,15 +22,15 @@ import {
 } from "lucide-react";
 
 const nav = [
-  { href: "/admin", label: "Overview", icon: BarChart3 },
-  { href: "/admin/companies", label: "Companies", icon: Building2 },
-  { href: "/admin/users", label: "Public users", icon: UsersRound },
-  { href: "/admin/plans", label: "Plans", icon: BadgeDollarSign },
-  { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
-  { href: "/admin/feedback", label: "Feedback", icon: MessageSquareText },
-  { href: "/admin/support-tickets", label: "Support tickets", icon: LifeBuoy },
-  { href: "/admin/access", label: "Admin access", icon: ShieldCheck },
-  { href: "/admin/platform-settings", label: "Platform settings", icon: SlidersHorizontal }
+  { href: "/admin", key: "dashboard", icon: BarChart3 },
+  { href: "/admin/companies", key: "adminCompanies", icon: Building2 },
+  { href: "/admin/users", key: "adminPublicUsers", icon: UsersRound },
+  { href: "/admin/plans", key: "adminPlans", icon: BadgeDollarSign },
+  { href: "/admin/announcements", key: "adminAnnouncements", icon: Megaphone },
+  { href: "/admin/feedback", key: "adminFeedback", icon: MessageSquareText },
+  { href: "/admin/support-tickets", key: "adminSupportTickets", icon: LifeBuoy },
+  { href: "/admin/access", key: "adminAccess", icon: ShieldCheck },
+  { href: "/admin/platform-settings", key: "adminPlatformSettings", icon: SlidersHorizontal }
 ] as const;
 
 function activePath(pathname: string, href: string) {
@@ -37,17 +38,17 @@ function activePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
-function pageTitle(pathname: string) {
-  if (pathname.startsWith("/admin/companies/")) return "Company details";
-  if (pathname.startsWith("/admin/companies")) return "Companies";
-  if (pathname.startsWith("/admin/users")) return "Public users";
-  if (pathname.startsWith("/admin/plans")) return "Plans";
-  if (pathname.startsWith("/admin/announcements")) return "Announcements";
-  if (pathname.startsWith("/admin/feedback")) return "Feedback";
-  if (pathname.startsWith("/admin/support-tickets")) return "Support tickets";
-  if (pathname.startsWith("/admin/access")) return "Admin access";
-  if (pathname.startsWith("/admin/platform-settings")) return "Platform settings";
-  return "Overview";
+function pageTitle(pathname: string, labels: ReturnType<typeof useNavigationLabels>["labels"]) {
+  if (pathname.startsWith("/admin/companies/")) return labels.adminCompanies;
+  if (pathname.startsWith("/admin/companies")) return labels.adminCompanies;
+  if (pathname.startsWith("/admin/users")) return labels.adminPublicUsers;
+  if (pathname.startsWith("/admin/plans")) return labels.adminPlans;
+  if (pathname.startsWith("/admin/announcements")) return labels.adminAnnouncements;
+  if (pathname.startsWith("/admin/feedback")) return labels.adminFeedback;
+  if (pathname.startsWith("/admin/support-tickets")) return labels.adminSupportTickets;
+  if (pathname.startsWith("/admin/access")) return labels.adminAccess;
+  if (pathname.startsWith("/admin/platform-settings")) return labels.adminPlatformSettings;
+  return labels.dashboard;
 }
 
 export default function AdminShell({
@@ -58,7 +59,8 @@ export default function AdminShell({
   user: { name: string; email: string; image?: string };
 }) {
   const pathname = usePathname();
-  const title = pageTitle(pathname);
+  const { labels } = useNavigationLabels();
+  const title = pageTitle(pathname, labels);
 
   return (
     <div className="min-h-screen bg-[#faf9f1] text-slate-950">
@@ -109,7 +111,7 @@ export default function AdminShell({
                   ].join(" ")}
                 >
                   <Icon className="size-4" />
-                  <span>{item.label}</span>
+                  <span>{labels[item.key]}</span>
                   {selected && <ChevronRight className="ml-auto size-4 opacity-60" />}
                 </Link>
               </div>
