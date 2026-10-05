@@ -5,6 +5,7 @@ import type { Route } from "next";
 import { usePathname, useRouter } from "next/navigation";
 import UserAvatar from "@/components/user-avatar";
 import {
+  Building2,
   ArrowUpRight,
   BarChart3,
   CalendarDays,
