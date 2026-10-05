@@ -52,7 +52,7 @@ Conventus is a multi-tenant scheduling SaaS for companies that want customers to
 
 Production is deployed as a Cloudflare Worker through the OpenNext Cloudflare adapter.
 
-The repository uses `wrangler.jsonc` for the Worker entry point, assets, the Worker self-reference binding, and the 1-minute Cron Trigger. `custom-worker.ts` keeps the generated OpenNext fetch handler and adds the scheduled handler needed to preserve the existing background sweep.
+The repository uses `wrangler.jsonc` for the Worker entry point, assets, the Worker self-reference binding, and the 1-minute Cron Trigger. The `WORKER_SELF_REFERENCE` service name must stay identical to the Worker `name` (currently `test0001`). `custom-worker.ts` keeps the generated OpenNext fetch handler and adds the scheduled handler needed to preserve the existing background sweep.
 
 For Cloudflare production, configure these server-side secrets/environment variables in the Worker:
 
@@ -86,10 +86,17 @@ NEXT_PUBLIC_MIXPANEL_TOKEN=
 NEXT_PUBLIC_CLARITY_PROJECT_ID=
 ```
 
-Build with:
+For Cloudflare Workers Builds, use these exact commands:
+
+- **Build command:** `npm run build:cloudflare`
+- **Deploy command:** `npm run deploy:cloudflare`
+
+The default `build` script intentionally remains `next build` because `opennextjs-cloudflare build` invokes the package `build` script internally. Pointing `build` back to OpenNext causes recursive builds and eventually the process is killed.
+
+For a local one-command deployment, use:
 
 ```
-npm run build:cloudflare
+npm run deploy
 ```
 
 The 1-minute Cron Trigger invokes the existing `/api/jobs/sweep` route through the Worker self-reference binding; the HTTP API contract is unchanged.
