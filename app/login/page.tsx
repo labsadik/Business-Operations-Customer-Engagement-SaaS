@@ -1,14 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  CalendarPlus,
-  Route,
-  UserCheck,
-  Video
-} from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import GoogleSignInButton from "@/components/google-sign-in-button";
 import CookieSettingsButton from "@/components/cookie-settings-button";
+import LoginWorkflowPreview from "@/components/login-workflow-preview";
 
 export const metadata = {
   title: "Sign in · Conventus",
@@ -40,8 +35,6 @@ function errorLabel(error?: string) {
   return errorMessages[error] ?? "We could not complete sign-in. Please try again.";
 }
 
-import LoginWorkflowPreview from "@/components/login-workflow-preview";
-
 export default async function LoginPage({
   searchParams
 }: {
@@ -55,20 +48,20 @@ export default async function LoginPage({
     returnTo !== "/dashboard" || Boolean(plan);
 
   return (
-    <main className="min-h-[100svh] bg-slate-50 text-slate-950 lg:h-[100dvh] lg:min-h-0">
-      <div className="mx-auto grid min-h-[100svh] max-w-[1440px] lg:h-full lg:min-h-0 md:grid-cols-2">
+    <main className="h-[100svh] bg-slate-50 text-slate-950 lg:h-[100dvh]">
+      <div className="mx-auto grid h-full max-w-[1440px] grid-rows-[minmax(0,1fr)_auto] md:grid-cols-2 md:grid-rows-1">
         <aside
           aria-labelledby="workflow-heading"
-          className="order-last flex min-h-0 items-center justify-center border-t border-slate-200 bg-slate-50 px-5 py-5 md:order-first md:border-r md:border-t-0 md:px-7 md:py-7 lg:px-10"
+          className="login-workflow-panel order-last flex min-h-0 items-center justify-center border-t border-slate-200 bg-slate-50 px-4 py-4 sm:px-6 sm:py-5 md:order-first md:border-r md:border-t-0 md:px-7 md:py-7 lg:px-10"
         >
           <LoginWorkflowPreview />
         </aside>
 
         <section
           aria-labelledby="login-heading"
-          className="order-first flex min-h-[100svh] flex-col bg-white md:order-last md:min-h-0 lg:min-h-0"
+          className="order-first flex min-h-0 flex-col bg-white md:order-last"
         >
-          <div className="flex min-h-0 flex-1 flex-col px-5 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-8 md:px-7 lg:px-10 xl:px-12">
+          <div className="flex min-h-0 flex-1 flex-col px-5 pt-[max(0.625rem,env(safe-area-inset-top))] pb-[max(0.625rem,env(safe-area-inset-bottom))] sm:px-8 md:px-7 lg:px-10 xl:px-12">
             <header className="flex items-center justify-between gap-4">
               <Link
                 href="/"
@@ -95,7 +88,7 @@ export default async function LoginPage({
               </Link>
             </header>
 
-            <div className="flex min-h-0 flex-1 items-center py-5 sm:py-6 md:py-5">
+            <div className="flex min-h-0 flex-1 items-center py-4 sm:py-5 md:py-4">
               <div className="w-full">
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">
                   Welcome back
@@ -166,6 +159,13 @@ export default async function LoginPage({
           </div>
         </section>
       </div>
+      <style>{`
+        @media (max-width: 1023px) and (max-height: 640px) {
+          .login-workflow-panel {
+            display: none;
+          }
+        }
+      `}</style>
     </main>
   );
 }
