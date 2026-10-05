@@ -46,6 +46,53 @@ Conventus is a multi-tenant scheduling SaaS for companies that want customers to
 - `npm run lint`
 - `npm run build`
 - `npm run check`
+- `npm run build:cloudflare`
+
+## Cloudflare Workers deployment
+
+Production is deployed as a Cloudflare Worker through the OpenNext Cloudflare adapter.
+
+The repository uses `wrangler.jsonc` for the Worker entry point, assets, the Worker self-reference binding, and the 1-minute Cron Trigger. `custom-worker.ts` keeps the generated OpenNext fetch handler and adds the scheduled handler needed to preserve the existing background sweep.
+
+For Cloudflare production, configure these server-side secrets/environment variables in the Worker:
+
+```
+MONGODB_URI=
+REDIS_URL=
+REDIS_TOKEN=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI=https://YOUR_DOMAIN/api/auth/google/callback
+AUTH_SECRET=
+ENCRYPTION_KEY=
+CRON_SECRET=
+RAZORPAY_KEY_ID=
+RAZORPAY_KEY_SECRET=
+RAZORPAY_WEBHOOK_SECRET=
+AXIOM_HOST=
+AXIOM_DATASET=
+AXIOM_TOKEN=
+AXIOM_SERVICE_NAME=conventus
+```
+
+Set the public build variables required by the application in the Cloudflare Workers Build configuration:
+
+```
+NEXT_PUBLIC_APP_URL=https://YOUR_DOMAIN
+NEXT_PUBLIC_APP_NAME=Conventus
+NEXT_PUBLIC_UMAMI_SCRIPT_URL=
+NEXT_PUBLIC_UMAMI_WEBSITE_ID=
+NEXT_PUBLIC_MIXPANEL_TOKEN=
+NEXT_PUBLIC_CLARITY_PROJECT_ID=
+```
+
+Build with:
+
+```
+npm run build:cloudflare
+```
+
+The 1-minute Cron Trigger invokes the existing `/api/jobs/sweep` route through the Worker self-reference binding; the HTTP API contract is unchanged.
 
 ## Delivery phases
 
@@ -82,8 +129,8 @@ RAZORPAY_WEBHOOK_SECRET=
 Platform legal/tax details are stored in the MongoDB `PlatformSettings` singleton and managed from `/admin/platform-settings`. New invoices snapshot the legal merchant identity and GST treatment at capture time; completed invoice snapshots are not silently rewritten later.
 
 The runtime environment only contains service/application credentials. The platform legal name, website, billing email, phone, tax ID, GSTIN, SAC code, registered address, and GST treatment are database data. The Conventus brand mark is bundled locally as /favicon.svg and is used by the favicon, landing page, admin console, public scheduling shell, dashboard billing UI, and invoices/PDFs.
- 
-For local development use Razorpay Test Mode credentials. For production/Vercel, configure the Live Mode credentials in the Vercel environment settings and configure the Razorpay webhook URL as:
+
+For local development use Razorpay Test Mode credentials. For Cloudflare production, configure the Live Mode credentials as Worker secrets/environment variables and configure the Razorpay webhook URL as:
 
 `https://YOUR_DOMAIN/api/webhooks/razorpay`
 
@@ -104,7 +151,7 @@ npm run admin:create -- admin@example.com
 The standalone admin CLI reads `.env.local` first (then `.env`), so `MONGODB_URI` does not need to be exported separately in PowerShell.
 
 After that, the platform admin can use `/admin/access` to grant or revoke `PLATFORM_ADMIN` on other MongoDB users. No admin email allow-list is read from environment variables.
- 
+
 ## Platform-owned billing
 
 Tenant companies are the **customers/billing subjects**. Payments are created with the Conventus Razorpay credentials and merchant identity, so the funds are collected by the Conventus merchant account rather than a tenant's own payment account.
