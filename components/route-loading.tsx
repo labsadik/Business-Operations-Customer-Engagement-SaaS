@@ -655,8 +655,21 @@ export function BillingResultLoading() {
             <Pulse className="h-24 rounded-2xl" />
           </div>
         </section>
-        <div className="mt-8">
-          <InvoiceLoading />
+        <div className="mt-8 rounded-[2rem] border border-slate-200 bg-white p-6 sm:p-9">
+          <div className="flex justify-between gap-6">
+            <div className="space-y-3">
+              <Pulse className="h-4 w-32" />
+              <Pulse className="h-7 w-56" />
+              <Pulse className="h-4 w-80 max-w-full" />
+            </div>
+            <Pulse className="h-28 w-48 rounded-2xl" />
+          </div>
+          <Pulse className="mt-7 h-24 w-full rounded-2xl" />
+          <Pulse className="mt-5 h-20 w-full rounded-2xl" />
+          <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_320px]">
+            <Pulse className="h-56 rounded-2xl" />
+            <Pulse className="h-60 rounded-2xl" />
+          </div>
         </div>
       </div>
     </main>
