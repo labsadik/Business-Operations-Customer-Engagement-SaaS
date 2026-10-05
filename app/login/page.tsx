@@ -327,7 +327,7 @@ export default async function LoginPage({
                 )}
 
                 <div className="mt-6">
-                  <GoogleSignInButton href={startUrl} />
+                  <GoogleSignInButton href={startUrl} showGoogleLogo />
                 </div>
 
                 <div className="mt-4 flex items-start gap-3 border-t border-slate-200 pt-4">
