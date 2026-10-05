@@ -1,5 +1,3 @@
-"use client";
-
 export function Pulse({ className }: { className: string }) {
   return (
     <div
@@ -29,21 +27,6 @@ function SidebarSkeleton() {
         ))}
       </div>
     </aside>
-  );
-}
-
-function AdminPageFrame({
-  children,
-  mobile = true
-}: {
-  children: React.ReactNode;
-  mobile?: boolean;
-}) {
-  return (
-    <div className="min-h-[70vh] rounded-[2rem] border border-slate-200 bg-white/40 p-4 sm:p-5">
-      {mobile && <Pulse className="mb-4 h-8 w-28 lg:hidden" />}
-      {children}
-    </div>
   );
 }
 
@@ -88,7 +71,7 @@ export function LoginLoading() {
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="mx-auto grid min-h-screen max-w-[1440px] md:grid-cols-2">
-        <section className="hidden min-h-screen items-center border-r border-slate-200 bg-slate-50 p-7 lg:flex lg:p-10">
+        <section className="hidden min-h-screen items-center border-r border-slate-200 bg-slate-50 p-7 md:flex md:p-9">
           <div className="w-full max-w-xl">
             <Pulse className="h-3 w-36" />
             <Pulse className="mt-3 h-10 w-72 max-w-full" />
@@ -234,40 +217,6 @@ export function CompanyProfileLoading() {
   );
 }
 
-function AdminShellLoading({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen bg-[#faf9f1] text-slate-950">
-      <aside className="fixed inset-y-0 left-0 z-0 hidden w-72 flex-col border-r border-slate-200 bg-white lg:flex">
-        <div className="flex h-20 items-center gap-3 border-b border-slate-200 px-5">
-          <Pulse className="size-10 rounded-xl" />
-          <div className="space-y-2">
-            <Pulse className="h-3 w-24" />
-            <Pulse className="h-2 w-24" />
-          </div>
-        </div>
-        <div className="border-b border-slate-200 p-5"><Pulse className="h-16 w-full rounded-2xl" /></div>
-        <div className="space-y-2 p-4">
-          <Pulse className="h-3 w-20" />
-          {Array.from({ length: 8 }, (_, index) => <Pulse key={index} className="h-10 w-full rounded-xl" />)}
-        </div>
-      </aside>
-      <main className="min-h-screen lg:pl-72">
-        <header className="border-b border-slate-200 bg-[#faf9f1]">
-          <div className="mx-auto flex min-h-20 max-w-[1600px] items-center justify-between gap-4 px-5 sm:px-7 lg:px-10">
-            <div className="space-y-2">
-              <Pulse className="h-3 w-28" />
-              <Pulse className="h-3 w-56" />
-            </div>
-            <Pulse className="size-9 rounded-xl" />
-          </div>
-          <div className="border-b border-slate-200 bg-white lg:hidden"><Pulse className="mx-4 my-3 h-9 rounded-xl" /></div>
-        </header>
-        <div className="mx-auto max-w-[1600px] px-5 py-6 sm:px-7 lg:px-10 lg:py-8">{children}</div>
-      </main>
-    </div>
-  );
-}
-
 function AdminHeroSkeleton() {
   return (
     <>
@@ -284,12 +233,12 @@ function AdminHeroSkeleton() {
 }
 
 export function AdminOverviewLoading() {
-  return <AdminShellLoading><AdminHeroSkeleton /></AdminShellLoading>;
+  return <AdminHeroSkeleton />;
 }
 
 export function AdminCompaniesLoading() {
   return (
-    <AdminShellLoading>
+    <div className="space-y-6">
       <section className="rounded-3xl border border-slate-200 bg-white p-6">
         <Pulse className="h-5 w-28" />
         <Pulse className="mt-3 h-8 w-64" />
@@ -310,13 +259,13 @@ export function AdminCompaniesLoading() {
           ))}
         </div>
       </section>
-    </AdminShellLoading>
+    </div>
   );
 }
 
 export function AdminCompanyDetailsLoading() {
   return (
-    <AdminShellLoading>
+    <div>
       <Pulse className="h-4 w-32" />
       <section className="mt-5 rounded-[2rem] border border-slate-200 bg-white p-6 sm:p-8">
         <div className="flex items-center gap-4">
@@ -339,7 +288,7 @@ export function AdminCompanyDetailsLoading() {
         </div>
         <Pulse className="h-[520px] rounded-3xl" />
       </div>
-    </AdminShellLoading>
+    </div>
   );
 }
 
@@ -351,7 +300,6 @@ function AdminListLoading({
   filters?: number;
 }) {
   return (
-    <AdminShellLoading>
       <section className="rounded-3xl border border-slate-200 bg-white p-6">
         <Pulse className="h-5 w-28" />
         <Pulse className="mt-3 h-8 w-64" />
@@ -376,7 +324,6 @@ function AdminListLoading({
           ))}
         </div>
       </section>
-    </AdminShellLoading>
   );
 }
 
@@ -398,7 +345,7 @@ export function AdminSupportTicketsLoading() {
 
 export function AdminPlansLoading() {
   return (
-    <AdminShellLoading>
+    <div>
       <section className="rounded-3xl border border-slate-200 bg-white p-6">
         <Pulse className="h-5 w-20" />
         <Pulse className="mt-3 h-8 w-48" />
@@ -412,13 +359,13 @@ export function AdminPlansLoading() {
           <Pulse key={index} className="h-72 rounded-3xl" />
         ))}
       </div>
-    </AdminShellLoading>
+    </div>
   );
 }
 
 export function AdminAnnouncementsLoading() {
   return (
-    <AdminShellLoading>
+    <div>
       <section className="rounded-[2rem] border border-slate-200 bg-white p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-3">
@@ -437,13 +384,13 @@ export function AdminAnnouncementsLoading() {
       <section className="mt-5 overflow-hidden rounded-3xl border border-slate-200 bg-white p-5">
         <div className="space-y-3">{Array.from({ length: 4 }, (_, index) => <Pulse key={index} className="h-28 rounded-2xl" />)}</div>
       </section>
-    </AdminShellLoading>
+    </div>
   );
 }
 
 export function AdminPlatformSettingsLoading() {
   return (
-    <AdminShellLoading>
+    <div>
       <section className="rounded-[2rem] border border-slate-200 bg-white p-6 sm:p-8">
         <Pulse className="h-4 w-32" />
         <Pulse className="mt-3 h-8 w-60" />
@@ -458,7 +405,7 @@ export function AdminPlatformSettingsLoading() {
           {Array.from({ length: 6 }, (_, index) => <Pulse key={index} className="h-12 rounded-xl" />)}
         </div>
       </section>
-    </AdminShellLoading>
+    </div>
   );
 }
 
@@ -485,7 +432,49 @@ export function BillingLoading() {
 }
 
 export function BillingCheckoutLoading() {
-  return <BillingLoading />;
+  return (
+    <main className="min-h-screen bg-[#faf9f1]">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex min-h-18 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
+          <Pulse className="h-9 w-32 rounded-xl" />
+          <Pulse className="h-10 w-28 rounded-xl" />
+        </div>
+      </header>
+      <div className="mx-auto max-w-7xl px-5 py-8 sm:px-6 lg:px-8 lg:py-12">
+        <Pulse className="h-3 w-24" />
+        <Pulse className="mt-3 h-10 w-64" />
+        <Pulse className="mt-3 h-12 w-full max-w-2xl" />
+        <Pulse className="mt-6 h-20 w-full rounded-2xl" />
+        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_390px]">
+          <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-6 sm:p-8">
+            <Pulse className="h-7 w-48" />
+            <Pulse className="mt-3 h-4 w-full max-w-2xl" />
+            <Pulse className="mt-6 h-44 w-full rounded-2xl" />
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {Array.from({ length: 6 }, (_, index) => (
+                <Pulse key={index} className="h-20 rounded-2xl" />
+              ))}
+            </div>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <Pulse className="h-28 rounded-2xl" />
+              <Pulse className="h-28 rounded-2xl" />
+            </div>
+          </div>
+          <div className="h-fit rounded-[2rem] border border-slate-200 bg-white p-5 sm:p-6">
+            <Pulse className="h-3 w-28" />
+            <Pulse className="mt-4 h-7 w-44" />
+            <div className="mt-5 space-y-3">
+              {Array.from({ length: 4 }, (_, index) => (
+                <Pulse key={index} className="h-5 w-full" />
+              ))}
+            </div>
+            <Pulse className="mt-5 h-20 w-full rounded-2xl" />
+            <Pulse className="mt-5 h-12 w-full rounded-xl" />
+          </div>
+        </div>
+      </div>
+    </main>
+  );
 }
 
 export function InvoiceLoading() {
