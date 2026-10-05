@@ -1,2 +1,5 @@
-import { AdminContentLoading } from "@/components/route-loading";
-export default function Loading() { return <AdminContentLoading />; }
+import { AdminOverviewLoading } from "@/components/route-loading";
+
+export default function Loading() {
+  return <AdminOverviewLoading />;
+}
