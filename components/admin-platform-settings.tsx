@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import { useNavigationLabels } from "@/components/navigation-labels-provider";
 import { Building2, CheckCircle2, Loader2, Save, ShieldCheck } from "lucide-react";
 
 type Settings = {
@@ -27,12 +28,32 @@ type Settings = {
     ratePercent: number;
     inclusive: boolean;
   };
+  navigation: {
+    dashboard: string;
+    meetings: string;
+    team: string;
+    feedback: string;
+    supportTickets: string;
+    announcements: string;
+    billing: string;
+    workspaceSettings: string;
+    companyProfile: string;
+    adminCompanies: string;
+    adminPublicUsers: string;
+    adminPlans: string;
+    adminAnnouncements: string;
+    adminFeedback: string;
+    adminSupportTickets: string;
+    adminAccess: string;
+    adminPlatformSettings: string;
+  };
 };
 
 export default function AdminPlatformSettings({ initial }: { initial: Settings }) {
   const [form, setForm] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const { updateLabels } = useNavigationLabels();
 
   function setValue(key: keyof Settings, value: unknown) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -55,7 +76,8 @@ export default function AdminPlatformSettings({ initial }: { initial: Settings }
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.error || "PLATFORM_SETTINGS_UPDATE_FAILED");
       setForm(body.data);
-      setNotice("Platform legal and GST settings saved to MongoDB.");
+      updateLabels(body.data.navigation);
+      setNotice("Settings saved. Navigation labels update without a full-page reload.");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "PLATFORM_SETTINGS_UPDATE_FAILED");
     } finally {
@@ -90,6 +112,35 @@ export default function AdminPlatformSettings({ initial }: { initial: Settings }
           {notice}
         </div>
       )}
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+        <div>
+          <h2 className="text-sm font-semibold">Navigation labels</h2>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            Rename menus and their matching page labels. Changes appear in the open website without a full-page reload.
+          </p>
+        </div>
+
+        <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <Field label="Dashboard / overview" value={form.navigation.dashboard} onChange={(v) => setForm((current) => ({ ...current, navigation: { ...current.navigation, dashboard: v } }))} />
+          <Field label="Meetings" value={form.navigation.meetings} onChange={(v) => setForm((current) => ({ ...current, navigation: { ...current.navigation, meetings: v } }))} />
+          <Field label="Team" value={form.navigation.team} onChange={(v) => setForm((current) => ({ ...current, navigation: { ...current.navigation, team: v } }))} />
+          <Field label="Feedback" value={form.navigation.feedback} onChange={(v) => setForm((current) => ({ ...current, navigation: { ...current.navigation, feedback: v } }))} />
+          <Field label="Support tickets" value={form.navigation.supportTickets} onChange={(v) => setForm((current) => ({ ...current, navigation: { ...current.navigation, supportTickets: v } }))} />
+          <Field label="Announcements" value={form.navigation.announcements} onChange={(v) => setForm((current) => ({ ...current, navigation: { ...current.navigation, announcements: v } }))} />
+          <Field label="Billing" value={form.navigation.billing} onChange={(v) => setForm((current) => ({ ...current, navigation: { ...current.navigation, billing: v } }))} />
+          <Field label="Workspace settings" value={form.navigation.workspaceSettings} onChange={(v) => setForm((current) => ({ ...current, navigation: { ...current.navigation, workspaceSettings: v } }))} />
+          <Field label="Company profile" value={form.navigation.companyProfile} onChange={(v) => setForm((current) => ({ ...current, navigation: { ...current.navigation, companyProfile: v } }))} />
+          <Field label="Admin companies" value={form.navigation.adminCompanies} onChange={(v) => setForm((current) => ({ ...current, navigation: { ...current.navigation, adminCompanies: v } }))} />
+          <Field label="Admin public users" value={form.navigation.adminPublicUsers} onChange={(v) => setForm((current) => ({ ...current, navigation: { ...current.navigation, adminPublicUsers: v } }))} />
+          <Field label="Admin plans" value={form.navigation.adminPlans} onChange={(v) => setForm((current) => ({ ...current, navigation: { ...current.navigation, adminPlans: v } }))} />
+          <Field label="Admin announcements" value={form.navigation.adminAnnouncements} onChange={(v) => setForm((current) => ({ ...current, navigation: { ...current.navigation, adminAnnouncements: v } }))} />
+          <Field label="Admin feedback" value={form.navigation.adminFeedback} onChange={(v) => setForm((current) => ({ ...current, navigation: { ...current.navigation, adminFeedback: v } }))} />
+          <Field label="Admin support tickets" value={form.navigation.adminSupportTickets} onChange={(v) => setForm((current) => ({ ...current, navigation: { ...current.navigation, adminSupportTickets: v } }))} />
+          <Field label="Admin access" value={form.navigation.adminAccess} onChange={(v) => setForm((current) => ({ ...current, navigation: { ...current.navigation, adminAccess: v } }))} />
+          <Field label="Admin platform settings" value={form.navigation.adminPlatformSettings} onChange={(v) => setForm((current) => ({ ...current, navigation: { ...current.navigation, adminPlatformSettings: v } }))} />
+        </div>
+      </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <div className="grid gap-5 md:grid-cols-2">
