@@ -7,15 +7,18 @@ export default function UserAvatar({
   email,
   size = 40,
   className = "",
-  image
+  image,
+  fallbackImage
 }: {
   name: string;
   email?: string;
   size?: number;
   className?: string;
   image?: string | null;
+  fallbackImage?: string | null;
 }) {
   const safeImage = googleAvatarUrl(image);
+  const imageSrc = safeImage || fallbackImage || "";
 
   const initials = name
     .trim()
@@ -42,12 +45,12 @@ export default function UserAvatar({
         {initials}
       </span>
 
-      {safeImage ? (
+      {imageSrc ? (
         // Google profile images are rendered directly so a provider-side image
         // response cannot be broken by the Next image optimizer/allowlist.
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={safeImage}
+          src={imageSrc}
           alt=""
           width={size}
           height={size}
