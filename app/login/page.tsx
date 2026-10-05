@@ -226,66 +226,6 @@ function WorkflowIllustration() {
       `}</style>
     </section>
   );
-}function WorkflowIllustration() {
-  return (
-    <section
-      aria-labelledby="workflow-heading"
-      className="relative"
-    >
-      <div className="mb-4">
-        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-700">
-          How scheduling works
-        </p>
-        <h2
-          id="workflow-heading"
-          className="mt-1.5 text-xl font-semibold tracking-[-0.03em] text-slate-950 sm:text-2xl"
-        >
-          From request to confirmed meeting.
-        </h2>
-        <p className="mt-1.5 max-w-xl text-xs leading-5 text-slate-500">
-          Illustrative workflow only. The sequence describes the existing Conventus scheduling process.
-        </p>
-      </div>
-
-      <ol className="flex flex-col gap-2.5 md:flex-row md:items-stretch md:gap-0">
-        {workflowSteps.map((step, index) => {
-          const Icon = step.icon;
-
-          return (
-            <li key={step.label} className="flex min-w-0 flex-1 flex-col md:flex-row md:items-center">
-              <div className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white/90 p-3.5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
-                <div className="flex items-start gap-3">
-                  <span
-                    className={`grid size-9 shrink-0 place-items-center rounded-xl border ${toneClasses[step.tone]}`}
-                    aria-hidden="true"
-                  >
-                    <Icon className="size-4" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-slate-950">
-                      {step.label}
-                    </p>
-                    <p className="mt-1 text-[11px] leading-4.5 text-slate-500">
-                      {step.description}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {index < workflowSteps.length - 1 && (
-                <div
-                  aria-hidden="true"
-                  className="relative ml-6 h-4 w-px shrink-0 bg-blue-200 md:ml-0 md:h-px md:w-5 md:bg-blue-200"
-                >
-                  <span className="absolute -bottom-0.5 -left-0.75 size-1.5 rounded-full bg-yellow-300 md:-bottom-0.75 md:-right-0.5 md:left-auto" />
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ol>
-    </section>
-  );
 }
 
 export default async function LoginPage({
