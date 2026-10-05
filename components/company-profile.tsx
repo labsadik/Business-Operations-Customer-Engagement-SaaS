@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import UserAvatar from "@/components/user-avatar";
+import { useNavigationLabels } from "@/components/navigation-labels-provider";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
 import PublicPageShare from "@/components/public-page-share";
 import ConfirmDialog from "@/components/confirm-dialog";
@@ -82,6 +83,7 @@ export default function CompanyProfile({
   const [saved, setSaved] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [publishConfirmationOpen, setPublishConfirmationOpen] = useState(false);
+  const { labels } = useNavigationLabels();
 
   async function load() {
     try {
@@ -236,7 +238,7 @@ export default function CompanyProfile({
                 )}
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-600">Company profile</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-600">{labels.companyProfile}</p>
                 <h1 className="mt-2 truncate text-3xl font-semibold tracking-tight sm:text-4xl">{form.name}</h1>
                 <p className="mt-2 text-sm text-slate-500">
                   Keep your billing identity and invoice details accurate.
