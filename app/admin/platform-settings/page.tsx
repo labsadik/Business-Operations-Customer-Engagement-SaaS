@@ -24,7 +24,8 @@ export default async function AdminPlatformSettingsPage() {
         gstin: settings.gstin,
         sacCode: settings.sacCode,
         address: settings.address,
-        gst: settings.gst
+        gst: settings.gst,
+        navigation: settings.navigation
       }}
     />
   );
