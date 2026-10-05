@@ -39,4 +39,4 @@ jobs:
         run: npm run next:build
 
       - name: Cloudflare OpenNext build
-        run: npm run build
+        run: npm run build:cloudflare
