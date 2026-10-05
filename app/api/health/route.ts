@@ -30,12 +30,17 @@ async function checkMongo(): Promise<"ok" | "not_configured" | "error"> {
   if (!process.env.MONGODB_URI) return "not_configured";
 
   try {
-    const db = await getMongo();
-    await withTimeout(
-      db.connection.db?.command({ ping: 1 }) ?? Promise.reject(new Error("MONGO_DB_UNAVAILABLE")),
+    return await withTimeout(
+      (async () => {
+        const db = await getMongo();
+        if (!db.connection.db) {
+          throw new Error("MONGO_DB_UNAVAILABLE");
+        }
+        await db.connection.db.command({ ping: 1 });
+        return "ok" as const;
+      })(),
       HEALTH_TIMEOUT_MS
     );
-    return "ok";
   } catch {
     return "error";
   }
@@ -45,10 +50,15 @@ async function checkRedis(): Promise<"ok" | "not_configured" | "error"> {
   if (!process.env.REDIS_URL) return "not_configured";
 
   try {
-    const client = await withTimeout(getRedis(), HEALTH_TIMEOUT_MS);
-    if (!client) return "not_configured";
-    await withTimeout(client.ping(), HEALTH_TIMEOUT_MS);
-    return "ok";
+    return await withTimeout(
+      (async () => {
+        const client = await getRedis();
+        if (!client) return "not_configured" as const;
+        await client.ping();
+        return "ok" as const;
+      })(),
+      HEALTH_TIMEOUT_MS
+    );
   } catch {
     return "error";
   }
