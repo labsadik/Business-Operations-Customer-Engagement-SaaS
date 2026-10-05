@@ -382,8 +382,18 @@ export default function PublicBooking({
         const previousStatus = observedStatusRef.current;
         const nextMeeting = body.data.meeting;
         const nextMeetingUri = nextMeeting?.meetingUri ? String(nextMeeting.meetingUri) : "";
+        const acceptedStatus = ["ASSIGNED", "CREATING_MEETING", "CONFIRMED"].includes(
+          nextStatus
+        );
+        const previousAcceptedStatus = [
+          "ASSIGNED",
+          "CREATING_MEETING",
+          "CONFIRMED"
+        ].includes(previousStatus);
 
-        if (nextMeeting?.status === "READY" && nextMeetingUri && !observedMeetingUriRef.current) {
+        // Play the acceptance sound as soon as the employee accepts the request.
+        // Do not wait for Google Meet creation to finish.
+        if (acceptedStatus && previousStatus && !previousAcceptedStatus) {
           void playMeetingSound("accepted");
         } else if (nextStatus === "RETRYING" && previousStatus !== "RETRYING") {
           void playMeetingSound("retrying");
