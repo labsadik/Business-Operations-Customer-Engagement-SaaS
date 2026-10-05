@@ -43,7 +43,7 @@ export default function LandingPricingCarousel({ plans }: { plans: PublicPlan[] 
 
   useEffect(() => {
     const media = window.matchMedia("(min-width: 640px)");
-    const large = window.matchMedia("(min-width: 1100px)");
+    const large = window.matchMedia("(min-width: 1024px)");
 
     const update = () => {
       setVisibleCount(large.matches ? 3 : media.matches ? 2 : 1);
@@ -87,7 +87,7 @@ export default function LandingPricingCarousel({ plans }: { plans: PublicPlan[] 
     );
 
   return (
-    <div className="mt-12">
+    <div className="mt-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Browse plans</p>
@@ -118,7 +118,7 @@ export default function LandingPricingCarousel({ plans }: { plans: PublicPlan[] 
       </div>
 
       <div
-        className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+        className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
         role="listbox"
         aria-label="Conventus plans"
         aria-activedescendant={selected.id}
@@ -150,10 +150,10 @@ export default function LandingPricingCarousel({ plans }: { plans: PublicPlan[] 
               aria-selected={active}
               onClick={() => setSelectedId(plan.id)}
               className={
-                "group rounded-[1.75rem] border bg-white p-6 text-left shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 " +
+                "group rounded-2xl border bg-white p-6 text-left shadow-[0_8px_30px_rgba(15,23,42,0.05)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 " +
                 (active
-                  ? "border-blue-500 shadow-[0_12px_35px_rgba(37,99,235,0.12)] ring-1 ring-blue-200"
-                  : "border-slate-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md")
+                  ? "border-blue-500 shadow-[0_14px_36px_rgba(37,99,235,0.10)] ring-1 ring-blue-100"
+                  : "border-slate-200 hover:border-blue-200 hover:shadow-[0_12px_30px_rgba(15,23,42,0.07)]")
               }
             >
               <div className="flex items-start justify-between gap-3">
@@ -218,7 +218,7 @@ export default function LandingPricingCarousel({ plans }: { plans: PublicPlan[] 
         })}
       </div>
 
-      <div className="mt-5 rounded-[1.75rem] border border-slate-200 bg-slate-950 p-5 text-white sm:p-6">
+      <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950 p-5 text-white shadow-[0_18px_48px_rgba(15,23,42,0.14)] sm:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
