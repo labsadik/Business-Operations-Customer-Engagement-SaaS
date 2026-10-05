@@ -93,7 +93,8 @@ test("workspace feedback is an explicit accessible modal and does not expose cus
   const dashboard = source("components/workspace-dashboard.tsx");
   const modal = source("components/workspace-feedback.tsx");
 
-  assert.match(sidebar, /Feedback/);
+  assert.match(sidebar, /useNavigationLabels/);
+  assert.match(sidebar, /labels\.feedback/);
   assert.match(sidebar, /onClick=\{\(\) => open\("feedback"\)\}/);
   assert.match(sidebar, /userImage\?: string/);
   assert.match(sidebar, /<UserAvatar name=\{userName\} email=\{userEmail\} image=\{userImage\}/);
