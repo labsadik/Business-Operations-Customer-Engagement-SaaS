@@ -18,11 +18,11 @@ export const DEFAULT_NAVIGATION_LABELS = {
   adminPlatformSettings: "Platform settings"
 } as const;
 
-export type NavigationLabels = typeof DEFAULT_NAVIGATION_LABELS;
+export type NavigationLabels = { [K in keyof typeof DEFAULT_NAVIGATION_LABELS]: string };
 
 export function normalizeNavigationLabels(value: unknown): NavigationLabels {
   const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
-  const output = { ...DEFAULT_NAVIGATION_LABELS };
+  const output: NavigationLabels = { ...DEFAULT_NAVIGATION_LABELS };
 
   for (const key of Object.keys(DEFAULT_NAVIGATION_LABELS) as Array<keyof NavigationLabels>) {
     const candidate = input[key];
