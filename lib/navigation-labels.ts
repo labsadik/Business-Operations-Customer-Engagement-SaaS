@@ -27,7 +27,7 @@ export function normalizeNavigationLabels(value: unknown): NavigationLabels {
   for (const key of Object.keys(DEFAULT_NAVIGATION_LABELS) as Array<keyof NavigationLabels>) {
     const candidate = input[key];
     if (typeof candidate === "string") {
-      const trimmed = candidate.trim().replace(/\\s+/g, " ").slice(0, 80);
+      const trimmed = candidate.trim().replace(/\s+/g, " ").slice(0, 80);
       if (trimmed) output[key] = trimmed;
     }
   }
