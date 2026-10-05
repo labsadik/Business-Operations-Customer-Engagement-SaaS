@@ -1,5 +1,6 @@
 import AdminPlatformSettings from "@/components/admin-platform-settings";
 import { getPlatformSettings } from "@/lib/platform";
+import { normalizeNavigationLabels } from "@/lib/navigation-labels";
 import { getSession } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +26,7 @@ export default async function AdminPlatformSettingsPage() {
         sacCode: settings.sacCode,
         address: settings.address,
         gst: settings.gst,
-        navigation: settings.navigation
+        navigation: normalizeNavigationLabels(settings.navigation)
       }}
     />
   );
