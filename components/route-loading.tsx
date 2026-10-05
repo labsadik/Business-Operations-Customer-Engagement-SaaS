@@ -300,6 +300,7 @@ function AdminListLoading({
   filters?: number;
 }) {
   return (
+    <>
       <section className="rounded-3xl border border-slate-200 bg-white p-6">
         <Pulse className="h-5 w-28" />
         <Pulse className="mt-3 h-8 w-64" />
@@ -324,6 +325,7 @@ function AdminListLoading({
           ))}
         </div>
       </section>
+    </>
   );
 }
 
