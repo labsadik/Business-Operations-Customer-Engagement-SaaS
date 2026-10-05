@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import NavigationProgress from "@/components/navigation-progress";
+import NavigationLabelsProvider from "@/components/navigation-labels-provider";
 import CookieConsent from "@/components/cookie-consent";
 import AnalyticsProvider from "@/components/analytics-provider";
 import { getConfiguredPublicOrigin } from "@/lib/public-origin";
@@ -37,7 +38,9 @@ export default function RootLayout({
           <NavigationProgress />
         </Suspense>
         <AnalyticsProvider>
-          {children}
+          <NavigationLabelsProvider>
+            {children}
+          </NavigationLabelsProvider>
         </AnalyticsProvider>
         <CookieConsent />
       </body>
