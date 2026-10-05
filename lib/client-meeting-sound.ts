@@ -100,7 +100,7 @@ function scheduleNote(
 ) {
   const oscillator = context.createOscillator();
   const gain = context.createGain();
-  const peak = note.volume ?? 0.4;
+  const peak = note.volume ?? 2.4;
   const wave = note.wave ?? "triangle";
 
   oscillator.type = wave;
@@ -161,7 +161,7 @@ export async function playMeetingSound(type: MeetingSoundType) {
             ...note,
             frequency: note.frequency * 2,
             duration: note.duration * 0.82,
-            volume: (note.volume ?? 0.4) * 0.28,
+            volume: (note.volume ?? 2.4) * 0.28,
             wave: "sine"
           },
           cursor
