@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 const RAZORPAY_BASE_URL = "https://api.razorpay.com/v1";
+const RAZORPAY_REQUEST_TIMEOUT_MS = 10000;
 
 type RazorpayResponse = Record<string, unknown>;
 
@@ -15,12 +16,19 @@ function authorization(keyId: string, keySecret: string) {
   return "Basic " + Buffer.from(keyId + ":" + keySecret).toString("base64");
 }
 
+function razorpayFetch(input: RequestInfo | URL, init?: RequestInit) {
+  return fetch(input, {
+    ...init,
+    signal: init?.signal ?? AbortSignal.timeout(RAZORPAY_REQUEST_TIMEOUT_MS)
+  });
+}
+
 async function razorpayRequest<T extends RazorpayResponse>(
   path: string,
   init?: RequestInit
 ): Promise<T> {
   const { keyId, keySecret } = credentials();
-  const response = await fetch(RAZORPAY_BASE_URL + path, {
+  const response = await razorpayFetch(RAZORPAY_BASE_URL + path, {
     ...init,
     headers: {
       Authorization: authorization(keyId, keySecret),
@@ -29,6 +37,7 @@ async function razorpayRequest<T extends RazorpayResponse>(
     },
     cache: "no-store"
   });
+
   const body = await response.text();
   let parsed: T;
   try {
