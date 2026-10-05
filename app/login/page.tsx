@@ -45,13 +45,13 @@ function errorLabel(error?: string) {
 const workflowSteps = [
   {
     label: "Customer request",
-    description: "A customer requests a meeting.",
+    description: "Customer requests a meeting.",
     icon: CalendarPlus,
     tone: "blue"
   },
   {
     label: "Route to team",
-    description: "Conventus matches an eligible member.",
+    description: "Conventus routes to an eligible team member.",
     icon: Route,
     tone: "yellow"
   },
@@ -63,20 +63,170 @@ const workflowSteps = [
   },
   {
     label: "Meeting confirmed",
-    description: "The configured meeting flow continues.",
+    description: "The configured calendar and meeting flow proceeds.",
     icon: Video,
     tone: "green"
   }
 ] as const;
 
 const toneClasses = {
-  blue: "border-blue-200 bg-blue-50/70 text-blue-700",
+  blue: "border-blue-200 bg-blue-50/75 text-blue-700",
   yellow: "border-yellow-200 bg-yellow-50/80 text-yellow-700",
-  slate: "border-slate-200 bg-slate-100 text-slate-700",
-  green: "border-emerald-200 bg-emerald-50/80 text-emerald-700"
+  slate: "border-slate-200 bg-white text-slate-700",
+  green: "border-emerald-200 bg-emerald-50/75 text-emerald-700"
 } as const;
 
 function WorkflowIllustration() {
+  return (
+    <section
+      aria-labelledby="workflow-heading"
+      className="relative"
+    >
+      <div className="mb-4">
+        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-700">
+          How scheduling works
+        </p>
+        <h2
+          id="workflow-heading"
+          className="mt-1.5 text-xl font-semibold tracking-[-0.03em] text-slate-950 sm:text-2xl"
+        >
+          From request to confirmed meeting.
+        </h2>
+        <p className="mt-1.5 max-w-xl text-xs leading-5 text-slate-500">
+          An illustrative explanation of the Conventus scheduling flow.
+        </p>
+      </div>
+
+      <div className="relative">
+        <svg
+          aria-hidden="true"
+          focusable="false"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          className="pointer-events-none absolute inset-0 hidden h-full w-full md:block"
+        >
+          <path
+            d="M 39 25 H 61 C 69 25 69 55 61 75 H 39"
+            fill="none"
+            stroke="rgb(148 163 184 / 0.42)"
+            strokeWidth="0.7"
+            vectorEffect="non-scaling-stroke"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M 39 25 H 61 C 69 25 69 55 61 75 H 39"
+            fill="none"
+            stroke="rgb(37 99 235 / 0.24)"
+            strokeWidth="1.6"
+            vectorEffect="non-scaling-stroke"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray="1 4"
+          />
+          <circle className="login-workflow-pulse" r="1.1" fill="#facc15">
+            <animateMotion
+              dur="7s"
+              repeatCount="indefinite"
+              rotate="auto"
+              path="M 39 25 H 61 C 69 25 69 55 61 75 H 39"
+            />
+            <animate
+              attributeName="opacity"
+              values="0.2;0.9;0.75;0.2"
+              dur="7s"
+              repeatCount="indefinite"
+            />
+          </circle>
+        </svg>
+
+        <svg
+          aria-hidden="true"
+          focusable="false"
+          viewBox="0 0 10 100"
+          preserveAspectRatio="none"
+          className="pointer-events-none absolute inset-0 h-full w-full md:hidden"
+        >
+          <path
+            d="M 5 7 V 93"
+            fill="none"
+            stroke="rgb(148 163 184 / 0.44)"
+            strokeWidth="0.8"
+            vectorEffect="non-scaling-stroke"
+            strokeLinecap="round"
+          />
+          <path
+            d="M 5 7 V 93"
+            fill="none"
+            stroke="rgb(37 99 235 / 0.22)"
+            strokeWidth="1.8"
+            vectorEffect="non-scaling-stroke"
+            strokeLinecap="round"
+            strokeDasharray="1 4"
+          />
+          <circle className="login-workflow-pulse" r="1" fill="#facc15">
+            <animateMotion
+              dur="6s"
+              repeatCount="indefinite"
+              path="M 5 7 V 93"
+            />
+            <animate
+              attributeName="opacity"
+              values="0.2;0.9;0.75;0.2"
+              dur="6s"
+              repeatCount="indefinite"
+            />
+          </circle>
+        </svg>
+
+        <ol className="relative grid gap-4 md:grid-cols-2 md:gap-x-14 md:gap-y-7">
+          {workflowSteps.map((step, index) => {
+            const Icon = step.icon;
+
+            return (
+              <li
+                key={step.label}
+                className={`relative z-10 min-w-0 ${index === 1 ? "md:row-start-1 md:col-start-2" : ""} ${index === 2 ? "md:row-start-2 md:col-start-1" : ""} ${index === 3 ? "md:row-start-2 md:col-start-2" : ""}`}
+              >
+                <div className="rounded-2xl border border-slate-200 bg-white/95 p-3.5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur-sm">
+                  <div className="flex items-start gap-3">
+                    <span
+                      className={`grid size-9 shrink-0 place-items-center rounded-xl border ${toneClasses[step.tone]}`}
+                      aria-hidden="true"
+                    >
+                      <Icon className="size-4" />
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] font-bold tabular-nums text-slate-400">
+                          0{index + 1}
+                        </span>
+                        <p className="text-xs font-semibold text-slate-950">
+                          {step.label}
+                        </p>
+                      </div>
+                      <p className="mt-1 text-[11px] leading-4.5 text-slate-500">
+                        {step.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+
+      <style>{`
+        @media (prefers-reduced-motion: reduce) {
+          .login-workflow-pulse {
+            display: none;
+          }
+        }
+      `}</style>
+    </section>
+  );
+}function WorkflowIllustration() {
   return (
     <section
       aria-labelledby="workflow-heading"
