@@ -1,2 +1,5 @@
-import { LoginLoading } from "@/components/route-loading";
-export default function Loading() { return <LoginLoading />; }
+import { CompanyLoginLoading } from "@/components/route-loading";
+
+export default function Loading() {
+  return <CompanyLoginLoading />;
+}
