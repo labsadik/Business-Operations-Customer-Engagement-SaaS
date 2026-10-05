@@ -34,7 +34,6 @@ import MeetingResponseCountdown from "@/components/meeting-response-countdown";
 import RazorpayPlanButton from "@/components/razorpay-plan-button";
 import { playMeetingSound, unlockMeetingSound } from "@/lib/client-meeting-sound";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
-import PublicPageShare from "@/components/public-page-share";
 import GoogleIntegrationNotice from "@/components/google-integration-notice";
 import PlatformAnnouncementBanner from "@/components/platform-announcement-banner";
 import WorkspaceFeedback from "@/components/workspace-feedback";
@@ -1841,17 +1840,6 @@ export default function WorkspaceDashboard({
         onClose={() => setActiveModal(null)}
       >
         <div className="p-5 sm:p-6">
-          {canManage && (
-            <div className="mb-5">
-              <PublicPageShare
-                savedSlug={data.company.slug}
-                published={data.company.publicBookingEnabled}
-                canPublish={data.canPublish && !data.featureLocked}
-                busy={busy}
-                onPublishRequest={() => setConfirmation({ kind: "publish-page", published: data.company.publicBookingEnabled })}
-              />
-            </div>
-          )}
             <div className="mt-4 flex flex-wrap gap-2">
               <Link href="/dashboard/company-profile" onClick={() => setActiveModal(null)} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
                 <Settings2 className="size-4" />
