@@ -106,7 +106,7 @@ function StageContent({ stage }: { stage: WorkflowStage["key"] }) {
           </div>
           <div className="flex items-center gap-2 rounded-lg border border-slate-200 px-2.5 py-2 text-[10px] text-slate-600">
             <Clock3 className="size-3.5 text-slate-400" aria-hidden="true" />
-            <span>Request time is kept unchanged.</span>
+            <span>Checks schedule and eligibility.</span>
           </div>
         </div>
       );
