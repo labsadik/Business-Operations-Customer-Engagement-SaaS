@@ -316,12 +316,15 @@ test("plan concurrency limits remain plan-configured rather than hard-coded", ()
 
 
 test("accept policy distinguishes idempotent, assigned, expired, and declined states", () => {
+  // Keep policy tests deterministic instead of depending on the wall clock.
+  const now = new Date("2026-10-05T09:00:00.000Z");
   const future = new Date("2026-10-05T10:00:00.000Z");
   const base = {
     assignedEmployeeId: undefined,
     declinedBy: [] as string[],
     expiresAt: future,
-    userId: "employee-a"
+    userId: "employee-a",
+    now
   };
 
   assert.deepEqual(
@@ -355,6 +358,8 @@ test("accept policy distinguishes idempotent, assigned, expired, and declined st
 });
 
 test("decline policy is idempotent for one employee and still eligible for teammates", () => {
+  // Keep policy tests deterministic instead of depending on the wall clock.
+  const now = new Date("2026-10-05T09:00:00.000Z");
   const future = new Date("2026-10-05T10:00:00.000Z");
   assert.deepEqual(
     classifyDecline({
@@ -362,7 +367,8 @@ test("decline policy is idempotent for one employee and still eligible for teamm
       assignedEmployeeId: undefined,
       declinedBy: ["employee-a"],
       expiresAt: future,
-      userId: "employee-a"
+      userId: "employee-a",
+      now
     }),
     { kind: "IDEMPOTENT_PROCESSING" }
   );
@@ -372,7 +378,8 @@ test("decline policy is idempotent for one employee and still eligible for teamm
       assignedEmployeeId: undefined,
       declinedBy: ["employee-a"],
       expiresAt: future,
-      userId: "employee-b"
+      userId: "employee-b",
+      now
     }),
     { kind: "ELIGIBLE" }
   );
