@@ -40,6 +40,8 @@ const primaryItems = [
   { key: "dashboard", href: "/dashboard", label: "Overview", icon: BarChart3 }
 ] as const;
 
+const defaultSupportTicketsLabel = "Support tickets";
+
 export default function WorkspaceSidebar({
   companyName,
   userName,
@@ -138,7 +140,7 @@ export default function WorkspaceSidebar({
             {currentRole !== "PLATFORM_ADMIN" && (
               <button type="button" onClick={() => open("support-tickets")} className={buttonClass(active("support-tickets"))}>
                 <LifeBuoy className={`size-4 ${iconClass(active("support-tickets"))}`} />
-                <span>{labels.supportTickets}</span>
+                <span>{labels.supportTickets || defaultSupportTicketsLabel}</span>
               </button>
             )}
 
