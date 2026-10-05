@@ -34,6 +34,7 @@ type WorkspaceSidebarProps = {
   activeSettingsSection?: "public" | "announcements";
   activeProfile?: boolean;
   onOpenPanel?: (panel: Panel, section?: "announcements") => void;
+  avatarFallback?: string;
 };
 
 const primaryItems = [
@@ -53,7 +54,8 @@ export default function WorkspaceSidebar({
   activePanel = null,
   activeSettingsSection = "public",
   activeProfile = false,
-  onOpenPanel
+  onOpenPanel,
+  avatarFallback
 }: WorkspaceSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -94,7 +96,7 @@ export default function WorkspaceSidebar({
           <div className="rounded-2xl bg-[#faf9f1] p-3 ring-1 ring-inset ring-amber-100/80">
             <p className="truncate text-xs font-semibold text-slate-950">{companyName}</p>
             <div className="mt-2 flex items-center gap-2">
-              <UserAvatar name={userName} email={userEmail} image={userImage} size={30} className="border-0 bg-blue-600 text-white" />
+              <UserAvatar name={userName} email={userEmail} image={userImage} fallbackImage={avatarFallback} size={30} className="border-0 bg-blue-600 text-white" />
               <div className="min-w-0">
                 <p className="truncate text-[11px] font-semibold text-slate-800">{userName}</p>
                 <p className="truncate text-[10px] text-slate-500">{userEmail}</p>
