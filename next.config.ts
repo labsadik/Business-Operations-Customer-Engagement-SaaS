@@ -27,6 +27,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   typedRoutes: true,
+  serverExternalPackages: ["@opentelemetry/api"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "**.googleusercontent.com" }
