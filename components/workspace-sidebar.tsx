@@ -7,7 +7,6 @@ import UserAvatar from "@/components/user-avatar";
 import {
   ArrowUpRight,
   BarChart3,
-  Building2,
   CalendarDays,
   CreditCard,
   Globe2,
