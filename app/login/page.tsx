@@ -4,12 +4,10 @@ import {
   ArrowLeft,
   ArrowRight,
   CalendarCheck2,
-  Check,
+  CalendarPlus,
   CheckCircle2,
-  Clock3,
   Route,
-  ShieldCheck,
-  UsersRound,
+  UserCheck,
   Video
 } from "lucide-react";
 import GoogleSignInButton from "@/components/google-sign-in-button";
@@ -45,10 +43,101 @@ function errorLabel(error?: string) {
   return errorMessages[error] ?? "We could not complete sign-in. Please try again.";
 }
 
-const previewMembers = [
-  { name: "Avery Chen", detail: "Available · Google Calendar" },
-  { name: "Jordan Lee", detail: "Available · Google Calendar" }
-];
+const workflowSteps = [
+  {
+    label: "Customer request",
+    description: "A customer requests a meeting.",
+    icon: CalendarPlus,
+    tone: "blue"
+  },
+  {
+    label: "Route to team",
+    description: "Conventus matches an eligible member.",
+    icon: Route,
+    tone: "yellow"
+  },
+  {
+    label: "Team acceptance",
+    description: "A team member accepts the request.",
+    icon: UserCheck,
+    tone: "slate"
+  },
+  {
+    label: "Meeting confirmed",
+    description: "The configured meeting flow continues.",
+    icon: Video,
+    tone: "green"
+  }
+] as const;
+
+const toneClasses = {
+  blue: "border-blue-200 bg-blue-50/70 text-blue-700",
+  yellow: "border-yellow-200 bg-yellow-50/80 text-yellow-700",
+  slate: "border-slate-200 bg-slate-100 text-slate-700",
+  green: "border-emerald-200 bg-emerald-50/80 text-emerald-700"
+} as const;
+
+function WorkflowIllustration() {
+  return (
+    <section
+      aria-labelledby="workflow-heading"
+      className="relative"
+    >
+      <div className="mb-4">
+        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-700">
+          How scheduling works
+        </p>
+        <h2
+          id="workflow-heading"
+          className="mt-1.5 text-xl font-semibold tracking-[-0.03em] text-slate-950 sm:text-2xl"
+        >
+          From request to confirmed meeting.
+        </h2>
+        <p className="mt-1.5 max-w-xl text-xs leading-5 text-slate-500">
+          Illustrative workflow only. The sequence describes the existing Conventus scheduling process.
+        </p>
+      </div>
+
+      <ol className="flex flex-col gap-2.5 md:flex-row md:items-stretch md:gap-0">
+        {workflowSteps.map((step, index) => {
+          const Icon = step.icon;
+
+          return (
+            <li key={step.label} className="flex min-w-0 flex-1 flex-col md:flex-row md:items-center">
+              <div className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white/90 p-3.5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+                <div className="flex items-start gap-3">
+                  <span
+                    className={`grid size-9 shrink-0 place-items-center rounded-xl border ${toneClasses[step.tone]}`}
+                    aria-hidden="true"
+                  >
+                    <Icon className="size-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-slate-950">
+                      {step.label}
+                    </p>
+                    <p className="mt-1 text-[11px] leading-4.5 text-slate-500">
+                      {step.description}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {index < workflowSteps.length - 1 && (
+                <div
+                  aria-hidden="true"
+                  className="relative ml-6 h-4 w-px shrink-0 bg-blue-200 md:ml-0 md:h-px md:w-5 md:bg-blue-200"
+                >
+                  <span className="absolute -bottom-0.5 -left-0.75 size-1.5 rounded-full bg-yellow-300 md:-bottom-0.75 md:-right-0.5 md:left-auto" />
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
 
 export default async function LoginPage({
   searchParams
@@ -64,15 +153,15 @@ export default async function LoginPage({
 
   return (
     <main className="min-h-[100svh] bg-slate-50 text-slate-950 lg:h-[100dvh] lg:min-h-0">
-      <div className="mx-auto grid min-h-[100svh] max-w-[1440px] lg:h-full lg:min-h-0 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+      <div className="mx-auto grid min-h-[100svh] max-w-[1440px] lg:h-full lg:min-h-0 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
         <section
           aria-labelledby="login-heading"
-          className="relative flex min-h-[100svh] flex-col overflow-hidden border-r border-slate-200 bg-white lg:min-h-0"
+          className="relative flex min-h-[100svh] flex-col overflow-hidden border-r border-slate-200 bg-white md:min-h-[100svh] lg:min-h-0"
         >
-          <div className="pointer-events-none absolute -left-28 top-16 size-64 rounded-full bg-blue-50/80 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-24 right-0 size-72 rounded-full bg-yellow-100/40 blur-3xl" />
+          <div className="pointer-events-none absolute -left-28 top-14 size-64 rounded-full bg-blue-50/70 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 right-0 size-72 rounded-full bg-yellow-100/35 blur-3xl" />
 
-          <div className="relative mx-auto flex w-full max-w-2xl flex-1 flex-col px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-8 lg:px-10 xl:px-14">
+          <div className="relative mx-auto flex w-full max-w-2xl flex-1 flex-col px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-7 md:px-8 lg:px-9 xl:px-12">
             <header className="flex items-center justify-between gap-4">
               <Link
                 href="/"
@@ -99,23 +188,23 @@ export default async function LoginPage({
               </Link>
             </header>
 
-            <div className="flex flex-1 items-center overflow-y-auto py-7 sm:py-8 lg:py-5">
+            <div className="flex flex-1 items-center overflow-y-auto py-8 sm:py-9 md:py-7 lg:py-4">
               <div className="w-full">
                 <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-600">
                   Welcome back
                 </p>
                 <h1
                   id="login-heading"
-                  className="mt-2.5 max-w-xl text-[2.25rem] font-semibold leading-[1.04] tracking-[-0.04em] text-slate-950 sm:text-5xl lg:text-[2.75rem]"
+                  className="mt-2.5 max-w-xl text-[2.2rem] font-semibold leading-[1.05] tracking-[-0.04em] text-slate-950 sm:text-5xl md:text-[2.5rem] lg:text-[2.65rem]"
                 >
                   Sign in to your workspace.
                 </h1>
-                <p className="mt-4 max-w-xl text-[15px] leading-6 text-slate-600 sm:text-base">
+                <p className="mt-3.5 max-w-xl text-[15px] leading-6 text-slate-600 sm:text-base">
                   Continue securely with your Google account to access your Conventus workspace and pick up where you left off.
                 </p>
 
                 {hasContinuation && (
-                  <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50/70 p-3.5 sm:p-4">
+                  <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50/70 p-3.5">
                     <div className="flex items-start gap-3">
                       <div className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-white text-blue-700 shadow-sm">
                         <ArrowRight className="size-3.5" aria-hidden="true" />
@@ -137,7 +226,7 @@ export default async function LoginPage({
                 {error && (
                   <div
                     role="alert"
-                    className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 p-3.5 sm:p-4"
+                    className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 p-3.5"
                   >
                     <p className="text-sm font-semibold text-rose-950">
                       Sign-in could not be completed
@@ -148,42 +237,11 @@ export default async function LoginPage({
                   </div>
                 )}
 
-                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/90 p-3.5 sm:p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-white text-blue-700 shadow-sm">
-                      <CalendarCheck2 className="size-4" aria-hidden="true" />
-                    </div>
-                    <div>
-                      <p className="text-[13px] font-semibold text-slate-900">
-                        Calendar access stays separate
-                      </p>
-                      <p className="mt-1 text-[12px] leading-5 text-slate-600">
-                        Signing in with Google does not automatically grant Calendar access. Conventus only asks for additional Calendar permissions when a scheduling member explicitly starts Google setup.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-5">
+                <div className="mt-6">
                   <GoogleSignInButton href={startUrl} />
                 </div>
 
-                <div className="mt-4 flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-4">
-                  <ShieldCheck
-                    className="mt-0.5 size-5 shrink-0 text-emerald-600"
-                    aria-hidden="true"
-                  />
-                  <div>
-                    <p className="text-[13px] font-semibold text-slate-900">
-                      Google is the current sign-in method
-                    </p>
-                    <p className="mt-1 text-[12px] leading-5 text-slate-600">
-                      Conventus keeps authentication and service credentials on the server. Your Google account is used to identify the signed-in user.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-3 flex items-start gap-2.5">
+                <div className="mt-4 flex items-start gap-3 border-t border-slate-200 pt-4">
                   <CheckCircle2
                     className="mt-0.5 size-3.5 shrink-0 text-blue-600"
                     aria-hidden="true"
@@ -191,6 +249,10 @@ export default async function LoginPage({
                   <p className="text-[11px] leading-4.5 text-slate-500">
                     No password form is exposed because the current application does not provide a separate password-based login or recovery route.
                   </p>
+                </div>
+
+                <div className="mt-5 md:hidden">
+                  <WorkflowIllustration />
                 </div>
               </div>
             </div>
@@ -220,7 +282,7 @@ export default async function LoginPage({
                     Cookie settings
                   </CookieSettingsButton>
                 </div>
-                <span className="text-slate-400">
+                <span className="hidden text-slate-400 xl:inline">
                   Secure sign-in for Conventus workspaces
                 </span>
               </nav>
@@ -229,142 +291,13 @@ export default async function LoginPage({
         </section>
 
         <aside
-          aria-labelledby="preview-heading"
-          className="relative hidden overflow-hidden bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.12),transparent_32%),linear-gradient(145deg,#f8fafc_0%,#eef4fb_52%,#f8f5e8_100%)] sm:block lg:min-h-0"
+          aria-labelledby="workflow-heading"
+          className="relative overflow-hidden bg-[linear-gradient(145deg,#f8fafc_0%,#f1f5f9_58%,#f8f5e8_100%)] md:flex md:min-h-[100svh] lg:min-h-0"
         >
-          <div className="absolute inset-0 opacity-70 [background-image:linear-gradient(rgba(148,163,184,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.1)_1px,transparent_1px)] [background-size:32px_32px]" />
-          <div className="relative flex h-full min-h-[430px] items-center px-6 py-8 sm:px-8 lg:min-h-0 lg:px-9 xl:px-12">
-            <div className="mx-auto w-full max-w-2xl">
-              <div className="mb-4 flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-700">
-                    Illustrative product preview
-                  </p>
-                  <h2
-                    id="preview-heading"
-                    className="mt-1.5 text-xl font-semibold leading-tight tracking-[-0.03em] text-slate-950 sm:text-2xl"
-                  >
-                    A calmer path from request to meeting.
-                  </h2>
-                </div>
-                <span className="shrink-0 rounded-full border border-slate-200 bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-slate-500 shadow-sm">
-                  Demo
-                </span>
-              </div>
-
-              <div className="space-y-3">
-                <div className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-[0_20px_50px_rgba(15,23,42,0.07)] backdrop-blur-sm">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
-                        Customer request
-                      </p>
-                      <p className="mt-1.5 text-sm font-semibold text-slate-950">
-                        Intro call with Northstar Studio
-                      </p>
-                      <p className="mt-1 text-[11px] text-slate-500">
-                        Example request · 30 minutes · Illustrative only
-                      </p>
-                    </div>
-                    <div className="grid size-8 place-items-center rounded-xl bg-yellow-50 text-yellow-700">
-                      <Clock3 className="size-4" aria-hidden="true" />
-                    </div>
-                  </div>
-                  <div className="mt-3 grid gap-2.5 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5">
-                      <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">
-                        Requested
-                      </p>
-                      <p className="mt-0.5 text-[13px] font-semibold text-slate-900">
-                        10:30 AM
-                      </p>
-                    </div>
-                    <Route
-                      className="mx-auto hidden size-4 text-blue-500 sm:block"
-                      aria-hidden="true"
-                    />
-                    <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-2.5">
-                      <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-blue-600">
-                        Routing
-                      </p>
-                      <p className="mt-0.5 text-[13px] font-semibold text-blue-950">
-                        Match available team member
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="ml-0 flex flex-col gap-3 lg:ml-8">
-                  <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-[0_16px_38px_rgba(15,23,42,0.05)]">
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
-                          Available team members
-                        </p>
-                        <p className="mt-1 text-[11px] text-slate-500">
-                          Example availability · not live account data
-                        </p>
-                      </div>
-                      <UsersRound className="size-4.5 text-blue-600" aria-hidden="true" />
-                    </div>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                      {previewMembers.map((member) => (
-                        <div
-                          key={member.name}
-                          className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50 p-2.5"
-                        >
-                          <span className="grid size-8 place-items-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-800">
-                            {member.name
-                              .split(" ")
-                              .map((part) => part[0])
-                              .join("")}
-                          </span>
-                          <div className="min-w-0">
-                            <p className="truncate text-xs font-semibold text-slate-900">
-                              {member.name}
-                            </p>
-                            <p className="mt-0.5 truncate text-[10px] text-slate-500">
-                              {member.detail}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 shadow-[0_16px_38px_rgba(16,185,129,0.07)]">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700">
-                          Confirmed meeting
-                        </p>
-                        <p className="mt-1 text-sm font-semibold text-emerald-950">
-                          Example meeting · 11:00 AM
-                        </p>
-                        <p className="mt-1 text-[11px] leading-5 text-emerald-900/75">
-                          Google Meet + Calendar follow acceptance.
-                        </p>
-                      </div>
-                      <div className="grid size-8 place-items-center rounded-xl bg-white text-emerald-700 shadow-sm">
-                        <Video className="size-4" aria-hidden="true" />
-                      </div>
-                    </div>
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[10px] font-semibold text-emerald-800">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-1.5">
-                        <Check className="size-3" aria-hidden="true" />
-                        Accepted
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-1.5">
-                        Calendar + Meet
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <p className="mt-3 max-w-xl text-[10px] leading-4 text-slate-500">
-                All names, times, companies, requests, and statuses in this preview are illustrative examples of the existing scheduling workflow.
-              </p>
+          <div className="absolute inset-0 opacity-60 [background-image:linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] [background-size:36px_36px]" />
+          <div className="relative flex min-h-[260px] w-full items-center px-5 py-9 sm:px-7 md:min-h-[100svh] md:px-8 md:py-10 lg:min-h-0 lg:px-9 xl:px-12">
+            <div className="mx-auto w-full max-w-3xl">
+              <WorkflowIllustration />
             </div>
           </div>
         </aside>
