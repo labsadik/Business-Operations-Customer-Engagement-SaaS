@@ -105,39 +105,62 @@ function WorkflowIllustration() {
           preserveAspectRatio="none"
           className="pointer-events-none absolute inset-0 hidden h-full w-full md:block"
         >
+          <defs>
+            <linearGradient id="login-workflow-route" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#2563eb" stopOpacity="0.32" />
+              <stop offset="52%" stopColor="#94a3b8" stopOpacity="0.34" />
+              <stop offset="100%" stopColor="#facc15" stopOpacity="0.38" />
+            </linearGradient>
+          </defs>
           <path
-            d="M 39 25 H 61 C 69 25 69 55 61 75 H 39"
+            d="M 42 24 H 58 C 67 24 67 76 58 76 H 42"
             fill="none"
-            stroke="rgb(148 163 184 / 0.42)"
-            strokeWidth="0.7"
+            stroke="rgb(148 163 184 / 0.28)"
+            strokeWidth="0.8"
             vectorEffect="non-scaling-stroke"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
           <path
-            d="M 39 25 H 61 C 69 25 69 55 61 75 H 39"
+            d="M 42 24 H 58 C 67 24 67 76 58 76 H 42"
             fill="none"
-            stroke="rgb(37 99 235 / 0.24)"
-            strokeWidth="1.6"
+            stroke="url(#login-workflow-route)"
+            strokeWidth="1.4"
             vectorEffect="non-scaling-stroke"
             strokeLinecap="round"
             strokeLinejoin="round"
-            strokeDasharray="1 4"
           />
-          <circle className="login-workflow-pulse" r="1.1" fill="#facc15">
-            <animateMotion
-              dur="7s"
-              repeatCount="indefinite"
-              rotate="auto"
-              path="M 39 25 H 61 C 69 25 69 55 61 75 H 39"
-            />
-            <animate
-              attributeName="opacity"
-              values="0.2;0.9;0.75;0.2"
-              dur="7s"
-              repeatCount="indefinite"
-            />
-          </circle>
+          {[
+            { delay: "0s", tone: "#facc15" },
+            { delay: "1.9s", tone: "#60a5fa" },
+            { delay: "3.8s", tone: "#facc15" }
+          ].map((pulse) => (
+            <circle
+              key={pulse.delay}
+              className="login-workflow-pulse"
+              r="0.95"
+              fill={pulse.tone}
+            >
+              <animateMotion
+                dur="5.7s"
+                begin={pulse.delay}
+                repeatCount="indefinite"
+                rotate="auto"
+                calcMode="spline"
+                keyTimes="0;0.12;0.5;0.88;1"
+                keySplines="0.18 0.7 0.25 1;0.42 0 0.58 1;0.42 0 0.58 1;0.65 0 0.82 0.25"
+                path="M 42 24 H 58 C 67 24 67 76 58 76 H 42"
+              />
+              <animate
+                attributeName="opacity"
+                values="0;0.9;0.82;0.72;0"
+                keyTimes="0;0.08;0.25;0.78;1"
+                dur="5.7s"
+                begin={pulse.delay}
+                repeatCount="indefinite"
+              />
+            </circle>
+          ))}
         </svg>
 
         <svg
@@ -148,35 +171,50 @@ function WorkflowIllustration() {
           className="pointer-events-none absolute inset-0 h-full w-full md:hidden"
         >
           <path
-            d="M 5 7 V 93"
+            d="M 5 6 V 94"
             fill="none"
-            stroke="rgb(148 163 184 / 0.44)"
+            stroke="rgb(148 163 184 / 0.32)"
             strokeWidth="0.8"
             vectorEffect="non-scaling-stroke"
             strokeLinecap="round"
           />
           <path
-            d="M 5 7 V 93"
+            d="M 5 6 V 94"
             fill="none"
-            stroke="rgb(37 99 235 / 0.22)"
-            strokeWidth="1.8"
+            stroke="rgb(37 99 235 / 0.26)"
+            strokeWidth="1.4"
             vectorEffect="non-scaling-stroke"
             strokeLinecap="round"
-            strokeDasharray="1 4"
           />
-          <circle className="login-workflow-pulse" r="1" fill="#facc15">
-            <animateMotion
-              dur="6s"
-              repeatCount="indefinite"
-              path="M 5 7 V 93"
-            />
-            <animate
-              attributeName="opacity"
-              values="0.2;0.9;0.75;0.2"
-              dur="6s"
-              repeatCount="indefinite"
-            />
-          </circle>
+          {[
+            { delay: "0s", tone: "#facc15" },
+            { delay: "2s", tone: "#60a5fa" }
+          ].map((pulse) => (
+            <circle
+              key={pulse.delay}
+              className="login-workflow-pulse"
+              r="0.9"
+              fill={pulse.tone}
+            >
+              <animateMotion
+                dur="5.2s"
+                begin={pulse.delay}
+                repeatCount="indefinite"
+                calcMode="spline"
+                keyTimes="0;0.15;0.5;0.85;1"
+                keySplines="0.18 0.7 0.25 1;0.42 0 0.58 1;0.42 0 0.58 1;0.65 0 0.82 0.25"
+                path="M 5 6 V 94"
+              />
+              <animate
+                attributeName="opacity"
+                values="0;0.88;0.76;0.68;0"
+                keyTimes="0;0.08;0.25;0.78;1"
+                dur="5.2s"
+                begin={pulse.delay}
+                repeatCount="indefinite"
+              />
+            </circle>
+          ))}
         </svg>
 
         <ol className="relative grid gap-4 md:grid-cols-2 md:gap-x-14 md:gap-y-7">
@@ -186,7 +224,7 @@ function WorkflowIllustration() {
             return (
               <li
                 key={step.label}
-                className={`relative z-10 min-w-0 ${index === 1 ? "md:row-start-1 md:col-start-2" : ""} ${index === 2 ? "md:row-start-2 md:col-start-1" : ""} ${index === 3 ? "md:row-start-2 md:col-start-2" : ""}`}
+                className={`relative z-10 min-w-0 ${index === 1 ? "md:row-start-1 md:col-start-2" : ""} ${index === 2 ? "md:row-start-2 md:col-start-2" : ""} ${index === 3 ? "md:row-start-2 md:col-start-1" : ""}`}
               >
                 <div className="rounded-2xl border border-slate-200 bg-white/95 p-3.5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur-sm">
                   <div className="flex items-start gap-3">
