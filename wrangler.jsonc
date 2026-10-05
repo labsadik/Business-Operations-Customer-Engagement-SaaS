@@ -14,7 +14,7 @@
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
-      "service": "conventus"
+      "service": "test0001"
     }
   ],
   "triggers": {
