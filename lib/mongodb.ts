@@ -4,6 +4,15 @@ declare global {
   var __conventusMongo: Promise<typeof mongoose> | undefined;
 }
 
+function resetMongoCache(connectionPromise?: Promise<typeof mongoose>) {
+  if (
+    !connectionPromise ||
+    globalThis.__conventusMongo === connectionPromise
+  ) {
+    globalThis.__conventusMongo = undefined;
+  }
+}
+
 export async function getMongo() {
   const uri = process.env.MONGODB_URI;
 
@@ -28,16 +37,25 @@ export async function getMongo() {
   if (!globalThis.__conventusMongo) {
     const connectionPromise = mongoose.connect(uri, {
       dbName: databaseName,
+      bufferCommands: false,
+      maxPoolSize: 1,
+      minPoolSize: 0,
       serverSelectionTimeoutMS: 5000,
-      maxPoolSize: 20,
-      minPoolSize: 2
+      socketTimeoutMS: 10000
     });
 
     globalThis.__conventusMongo = connectionPromise;
+
     connectionPromise.catch(() => {
-      if (globalThis.__conventusMongo === connectionPromise) {
-        globalThis.__conventusMongo = undefined;
-      }
+      resetMongoCache(connectionPromise);
+    });
+
+    mongoose.connection.once("disconnected", () => {
+      resetMongoCache(connectionPromise);
+    });
+
+    mongoose.connection.once("error", () => {
+      resetMongoCache(connectionPromise);
     });
   }
 
