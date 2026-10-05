@@ -292,57 +292,158 @@ export function AdminCompanyDetailsLoading() {
   );
 }
 
-function AdminListLoading({
-  rows = 6,
-  filters = 1
-}: {
-  rows?: number;
-  filters?: number;
-}) {
+export function AdminUsersLoading() {
   return (
-    <>
+    <div className="space-y-6">
       <section className="rounded-3xl border border-slate-200 bg-white p-6">
         <Pulse className="h-5 w-28" />
-        <Pulse className="mt-3 h-8 w-64" />
+        <Pulse className="mt-3 h-8 w-60" />
         <Pulse className="mt-3 h-4 w-full max-w-2xl" />
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: filters }, (_, index) => <Pulse key={index} className="h-10 rounded-xl" />)}
-        </div>
+        <Pulse className="mt-5 h-11 w-full max-w-md rounded-xl" />
       </section>
-      <section className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white">
+      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
+        <Pulse className="h-14 w-full rounded-none" />
         <div className="divide-y divide-slate-100">
-          {Array.from({ length: rows }, (_, index) => (
-            <div key={index} className="min-h-24 p-5">
+          {Array.from({ length: 7 }, (_, index) => (
+            <div key={index} className="grid gap-4 px-5 py-5 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
               <div className="flex items-center gap-3">
                 <Pulse className="size-10 rounded-full" />
-                <div className="flex-1 space-y-2">
-                  <Pulse className="h-3 w-44 max-w-full" />
-                  <Pulse className="h-2.5 w-56 max-w-full" />
+                <div className="space-y-2">
+                  <Pulse className="h-3 w-36" />
+                  <Pulse className="h-2.5 w-48 max-w-full" />
                 </div>
-                <Pulse className="h-8 w-24 rounded-xl" />
+              </div>
+              <div className="space-y-2">
+                <Pulse className="h-2.5 w-20" />
+                <Pulse className="h-4 w-32 max-w-full" />
+              </div>
+              <div className="flex gap-2">
+                <Pulse className="h-14 w-20 rounded-xl" />
+                <Pulse className="h-14 w-20 rounded-xl" />
+                <Pulse className="h-14 w-20 rounded-xl" />
+              </div>
+              <div className="space-y-2 lg:text-right">
+                <Pulse className="ml-auto h-2.5 w-24" />
+                <Pulse className="ml-auto h-4 w-28" />
               </div>
             </div>
           ))}
         </div>
       </section>
-    </>
+    </div>
   );
 }
 
-export function AdminUsersLoading() {
-  return <AdminListLoading rows={7} filters={1} />;
-}
-
 export function AdminAccessLoading() {
-  return <AdminListLoading rows={7} filters={1} />;
+  return (
+    <div className="space-y-6">
+      <section className="rounded-3xl border border-slate-200 bg-white p-6">
+        <Pulse className="h-5 w-24" />
+        <Pulse className="mt-3 h-8 w-56" />
+        <Pulse className="mt-3 h-4 w-full max-w-2xl" />
+        <Pulse className="mt-5 h-11 w-full max-w-md rounded-xl" />
+      </section>
+      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
+        <div className="border-b border-slate-200 px-5 py-4">
+          <Pulse className="h-4 w-40" />
+          <Pulse className="mt-2 h-3 w-56" />
+        </div>
+        <div className="divide-y divide-slate-100">
+          {Array.from({ length: 6 }, (_, index) => (
+            <div key={index} className="grid gap-4 px-5 py-5 lg:grid-cols-[1.4fr_1fr_1fr_auto] lg:items-center">
+              <div className="flex items-center gap-3">
+                <Pulse className="size-11 rounded-full" />
+                <div className="space-y-2">
+                  <Pulse className="h-3 w-36" />
+                  <Pulse className="h-2.5 w-48 max-w-full" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Pulse className="h-2.5 w-20" />
+                <Pulse className="h-7 w-32 rounded-full" />
+              </div>
+              <div className="space-y-2">
+                <Pulse className="h-2.5 w-24" />
+                <Pulse className="h-4 w-44 max-w-full" />
+              </div>
+              <Pulse className="h-10 w-28 rounded-xl" />
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
 }
 
 export function AdminFeedbackLoading() {
-  return <AdminListLoading rows={6} filters={4} />;
+  return (
+    <div className="space-y-6">
+      <section className="rounded-[2rem] border border-slate-200 bg-white p-6 sm:p-8">
+        <Pulse className="h-4 w-36" />
+        <Pulse className="mt-3 h-8 w-48" />
+        <Pulse className="mt-3 h-4 w-full max-w-2xl" />
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }, (_, index) => <Pulse key={index} className="h-10 rounded-xl" />)}
+        </div>
+      </section>
+      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
+        <div className="divide-y divide-slate-100">
+          {Array.from({ length: 6 }, (_, index) => (
+            <article key={index} className="p-5 sm:p-6">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0 flex-1 space-y-3">
+                  <div className="flex gap-2">
+                    <Pulse className="h-6 w-28 rounded-full" />
+                    <Pulse className="h-6 w-20 rounded-full" />
+                  </div>
+                  <Pulse className="h-4 w-40" />
+                  <Pulse className="h-3 w-28" />
+                  <Pulse className="h-10 w-full max-w-2xl" />
+                </div>
+                <Pulse className="h-9 w-28 rounded-xl" />
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
 }
 
 export function AdminSupportTicketsLoading() {
-  return <AdminListLoading rows={6} filters={2} />;
+  return (
+    <div className="space-y-6">
+      <section className="rounded-[2rem] border border-slate-200 bg-white p-6 sm:p-8">
+        <Pulse className="h-4 w-40" />
+        <Pulse className="mt-3 h-8 w-56" />
+        <Pulse className="mt-3 h-4 w-full max-w-2xl" />
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <Pulse className="h-10 rounded-xl" />
+          <Pulse className="h-10 rounded-xl" />
+        </div>
+      </section>
+      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
+        <div className="divide-y divide-slate-100">
+          {Array.from({ length: 6 }, (_, index) => (
+            <div key={index} className="p-5 sm:p-6">
+              <div className="flex items-start gap-3">
+                <Pulse className="size-10 rounded-xl" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="flex gap-2">
+                    <Pulse className="h-6 w-20 rounded-full" />
+                    <Pulse className="h-6 w-24 rounded-full" />
+                  </div>
+                  <Pulse className="h-4 w-56 max-w-full" />
+                  <Pulse className="h-3 w-72 max-w-full" />
+                </div>
+                <Pulse className="h-9 w-20 rounded-xl" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
 }
 
 export function AdminPlansLoading() {
