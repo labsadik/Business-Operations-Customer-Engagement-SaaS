@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { usePathname, useRouter } from "next/navigation";
 import UserAvatar from "@/components/user-avatar";
+import { useNavigationLabels } from "@/components/navigation-labels-provider";
 import {
   Building2,
   ArrowUpRight,
@@ -54,6 +55,7 @@ export default function WorkspaceSidebar({
 }: WorkspaceSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { labels } = useNavigationLabels();
 
   const isDashboard = pathname === "/dashboard" && !activePanel;
   const active = (key: "dashboard" | Panel | "profile") => {
@@ -113,7 +115,7 @@ export default function WorkspaceSidebar({
               return (
                 <Link key={item.href} href={item.href as Route} className={buttonClass(selected)}>
                   <Icon className={`size-4 ${iconClass(selected)}`} />
-                  <span>{item.label}</span>
+                  <span>{labels.dashboard}</span>
                   {selected && <span className="ml-auto size-1.5 rounded-full bg-blue-600" />}
                 </Link>
               );
@@ -121,22 +123,22 @@ export default function WorkspaceSidebar({
 
             <button type="button" onClick={() => open("meetings")} className={buttonClass(active("meetings"))}>
               <CalendarDays className={`size-4 ${iconClass(active("meetings"))}`} />
-              <span>Meetings</span>
+              <span>{labels.meetings}</span>
             </button>
 
             <button type="button" onClick={() => open("team")} className={buttonClass(active("team"))}>
               <UsersRound className={`size-4 ${iconClass(active("team"))}`} />
-              <span>Team</span>
+              <span>{labels.team}</span>
             </button>
 
             <button type="button" onClick={() => open("feedback")} className={buttonClass(active("feedback"))}>
               <MessageSquareText className={`size-4 ${iconClass(active("feedback"))}`} />
-              <span>Feedback</span>
+              <span>{labels.feedback}</span>
             </button>
             {currentRole !== "PLATFORM_ADMIN" && (
               <button type="button" onClick={() => open("support-tickets")} className={buttonClass(active("support-tickets"))}>
                 <LifeBuoy className={`size-4 ${iconClass(active("support-tickets"))}`} />
-                <span>Support tickets</span>
+                <span>{labels.supportTickets}</span>
               </button>
             )}
 
@@ -144,24 +146,24 @@ export default function WorkspaceSidebar({
               <>
                 <button type="button" onClick={() => open("settings", "announcements")} className={buttonClass(activePanel === "settings" && activeSettingsSection === "announcements" && !activeProfile)}>
                   <Megaphone className={`size-4 ${iconClass(activePanel === "settings" && activeSettingsSection === "announcements" && !activeProfile)}`} />
-                  <span>Announcements</span>
+                  <span>{labels.announcements}</span>
                 </button>
 
                 <button type="button" onClick={() => open("billing")} className={buttonClass(active("billing"))}>
                   <CreditCard className={`size-4 ${iconClass(active("billing"))}`} />
-                  <span>Billing</span>
+                  <span>{labels.billing}</span>
                 </button>
 
                 <button type="button" onClick={() => open("settings")} className={buttonClass(activePanel === "settings" && activeSettingsSection !== "announcements" && !activeProfile)}>
                   <Settings2 className={`size-4 ${iconClass(activePanel === "settings" && activeSettingsSection !== "announcements" && !activeProfile)}`} />
-                  <span>Workspace settings</span>
+                  <span>{labels.workspaceSettings}</span>
                 </button>
               </>
             )}
 
             <Link href="/dashboard/company-profile" className={buttonClass(active("profile"))}>
               <Building2 className={`size-4 ${iconClass(active("profile"))}`} />
-              <span>Company profile</span>
+              <span>{labels.companyProfile}</span>
             </Link>
           </div>
 
@@ -199,14 +201,14 @@ export default function WorkspaceSidebar({
           <Link href="/dashboard" className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${isDashboard ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>
             Overview
           </Link>
-          <button type="button" onClick={() => open("meetings")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("meetings") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Meetings</button>
-          <button type="button" onClick={() => open("team")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("team") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Team</button>
-          <button type="button" onClick={() => open("feedback")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("feedback") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Feedback</button>
-          {currentRole !== "PLATFORM_ADMIN" && <button type="button" onClick={() => open("support-tickets")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("support-tickets") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Support tickets</button>}
-          {canManage && <button type="button" onClick={() => open("settings", "announcements")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${activePanel === "settings" && activeSettingsSection === "announcements" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Announcements</button>}
-          {canManage && <button type="button" onClick={() => open("billing")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("billing") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Billing</button>}
-          {canManage && <button type="button" onClick={() => open("settings")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${activePanel === "settings" && activeSettingsSection !== "announcements" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Settings</button>}
-          <Link href="/dashboard/company-profile" className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("profile") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Profile</Link>
+          <button type="button" onClick={() => open("meetings")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("meetings") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.meetings}</button>
+          <button type="button" onClick={() => open("team")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("team") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.team}</button>
+          <button type="button" onClick={() => open("feedback")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("feedback") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.feedback}</button>
+          {currentRole !== "PLATFORM_ADMIN" && <button type="button" onClick={() => open("support-tickets")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("support-tickets") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.supportTickets}</button>}
+          {canManage && <button type="button" onClick={() => open("settings", "announcements")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${activePanel === "settings" && activeSettingsSection === "announcements" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.announcements}</button>}
+          {canManage && <button type="button" onClick={() => open("billing")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("billing") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.billing}</button>}
+          {canManage && <button type="button" onClick={() => open("settings")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${activePanel === "settings" && activeSettingsSection !== "announcements" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.workspaceSettings}</button>}
+          <Link href="/dashboard/company-profile" className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("profile") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.companyProfile}</Link>
         </div>
       </nav>
     </>
