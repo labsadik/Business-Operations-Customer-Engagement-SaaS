@@ -33,6 +33,7 @@ import UserAvatar from "@/components/user-avatar";
 import MeetingResponseCountdown from "@/components/meeting-response-countdown";
 import RazorpayPlanButton from "@/components/razorpay-plan-button";
 import { playMeetingSound, unlockMeetingSound } from "@/lib/client-meeting-sound";
+import PublicPageShare from "@/components/public-page-share";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
 import GoogleIntegrationNotice from "@/components/google-integration-notice";
 import PlatformAnnouncementBanner from "@/components/platform-announcement-banner";
