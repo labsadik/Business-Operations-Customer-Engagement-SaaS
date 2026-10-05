@@ -1,3 +1,5 @@
+const GOOGLE_REQUEST_TIMEOUT_MS = 10000;
+
 type GoogleTokenResponse = {
   access_token: string;
   expires_in: number;
@@ -22,12 +24,19 @@ const CALENDAR_SCOPES = [
 ];
 export const GOOGLE_FULL_SCOPES = [...new Set([...AUTH_SCOPES, ...CALENDAR_SCOPES])];
 
+function googleFetch(input: RequestInfo | URL, init?: RequestInit) {
+  return fetch(input, {
+    ...init,
+    signal: init?.signal ?? AbortSignal.timeout(GOOGLE_REQUEST_TIMEOUT_MS)
+  });
+}
+
 export async function exchangeGoogleCode(code: string, redirectUri: string) {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
   if (!clientId || !clientSecret) throw new Error("GOOGLE_OAUTH_NOT_CONFIGURED");
 
-  const response = await fetch("https://oauth2.googleapis.com/token", {
+  const response = await googleFetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -45,10 +54,13 @@ export async function exchangeGoogleCode(code: string, redirectUri: string) {
 }
 
 export async function fetchGoogleUserInfo(accessToken: string) {
-  const response = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    cache: "no-store"
-  });
+  const response = await googleFetch(
+    "https://openidconnect.googleapis.com/v1/userinfo",
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store"
+    }
+  );
 
   if (!response.ok) throw new Error("GOOGLE_USERINFO_FAILED");
   return (await response.json()) as GoogleUserInfo;
@@ -59,7 +71,7 @@ export async function refreshGoogleAccessToken(refreshToken: string) {
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
   if (!clientId || !clientSecret) throw new Error("GOOGLE_OAUTH_NOT_CONFIGURED");
 
-  const response = await fetch("https://oauth2.googleapis.com/token", {
+  const response = await googleFetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -76,7 +88,7 @@ export async function refreshGoogleAccessToken(refreshToken: string) {
 }
 
 export async function googleApi<T>(accessToken: string, url: string, init?: RequestInit) {
-  const response = await fetch(url, {
+  const response = await googleFetch(url, {
     ...init,
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -85,9 +97,11 @@ export async function googleApi<T>(accessToken: string, url: string, init?: Requ
     },
     cache: "no-store"
   });
+
   if (!response.ok) {
     const body = await response.text();
     throw new Error(`GOOGLE_API_${response.status}:${body.slice(0, 500)}`);
   }
+
   return (await response.json()) as T;
 }
