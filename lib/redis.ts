@@ -1,5 +1,3 @@
-import { createClient, type RedisClientType } from "redis";
-
 type RedisSetOptions = { NX?: boolean; PX?: number; EX?: number };
 export type ConventusRedis = {
   isReady: boolean;
@@ -106,7 +104,7 @@ declare global {
   var __conventusRedisConnect: Promise<ConventusRedis> | undefined;
 }
 
-function createRedisClient(): ConventusRedis {
+async function createRedisClient(): Promise<ConventusRedis> {
   const url = process.env.REDIS_URL;
   if (!url) throw new Error("REDIS_NOT_CONFIGURED");
 
@@ -118,6 +116,7 @@ function createRedisClient(): ConventusRedis {
     return new UpstashRestRedis(url, restToken);
   }
 
+  const { createClient } = await import("redis");
   const client = createClient({
     url,
     disableOfflineQueue: true,
@@ -127,7 +126,7 @@ function createRedisClient(): ConventusRedis {
       reconnectStrategy: false,
       keepAlive: false
     }
-  }) as RedisClientType;
+  });
 
   client.on("error", (error) =>
     console.error("Conventus Redis error", error)
@@ -190,18 +189,26 @@ function createRedisClient(): ConventusRedis {
   return wrapped;
 }
 
+async function createAndConnectRedis(): Promise<ConventusRedis> {
+  const client = await createRedisClient();
+  globalThis.__conventusRedis = client;
+  if (client.isReady) return client;
+  return client.connect();
+}
+
 export async function getRedis(): Promise<ConventusRedis | null> {
   if (!process.env.REDIS_URL) return null;
 
-  globalThis.__conventusRedis ??= createRedisClient();
-
-  if (globalThis.__conventusRedis.isReady) {
+  if (globalThis.__conventusRedis?.isReady) {
     return globalThis.__conventusRedis;
   }
 
   const existingConnect = globalThis.__conventusRedisConnect;
   const connectPromise =
-    existingConnect ?? globalThis.__conventusRedis.connect();
+    existingConnect ??
+    (globalThis.__conventusRedis
+      ? globalThis.__conventusRedis.connect()
+      : createAndConnectRedis());
 
   globalThis.__conventusRedisConnect = connectPromise;
 
