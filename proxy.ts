@@ -9,7 +9,13 @@ export function proxy(request: NextRequest, event: NextFetchEvent) {
     traceparent: request.headers.get("traceparent") ?? undefined
   });
 
-  event.waitUntil(logger.flush());
+  event.waitUntil(
+    logger.flush().catch((error) => {
+      console.warn("[Conventus] background telemetry flush failed", {
+        error: error instanceof Error ? error.message : "UNKNOWN"
+      });
+    })
+  );
 
   return NextResponse.next();
 }
