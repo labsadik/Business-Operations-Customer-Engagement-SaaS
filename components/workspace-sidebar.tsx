@@ -199,7 +199,7 @@ export default function WorkspaceSidebar({
       <nav aria-label="Mobile company workspace navigation" className="border-b border-slate-200/90 bg-white/95 backdrop-blur-lg lg:hidden">
         <div className="flex items-center gap-2 overflow-x-auto px-4 py-2.5">
           <Link href="/dashboard" className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${isDashboard ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>
-            Overview
+            {labels.dashboard}
           </Link>
           <button type="button" onClick={() => open("meetings")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("meetings") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.meetings}</button>
           <button type="button" onClick={() => open("team")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("team") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.team}</button>
