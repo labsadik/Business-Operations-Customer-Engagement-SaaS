@@ -7,6 +7,21 @@
     "nodejs_compat",
     "global_fetch_strictly_public"
   ],
+  "vars": {
+    "NEXT_PUBLIC_APP_URL": "https://test0001.workforrcs.workers.dev",
+    "RAZORPAY_KEY_ID": "rzp_test_TjY3Ps1Q6nhts9",
+    "CONVENTUS_LOGO_URL": "https://your-real-conventus-logo-url",
+    "AXIOM_HOST": "https://us-east-1.aws.edge.axiom.c",
+    "AXIOM_DATASET": "test",
+    "AXIOM_SERVICE_NAME": "test",
+    "NEXT_PUBLIC_UMAMI_SCRIPT_URL": "https://cloud.umami.is/script.js",
+    "NEXT_PUBLIC_UMAMI_WEBSITE_ID": "4be615cd-980e-45ae-b86a-028fff9c3db5",
+    "NEXT_PUBLIC_MIXPANEL_TOKEN": "7fcd5d6cf9ec66cb0c2799c398441ba0",
+    "NEXT_PUBLIC_CLARITY_PROJECT_ID": "ysxct0q2k5",
+    "REDIS_URL": "https://certain-lemming-226253.upstash.io",
+    "GOOGLE_CLIENT_ID": "567862283904-n4lggvps6tkcton4bkt5ld9gokc60t80.apps.googleusercontent.com",
+    "GOOGLE_REDIRECT_URI": "https://test0001.workforrcs.workers.dev/api/auth/google/callback"
+  },
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
