@@ -12,7 +12,7 @@ type ScheduledEnv = {
 
 const SWEEP_CRON = "* * * * *";
 
-export default {
+const worker = {
   fetch: handler.fetch,
 
   async scheduled(controller: { cron: string }, env: ScheduledEnv) {
@@ -37,3 +37,5 @@ export default {
     }
   }
 };
+
+export default worker;
