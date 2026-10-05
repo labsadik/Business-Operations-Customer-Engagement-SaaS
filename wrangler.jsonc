@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "main": ".open-next/worker.js",
+  "main": "custom-worker.ts",
   "name": "conventus",
   "compatibility_date": "2026-10-05",
   "compatibility_flags": [
@@ -17,6 +17,11 @@
       "service": "conventus"
     }
   ],
+  "triggers": {
+    "crons": [
+      "* * * * *"
+    ]
+  },
   "images": {
     "binding": "IMAGES"
   }
