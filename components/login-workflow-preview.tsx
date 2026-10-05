@@ -221,7 +221,7 @@ export default function LoginWorkflowPreview() {
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-2.5 shadow-[0_18px_45px_rgba(15,23,42,0.07)] sm:p-3">
-        <div className="flex min-h-[202px] flex-col rounded-xl border border-slate-100 bg-slate-50/70 p-3 sm:min-h-[224px] sm:p-3.5">
+        <div className="flex min-h-[186px] flex-col rounded-xl border border-slate-100 bg-slate-50/70 p-3 sm:min-h-[212px] sm:p-3.5">
           <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-2.5">
             <div className="flex min-w-0 items-center gap-2">
               <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-slate-950 text-white">
@@ -243,7 +243,7 @@ export default function LoginWorkflowPreview() {
 
           <div
             aria-live="off"
-            className={`flex flex-1 items-center pt-3 transition-[transform,opacity] duration-180 ease-out motion-reduce:transition-none ${transitioning ? "opacity-0 [transform:perspective(900px)_rotateY(10deg)_translateX(8px)_scale(0.985)]" : "opacity-100 [transform:perspective(900px)_rotateY(0deg)_translateX(0)_scale(1)]"}`}
+            className={`flex flex-1 items-center pt-3 transition-[transform,opacity] duration-[180ms] ease-out motion-reduce:transition-none ${transitioning ? "opacity-0 [transform:perspective(900px)_rotateY(10deg)_translateX(8px)_scale(0.985)]" : "opacity-100 [transform:perspective(900px)_rotateY(0deg)_translateX(0)_scale(1)]"}`}
           >
             <div className="w-full">
               <div className="mb-2.5 flex items-center justify-between gap-3">
