@@ -40,86 +40,7 @@ function errorLabel(error?: string) {
   return errorMessages[error] ?? "We could not complete sign-in. Please try again.";
 }
 
-const workflowSteps = [
-  {
-    label: "Customer request",
-    icon: CalendarPlus,
-    tone: "blue"
-  },
-  {
-    label: "Route to team",
-    icon: Route,
-    tone: "yellow"
-  },
-  {
-    label: "Team acceptance",
-    icon: UserCheck,
-    tone: "slate"
-  },
-  {
-    label: "Meeting confirmed",
-    icon: Video,
-    tone: "green"
-  }
-] as const;
-
-const toneClasses = {
-  blue: "border-blue-200 bg-blue-50 text-blue-700",
-  yellow: "border-yellow-200 bg-yellow-50 text-yellow-700",
-  slate: "border-slate-200 bg-white text-slate-700",
-  green: "border-emerald-200 bg-emerald-50 text-emerald-700"
-} as const;
-
-function WorkflowIllustration() {
-  return (
-    <section
-      aria-labelledby="workflow-heading"
-      className="w-full max-w-xl"
-    >
-      <div className="mb-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-700">
-          How scheduling works
-        </p>
-        <h2
-          id="workflow-heading"
-          className="mt-1 text-xl font-semibold leading-tight tracking-[-0.03em] text-slate-950"
-        >
-          From request to confirmed meeting.
-        </h2>
-        <p className="mt-1 text-xs leading-5 text-slate-500">
-          Four simple steps from customer request to a confirmed meeting.
-        </p>
-      </div>
-
-      <ol className="grid gap-2.5 sm:grid-cols-2">
-        {workflowSteps.map((step, index) => {
-          const Icon = step.icon;
-
-          return (
-            <li key={step.label}>
-              <div className="flex min-h-0 items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                <span
-                  className={`grid size-8 shrink-0 place-items-center rounded-lg border ${toneClasses[step.tone]}`}
-                  aria-hidden="true"
-                >
-                  <Icon className="size-3.5" />
-                </span>
-                <div className="min-w-0">
-                  <span className="text-[9px] font-bold tabular-nums text-slate-400">
-                    0{index + 1}
-                  </span>
-                  <p className="mt-0.5 text-[11px] font-semibold leading-4 text-slate-950 sm:text-xs">
-                    {step.label}
-                  </p>
-                </div>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
-    </section>
-  );
-}
+import LoginWorkflowPreview from "@/components/login-workflow-preview";
 
 export default async function LoginPage({
   searchParams
@@ -138,11 +59,9 @@ export default async function LoginPage({
       <div className="mx-auto grid min-h-[100svh] max-w-[1440px] lg:h-full lg:min-h-0 md:grid-cols-2">
         <aside
           aria-labelledby="workflow-heading"
-          className="order-last hidden min-h-0 items-center justify-center border-t border-slate-200 bg-slate-50 px-5 py-7 md:order-first md:flex md:border-r md:border-t-0 md:px-7 md:py-8 lg:px-10"
+          className="order-last flex min-h-0 items-center justify-center border-t border-slate-200 bg-slate-50 px-5 py-5 md:order-first md:border-r md:border-t-0 md:px-7 md:py-7 lg:px-10"
         >
-          <div className="w-full">
-            <WorkflowIllustration />
-          </div>
+          <LoginWorkflowPreview />
         </aside>
 
         <section
