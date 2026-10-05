@@ -5,7 +5,7 @@
   "description": "Conventus - real-time customer meeting scheduling for teams.",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "opennextjs-cloudflare build",
     "next:build": "next build",
     "build:cloudflare": "opennextjs-cloudflare build",
     "start": "next start",
