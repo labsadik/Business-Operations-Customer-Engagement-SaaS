@@ -11,7 +11,7 @@
     "NEXT_PUBLIC_APP_URL": "https://test0001.workforrcs.workers.dev",
     "RAZORPAY_KEY_ID": "rzp_test_TjY3Ps1Q6nhts9",
     "CONVENTUS_LOGO_URL": "https://your-real-conventus-logo-url",
-    "AXIOM_HOST": "https://us-east-1.aws.edge.axiom.c",
+    "AXIOM_HOST": "https://us-east-1.aws.edge.axiom.co",
     "AXIOM_DATASET": "test",
     "AXIOM_SERVICE_NAME": "test",
     "NEXT_PUBLIC_UMAMI_SCRIPT_URL": "https://cloud.umami.is/script.js",
