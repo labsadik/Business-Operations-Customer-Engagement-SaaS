@@ -54,8 +54,9 @@ export default function NavigationLabelsProvider({
 
   useEffect(() => {
     let timer: number | null = null;
-
-    void refresh();
+    const initialRefresh = window.setTimeout(() => {
+      void refresh();
+    }, 0);
 
     const poll = () => {
       if (document.visibilityState === "visible") void refresh();
@@ -86,6 +87,7 @@ export default function NavigationLabelsProvider({
     window.addEventListener("storage", onStorage);
 
     return () => {
+      window.clearTimeout(initialRefresh);
       if (timer !== null) window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("storage", onStorage);
