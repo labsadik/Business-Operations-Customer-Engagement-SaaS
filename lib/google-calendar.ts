@@ -4,6 +4,8 @@ import { getRedis } from "@/lib/redis";
 import { GoogleAccount } from "@/models/google-account";
 import { googleApi, refreshGoogleAccessToken } from "@/lib/google";
 
+const GOOGLE_CALENDAR_REQUEST_TIMEOUT_MS = 10000;
+
 export async function clearGoogleAccessTokenCache(userId: string) {
   const redis = await getRedis();
   if (redis) await redis.del(`google:access:${userId}`);
@@ -30,13 +32,18 @@ export async function getGoogleAccessToken(userId: string) {
   } catch (error) {
     account.status = "REAUTH_REQUIRED";
     account.lastErrorAt = new Date();
-    account.lastErrorCode = error instanceof Error ? error.message.slice(0, 200) : "GOOGLE_TOKEN_REFRESH_FAILED";
+    account.lastErrorCode =
+      error instanceof Error
+        ? error.message.slice(0, 200)
+        : "GOOGLE_TOKEN_REFRESH_FAILED";
     await account.save();
     if (redis) await redis.del(cacheKey);
     throw error;
   }
 
-  account.accessTokenExpiresAt = new Date(Date.now() + refreshed.expires_in * 1000);
+  account.accessTokenExpiresAt = new Date(
+    Date.now() + refreshed.expires_in * 1000
+  );
   account.status = "CONNECTED";
   account.lastSuccessfulSyncAt = new Date();
   account.lastErrorAt = undefined;
@@ -53,7 +60,9 @@ export async function getGoogleAccessToken(userId: string) {
 
 export async function queryFreeBusy(userId: string, timeMin: Date, timeMax: Date) {
   const { accessToken } = await getGoogleAccessToken(userId);
-  return googleApi<{ calendars?: Record<string, { busy?: Array<{ start: string; end: string }> }> }>(
+  return googleApi<
+    { calendars?: Record<string, { busy?: Array<{ start: string; end: string }> }> }
+  >(
     accessToken,
     "https://www.googleapis.com/calendar/v3/freeBusy",
     {
@@ -102,7 +111,8 @@ export async function deleteCalendarEvent(userId: string, eventId: string) {
         Authorization: `Bearer ${accessToken}`,
         "content-type": "application/json"
       },
-      cache: "no-store"
+      cache: "no-store",
+      signal: AbortSignal.timeout(GOOGLE_CALENDAR_REQUEST_TIMEOUT_MS)
     }
   );
 
