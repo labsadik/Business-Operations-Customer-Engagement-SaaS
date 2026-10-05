@@ -111,6 +111,51 @@ export function LoginLoading() {
   );
 }
 
+export function CompanyLoginLoading() {
+  return (
+    <main className="min-h-screen bg-[#faf9f1]">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5 sm:px-6">
+          <Pulse className="h-4 w-36 rounded-lg" />
+          <Pulse className="h-8 w-24 rounded-full" />
+        </div>
+      </header>
+      <div className="mx-auto grid max-w-6xl gap-6 px-5 py-8 sm:px-6 lg:grid-cols-[1fr_.9fr] lg:py-12">
+        <section className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm sm:p-9">
+          <div className="flex items-center gap-3">
+            <Pulse className="size-10 rounded-2xl" />
+            <div className="space-y-2">
+              <Pulse className="h-3 w-36" />
+              <Pulse className="h-2.5 w-24" />
+            </div>
+          </div>
+          <Pulse className="mt-12 h-4 w-32" />
+          <Pulse className="mt-3 h-12 w-full max-w-xl" />
+          <Pulse className="mt-4 h-14 w-full max-w-xl" />
+          <div className="mt-8 grid gap-3 sm:grid-cols-2">
+            <Pulse className="h-28 rounded-2xl" />
+            <Pulse className="h-28 rounded-2xl" />
+          </div>
+        </section>
+        <section className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm sm:p-9">
+          <Pulse className="h-4 w-20" />
+          <Pulse className="mt-3 h-9 w-56" />
+          <Pulse className="mt-3 h-12 w-full" />
+          <Pulse className="mt-7 h-12 w-full" />
+          <Pulse className="mt-7 h-40 w-full rounded-2xl" />
+          <div className="mt-5 border-t border-slate-200 pt-5">
+            <div className="flex gap-4">
+              <Pulse className="h-5 w-14" />
+              <Pulse className="h-5 w-16" />
+              <Pulse className="h-5 w-24" />
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}
+
 export function BookingLoading() {
   return (
     <main className="min-h-screen bg-[#faf9f1]">
@@ -574,6 +619,44 @@ export function BillingCheckoutLoading() {
             <Pulse className="mt-5 h-20 w-full rounded-2xl" />
             <Pulse className="mt-5 h-12 w-full rounded-xl" />
           </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+export function BillingResultLoading() {
+  return (
+    <main className="min-h-screen bg-[#faf9f1] text-slate-950">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex min-h-18 max-w-6xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
+          <Pulse className="h-9 w-32 rounded-xl" />
+          <Pulse className="h-10 w-24 rounded-xl" />
+        </div>
+      </header>
+      <div className="mx-auto max-w-6xl px-5 py-8 sm:px-6 lg:px-8 lg:py-12">
+        <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-emerald-100 bg-emerald-50/70 p-6 sm:p-8">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-4">
+                <Pulse className="size-12 rounded-2xl" />
+                <div className="space-y-3">
+                  <Pulse className="h-3 w-32" />
+                  <Pulse className="h-8 w-72 max-w-full" />
+                  <Pulse className="h-4 w-96 max-w-full" />
+                </div>
+              </div>
+              <Pulse className="h-11 w-36 rounded-xl" />
+            </div>
+          </div>
+          <div className="grid gap-5 p-6 sm:grid-cols-3 sm:p-8">
+            <Pulse className="h-24 rounded-2xl" />
+            <Pulse className="h-24 rounded-2xl" />
+            <Pulse className="h-24 rounded-2xl" />
+          </div>
+        </section>
+        <div className="mt-8">
+          <InvoiceLoading />
         </div>
       </div>
     </main>
