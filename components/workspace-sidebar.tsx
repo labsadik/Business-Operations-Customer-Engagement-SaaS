@@ -92,7 +92,6 @@ export default function WorkspaceSidebar({
           </span>
           <div className="min-w-0">
             <p className="truncate text-sm font-bold tracking-tight text-slate-950">Conventus</p>
-            <p className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-600">Company workspace</p>
           </div>
         </div>
 
