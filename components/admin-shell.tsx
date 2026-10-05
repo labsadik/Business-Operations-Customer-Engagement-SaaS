@@ -5,6 +5,7 @@ import UserAvatar from "@/components/user-avatar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useNavigationLabels } from "@/components/navigation-labels-provider";
+import type { NavigationLabels } from "@/lib/navigation-labels";
 import type { Route } from "next";
 import {
   BarChart3,
@@ -38,7 +39,7 @@ function activePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
-function pageTitle(pathname: string, labels: ReturnType<typeof useNavigationLabels>["labels"]) {
+function pageTitle(pathname: string, labels: NavigationLabels) {
   if (pathname.startsWith("/admin/companies/")) return labels.adminCompanies;
   if (pathname.startsWith("/admin/companies")) return labels.adminCompanies;
   if (pathname.startsWith("/admin/users")) return labels.adminPublicUsers;
