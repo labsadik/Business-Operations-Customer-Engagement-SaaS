@@ -36,6 +36,25 @@ const platformSettingsSchema = new Schema(
       ratePercent: { type: Number, min: 0, max: 100, default: 18 },
       inclusive: { type: Boolean, default: false }
     },
+    navigation: {
+      dashboard: { type: String, trim: true, maxlength: 80, default: "Overview" },
+      meetings: { type: String, trim: true, maxlength: 80, default: "Meetings" },
+      team: { type: String, trim: true, maxlength: 80, default: "Team" },
+      feedback: { type: String, trim: true, maxlength: 80, default: "Feedback" },
+      supportTickets: { type: String, trim: true, maxlength: 80, default: "Support tickets" },
+      announcements: { type: String, trim: true, maxlength: 80, default: "Announcements" },
+      billing: { type: String, trim: true, maxlength: 80, default: "Billing" },
+      workspaceSettings: { type: String, trim: true, maxlength: 80, default: "Workspace settings" },
+      companyProfile: { type: String, trim: true, maxlength: 80, default: "Company profile" },
+      adminCompanies: { type: String, trim: true, maxlength: 80, default: "Companies" },
+      adminPublicUsers: { type: String, trim: true, maxlength: 80, default: "Public users" },
+      adminPlans: { type: String, trim: true, maxlength: 80, default: "Plans" },
+      adminAnnouncements: { type: String, trim: true, maxlength: 80, default: "Announcements" },
+      adminFeedback: { type: String, trim: true, maxlength: 80, default: "Feedback" },
+      adminSupportTickets: { type: String, trim: true, maxlength: 80, default: "Support tickets" },
+      adminAccess: { type: String, trim: true, maxlength: 80, default: "Admin access" },
+      adminPlatformSettings: { type: String, trim: true, maxlength: 80, default: "Platform settings" }
+    },
     updatedByUserId: { type: Schema.Types.ObjectId, ref: "User" }
   },
   { timestamps: true }
