@@ -86,15 +86,6 @@ export default function WorkspaceSidebar({
   return (
     <>
       <aside className="fixed inset-y-0 left-0 z-50 hidden w-72 flex-col border-r border-slate-200/90 bg-white lg:flex">
-        <div className="flex h-20 items-center gap-3 border-b border-slate-200/80 px-5">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-blue-600 text-white shadow-sm shadow-blue-600/20">
-            <Building2 className="size-5" />
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-bold tracking-tight text-slate-950">Conventus</p>
-          </div>
-        </div>
-
         <div className="border-b border-slate-200/80 px-4 py-4">
           <div className="rounded-2xl bg-[#faf9f1] p-3 ring-1 ring-inset ring-amber-100/80">
             <p className="truncate text-xs font-semibold text-slate-950">{companyName}</p>
