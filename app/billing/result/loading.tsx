@@ -1,2 +1,5 @@
-import { InvoiceLoading } from "@/components/route-loading";
-export default function Loading() { return <InvoiceLoading />; }
+import { BillingResultLoading } from "@/components/route-loading";
+
+export default function Loading() {
+  return <BillingResultLoading />;
+}
