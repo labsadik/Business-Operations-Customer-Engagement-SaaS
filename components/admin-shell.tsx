@@ -23,15 +23,15 @@ import {
 } from "lucide-react";
 
 const nav = [
-  { href: "/admin", key: "dashboard", icon: BarChart3 },
-  { href: "/admin/companies", key: "adminCompanies", icon: Building2 },
-  { href: "/admin/users", key: "adminPublicUsers", icon: UsersRound },
-  { href: "/admin/plans", key: "adminPlans", icon: BadgeDollarSign },
-  { href: "/admin/announcements", key: "adminAnnouncements", icon: Megaphone },
-  { href: "/admin/feedback", key: "adminFeedback", icon: MessageSquareText },
-  { href: "/admin/support-tickets", key: "adminSupportTickets", icon: LifeBuoy },
-  { href: "/admin/access", key: "adminAccess", icon: ShieldCheck },
-  { href: "/admin/platform-settings", key: "adminPlatformSettings", icon: SlidersHorizontal }
+  { href: "/admin", key: "dashboard", label: "Overview", icon: BarChart3 },
+  { href: "/admin/companies", key: "adminCompanies", label: "Companies", icon: Building2 },
+  { href: "/admin/users", key: "adminPublicUsers", label: "Public users", icon: UsersRound },
+  { href: "/admin/plans", key: "adminPlans", label: "Plans", icon: BadgeDollarSign },
+  { href: "/admin/announcements", key: "adminAnnouncements", label: "Announcements", icon: Megaphone },
+  { href: "/admin/feedback", key: "adminFeedback", label: "Feedback", icon: MessageSquareText },
+  { href: "/admin/support-tickets", key: "adminSupportTickets", label: "Support tickets", icon: LifeBuoy },
+  { href: "/admin/access", key: "adminAccess", label: "Admin access", icon: ShieldCheck },
+  { href: "/admin/platform-settings", key: "adminPlatformSettings", label: "Platform settings", icon: SlidersHorizontal }
 ] as const;
 
 function activePath(pathname: string, href: string) {
