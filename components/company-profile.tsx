@@ -215,6 +215,7 @@ export default function CompanyProfile({
         currentRole={currentRole}
         canManage
         activeProfile
+        avatarFallback="/api/profile/avatar"
       />
       <div className="lg:pl-72">
       <div className="mx-auto max-w-[1400px] px-5 py-6 sm:px-6 lg:px-10 lg:py-8">
