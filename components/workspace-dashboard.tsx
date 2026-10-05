@@ -1473,45 +1473,6 @@ export default function WorkspaceDashboard({
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Workspace access</p>
-                  <h2 className="mt-2 text-base font-semibold">Company workspace</h2>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Manage page settings and announcements from the gear control.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => openModal("settings")}
-                  className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-                  aria-label="Open workspace settings"
-                >
-                  <Settings2 className="size-5 text-blue-600" />
-                </button>
-              </div>
-
-              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="flex items-center gap-3">
-                  <span className={`size-2 rounded-full ${data.company.publicBookingEnabled ? "bg-emerald-500" : "bg-slate-300"}`} />
-                  <div>
-                    <p className="text-xs font-semibold text-slate-800">
-                      {data.company.publicBookingEnabled ? "Public page published" : "Public page is draft"}
-                    </p>
-                    <p className="mt-1 text-[11px] text-slate-500">
-                      {data.connectedMemberCount} ready team member{data.connectedMemberCount === 1 ? "" : "s"}.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <Link href={`/${data.company.slug}`} className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-xs font-medium text-slate-700 hover:bg-slate-50">
-                <span className="truncate">/{data.company.slug}</span>
-                <ArrowUpRight className="size-4 shrink-0 text-slate-400" />
-              </Link>
-            </section>
-
-            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-start justify-between gap-4">
-                <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Team</p>
                   <h2 className="mt-2 text-base font-semibold">Members</h2>
                   <p className="mt-1 text-xs leading-5 text-slate-500">
