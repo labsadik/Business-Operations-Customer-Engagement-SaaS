@@ -35,8 +35,8 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Production build
-        run: npm run build
+      - name: Next.js production build
+        run: npm run next:build
 
       - name: Cloudflare OpenNext build
-        run: npm exec opennextjs-cloudflare build
+        run: npm run build
