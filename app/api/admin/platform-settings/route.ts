@@ -3,6 +3,7 @@ import { PlatformSettings } from "@/models/platform-settings";
 import { assertSameOrigin } from "@/lib/security";
 import { jsonError, jsonOk } from "@/lib/http";
 import { requirePlatformAdmin } from "@/lib/admin";
+import { normalizeNavigationLabels } from "@/lib/navigation-labels";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,7 +27,8 @@ export async function GET() {
       gstin: settings.gstin,
       sacCode: settings.sacCode,
       address: settings.address,
-      gst: settings.gst
+      gst: settings.gst,
+      navigation: normalizeNavigationLabels(settings.navigation)
     });
   } catch (error) {
     const code = error instanceof Error ? error.message : "PLATFORM_SETTINGS_READ_FAILED";
@@ -49,6 +51,8 @@ export async function PATCH(request: Request) {
     if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
       return jsonError("INVALID_GST_RATE", 400);
     }
+
+    const navigation = normalizeNavigationLabels(input.navigation);
 
     const billingEmail = clean(input.billingEmail, 254).toLowerCase();
     if (billingEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(billingEmail)) {
@@ -78,6 +82,7 @@ export async function PATCH(request: Request) {
         ratePercent: rate,
         inclusive: gst.inclusive !== false
       },
+      navigation,
       updatedByUserId: session.userId
     };
 
@@ -101,7 +106,8 @@ export async function PATCH(request: Request) {
       gstin: updated!.gstin,
       sacCode: updated!.sacCode,
       address: updated!.address,
-      gst: updated!.gst
+      gst: updated!.gst,
+      navigation: normalizeNavigationLabels(updated!.navigation)
     });
   } catch (error) {
     const code = error instanceof Error ? error.message : "PLATFORM_SETTINGS_UPDATE_FAILED";
