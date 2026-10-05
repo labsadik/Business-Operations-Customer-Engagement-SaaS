@@ -33,8 +33,8 @@ import UserAvatar from "@/components/user-avatar";
 import MeetingResponseCountdown from "@/components/meeting-response-countdown";
 import RazorpayPlanButton from "@/components/razorpay-plan-button";
 import { playMeetingSound, unlockMeetingSound } from "@/lib/client-meeting-sound";
-import PublicPageShare from "@/components/public-page-share";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
+import PublicPageShare from "@/components/public-page-share";
 import GoogleIntegrationNotice from "@/components/google-integration-notice";
 import PlatformAnnouncementBanner from "@/components/platform-announcement-banner";
 import WorkspaceFeedback from "@/components/workspace-feedback";
@@ -1147,6 +1147,24 @@ export default function WorkspaceDashboard({
                 </button>
               </>
             )}
+            {data.company.publicBookingEnabled ? (
+              <Link
+                href={`/${data.company.slug}`}
+                className="hidden items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 md:inline-flex"
+              >
+                <Globe2 className="size-4" />
+                Open live page
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => openModal("settings")}
+                className="hidden items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 md:inline-flex"
+              >
+                <Globe2 className="size-4" />
+                Prepare public page
+              </button>
+            )}
             <UserAvatar name={user.name} email={user.email} image={user.image} size={38} />
             <form action="/api/auth/logout" method="post">
               <button
@@ -1270,18 +1288,6 @@ export default function WorkspaceDashboard({
             })}
           </div>
         </section>
-
-        {canManage && (
-          <div className="mt-5">
-            <PublicPageShare
-              savedSlug={data.company.slug}
-              published={data.company.publicBookingEnabled}
-              canPublish={data.canPublish && !data.featureLocked}
-              busy={busy}
-              onPublishRequest={() => setConfirmation({ kind: "publish-page", published: data.company.publicBookingEnabled })}
-            />
-          </div>
-        )}
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.45fr)_360px]">
           <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
@@ -1452,6 +1458,45 @@ export default function WorkspaceDashboard({
           </section>
 
           <div className="space-y-6">
+            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Workspace access</p>
+                  <h2 className="mt-2 text-base font-semibold">Company workspace</h2>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Manage page settings and announcements from the gear control.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openModal("settings")}
+                  className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                  aria-label="Open workspace settings"
+                >
+                  <Settings2 className="size-5 text-blue-600" />
+                </button>
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center gap-3">
+                  <span className={`size-2 rounded-full ${data.company.publicBookingEnabled ? "bg-emerald-500" : "bg-slate-300"}`} />
+                  <div>
+                    <p className="text-xs font-semibold text-slate-800">
+                      {data.company.publicBookingEnabled ? "Public page published" : "Public page is draft"}
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      {data.connectedMemberCount} ready team member{data.connectedMemberCount === 1 ? "" : "s"}.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <Link href={`/${data.company.slug}`} className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                <span className="truncate">/{data.company.slug}</span>
+                <ArrowUpRight className="size-4 shrink-0 text-slate-400" />
+              </Link>
+            </section>
+
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -1841,6 +1886,17 @@ export default function WorkspaceDashboard({
         onClose={() => setActiveModal(null)}
       >
         <div className="p-5 sm:p-6">
+          {canManage && (
+            <div className="mb-5">
+              <PublicPageShare
+                savedSlug={data.company.slug}
+                published={data.company.publicBookingEnabled}
+                canPublish={data.canPublish && !data.featureLocked}
+                busy={busy}
+                onPublishRequest={() => setConfirmation({ kind: "publish-page", published: data.company.publicBookingEnabled })}
+              />
+            </div>
+          )}
             <div className="mt-4 flex flex-wrap gap-2">
               <Link href="/dashboard/company-profile" onClick={() => setActiveModal(null)} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
                 <Settings2 className="size-4" />
