@@ -1,5 +1,3 @@
-"use client";
-
 import { Megaphone } from "lucide-react";
 
 export default function CompanyAnnouncementBar({
