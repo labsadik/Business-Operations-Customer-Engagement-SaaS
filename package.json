@@ -19,7 +19,7 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm run lint && npm run build:cloudflare",
     "admin:create": "node scripts/create-platform-admin.mjs",
-    "test": "node --experimental-strip-types --test tests/scheduling.test.ts tests/cookie-consent.test.ts tests/platform-communication.test.ts tests/feedback-flow.test.ts tests/support-tickets.test.ts tests/plan-management.test.ts"
+    "test": "node --experimental-strip-types --test tests/scheduling.test.ts tests/cookie-consent.test.ts tests/platform-communication.test.ts tests/feedback-flow.test.ts tests/support-tickets.test.ts tests/plan-management.test.ts tests/redis.test.ts"
   },
   "dependencies": {
     "@axiomhq/js": "1.8.0",
