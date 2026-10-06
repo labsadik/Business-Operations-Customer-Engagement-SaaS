@@ -12,9 +12,11 @@ export async function withRedisLock<T>(key: string, ttlMs: number, fn: () => Pro
   try {
     return await fn();
   } finally {
-    const current = await redis.get(key);
-    if (current === token) {
-      await redis.del(key);
+    try {
+      await redis.compareAndDelete(key, token);
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "REDIS_LOCK_RELEASE_FAILED";
+      console.warn("[Conventus] Redis lock release failed", { code });
     }
   }
 }
