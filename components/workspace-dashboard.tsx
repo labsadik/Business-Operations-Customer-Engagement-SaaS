@@ -42,6 +42,10 @@ import WorkspaceFeedback from "@/components/workspace-feedback";
 import WorkspaceSupportTickets from "@/components/workspace-support-tickets";
 import { playFeedbackSoundIfEnabled } from "@/lib/client-feedback-sound";
 
+const LIVE_POLL_MIN_MS = 10_000;
+const LIVE_POLL_MAX_MS = 60_000;
+const LIVE_POLL_JITTER_MS = 2_000;
+
 type Address = {
   line1: string;
   line2: string;
@@ -416,6 +420,9 @@ export default function WorkspaceDashboard({
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const refreshingRef = useRef(false);
+  const livePollTimerRef = useRef<number | null>(null);
+  const livePollAbortRef = useRef<AbortController | null>(null);
+  const livePollDelayRef = useRef(LIVE_POLL_MIN_MS);
   const initializedRequestsRef = useRef(false);
   const seenRequestIdsRef = useRef(new Set<string>());
   const router = useRouter();
@@ -505,18 +512,31 @@ export default function WorkspaceDashboard({
   }, []);
 
   const refreshLive = useCallback(async function refreshLive() {
-    if (refreshingRef.current) return;
+    if (refreshingRef.current) return true;
+
     refreshingRef.current = true;
+    const controller = new AbortController();
+    livePollAbortRef.current = controller;
+
     try {
       const [pending, history] = await Promise.all([
-        api<RequestItem[]>("/api/employee/requests?limit=6"),
-        api<MeetingHistoryItem[]>("/api/employee/meetings?limit=6")
+        api<RequestItem[]>("/api/employee/requests?limit=6", {
+          signal: controller.signal
+        }),
+        api<MeetingHistoryItem[]>("/api/employee/meetings?limit=6", {
+          signal: controller.signal
+        })
       ]);
       setRequests(pending);
       setMeetingHistory(history);
+      return true;
     } catch {
       // Keep the last good dashboard state during transient polling failures.
+      return false;
     } finally {
+      if (livePollAbortRef.current === controller) {
+        livePollAbortRef.current = null;
+      }
       refreshingRef.current = false;
     }
   }, []);
@@ -616,20 +636,76 @@ export default function WorkspaceDashboard({
   }, []);
 
   useEffect(() => {
-    const initialLoad = window.setTimeout(() => void refreshAll(), 0);
-    const poll = window.setInterval(() => {
-      if (document.visibilityState === "visible") void refreshLive();
-    }, 10_000);
+    let disposed = false;
 
-    const onVisible = () => {
-      if (document.visibilityState === "visible") void refreshLive();
+    const clearPollTimer = () => {
+      if (livePollTimerRef.current !== null) {
+        window.clearTimeout(livePollTimerRef.current);
+        livePollTimerRef.current = null;
+      }
     };
 
+    const schedulePoll = () => {
+      if (disposed || document.visibilityState !== "visible") return;
+
+      clearPollTimer();
+      const baseDelay = livePollDelayRef.current;
+      const jitter = Math.floor(Math.random() * LIVE_POLL_JITTER_MS);
+
+      livePollTimerRef.current = window.setTimeout(async () => {
+        livePollTimerRef.current = null;
+        if (disposed || document.visibilityState !== "visible") return;
+
+        const ok = await refreshLive();
+        if (disposed) return;
+
+        livePollDelayRef.current = ok
+          ? LIVE_POLL_MIN_MS
+          : Math.min(LIVE_POLL_MAX_MS, Math.max(LIVE_POLL_MIN_MS, baseDelay * 2));
+
+        schedulePoll();
+      }, baseDelay + jitter);
+    };
+
+    const refreshNow = () => {
+      if (document.visibilityState !== "visible") return;
+      clearPollTimer();
+      livePollDelayRef.current = LIVE_POLL_MIN_MS;
+
+      void refreshLive().then((ok) => {
+        if (disposed) return;
+        if (!ok) {
+          livePollDelayRef.current = Math.min(
+            LIVE_POLL_MAX_MS,
+            LIVE_POLL_MIN_MS * 2
+          );
+        }
+        schedulePoll();
+      });
+    };
+
+    const initialLoad = window.setTimeout(() => void refreshAll(), 0);
+    const onVisible = () => refreshNow();
+    const onOnline = () => refreshNow();
+    const onOffline = () => {
+      clearPollTimer();
+      livePollAbortRef.current?.abort();
+    };
+
+    schedulePoll();
     document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+
     return () => {
+      disposed = true;
       window.clearTimeout(initialLoad);
-      window.clearInterval(poll);
+      clearPollTimer();
+      livePollAbortRef.current?.abort();
+      livePollAbortRef.current = null;
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
     };
   }, [refreshAll, refreshLive]);
 
