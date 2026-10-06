@@ -31,6 +31,10 @@ type Slot = {
 
 type Access = "anonymous" | "customer";
 
+const BOOKING_STATUS_POLL_MIN_MS = 1_000;
+const BOOKING_STATUS_POLL_MAX_MS = 2_500;
+const BOOKING_STATUS_POLL_JITTER_MS = 150;
+
 type AvailabilityReason =
   | "AVAILABLE"
   | "NO_ACTIVE_MEMBERS"
@@ -137,6 +141,8 @@ export default function PublicBooking({
   const availabilityRequestRef = useRef(0);
   const availabilityInFlightRef = useRef(false);
   const availabilityPollingDisabledRef = useRef(false);
+  const statusPollTimerRef = useRef<number | null>(null);
+  const statusPollAbortRef = useRef<AbortController | null>(null);
 
   const calendarDays = useMemo(() => buildCalendarDays(calendarMonth), [calendarMonth]);
 
@@ -370,18 +376,55 @@ export default function PublicBooking({
   useEffect(() => {
     if (!bookingId) return;
 
-    const timer = window.setInterval(async () => {
+    let disposed = false;
+    let delay = BOOKING_STATUS_POLL_MIN_MS;
+
+    const clearTimer = () => {
+      if (statusPollTimerRef.current !== null) {
+        window.clearTimeout(statusPollTimerRef.current);
+        statusPollTimerRef.current = null;
+      }
+    };
+
+    const schedulePoll = () => {
+      if (disposed || document.visibilityState !== "visible") return;
+
+      clearTimer();
+      const jitter = Math.floor(Math.random() * BOOKING_STATUS_POLL_JITTER_MS);
+      statusPollTimerRef.current = window.setTimeout(() => {
+        statusPollTimerRef.current = null;
+        void poll();
+      }, delay + jitter);
+    };
+
+    const poll = async () => {
+      if (disposed || document.visibilityState !== "visible") return;
+
+      const controller = new AbortController();
+      statusPollAbortRef.current = controller;
+
       try {
         const response = await fetch(`/api/bookings/${bookingId}`, {
-          cache: "no-store"
+          cache: "no-store",
+          signal: controller.signal
         });
         const body = await response.json();
-        if (!response.ok) return;
+        if (!response.ok) {
+          delay = Math.min(BOOKING_STATUS_POLL_MAX_MS, delay * 2);
+          schedulePoll();
+          return;
+        }
 
         const nextStatus = body.data.booking.status as string;
         const previousStatus = observedStatusRef.current;
         const nextMeeting = body.data.meeting;
-        const nextMeetingUri = nextMeeting?.meetingUri ? String(nextMeeting.meetingUri) : "";
+        const nextMeetingUri = nextMeeting?.meetingUri
+          ? String(nextMeeting.meetingUri)
+          : "";
+        const changed =
+          nextStatus !== previousStatus ||
+          nextMeetingUri !== observedMeetingUriRef.current;
+
         const acceptedStatus = ["ASSIGNED", "CREATING_MEETING", "CONFIRMED"].includes(
           nextStatus
         );
@@ -419,18 +462,61 @@ export default function PublicBooking({
         if (nextMeeting?.status === "READY" && nextMeetingUri) {
           setMeetingUri(nextMeetingUri);
           setStatus("CONFIRMED");
-          window.clearInterval(timer);
+          return;
         }
 
         if (nextStatus === "EXPIRED" || nextStatus === "CANCELLED") {
-          window.clearInterval(timer);
+          return;
         }
-      } catch {
-        // Keep polling quietly; transient client/network failures should not end the request.
-      }
-    }, 1000);
 
-    return () => window.clearInterval(timer);
+        delay = changed
+          ? BOOKING_STATUS_POLL_MIN_MS
+          : Math.min(BOOKING_STATUS_POLL_MAX_MS, delay * 2);
+        schedulePoll();
+      } catch {
+        if (!controller.signal.aborted) {
+          delay = Math.min(BOOKING_STATUS_POLL_MAX_MS, delay * 2);
+          schedulePoll();
+        }
+      } finally {
+        if (statusPollAbortRef.current === controller) {
+          statusPollAbortRef.current = null;
+        }
+      }
+    };
+
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      delay = BOOKING_STATUS_POLL_MIN_MS;
+      clearTimer();
+      void poll();
+    };
+
+    const onOffline = () => {
+      clearTimer();
+      statusPollAbortRef.current?.abort();
+    };
+
+    const onOnline = () => {
+      delay = BOOKING_STATUS_POLL_MIN_MS;
+      clearTimer();
+      void poll();
+    };
+
+    schedulePoll();
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+
+    return () => {
+      disposed = true;
+      clearTimer();
+      statusPollAbortRef.current?.abort();
+      statusPollAbortRef.current = null;
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+    };
   }, [bookingId]);
 
   const loginUrl = useMemo(
