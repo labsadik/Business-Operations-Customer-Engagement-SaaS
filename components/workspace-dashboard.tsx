@@ -617,10 +617,19 @@ export default function WorkspaceDashboard({
 
   useEffect(() => {
     const initialLoad = window.setTimeout(() => void refreshAll(), 0);
-    const poll = window.setInterval(() => void refreshLive(), 5000);
+    const poll = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refreshLive();
+    }, 10_000);
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refreshLive();
+    };
+
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       window.clearTimeout(initialLoad);
       window.clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [refreshAll, refreshLive]);
 
