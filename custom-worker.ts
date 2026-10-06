@@ -8,7 +8,6 @@ type WorkerSelfReference = {
 type ScheduledEnv = {
   WORKER_SELF_REFERENCE: WorkerSelfReference;
   CRON_SECRET?: string;
-  AUTH_SECRET?: string;
 };
 
 const SWEEP_CRON = "* * * * *";
@@ -19,9 +18,9 @@ const worker = {
   async scheduled(controller: { cron: string }, env: ScheduledEnv) {
     if (controller.cron !== SWEEP_CRON) return;
 
-    const secret = env.CRON_SECRET?.trim() || env.AUTH_SECRET?.trim();
+    const secret = env.CRON_SECRET?.trim();
     if (!secret) {
-      throw new Error("CRON_SECRET_OR_AUTH_SECRET_IS_NOT_CONFIGURED");
+      throw new Error("CRON_SECRET is not configured");
     }
 
     const response = await env.WORKER_SELF_REFERENCE.fetch(
