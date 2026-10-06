@@ -111,7 +111,7 @@ export default function CountrySelector({
           setOpen((current) => !current);
         }}
         onKeyDown={handleTriggerKeyDown}
-        className="inline-flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:w-auto"
+        className="inline-flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-blue-600 bg-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-600/15 transition hover:border-blue-700 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:w-auto"
       >
         <span className="flex min-w-0 items-center gap-2.5">
           <span aria-hidden="true" className="text-base leading-none">
@@ -120,7 +120,7 @@ export default function CountrySelector({
           <span className="truncate">{selected.name}</span>
         </span>
         <ChevronDown
-          className={"size-4 shrink-0 text-slate-500 transition " + (open ? "rotate-180" : "")}
+          className={"size-4 shrink-0 text-white/80 transition " + (open ? "rotate-180" : "")}
           aria-hidden="true"
         />
       </button>
