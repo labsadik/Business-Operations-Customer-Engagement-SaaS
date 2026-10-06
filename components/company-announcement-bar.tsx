@@ -9,7 +9,7 @@ export default function CompanyAnnouncementBar({
 }) {
   return (
     <section
-      className="mt-5 overflow-hidden rounded-[1.5rem] border border-amber-200 bg-[#fbf4c9]/70 shadow-sm"
+      className="my-5 overflow-hidden rounded-[1.5rem] border border-amber-200 bg-[#fbf4c9]/70 shadow-sm"
       aria-labelledby="company-announcement-title"
     >
       <div className="flex items-start gap-4 px-4 py-4 sm:px-5 sm:py-4">
