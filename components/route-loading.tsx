@@ -67,7 +67,7 @@ export function WorkspaceLoadError({
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-600">Workspace unavailable</p>
               <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">We couldn’t load your workspace</h1>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                Your signed-in session is still active. The workspace data could not be loaded, so no workspace content is being shown from an incomplete response.
+                We could not load the workspace data. Retry the read, and sign in again if the problem continues.
               </p>
               <button
                 type="button"
