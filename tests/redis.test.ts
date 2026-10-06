@@ -95,3 +95,74 @@ test("Redis lock release uses the existing lock value safely", async () => {
     resetRedisState();
   }
 });
+
+
+test("Redis REST command arguments are encoded and support NX/PX options", async () => {
+  const previousUrl = process.env.REDIS_URL;
+  const previousToken = process.env.REDIS_TOKEN;
+  const originalFetch = globalThis.fetch;
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+
+  process.env.REDIS_URL = "https://redis.example.test";
+  process.env.REDIS_TOKEN = "test-token";
+  resetRedisState();
+
+  globalThis.fetch = async (input, init) => {
+    calls.push({ url: String(input), init });
+    return new Response(JSON.stringify({ result: "OK" }), {
+      status: 200,
+      headers: { "content-type": "application/json" }
+    });
+  };
+
+  try {
+    const redis = await getRedis();
+    assert.ok(redis);
+    assert.equal(await redis.set("a/b", "hello world", { NX: true, PX: 1500 }), "OK");
+    assert.equal(
+      calls[0]?.url,
+      "https://redis.example.test/set/a%2Fb/hello%20world/NX/PX/1500"
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (previousUrl === undefined) delete process.env.REDIS_URL;
+    else process.env.REDIS_URL = previousUrl;
+    if (previousToken === undefined) delete process.env.REDIS_TOKEN;
+    else process.env.REDIS_TOKEN = previousToken;
+    resetRedisState();
+  }
+});
+
+test("Redis REST failures do not include upstream response bodies", async () => {
+  const previousUrl = process.env.REDIS_URL;
+  const previousToken = process.env.REDIS_TOKEN;
+  const originalFetch = globalThis.fetch;
+
+  process.env.REDIS_URL = "https://redis.example.test";
+  process.env.REDIS_TOKEN = "test-token";
+  resetRedisState();
+
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ error: "secret-looking-upstream-detail" }), {
+      status: 503,
+      headers: { "content-type": "application/json" }
+    });
+
+  try {
+    const redis = await getRedis();
+    assert.ok(redis);
+    await assert.rejects(redis.ping(), (error: unknown) => {
+      assert.equal(error instanceof Error, true);
+      assert.equal((error as Error).message, "UPSTASH_REDIS_503");
+      assert.doesNotMatch((error as Error).message, /secret-looking-upstream-detail/);
+      return true;
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (previousUrl === undefined) delete process.env.REDIS_URL;
+    else process.env.REDIS_URL = previousUrl;
+    if (previousToken === undefined) process.env.REDIS_TOKEN = previousToken;
+    else process.env.REDIS_TOKEN = previousToken;
+    resetRedisState();
+  }
+});
