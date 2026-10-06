@@ -2,6 +2,7 @@ import { Types } from "mongoose";
 import { PlatformAnnouncement } from "@/models/platform-announcement";
 import { getSession } from "@/lib/session";
 import { jsonError, jsonOk } from "@/lib/http";
+import { companyPlatformAnnouncementFilter } from "@/lib/platform-announcement-query";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,16 +18,9 @@ export async function GET() {
       return jsonError("FORBIDDEN", 403);
     }
 
-    const announcements = await PlatformAnnouncement.find({
-      status: "PUBLISHED",
-      $or: [
-        { audience: "ALL_COMPANIES" },
-        {
-          audience: "SELECTED_COMPANIES",
-          targetCompanyIds: new Types.ObjectId(session.companyId)
-        }
-      ]
-    })
+    const announcements = await PlatformAnnouncement.find(
+      companyPlatformAnnouncementFilter(session.companyId)
+    )
       .sort({ publishedAt: -1, createdAt: -1, _id: -1 })
       .limit(10)
       .select("_id title message audience publishedAt createdAt")

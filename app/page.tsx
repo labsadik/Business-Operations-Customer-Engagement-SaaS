@@ -16,6 +16,7 @@ import LandingPricingCarousel from "@/components/landing-pricing-carousel";
 import CookieSettingsButton from "@/components/cookie-settings-button";
 import { getMongo } from "@/lib/mongodb";
 import { PlatformAnnouncement } from "@/models/platform-announcement";
+import { landingPlatformAnnouncementFilter } from "@/lib/platform-announcement-query";
 import PlatformAnnouncementBanner from "@/components/platform-announcement-banner";
 import CountrySelector from "@/components/country-selector";
 
@@ -115,16 +116,16 @@ export default async function Home() {
 
   try {
     await getMongo();
-    platformAnnouncements = await PlatformAnnouncement.find({
-      status: "PUBLISHED",
-      audience: "LANDING_PAGE"
-    })
+    platformAnnouncements = await PlatformAnnouncement.find(landingPlatformAnnouncementFilter())
       .sort({ publishedAt: -1, createdAt: -1, _id: -1 })
       .limit(5)
       .select("_id title message audience publishedAt createdAt")
       .lean();
-  } catch {
+  } catch (error) {
     platformAnnouncements = [];
+    console.error("[platform-announcement] landing read failed", {
+      errorType: error instanceof Error ? error.name : "UNKNOWN"
+    });
   }
 
   return (
