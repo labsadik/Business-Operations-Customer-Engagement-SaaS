@@ -7,19 +7,39 @@ import { googleApi, refreshGoogleAccessToken } from "@/lib/google";
 const GOOGLE_CALENDAR_REQUEST_TIMEOUT_MS = 10000;
 
 export async function clearGoogleAccessTokenCache(userId: string) {
-  const redis = await getRedis();
-  if (redis) await redis.del(`google:access:${userId}`);
+  try {
+    const redis = await getRedis();
+    if (redis) {
+      await redis.del(`google:access:${userId}`);
+    }
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "REDIS_CACHE_CLEAR_FAILED";
+    console.warn("[Conventus] Google access-token cache clear failed", { code });
+  }
 }
 
 export async function getGoogleAccessToken(userId: string) {
-  await getMongo();
-  const redis = await getRedis();
   const cacheKey = `google:access:${userId}`;
+  let redis: Awaited<ReturnType<typeof getRedis>> = null;
 
-  if (redis) {
-    const cached = await redis.get(cacheKey);
-    if (cached) return { accessToken: cached };
+  try {
+    redis = await getRedis();
+    if (redis) {
+      try {
+        const cached = await redis.get(cacheKey);
+        if (cached) return { accessToken: cached };
+      } catch (error) {
+        const code = error instanceof Error ? error.message : "REDIS_CACHE_READ_FAILED";
+        console.warn("[Conventus] Google access-token cache read failed", { code });
+        redis = null;
+      }
+    }
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "REDIS_CACHE_UNAVAILABLE";
+    console.warn("[Conventus] Google access-token cache unavailable", { code });
   }
+
+  await getMongo();
 
   const account = await GoogleAccount.findOne({ userId, status: "CONNECTED" });
   if (!account) throw new Error("GOOGLE_NOT_CONNECTED");
@@ -52,7 +72,12 @@ export async function getGoogleAccessToken(userId: string) {
 
   if (redis) {
     const ttl = Math.max(30, Math.floor(refreshed.expires_in) - 60);
-    await redis.set(cacheKey, refreshed.access_token, { EX: ttl });
+    try {
+      await redis.set(cacheKey, refreshed.access_token, { EX: ttl });
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "REDIS_CACHE_WRITE_FAILED";
+      console.warn("[Conventus] Google access-token cache write failed", { code });
+    }
   }
 
   return { accessToken: refreshed.access_token };
