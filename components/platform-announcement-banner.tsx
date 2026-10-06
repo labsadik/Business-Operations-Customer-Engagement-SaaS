@@ -48,7 +48,9 @@ export default function PlatformAnnouncementBanner({
   const [loadState, setLoadState] = useState<"ready" | "loading" | "error">(
     !initialAnnouncements.length && Boolean(endpoint) ? "loading" : "ready"
   );
-  const [dismissed, setDismissed] = useState<Set<string>>(() => getDismissed(scope));
+  const [dismissed, setDismissed] = useState<Set<string>>(() =>
+    surface === "landing" ? new Set<string>() : getDismissed(scope)
+  );
 
   const loadAnnouncements = useCallback(async () => {
     if (!endpoint) {
@@ -109,7 +111,9 @@ export default function PlatformAnnouncementBanner({
     const next = new Set(dismissed);
     next.add(id);
     setDismissed(next);
-    storeDismissed(scope, next);
+    if (surface !== "landing") {
+      storeDismissed(scope, next);
+    }
   }
 
   if (loadState === "loading") return null;
@@ -151,7 +155,7 @@ export default function PlatformAnnouncementBanner({
     <section
       className={
         isLanding
-          ? "border-y border-slate-800 bg-slate-950 text-white"
+          ? "border-y border-amber-200 bg-[#fff8e6]"
           : "border-y border-blue-100 bg-blue-50/80"
       }
       aria-label="Platform announcements"
@@ -163,7 +167,7 @@ export default function PlatformAnnouncementBanner({
               key={item.id}
               className={
                 isLanding
-                  ? "flex items-start gap-3 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3.5 sm:px-5"
+                  ? "flex items-start gap-3 rounded-2xl border border-amber-200 bg-white px-4 py-3.5 shadow-sm sm:px-5"
                   : "flex items-start gap-3 rounded-2xl border border-blue-100 bg-white px-4 py-3 shadow-sm sm:px-5"
               }
             >
@@ -190,14 +194,12 @@ export default function PlatformAnnouncementBanner({
                   </span>
                   <span className="text-[10px] text-slate-400">Announcement</span>
                 </div>
-                <h2 className={isLanding ? "mt-1 text-sm font-semibold text-white" : "mt-1 text-sm font-semibold text-slate-950"}>
+                <h2 className="mt-1 text-sm font-semibold text-slate-950">
                   {item.title}
                 </h2>
                 <p
                   className={
-                    isLanding
-                      ? "mt-1 whitespace-pre-wrap text-xs leading-5 text-slate-300"
-                      : "mt-1 whitespace-pre-wrap text-xs leading-5 text-slate-600"
+                    "mt-1 whitespace-pre-wrap text-xs leading-5 text-slate-600"
                   }
                 >
                   {item.message}
@@ -208,7 +210,7 @@ export default function PlatformAnnouncementBanner({
                 onClick={() => dismiss(item.id)}
                 className={
                   isLanding
-                    ? "grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                    ? "grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-amber-50 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
                     : "grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-blue-50 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                 }
                 aria-label={`Dismiss announcement: ${item.title}`}
