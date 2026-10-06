@@ -66,3 +66,15 @@ test("company query is published and exact for all-or-selected audience", () => 
     /INVALID_COMPANY_ID/
   );
 });
+
+
+test("landing announcement dismissal is session-only while dashboard dismissal remains persistent", async () => {
+  const banner = await (await import("node:fs/promises")).readFile(
+    new URL("../components/platform-announcement-banner.tsx", import.meta.url),
+    "utf8"
+  );
+  assert.match(banner, /surface === "landing" \? new Set<string>\(\) : getDismissed\(scope\)/);
+  assert.match(banner, /if \(surface !== "landing"\)/);
+  assert.match(banner, /bg-\[#fff8e6\]/);
+  assert.match(banner, /border-amber-200/);
+});
