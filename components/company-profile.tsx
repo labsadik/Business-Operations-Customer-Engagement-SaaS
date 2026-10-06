@@ -3,6 +3,7 @@
 import Link from "next/link";
 import UserAvatar from "@/components/user-avatar";
 import { useNavigationLabels } from "@/components/navigation-labels-provider";
+import { CompanyProfileLoading, WorkspaceLoadError } from "@/components/route-loading";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
 import PublicPageShare from "@/components/public-page-share";
 import ConfirmDialog from "@/components/confirm-dialog";
@@ -78,6 +79,7 @@ export default function CompanyProfile({
   const [featureLocked, setFeatureLocked] = useState(false);
   const [form, setForm] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -86,6 +88,9 @@ export default function CompanyProfile({
   const { labels } = useNavigationLabels();
 
   async function load() {
+    setLoadFailed(false);
+    setError("");
+    setLoading(true);
     try {
       const data = await api<CompanyResponse>("/api/company");
       setProfile(data.company);
@@ -93,9 +98,8 @@ export default function CompanyProfile({
       setMemberCount(data.memberCount);
       setCanPublish(data.canPublish);
       setFeatureLocked(data.featureLocked);
-      setError("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "REQUEST_FAILED");
+    } catch {
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -189,19 +193,12 @@ export default function CompanyProfile({
     }
   }
 
-  if (loading || !form || !profile) {
-    return (
-      <main className="min-h-screen bg-[#faf9f1]">
-        <div className="mx-auto max-w-5xl px-5 py-8 sm:px-6 lg:px-8">
-          <div className="h-10 w-40 animate-pulse rounded-xl bg-slate-200" />
-          <div className="mt-6 h-56 animate-pulse rounded-[2rem] bg-white ring-1 ring-slate-200" />
-          <div className="mt-6 grid gap-6 lg:grid-cols-[1.3fr_.7fr]">
-            <div className="h-[620px] animate-pulse rounded-[2rem] bg-white ring-1 ring-slate-200" />
-            <div className="h-[320px] animate-pulse rounded-[2rem] bg-white ring-1 ring-slate-200" />
-          </div>
-        </div>
-      </main>
-    );
+  if (loading) {
+    return <CompanyProfileLoading />;
+  }
+
+  if (loadFailed || !form || !profile) {
+    return <WorkspaceLoadError onRetry={() => void load()} />;
   }
 
   const slugChanged = form.slug !== profile.slug;
