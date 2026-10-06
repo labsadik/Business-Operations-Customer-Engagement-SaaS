@@ -38,11 +38,13 @@ function withTimeout<T>(
 
 class UpstashRestRedis implements ConventusRedis {
   isReady = true;
+  private readonly baseUrl: string;
+  private readonly token: string;
 
-  constructor(
-    private readonly baseUrl: string,
-    private readonly token: string
-  ) {}
+  constructor(baseUrl: string, token: string) {
+    this.baseUrl = baseUrl;
+    this.token = token;
+  }
 
   async connect() {
     return this;
