@@ -39,11 +39,13 @@ function storeDismissed(scope: string, ids: Set<string>) {
 export default function PlatformAnnouncementBanner({
   initialAnnouncements = [],
   endpoint = "/api/company/platform-announcements",
-  scope = "company"
+  scope = "company",
+  surface = "dashboard"
 }: {
   initialAnnouncements?: Announcement[];
   endpoint?: string;
   scope?: string;
+  surface?: "landing" | "dashboard";
 }) {
   const [items, setItems] = useState<Announcement[]>(initialAnnouncements);
   const [loading, setLoading] = useState(!initialAnnouncements.length && Boolean(endpoint));
@@ -97,30 +99,74 @@ export default function PlatformAnnouncementBanner({
 
   if (loading || !visible.length) return null;
 
+  const isLanding = surface === "landing";
+
   return (
-    <section className="border-b border-slate-200 bg-white" aria-label="Platform announcements">
-      <div className="mx-auto max-w-[1600px] px-5 py-3 sm:px-7 lg:px-10">
+    <section
+      className={
+        isLanding
+          ? "border-y border-slate-800 bg-slate-950 text-white"
+          : "border-y border-blue-100 bg-blue-50/80"
+      }
+      aria-label="Platform announcements"
+    >
+      <div className="mx-auto max-w-[1600px] px-4 py-3 sm:px-6 sm:py-3.5 lg:px-8">
         <div className="space-y-2">
           {visible.slice(0, 5).map((item) => (
             <div
               key={item.id}
-              className="flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3"
+              className={
+                isLanding
+                  ? "flex items-start gap-3 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3.5 sm:px-5"
+                  : "flex items-start gap-3 rounded-2xl border border-blue-100 bg-white px-4 py-3 shadow-sm sm:px-5"
+              }
             >
-              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-blue-600 text-white" aria-hidden="true">
+              <span
+                className={
+                  isLanding
+                    ? "grid size-9 shrink-0 place-items-center rounded-xl bg-blue-600 text-white"
+                    : "grid size-9 shrink-0 place-items-center rounded-xl bg-blue-600 text-white shadow-sm"
+                }
+                aria-hidden="true"
+              >
                 <Megaphone className="size-4" />
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-blue-700">Conventus platform</span>
-                  <span className="text-[10px] text-slate-400">Announcement</span>
+                  <span
+                    className={
+                      isLanding
+                        ? "text-[10px] font-bold uppercase tracking-[0.16em] text-blue-300"
+                        : "text-[10px] font-bold uppercase tracking-[0.16em] text-blue-700"
+                    }
+                  >
+                    Conventus platform
+                  </span>
+                  <span className={isLanding ? "text-[10px] text-slate-400" : "text-[10px] text-slate-400"}>
+                    Announcement
+                  </span>
                 </div>
-                <h2 className="mt-1 text-sm font-semibold text-slate-950">{item.title}</h2>
-                <p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-slate-600">{item.message}</p>
+                <h2 className={isLanding ? "mt-1 text-sm font-semibold text-white" : "mt-1 text-sm font-semibold text-slate-950"}>
+                  {item.title}
+                </h2>
+                <p
+                  className={
+                    isLanding
+                      ? "mt-1 whitespace-pre-wrap text-xs leading-5 text-slate-300"
+                      : "mt-1 whitespace-pre-wrap text-xs leading-5 text-slate-600"
+                  }
+                >
+                  {item.message}
+                </p>
               </div>
               <button
                 type="button"
                 onClick={() => dismiss(item.id)}
-                className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-white hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                className={
+                  isLanding
+                    ? "grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                    : "grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-blue-50 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                }
                 aria-label={`Dismiss announcement: ${item.title}`}
               >
                 <X className="size-4" />
