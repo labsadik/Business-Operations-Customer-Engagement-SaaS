@@ -11,6 +11,7 @@ import { MeetingType } from "@/models/meeting-type";
 import { getCompanyEntitlements } from "@/lib/plans-server";
 import { getMeetingDurationOptions } from "@/lib/plans";
 import PublicBooking from "@/components/public-booking";
+import CompanyAnnouncementBar from "@/components/company-announcement-bar";
 import PublicFeedbackEntry from "@/components/public-feedback-entry";
 import PublicBookingHeader from "@/components/public-booking-header";
 import { isDevelopmentOnlyUrl } from "@/lib/public-origin";
@@ -84,10 +85,17 @@ export default async function CompanyPublicPage({
       />
 
       <div className="mx-auto max-w-7xl px-4 pb-6 pt-5 sm:px-6 lg:px-8 lg:pb-10 lg:pt-8">
+        {announcement ? (
+          <CompanyAnnouncementBar
+            title={announcement.title}
+            message={announcement.message}
+          />
+        ) : null}
+
         <section className="relative overflow-hidden rounded-[2rem] border border-blue-100 bg-white p-6 shadow-sm sm:p-8 lg:p-10">
           <div className="pointer-events-none absolute -right-24 -top-24 size-64 rounded-full bg-[#fbf4c9]/70 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-20 -left-20 size-56 rounded-full bg-blue-50 blur-3xl" />
-          <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
+          <div className="relative grid gap-8 lg:items-end">
             <div className="max-w-3xl">
               <div className="flex items-start gap-4">
                 <div className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-2xl border border-blue-100 bg-blue-50 text-blue-700 shadow-sm sm:size-16">
@@ -127,34 +135,9 @@ export default async function CompanyPublicPage({
                 })}
               </div>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-[#faf9f1] p-4 sm:p-5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Before you start</p>
-              <div className="mt-4 space-y-3 text-xs leading-5 text-slate-600">
-                <p><span className="font-semibold text-slate-900">Google sign-in</span> identifies the customer attached to the request and protects availability details.</p>
-                <p><span className="font-semibold text-slate-900">Timezone</span> is shown beside your available times so there is no ambiguity.</p>
-                <p><span className="font-semibold text-slate-900">Approval</span> is required before a meeting link is revealed.</p>
-              </div>
-              <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 px-3.5 py-3 text-[11px] font-medium text-blue-900">
-                {workspace?.timezone || "Asia/Kolkata"}
-              </div>
-            </div>
+
           </div>
         </section>
-
-        {announcement && (
-          <section className="mt-4 rounded-2xl border border-slate-200 bg-white shadow-sm" aria-labelledby="company-announcement-title">
-            <div className="flex items-start gap-3 px-4 py-4 sm:px-5">
-              <div className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-700">
-                <CalendarDays className="size-4" aria-hidden="true" />
-              </div>
-              <div className="min-w-0">
-                <p id="company-announcement-title" className="text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-600">Company announcement</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">{announcement.title}</p>
-                <p className="mt-1 text-sm leading-6 text-slate-600">{announcement.message}</p>
-              </div>
-            </div>
-          </section>
-        )}
 
         <section className="mt-5" aria-labelledby="booking-experience-title">
           <div className="mb-3 flex flex-col gap-3 px-1 sm:flex-row sm:items-end sm:justify-between">

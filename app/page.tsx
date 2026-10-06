@@ -17,6 +17,7 @@ import CookieSettingsButton from "@/components/cookie-settings-button";
 import { getMongo } from "@/lib/mongodb";
 import { PlatformAnnouncement } from "@/models/platform-announcement";
 import PlatformAnnouncementBanner from "@/components/platform-announcement-banner";
+import CountrySelector from "@/components/country-selector";
 
 const howItWorks = [
   {
@@ -151,10 +152,7 @@ export default async function Home() {
             <Link href="/login" className="hidden rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
               Sign in
             </Link>
-            <Link href="/login" className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-600/15 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
-              Get started
-              <ArrowRight className="size-4" />
-            </Link>
+            <CountrySelector className="hidden sm:block" />
             <details className="relative md:hidden">
               <summary className="grid size-10 cursor-pointer list-none place-items-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
                 <span className="sr-only">Open menu</span>
@@ -172,7 +170,7 @@ export default async function Home() {
                   <a href="#faq" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">FAQ</a>
                   <div className="my-1 border-t border-slate-200" />
                   <Link href="/login" className="rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Sign in</Link>
-                  <Link href="/login" className="rounded-xl bg-blue-600 px-3 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-700">Get started</Link>
+                  <CountrySelector className="w-full" menuClassName="left-0 right-auto w-full" />
                 </div>
               </div>
             </details>
@@ -191,6 +189,7 @@ export default async function Home() {
         }))}
         endpoint=""
         scope="landing"
+        surface="landing"
       />
 
       <section className="relative overflow-hidden border-b border-slate-200 bg-white">
