@@ -5,9 +5,10 @@ import { readFile } from "node:fs/promises";
 const read = (path: string) => readFile(new URL("../" + path, import.meta.url), "utf8");
 
 test("dashboard and route loading share the same workspace shell", async () => {
-  const [dashboard, routeLoading] = await Promise.all([
+  const [dashboard, routeLoading, routeEntry] = await Promise.all([
     read("components/workspace-dashboard.tsx"),
-    read("components/route-loading.tsx")
+    read("components/route-loading.tsx"),
+    read("app/dashboard/loading.tsx")
   ]);
 
   assert.match(dashboard, /WorkspaceLoading/);
@@ -16,6 +17,7 @@ test("dashboard and route loading share the same workspace shell", async () => {
   assert.match(routeLoading, /MobileWorkspaceNavSkeleton/);
   assert.match(routeLoading, /export function WorkspaceLoading/);
   assert.match(routeLoading, /export function WorkspaceLoadError/);
+  assert.match(routeEntry, /WorkspaceLoading/);
 });
 
 test("dashboard recognizes every panel supported by the sidebar", async () => {
