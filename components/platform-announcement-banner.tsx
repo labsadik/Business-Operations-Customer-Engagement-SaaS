@@ -84,7 +84,11 @@ export default function PlatformAnnouncementBanner({
 
   useEffect(() => {
     if (initialAnnouncements.length || !endpoint) return;
-    void loadAnnouncements();
+    const timer = window.setTimeout(() => {
+      void loadAnnouncements();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [endpoint, initialAnnouncements.length, loadAnnouncements]);
 
   function retryAnnouncements() {
