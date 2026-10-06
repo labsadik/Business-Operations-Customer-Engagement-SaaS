@@ -95,7 +95,7 @@ export default async function CompanyPublicPage({
         <section className="relative overflow-hidden rounded-[2rem] border border-blue-100 bg-white p-6 shadow-sm sm:p-8 lg:p-10">
           <div className="pointer-events-none absolute -right-24 -top-24 size-64 rounded-full bg-[#fbf4c9]/70 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-20 -left-20 size-56 rounded-full bg-blue-50 blur-3xl" />
-          <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
+          <div className="relative grid gap-8 lg:items-end">
             <div className="max-w-3xl">
               <div className="flex items-start gap-4">
                 <div className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-2xl border border-blue-100 bg-blue-50 text-blue-700 shadow-sm sm:size-16">
