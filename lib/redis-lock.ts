@@ -1,5 +1,5 @@
-import { getRedis } from "@/lib/redis";
-import { randomToken } from "@/lib/security";
+import { getRedis } from "./redis";
+import { randomToken } from "./security";
 
 export async function withRedisLock<T>(key: string, ttlMs: number, fn: () => Promise<T>) {
   const redis = await getRedis();
