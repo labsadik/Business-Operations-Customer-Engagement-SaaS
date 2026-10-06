@@ -397,6 +397,7 @@ export default function WorkspaceDashboard({
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const refreshingRef = useRef(false);
+  const dataLoadedRef = useRef(false);
   const initializedRequestsRef = useRef(false);
   const seenRequestIdsRef = useRef(new Set<string>());
   const router = useRouter();
@@ -463,6 +464,7 @@ export default function WorkspaceDashboard({
       const company = await api<CompanyData | null>("/api/company");
 
       if (!company) {
+        dataLoadedRef.current = false;
         setData(null);
         setEmployees([]);
         setRequests([]);
@@ -482,6 +484,7 @@ export default function WorkspaceDashboard({
           .catch(() => ({ items: [] as AnnouncementItem[], error: "ANNOUNCEMENT_MANAGEMENT_READ_FAILED" }))
       ]);
 
+      dataLoadedRef.current = true;
       setData(company);
       setEmployees(staff);
       setRequests(pending);
@@ -499,8 +502,11 @@ export default function WorkspaceDashboard({
       setInitialLoadFailed(false);
       setError("");
     } catch {
-      setInitialLoadFailed(true);
-      setError("");
+      if (dataLoadedRef.current) {
+        setError("DASHBOARD_REFRESH_FAILED");
+      } else {
+        setInitialLoadFailed(true);
+      }
     } finally {
       setLoading(false);
       refreshingRef.current = false;
@@ -1024,7 +1030,15 @@ export default function WorkspaceDashboard({
   if (loading) return <WorkspaceLoading />;
 
   if (initialLoadFailed) {
-    return <WorkspaceLoadError onRetry={() => void refreshAll()} />;
+    return (
+      <WorkspaceLoadError
+        onRetry={() => {
+          setInitialLoadFailed(false);
+          setLoading(true);
+          void refreshAll();
+        }}
+      />
+    );
   }
 
   if (!data) {
@@ -1083,7 +1097,16 @@ export default function WorkspaceDashboard({
     );
   }
 
-  if (!plan) return <WorkspaceLoadError onRetry={() => void refreshAll()} />;
+  if (!plan) {
+    return (
+      <WorkspaceLoadError
+        onRetry={() => {
+          setLoading(true);
+          void refreshAll();
+        }}
+      />
+    );
+  }
 
   const confirmationTitle =
     confirmation?.kind === "remove-employee"
@@ -1672,6 +1695,18 @@ export default function WorkspaceDashboard({
         onClose={() => setActiveModal(null)}
       >
         <div className="p-5 sm:p-6">
+          {meetingsError && (
+            <div className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3" role="alert">
+              <p className="text-xs text-rose-800">Meetings could not be loaded. Your current dashboard state is unchanged.</p>
+              <button
+                type="button"
+                onClick={() => void loadAllMeetings()}
+                className="shrink-0 rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              >
+                Retry
+              </button>
+            </div>
+          )}
           <div className="mb-5 flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-slate-50 p-1">
             {(
               [
@@ -1975,6 +2010,18 @@ export default function WorkspaceDashboard({
               </form>
             )}
 
+            {announcementManagementError && (
+              <div className="mx-4 mt-4 flex items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 sm:mx-5" role="alert">
+                <p className="text-xs text-rose-800">Company announcements could not be loaded.</p>
+                <button
+                  type="button"
+                  onClick={() => void refreshAll()}
+                  className="shrink-0 rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
             <div className="divide-y divide-slate-100">
               {announcements.length === 0 ? (
                 <div className="px-5 py-10 text-center">
@@ -2134,6 +2181,18 @@ export default function WorkspaceDashboard({
             </div>
           ) : (
             <div className="mt-5">
+              {invitationsError && (
+                <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3" role="alert">
+                  <p className="text-xs text-rose-800">Invitations could not be loaded.</p>
+                  <button
+                    type="button"
+                    onClick={() => void loadInvitations()}
+                    className="shrink-0 rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
               {canManage && (
                 <form onSubmit={inviteEmployee} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <div className="flex flex-col gap-3 sm:flex-row">
@@ -2210,6 +2269,18 @@ export default function WorkspaceDashboard({
         onClose={() => setActiveModal(null)}
       >
         <div className="p-5 sm:p-6">
+          {billingError && (
+            <div className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3" role="alert">
+              <p className="text-xs text-rose-800">Invoices could not be loaded.</p>
+              <button
+                type="button"
+                onClick={() => void loadInvoices()}
+                className="shrink-0 rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              >
+                Retry
+              </button>
+            </div>
+          )}
           {!data.company.profileComplete && (
             <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
