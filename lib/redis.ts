@@ -63,10 +63,7 @@ class UpstashRestRedis implements ConventusRedis {
     });
 
     if (!response.ok) {
-      const body = await response.text();
-      throw new Error(
-        "UPSTASH_REDIS_" + response.status + ":" + body.slice(0, 300)
-      );
+      throw new Error("UPSTASH_REDIS_" + response.status);
     }
 
     return (await response.json()) as { result?: unknown };
@@ -124,8 +121,7 @@ class UpstashRestRedis implements ConventusRedis {
     };
 
     if (!response.ok || body.error !== undefined) {
-      const detail = typeof body.error === "string" ? ":" + body.error.slice(0, 200) : "";
-      throw new Error("UPSTASH_REDIS_EVAL_FAILED" + detail);
+      throw new Error("UPSTASH_REDIS_EVAL_FAILED");
     }
 
     return Number(body.result ?? 0) === 1;
@@ -161,9 +157,13 @@ async function createRedisClient(): Promise<ConventusRedis> {
     }
   });
 
-  client.on("error", (error) =>
-    console.error("Conventus Redis error", error)
-  );
+  client.on("error", (error) => {
+    const code =
+      error && typeof error === "object" && "code" in error
+        ? String((error as { code?: unknown }).code ?? "REDIS_CLIENT_ERROR")
+        : "REDIS_CLIENT_ERROR";
+    console.error("Conventus Redis error", { code });
+  });
 
   const wrapped: ConventusRedis = {
     get isReady() {
