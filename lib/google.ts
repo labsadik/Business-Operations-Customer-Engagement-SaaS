@@ -99,8 +99,7 @@ export async function googleApi<T>(accessToken: string, url: string, init?: Requ
   });
 
   if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`GOOGLE_API_${response.status}:${body.slice(0, 500)}`);
+    throw new Error(`GOOGLE_API_${response.status}`);
   }
 
   return (await response.json()) as T;
