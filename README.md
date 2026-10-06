@@ -72,7 +72,7 @@ Keep the Google OAuth settings together in the same Runtime Variables & Secrets 
 
 ```
 GOOGLE_CLIENT_ID=567862283904-n4lggvps6tkcton4bkt5ld9gokc60t80.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=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
+GOOGLE_CLIENT_SECRET=<set-in-secret-store>
 GOOGLE_REDIRECT_URI=https://test0001.workforrcs.workers.dev/api/auth/google/callback
 ```
 
@@ -82,7 +82,7 @@ The same redirect URI must be registered in Google Cloud under **Authorized redi
 
 ### Runtime Secrets
 
-Configure the MongoDB URI, Redis token, application secrets, Razorpay secrets, and Axiom token in:
+Configure the MongoDB URI, Redis token, application secrets, Razorpay secrets, Axiom token, and `CRON_SECRET` in:
 
 **Workers & Pages → test0001 → Settings → Variables & Secrets → Runtime Secrets**
 
