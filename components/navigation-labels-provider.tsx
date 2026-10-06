@@ -62,7 +62,7 @@ export default function NavigationLabelsProvider({
       if (document.visibilityState === "visible") void refresh();
     };
 
-    timer = window.setInterval(poll, 2500);
+    timer = window.setInterval(poll, 30_000);
 
     const onVisible = () => {
       if (document.visibilityState === "visible") void refresh();
