@@ -30,6 +30,60 @@ function SidebarSkeleton() {
   );
 }
 
+function MobileWorkspaceNavSkeleton() {
+  return (
+    <div className="border-b border-slate-200/90 bg-white lg:hidden">
+      <div className="flex items-center gap-2 overflow-hidden px-4 py-2.5">
+        {Array.from({ length: 5 }, (_, index) => (
+          <Pulse key={index} className="h-8 shrink-0 rounded-xl" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function WorkspaceLoadError({
+  onRetry
+}: {
+  onRetry: () => void;
+}) {
+  return (
+    <main className="min-h-screen bg-[#faf9f1] text-slate-950">
+      <div className="flex min-h-screen">
+        <SidebarSkeleton />
+        <section className="min-w-0 flex-1">
+          <MobileWorkspaceNavSkeleton />
+          <header className="border-b border-slate-200 bg-[#faf9f1]">
+            <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
+              <div>
+                <Pulse className="h-2.5 w-20" />
+                <Pulse className="mt-2 h-5 w-44" />
+              </div>
+              <Pulse className="size-9 rounded-xl" />
+            </div>
+          </header>
+          <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-2xl items-center px-5 py-10 sm:px-6 lg:px-8">
+            <section className="w-full rounded-[2rem] border border-amber-200 bg-white p-7 shadow-sm sm:p-9">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-600">Workspace unavailable</p>
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">We couldn’t load your workspace</h1>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                Your signed-in session is still active. The workspace data could not be loaded, so no workspace content is being shown from an incomplete response.
+              </p>
+              <button
+                type="button"
+                onClick={onRetry}
+                className="mt-6 inline-flex items-center justify-center rounded-xl bg-slate-950 px-4 py-3 text-xs font-semibold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+              >
+                Retry loading
+              </button>
+            </section>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}
+
 export function LandingLoading() {
   return (
     <main className="min-h-screen bg-[#faf9f1]">
@@ -207,6 +261,7 @@ export function WorkspaceLoading() {
       <div className="flex min-h-screen">
         <SidebarSkeleton />
         <section className="min-w-0 flex-1">
+          <MobileWorkspaceNavSkeleton />
           <header className="border-b border-slate-200 bg-[#faf9f1]">
             <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
               <div>
