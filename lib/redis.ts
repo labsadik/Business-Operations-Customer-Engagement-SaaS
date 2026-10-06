@@ -6,6 +6,7 @@ export type ConventusRedis = {
   set(key: string, value: string, options?: RedisSetOptions): Promise<string | null>;
   get(key: string): Promise<string | null>;
   del(key: string): Promise<number>;
+  compareAndDelete(key: string, value: string): Promise<boolean>;
 };
 
 const REDIS_CONNECT_TIMEOUT_MS = 5000;
@@ -97,6 +98,36 @@ class UpstashRestRedis implements ConventusRedis {
     const body = await this.command("/del/" + encodeURIComponent(key));
     return Number(body.result ?? 0);
   }
+
+  async compareAndDelete(key: string, value: string) {
+    const script =
+      "if redis.call('GET', KEYS[1]) == ARGV[1] then " +
+      "return redis.call('DEL', KEYS[1]) " +
+      "else return 0 end";
+
+    const response = await fetch(this.baseUrl, {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + this.token,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(["EVAL", script, 1, key, value]),
+      cache: "no-store",
+      signal: AbortSignal.timeout(REDIS_COMMAND_TIMEOUT_MS)
+    });
+
+    const body = (await response.json().catch(() => ({}))) as {
+      result?: unknown;
+      error?: unknown;
+    };
+
+    if (!response.ok || body.error !== undefined) {
+      const detail = typeof body.error === "string" ? ":" + body.error.slice(0, 200) : "";
+      throw new Error("UPSTASH_REDIS_EVAL_FAILED" + detail);
+    }
+
+    return Number(body.result ?? 0) === 1;
+  }
 }
 
 declare global {
@@ -176,6 +207,18 @@ async function createRedisClient(): Promise<ConventusRedis> {
     },
     async del(key) {
       return client.del(key);
+    },
+    async compareAndDelete(key, value) {
+      const script =
+        "if redis.call('GET', KEYS[1]) == ARGV[1] then " +
+        "return redis.call('DEL', KEYS[1]) " +
+        "else return 0 end";
+
+      const result = await client.eval(script, {
+        keys: [key],
+        arguments: [value]
+      });
+      return Number(result) === 1;
     }
   };
 
