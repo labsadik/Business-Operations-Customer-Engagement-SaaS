@@ -34,6 +34,7 @@ import MeetingResponseCountdown from "@/components/meeting-response-countdown";
 import RazorpayPlanButton from "@/components/razorpay-plan-button";
 import { playMeetingSound, unlockMeetingSound } from "@/lib/client-meeting-sound";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
+import { WorkspaceLoadError, WorkspaceLoading } from "@/components/route-loading";
 import { useNavigationLabels } from "@/components/navigation-labels-provider";
 import PublicPageShare from "@/components/public-page-share";
 import GoogleIntegrationNotice from "@/components/google-integration-notice";
@@ -349,31 +350,6 @@ function AppModal({
   );
 }
 
-function DashboardSkeleton() {
-  return (
-    <main className="min-h-screen bg-[#faf9f1]">
-      <div className="mx-auto max-w-7xl px-5 py-6 sm:px-6 lg:px-8">
-        <div className="h-16 animate-pulse rounded-2xl border border-slate-200 bg-white" />
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div
-              key={index}
-              className="h-32 animate-pulse rounded-3xl border border-slate-200 bg-white"
-            />
-          ))}
-        </div>
-        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.45fr)_360px]">
-          <div className="h-[520px] animate-pulse rounded-3xl border border-slate-200 bg-white" />
-          <div className="space-y-6">
-            <div className="h-56 animate-pulse rounded-3xl border border-slate-200 bg-white" />
-            <div className="h-60 animate-pulse rounded-3xl border border-slate-200 bg-white" />
-          </div>
-        </div>
-      </div>
-    </main>
-  );
-}
-
 export default function WorkspaceDashboard({
   user
 }: {
@@ -407,6 +383,11 @@ export default function WorkspaceDashboard({
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteLink, setInviteLink] = useState("");
   const [loading, setLoading] = useState(true);
+  const [initialLoadFailed, setInitialLoadFailed] = useState(false);
+  const [meetingsError, setMeetingsError] = useState("");
+  const [invitationsError, setInvitationsError] = useState("");
+  const [billingError, setBillingError] = useState("");
+  const [announcementManagementError, setAnnouncementManagementError] = useState("");
   const [nowMs, setNowMs] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -477,13 +458,28 @@ export default function WorkspaceDashboard({
   const refreshAll = useCallback(async function refreshAll() {
     if (refreshingRef.current) return;
     refreshingRef.current = true;
+
     try {
-      const [company, staff, pending, history, announcementList] = await Promise.all([
-        api<CompanyData>("/api/company"),
+      const company = await api<CompanyData | null>("/api/company");
+
+      if (!company) {
+        setData(null);
+        setEmployees([]);
+        setRequests([]);
+        setMeetingHistory([]);
+        setAnnouncements([]);
+        setInitialLoadFailed(false);
+        setError("");
+        return;
+      }
+
+      const [staff, pending, history, announcementResult] = await Promise.all([
         api<Employee[]>("/api/company/employees"),
         api<RequestItem[]>("/api/employee/requests?limit=6"),
         api<MeetingHistoryItem[]>("/api/employee/meetings?limit=6"),
-        api<AnnouncementItem[]>("/api/company/announcement").catch(() => [] as AnnouncementItem[])
+        api<AnnouncementItem[]>("/api/company/announcement")
+          .then((items) => ({ items, error: "" }))
+          .catch(() => ({ items: [] as AnnouncementItem[], error: "ANNOUNCEMENT_MANAGEMENT_READ_FAILED" }))
       ]);
 
       setData(company);
@@ -492,12 +488,19 @@ export default function WorkspaceDashboard({
       setMeetingHistory(history);
       setAnnouncements(
         ["COMPANY_OWNER", "COMPANY_ADMIN"].includes(company.currentRole)
-          ? announcementList
+          ? announcementResult.items
           : []
       );
+      setAnnouncementManagementError(
+        ["COMPANY_OWNER", "COMPANY_ADMIN"].includes(company.currentRole)
+          ? announcementResult.error
+          : ""
+      );
+      setInitialLoadFailed(false);
       setError("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "REQUEST_FAILED");
+    } catch {
+      setInitialLoadFailed(true);
+      setError("");
     } finally {
       setLoading(false);
       refreshingRef.current = false;
@@ -523,6 +526,7 @@ export default function WorkspaceDashboard({
 
   async function loadAllMeetings() {
     setMeetingsLoading(true);
+    setMeetingsError("");
     try {
       const [allRequests, allHistory, historyPage] = await Promise.all([
         api<RequestItem[]>("/api/employee/requests?limit=100"),
@@ -535,8 +539,8 @@ export default function WorkspaceDashboard({
       setModalMeetingHistory(allHistory.items);
       setModalRequestHistory(historyPage.items);
       setRequestHistoryCursor(historyPage.nextCursor);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "MEETING_LIST_FAILED");
+    } catch {
+      setMeetingsError("MEETING_LIST_FAILED");
     } finally {
       setMeetingsLoading(false);
     }
@@ -578,10 +582,11 @@ export default function WorkspaceDashboard({
   const loadInvitations = useCallback(async function loadInvitations() {
     if (!canManage) return;
     setInvitesLoading(true);
+    setInvitationsError("");
     try {
       setInvitations(await api<InvitationItem[]>("/api/company/invitations"));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "INVITATION_LIST_FAILED");
+    } catch {
+      setInvitationsError("INVITATION_LIST_FAILED");
     } finally {
       setInvitesLoading(false);
     }
@@ -590,10 +595,11 @@ export default function WorkspaceDashboard({
   const loadInvoices = useCallback(async function loadInvoices() {
     if (!canManage) return;
     setBillingLoading(true);
+    setBillingError("");
     try {
       setInvoices(await api<InvoiceItem[]>("/api/billing/invoices"));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "INVOICE_LIST_FAILED");
+    } catch {
+      setBillingError("INVOICE_LIST_FAILED");
     } finally {
       setBillingLoading(false);
     }
@@ -637,7 +643,14 @@ export default function WorkspaceDashboard({
     const timer = window.setTimeout(() => {
       const params = new URLSearchParams(window.location.search);
       const panel = params.get("panel");
-      if (panel === "meetings" || panel === "team" || panel === "settings" || panel === "billing" || panel === "feedback") {
+      if (
+        panel === "meetings" ||
+        panel === "team" ||
+        panel === "settings" ||
+        panel === "billing" ||
+        panel === "feedback" ||
+        panel === "support-tickets"
+      ) {
         setActiveModal(panel);
         if (panel === "settings") {
           setSettingsSection(params.get("section") === "announcements" ? "announcements" : "public");
@@ -1008,7 +1021,11 @@ export default function WorkspaceDashboard({
     if (name === "meetings") void loadAllMeetings();
   }
 
-  if (loading) return <DashboardSkeleton />;
+  if (loading) return <WorkspaceLoading />;
+
+  if (initialLoadFailed) {
+    return <WorkspaceLoadError onRetry={() => void refreshAll()} />;
+  }
 
   if (!data) {
     return (
@@ -1066,7 +1083,7 @@ export default function WorkspaceDashboard({
     );
   }
 
-  if (!plan) return <DashboardSkeleton />;
+  if (!plan) return <WorkspaceLoadError onRetry={() => void refreshAll()} />;
 
   const confirmationTitle =
     confirmation?.kind === "remove-employee"
