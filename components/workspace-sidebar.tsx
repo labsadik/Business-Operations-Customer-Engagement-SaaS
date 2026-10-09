@@ -208,7 +208,8 @@ export default function WorkspaceSidebar({
                 type="button"
                 onClick={() => open("support-tickets")}
                 className={buttonClass(active("support-tickets"))}
-                title={defaultSupportTicketsLabel}
+                title="Platform Support — Raise a ticket"
+                aria-label="Raise a ticket to Platform Support"
               >
                 <LifeBuoy className={`size-4 ${iconClass(active("support-tickets"))}`} />
                 <span className={collapsed ? "sr-only" : ""}>{defaultSupportTicketsLabel}</span>
@@ -221,8 +222,8 @@ export default function WorkspaceSidebar({
           <div className="space-y-1">
             <Link href="/" title="Conventus home" className={buttonClass(false)}>
               <Globe2 className="size-4 text-slate-400 group-hover:text-slate-700" />
-              <span>Conventus home</span>
-              <ArrowUpRight className="ml-auto size-3.5 text-slate-300" />
+              <span className={collapsed ? "sr-only" : ""}>Conventus home</span>
+              {!collapsed && <ArrowUpRight className="ml-auto size-3.5 text-slate-300" />}
             </Link>
 
           </div>
@@ -230,10 +231,10 @@ export default function WorkspaceSidebar({
 
         <div className="border-t border-slate-200/80 p-4">
           {adminManaged && (
-            <Link href="/admin" className="mb-2 flex items-center gap-3 rounded-xl px-3.5 py-3 text-xs font-semibold text-blue-700 hover:bg-blue-50">
+            <Link href="/admin" title="Return to admin console" className={`mb-2 flex items-center rounded-xl py-3 text-xs font-semibold text-blue-700 hover:bg-blue-50 ${collapsed ? "justify-center px-2.5" : "gap-3 px-3.5"}`}>
               <ShieldCheck className="size-4" />
-              Return to admin console
-              <ArrowUpRight className="ml-auto size-3.5" />
+              <span className={collapsed ? "sr-only" : ""}>Return to admin console</span>
+              {!collapsed && <ArrowUpRight className="ml-auto size-3.5" />}
             </Link>
           )}
           {!collapsed && <p className="px-3 pb-2 text-[10px] text-slate-400">Signed in as {userEmail}</p>}
