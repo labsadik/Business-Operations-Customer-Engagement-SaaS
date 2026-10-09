@@ -181,7 +181,10 @@ export default function TaskManagementDashboard({
   }, [taskManagementEnabled, userId]);
 
   useEffect(() => {
-    void load();
+    const frame = window.requestAnimationFrame(() => {
+      void load();
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [load]);
 
   async function openTask(taskId: string) {
