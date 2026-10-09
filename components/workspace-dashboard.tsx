@@ -1780,9 +1780,9 @@ export default function WorkspaceDashboard({
             <div className="flex items-center gap-2">
               <label className="block">
                 <span className="sr-only">Filter meeting history by date</span>
-                <input type="date" value={meetingDateFilter} onChange={(event) => { const nextDate = event.target.value; setMeetingDateFilter(nextDate); setMeetingModalView("meeting-history"); void loadAllMeetings(nextDate); }} className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+                <input type="date" value={meetingDateFilter} onChange={(event) => { setMeetingDateFilter(event.target.value); setMeetingModalView("meeting-history"); }} className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
               </label>
-              {meetingDateFilter && <button type="button" onClick={() => { setMeetingDateFilter(""); void loadAllMeetings(""); }} className="rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Clear date</button>}
+              {meetingDateFilter && <button type="button" onClick={() => setMeetingDateFilter("") className="rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Clear date</button>}
             </div>
           </div>
           <div className="mb-5 rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-xs text-blue-950">
