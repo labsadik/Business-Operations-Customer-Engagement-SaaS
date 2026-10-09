@@ -200,11 +200,17 @@ export async function getCompanyEntitlements(companyId: string): Promise<PlanEnt
   await reconcileLatestPaidAccess(companyId);
   const subscription = await ensureSubscription(companyId);
 
-  if (isValidEntitlementSnapshot(subscription.entitlementSnapshot)) {
-    return createEntitlementSnapshot(subscription.entitlementSnapshot);
-  }
+  const snapshot = isValidEntitlementSnapshot(subscription.entitlementSnapshot)
+    ? createEntitlementSnapshot(subscription.entitlementSnapshot)
+    : await resolvePlanEntitlementsForSubscription(subscription);
 
-  return resolvePlanEntitlementsForSubscription(subscription);
+  // Task Management is an explicit plan-level feature switch. Apply changes to
+  // this switch immediately for current subscribers while keeping their stored
+  // price and capacity snapshot stable for historical billing consistency.
+  const currentPlan = await getManagedPlan(snapshot.id, { includeArchived: true });
+  return currentPlan
+    ? { ...snapshot, taskManagementEnabled: Boolean(currentPlan.taskManagementEnabled) }
+    : snapshot;
 }
 
 export async function assertFeatureAccess(companyId: string) {
