@@ -47,3 +47,12 @@ test("Google access tokens are cached locally with bounded memory and single-fli
   assert.ok(calendar.includes("function rememberAccessToken"));
   assert.ok(ignore.includes("/tsconfig.tsbuildinfo"));
 });
+
+test("Google Calendar free/busy calls have bounded concurrency and queue size", () => {
+  const calendar = source("lib/google-calendar.ts");
+
+  assert.ok(calendar.includes("MAX_CONCURRENT_FREE_BUSY_REQUESTS = 20"));
+  assert.ok(calendar.includes("MAX_QUEUED_FREE_BUSY_REQUESTS = 500"));
+  assert.ok(calendar.includes('throw new Error("GOOGLE_CALENDAR_BUSY")'));
+  assert.ok(calendar.includes("return withFreeBusyCapacity(async () =>"));
+});
