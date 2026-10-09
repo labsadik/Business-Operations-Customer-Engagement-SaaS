@@ -135,6 +135,7 @@ export async function POST(request: Request) {
         statusChangedAt: createdAt
       })));
     } catch (error) {
+      await TaskAssignment.deleteMany({ taskId: task._id, companyId: task.companyId, workspaceId: task.workspaceId });
       await Task.deleteOne({ _id: task._id, companyId: task.companyId, workspaceId: task.workspaceId });
       throw error;
     }
@@ -146,14 +147,14 @@ export async function POST(request: Request) {
         type: "TASK_ASSIGNED" as const,
         title: "New task assigned",
         message: `${scope.session.name} assigned you “${input.title}”.`,
-        eventKey: `assignment:${String(task._id)}:${userId}`
+        eventKey: `assignment:${String(task._id)}:${userId}:${createdAt.getTime()}`
       }));
     assigneeNotifications.push({
       recipientUserId: scope.session.userId,
       type: "TASK_ASSIGNMENT_CONFIRMED" as const,
       title: "Task assignment confirmed",
       message: `Your task “${input.title}” was assigned to ${input.assigneeUserIds.length} employee(s).`,
-      eventKey: `assignment-confirmed:${String(task._id)}:${scope.session.userId}`
+      eventKey: `assignment-confirmed:${String(task._id)}:${scope.session.userId}:${createdAt.getTime()}`
     });
 
     await recordTaskEvent({
