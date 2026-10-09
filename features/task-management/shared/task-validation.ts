@@ -41,7 +41,7 @@ export function validateAssigneeUserIds(value: unknown, required = true): string
 }
 
 function parseDueAt(value: unknown): Date | null {
-  if (value === null || value === "") return null;
+  if (value == null || value === "") return null;
   if (typeof value !== "string") throw new Error("DUE_AT_INVALID");
   const parsed = new Date(value);
   if (!Number.isFinite(parsed.getTime())) throw new Error("DUE_AT_INVALID");
