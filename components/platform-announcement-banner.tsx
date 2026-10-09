@@ -169,7 +169,7 @@ export default function PlatformAnnouncementBanner({
     <aside
       className={
         isLanding
-          ? "w-full border-b border-amber-200/80 bg-gradient-to-r from-amber-50/90 via-white to-amber-50/90 text-slate-900"
+          ? "w-full border-b border-amber-200/80 bg-[#fff8e6] bg-gradient-to-r from-amber-50/90 via-white to-amber-50/90 text-slate-900"
           : "w-full border-b border-blue-200/80 bg-gradient-to-r from-blue-50/80 via-white to-blue-50/80 text-slate-900"
       }
       aria-label="Platform announcements"
