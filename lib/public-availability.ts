@@ -345,7 +345,7 @@ export async function getAvailableSlots(
     maxConcurrentMeetings?: number;
   } = {}
 ): Promise<AvailabilityResult> {
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(dateIso)) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateIso)) {
     throw new Error("INVALID_DATE");
   }
   if (!Number.isInteger(durationMinutes) || durationMinutes <= 0) {

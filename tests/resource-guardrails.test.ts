@@ -20,6 +20,17 @@ test("live views throttle API polling and pause background work", () => {
   assert.ok(/requestInFlight\s*\|\|\s*terminal/.test(booking));
 });
 
+test("public availability uses the same valid ISO date check before calculation and cache reads", () => {
+  const availability = source("lib/public-availability.ts");
+  const dateChecks = availability
+    .split("\n")
+    .filter((line) => line.includes(".test(dateIso)"));
+
+  assert.equal(dateChecks.length, 2);
+  assert.equal(dateChecks[0], dateChecks[1]);
+  assert.ok(dateChecks[0].includes("/^\\d{4}-\\d{2}-\\d{2}$/"));
+});
+
 test("availability results use a bounded short-lived cache and coalesce duplicate reads", () => {
   const availability = source("lib/public-availability.ts");
 
