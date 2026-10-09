@@ -157,3 +157,10 @@ Every task query and mutation is company/workspace-scoped, and assignees must ha
 Do not commit real production secrets. Google refresh tokens, application secrets, Redis credentials, database credentials, billing secrets, and email provider keys must stay server-side.
 
 The demo environment reference is intentionally documented in `.env.example.md`; those values are for the demo configuration only and must be replaced before real production use.
+
+
+## Public embedded feedback
+
+Company owners and administrators can open `/dashboard?panel=feedback`, select **Public embed**, and copy a company-specific iframe snippet for another website. Visitors need no Conventus account; the embedded form requires name, email, phone, a 1–5 star rating, and a written review. Public embed API and UI boundaries are documented in [`features/public-feedback/README.md`](./features/public-feedback/README.md). New submissions stay private until a company owner or administrator publishes them. The public widget receives only approved display fields, never the reviewer's email or phone.
+
+Application action sounds are enabled automatically. Since browsers restrict audio before the first user gesture, the root sound handler attempts to unlock audio on the first normal click, tap, or key press; employees do not need a separate sound setting.

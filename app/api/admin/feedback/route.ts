@@ -99,7 +99,7 @@ export async function GET(request: Request) {
     const items = raw.slice(0, limit);
 
     const companyIds = [...new Set(items.map((item) => String(item.companyId)))];
-    const submitterIds = [...new Set(items.map((item) => String(item.submitterUserId)))];
+    const submitterIds = [...new Set(items.map((item) => item.submitterUserId ? String(item.submitterUserId) : "").filter(Boolean))];
     const bookingIds = [...new Set(
       items.flatMap((item) => item.bookingRequestId ? [String(item.bookingRequestId)] : [])
     )];

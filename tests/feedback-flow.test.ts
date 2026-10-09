@@ -81,8 +81,8 @@ test("public feedback is explicit, modal-based, and signed-out users keep their 
   assert.match(modal, /event\.key !== "Tab"/);
   assert.match(modal, /document\.body\.style\.overflow = "hidden"/);
   assert.match(modal, /motion-reduce:animate-none/);
-  assert.match(modal, /Sound off/);
-  assert.match(modal, /isFeedbackSoundEnabled/);
+  assert.match(modal, /Action sounds are enabled automatically/);
+  assert.match(modal, /playFeedbackSound/);
   assert.match(modal, /savingRef/);
   assert.doesNotMatch(modal, /setOpen\(true\)/);
   assert.doesNotMatch(booking, /PublicFeedbackPrompt|PublicFeedbackEntry/);
@@ -101,7 +101,7 @@ test("workspace feedback is an explicit accessible modal and does not expose cus
   assert.match(dashboard, /image=\{user\.image\}/);
 
   assert.match(dashboard, /openModal\(panel, section, true\)/);
-  assert.match(dashboard, /playFeedbackSoundIfEnabled/);
+  assert.match(dashboard, /playFeedbackSound/);
   assert.match(dashboard, /<WorkspaceFeedback/);
   assert.doesNotMatch(dashboard, /<AppModal[\s\S]*WorkspaceFeedback/);
 
@@ -117,21 +117,26 @@ test("workspace feedback is an explicit accessible modal and does not expose cus
   assert.match(modal, /event\.key !== "Tab"/);
   assert.match(modal, /document\.body\.style\.overflow = "hidden"/);
   assert.match(modal, /motion-reduce:animate-none/);
-  assert.match(modal, /Sound off/);
-  assert.match(modal, /aria-pressed/);
+  assert.match(modal, /Action sounds are enabled automatically/);
+  assert.doesNotMatch(modal, /Sound off|toggleSound|isFeedbackSoundEnabled/);
 });
 
-test("feedback sound is off by default, first-party persisted, and never scheduled on page load", () => {
+test("feedback action sounds are automatic and unlocked after the first ordinary interaction", () => {
   const sound = source("lib/client-feedback-sound.ts");
   const publicEntry = source("components/public-feedback-entry.tsx");
   const dashboard = source("components/workspace-dashboard.tsx");
+  const globalUnlock = source("components/sound-autoplay.tsx");
 
-  assert.match(sound, /return false;/);
-  assert.match(sound, /localStorage/);
-  assert.match(publicEntry, /onClick=\{openFeedback\}/);
-  assert.match(publicEntry, /playFeedbackSoundIfEnabled\(\)/);
-  assert.match(dashboard, /name === "feedback" && fromUserGesture/);
-  assert.doesNotMatch(publicEntry, /useEffect\([\s\S]*playFeedbackSoundIfEnabled/);
+  assert.match(sound, /export async function playFeedbackSound/);
+  assert.match(sound, /0\\.36/);
+  assert.doesNotMatch(sound, /localStorage|isFeedbackSoundEnabled/);
+  assert.match(publicEntry, /playFeedbackSound\\(\\)/);
+  assert.match(dashboard, /playFeedbackSound\\(\\)/);
+  assert.match(globalUnlock, /pointerdown/);
+  assert.match(globalUnlock, /unlockTaskSound\\(\\)/);
+  assert.match(globalUnlock, /unlockMeetingSound\\(\\)/);
+  assert.match(globalUnlock, /unlockFeedbackSound\\(\\)/);
+  assert.doesNotMatch(publicEntry, /Sound off|toggleSound/);
 });
 
 test("customer and company-member feedback stay distinct sources", () => {
@@ -140,6 +145,7 @@ test("customer and company-member feedback stay distinct sources", () => {
   const adminRoute = source("app/api/admin/feedback/route.ts");
 
   assert.match(publicRoute, /source: "CUSTOMER_BOOKING"/);
+  assert.match(companyRoute, /PUBLIC_EMBED/);
   assert.match(companyRoute, /source: "COMPANY_PLATFORM"/);
   assert.match(adminRoute, /FEEDBACK_SOURCES/);
   assert.match(adminRoute, /source: item\.source/);

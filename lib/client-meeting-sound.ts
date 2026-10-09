@@ -1,6 +1,6 @@
 "use client";
 
-type MeetingSoundType = "incoming" | "accepted" | "declined" | "retrying" | "expired";
+type MeetingSoundType = "incoming" | "accepted" | "declined" | "retrying" | "expired" | "completed";
 
 type Note = {
   frequency: number;
@@ -31,14 +31,14 @@ function getAudioContext() {
 
 function createOutput(context: AudioContext) {
   const compressor = context.createDynamicsCompressor();
-  compressor.threshold.setValueAtTime(-10, context.currentTime);
-  compressor.knee.setValueAtTime(12, context.currentTime);
-  compressor.ratio.setValueAtTime(10, context.currentTime);
+  compressor.threshold.setValueAtTime(-8, context.currentTime);
+  compressor.knee.setValueAtTime(8, context.currentTime);
+  compressor.ratio.setValueAtTime(12, context.currentTime);
   compressor.attack.setValueAtTime(0.003, context.currentTime);
   compressor.release.setValueAtTime(0.18, context.currentTime);
 
   const master = context.createGain();
-  master.gain.setValueAtTime(1, context.currentTime);
+  master.gain.setValueAtTime(0.95, context.currentTime);
   master.connect(compressor);
   compressor.connect(context.destination);
 
@@ -65,9 +65,15 @@ function notesFor(type: MeetingSoundType): Note[] {
       ];
     case "declined":
       return [
-        { frequency: 440, duration: 0.14, gap: 0.055, wave: "square", volume: 24 },
-        { frequency: 349.23, duration: 0.17, gap: 0.06, wave: "square", volume: 24 },
-        { frequency: 261.63, duration: 0.28, gap: 0.035, wave: "sawtooth", volume: 25 }
+        { frequency: 440, duration: 0.14, gap: 0.055, wave: "square", volume: 0.74 },
+        { frequency: 349.23, duration: 0.17, gap: 0.06, wave: "square", volume: 0.74 },
+        { frequency: 261.63, duration: 0.28, gap: 0.035, wave: "sawtooth", volume: 0.78 }
+      ];
+    case "completed":
+      return [
+        { frequency: 783.99, duration: 0.13, gap: 0.035, wave: "triangle", volume: 0.78 },
+        { frequency: 659.25, duration: 0.14, gap: 0.035, wave: "triangle", volume: 0.78 },
+        { frequency: 523.25, duration: 0.22, gap: 0.04, wave: "sine", volume: 0.8 }
       ];
     case "retrying":
       return [
@@ -106,7 +112,7 @@ function scheduleNote(
 ) {
   const oscillator = context.createOscillator();
   const gain = context.createGain();
-  const peak = note.volume ?? 26.4;
+  const peak = note.volume ?? 0.76;
   const wave = note.wave ?? "triangle";
 
   oscillator.type = wave;
@@ -169,7 +175,7 @@ export async function playMeetingSound(type: MeetingSoundType) {
             ...note,
             frequency: note.frequency * 2,
             duration: note.duration * 0.82,
-            volume: (note.volume ?? 26.4) * 0.28,
+            volume: (note.volume ?? 0.76) * 0.28,
             wave: "sine"
           },
           cursor

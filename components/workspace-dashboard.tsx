@@ -26,6 +26,7 @@ import {
   Trash2,
   UsersRound,
   Video,
+  Volume2,
   X,
   XCircle
 } from "lucide-react";
@@ -33,7 +34,7 @@ import ConfirmDialog from "@/components/confirm-dialog";
 import UserAvatar from "@/components/user-avatar";
 import MeetingResponseCountdown from "@/components/meeting-response-countdown";
 import RazorpayPlanButton from "@/components/razorpay-plan-button";
-import { playMeetingSound, unlockMeetingSound } from "@/lib/client-meeting-sound";
+import { playMeetingSound } from "@/lib/client-meeting-sound";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
 import WorkspaceUserProfile from "@/components/workspace-user-profile";
 import { WorkspaceLoadError, WorkspaceLoading } from "@/components/route-loading";
@@ -43,7 +44,7 @@ import GoogleIntegrationNotice from "@/components/google-integration-notice";
 import PlatformAnnouncementBanner from "@/components/platform-announcement-banner";
 import WorkspaceFeedback from "@/components/workspace-feedback";
 import WorkspaceSupportTickets from "@/components/workspace-support-tickets";
-import { playFeedbackSoundIfEnabled } from "@/lib/client-feedback-sound";
+import { playFeedbackSound } from "@/lib/client-feedback-sound";
 
 type Address = {
   line1: string;
@@ -445,7 +446,6 @@ export default function WorkspaceDashboard({
   const [endingRequestId, setEndingRequestId] = useState("");
   const [deletingEmployeeId, setDeletingEmployeeId] = useState("");
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
-  const [soundEnabled, setSoundEnabled] = useState(false);
   const refreshingRef = useRef(false);
   const refreshQueuedRef = useRef(false);
   const liveRefreshingRef = useRef(false);
@@ -854,20 +854,6 @@ export default function WorkspaceDashboard({
     initializedRequestsRef.current = true;
   }, [requests]);
 
-  useEffect(() => {
-    const unlock = () => {
-      void unlockMeetingSound();
-      setSoundEnabled(true);
-    };
-    window.addEventListener("pointerdown", unlock, { once: true });
-    window.addEventListener("keydown", unlock, { once: true });
-    return () => {
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("keydown", unlock);
-    };
-  }, []);
-
-
   async function createCompany(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
@@ -1065,6 +1051,7 @@ export default function WorkspaceDashboard({
     setError("");
     try {
       await api(`/api/bookings/${encodeURIComponent(id)}/end`, { method: "POST" });
+      void playMeetingSound("completed");
       await refreshLive();
       await refreshAll();
       if (activeModal === "meetings") await loadAllMeetings();
@@ -1172,7 +1159,7 @@ export default function WorkspaceDashboard({
     const params = new URLSearchParams({ panel: name });
     if (section) params.set("section", section);
     router.push(`/dashboard?${params.toString()}`);
-    if (name === "feedback" && fromUserGesture) void playFeedbackSoundIfEnabled();
+    if (name === "feedback" && fromUserGesture) void playFeedbackSound();
   }
 
   if (loading) return <WorkspaceLoading />;
@@ -1431,16 +1418,10 @@ export default function WorkspaceDashboard({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  void unlockMeetingSound();
-                  setSoundEnabled(true);
-                }}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-              >
-                {soundEnabled ? "Notifications on" : "Enable notifications"}
-              </button>
+              <span className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-medium text-slate-600">
+                <Volume2 className="size-3.5 text-blue-600" aria-hidden="true" />
+                Action sounds on automatically
+              </span>
 
               <button
                 type="button"
@@ -1704,6 +1685,8 @@ export default function WorkspaceDashboard({
         onClose={closeFeedbackModal}
         canViewCustomerFeedback={Boolean(data.currentRole && data.company?.id)}
         canSubmit={data.currentRole !== "PLATFORM_ADMIN"}
+        canManageReviews={["COMPANY_OWNER", "COMPANY_ADMIN"].includes(data.currentRole)}
+        companySlug={data.company.slug}
       />
 
       {data.currentRole !== "PLATFORM_ADMIN" && (

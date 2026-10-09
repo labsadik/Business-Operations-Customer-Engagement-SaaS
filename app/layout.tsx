@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import NavigationProgress from "@/components/navigation-progress";
 import NavigationLabelsProvider from "@/components/navigation-labels-provider";
 import CookieConsent from "@/components/cookie-consent";
+import SoundAutoplay from "@/components/sound-autoplay";
 import AnalyticsProvider from "@/components/analytics-provider";
 import { getConfiguredPublicOrigin } from "@/lib/public-origin";
 import "./globals.css";
@@ -42,6 +43,7 @@ export default function RootLayout({
             {children}
           </NavigationLabelsProvider>
         </AnalyticsProvider>
+        <SoundAutoplay />
         <CookieConsent />
       </body>
     </html>

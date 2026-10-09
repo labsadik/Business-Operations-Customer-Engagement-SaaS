@@ -2,7 +2,7 @@
 
 import { MessageSquareText } from "lucide-react";
 import PublicFeedbackPrompt from "@/components/public-feedback-prompt";
-import { playFeedbackSoundIfEnabled } from "@/lib/client-feedback-sound";
+import { playFeedbackSound } from "@/lib/client-feedback-sound";
 import { useCallback, useState } from "react";
 
 export default function PublicFeedbackEntry({
@@ -16,7 +16,7 @@ export default function PublicFeedbackEntry({
   const closeFeedback = useCallback(() => setOpen(false), []);
 
   function openFeedback() {
-    void playFeedbackSoundIfEnabled();
+    void playFeedbackSound();
     setOpen(true);
   }
 

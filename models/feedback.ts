@@ -4,7 +4,7 @@ const feedbackSchema = new Schema(
   {
     source: {
       type: String,
-      enum: ["CUSTOMER_BOOKING", "COMPANY_PLATFORM"],
+      enum: ["CUSTOMER_BOOKING", "COMPANY_PLATFORM", "PUBLIC_EMBED"],
       required: true,
       index: true,
       immutable: true
@@ -25,12 +25,13 @@ const feedbackSchema = new Schema(
     submitterUserId: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      required: true,
       index: true,
       immutable: true
     },
     submitterName: { type: String, trim: true, maxlength: 200, immutable: true },
     submitterEmail: { type: String, trim: true, lowercase: true, maxlength: 254, immutable: true },
+    submitterPhone: { type: String, trim: true, maxlength: 32, immutable: true },
+    submitterIpHash: { type: String, trim: true, maxlength: 64, immutable: true, index: true },
     submitterImage: { type: String, trim: true, maxlength: 2000, immutable: true },
     bookingRequestId: {
       type: Schema.Types.ObjectId,
@@ -39,7 +40,7 @@ const feedbackSchema = new Schema(
       immutable: true
     },
     rating: { type: Number, required: true, min: 1, max: 5, immutable: true },
-    description: { type: String, trim: true, maxlength: 300, default: "", immutable: true },
+    description: { type: String, trim: true, maxlength: 1000, default: "", immutable: true },
     reviewStatus: {
       type: String,
       enum: ["NEW", "REVIEWED", "RESOLVED"],
@@ -55,6 +56,7 @@ const feedbackSchema = new Schema(
 
 feedbackSchema.index({ source: 1, companyId: 1, reviewStatus: 1, createdAt: -1 });
 feedbackSchema.index({ source: 1, companyId: 1, createdAt: -1 });
+feedbackSchema.index({ source: 1, companyId: 1, submitterIpHash: 1, createdAt: -1 });
 feedbackSchema.index({ source: 1, submitterUserId: 1, createdAt: -1 });
 
 export const Feedback = models.Feedback ?? model("Feedback", feedbackSchema);

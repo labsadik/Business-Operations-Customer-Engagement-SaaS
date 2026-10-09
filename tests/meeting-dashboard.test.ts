@@ -30,7 +30,8 @@ test("meeting workspace shows join and complete actions for every active meeting
 test("meeting panel loads from a direct dashboard URL and polls live state without a page reload", () => {
   const dashboard = source("components/workspace-dashboard.tsx");
 
-  assert.ok(dashboard.includes('if (activeModal === "meetings") void loadAllMeetings()'));
+  assert.ok(dashboard.includes('if (activeModal !== "meetings") return;'));
+  assert.ok(dashboard.includes("const timer = window.setTimeout(() => void loadAllMeetings(), 0)"));
   assert.ok(dashboard.includes('const requestLimit = panel === "meetings" ? 100 : 6'));
   assert.ok(dashboard.includes("setModalRequests(pendingResult.value)"));
   assert.ok(dashboard.includes("setMeetingActivitySummary(summaryResult.value)"));

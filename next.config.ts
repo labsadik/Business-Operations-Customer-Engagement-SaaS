@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
-  { key: "X-Frame-Options", value: "SAMEORIGIN" },
+  { key: "Content-Security-Policy", value: "frame-ancestors 'self';" },
   { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
   { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
   ...(process.env.NODE_ENV === "production"
@@ -43,6 +43,10 @@ const nextConfig: NextConfig = {
       {
         source: "/",
         headers: [publicLongCache]
+      },
+      {
+        source: "/embed/feedback/:companySlug",
+        headers: [{ key: "Content-Security-Policy", value: "frame-ancestors *;" }]
       },
       {
         source: "/terms",

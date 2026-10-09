@@ -1,11 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, MessageSquareText, Volume2, VolumeX, X } from "lucide-react";
-import {
-  isFeedbackSoundEnabled,
-  setFeedbackSoundEnabled
-} from "@/lib/client-feedback-sound";
+import { CheckCircle2, MessageSquareText, X } from "lucide-react";
+import { playFeedbackSound } from "@/lib/client-feedback-sound";
 
 type PublicFeedbackPromptProps = {
   open: boolean;
@@ -30,7 +27,6 @@ export default function PublicFeedbackPrompt({
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [message, setMessage] = useState("");
-  const [soundEnabled, setSoundEnabled] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -39,9 +35,6 @@ export default function PublicFeedbackPrompt({
       : null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const soundTimer = window.setTimeout(() => {
-      setSoundEnabled(isFeedbackSoundEnabled());
-    }, 0);
 
     const focusTimer = window.setTimeout(() => closeButtonRef.current?.focus(), 0);
 
@@ -76,7 +69,6 @@ export default function PublicFeedbackPrompt({
     window.addEventListener("keydown", onKeyDown);
     return () => {
       window.clearTimeout(focusTimer);
-      window.clearTimeout(soundTimer);
       window.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previousOverflow;
       window.setTimeout(() => previousFocusRef.current?.focus(), 0);
@@ -90,12 +82,6 @@ export default function PublicFeedbackPrompt({
     setMessage("");
     setSaving(false);
     onClose();
-  }
-
-  function toggleSound() {
-    const next = !soundEnabled;
-    setSoundEnabled(next);
-    setFeedbackSoundEnabled(next);
   }
 
   async function submit() {
@@ -114,6 +100,7 @@ export default function PublicFeedbackPrompt({
       if (!response.ok) throw new Error(String(body.error || "FEEDBACK_SUBMISSION_FAILED"));
 
       setMessage("Thanks for sharing your experience.");
+      void playFeedbackSound();
     } catch (error) {
       const code = error instanceof Error ? error.message : "FEEDBACK_SUBMISSION_FAILED";
       setMessage(
@@ -230,21 +217,7 @@ export default function PublicFeedbackPrompt({
                 />
               </label>
 
-              <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3.5 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-xs font-semibold text-slate-800">Feedback sound</p>
-                  <p className="mt-1 text-[10px] leading-4 text-slate-500">Off by default. Sound plays only when you open this form.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={toggleSound}
-                  className="inline-flex items-center gap-2 self-start rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:self-auto"
-                  aria-pressed={soundEnabled}
-                >
-                  {soundEnabled ? <Volume2 className="size-4" aria-hidden="true" /> : <VolumeX className="size-4" aria-hidden="true" />}
-                  {soundEnabled ? "Sound on" : "Sound off"}
-                </button>
-              </div>
+              <p className="text-[10px] leading-4 text-slate-500">Action sounds are enabled automatically for supported feedback actions.</p>
 
               <div className="flex items-center justify-between gap-3 text-[11px]">
                 <span aria-live="polite" className="text-slate-400">{description.length}/300</span>

@@ -80,18 +80,17 @@ test("task dashboard includes searchable Jira-style columns, persistent confirma
 
   assert.match(dashboard, /TASK_STATUSES\.map/);
   assert.match(dashboard, /aria-label="Search tasks"/);
-  assert.match(dashboard, /Sound effects/);
+  assert.match(dashboard, /Action sounds on automatically/);
   assert.match(dashboard, /playTaskSoundIfEnabled\("created"\)/);
   assert.match(dashboard, /onDragStart/);
   assert.match(dashboard, /onDrop/);
   assert.match(dashboard, /tasksByStatus/);
-  assert.match(dashboard, /Preview task created sound/);
-  assert.match(dashboard, /Preview task updated sound/);
-  assert.match(dashboard, /Preview task completed sound/);
+  assert.doesNotMatch(dashboard, /Preview task (created|updated|completed) sound/);
   assert.match(dashboard, /image=\{employee\.image\}/);
   assert.match(dashboard, /image=\{detail\.createdBy\?\.image\}/);
   assert.match(dashboard, /setShowCreateForm/);
-  assert.match(sound, /localStorage/);
+  assert.doesNotMatch(sound, /localStorage/);
+  assert.match(sound, /Kept as a backwards-compatible name; action sounds are always enabled/);
   assert.match(sound, /wave: "square"/);
   assert.match(sound, /wave: "sine"/);
   assert.match(sound, /export async function playTaskSound/);

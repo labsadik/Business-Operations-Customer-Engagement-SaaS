@@ -2,7 +2,6 @@
 
 export type TaskSoundEvent = "created" | "updated" | "completed" | "cancelled";
 
-const STORAGE_KEY = "conventus:task-sound:v1";
 let audioContext: AudioContext | null = null;
 let audioTailTime = 0;
 
@@ -15,25 +14,6 @@ function getAudioContext() {
   if (!Context) return null;
   audioContext = new Context();
   return audioContext;
-}
-
-export function isTaskSoundEnabled() {
-  if (typeof window === "undefined") return false;
-  try {
-    const savedPreference = window.localStorage.getItem(STORAGE_KEY);
-    return savedPreference === null ? true : savedPreference === "on";
-  } catch {
-    return false;
-  }
-}
-
-export function setTaskSoundEnabled(enabled: boolean) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, enabled ? "on" : "off");
-  } catch {
-    // Preferences are optional; storage must never block task workflows.
-  }
 }
 
 export async function unlockTaskSound() {
@@ -60,9 +40,9 @@ function notesFor(event: TaskSoundEvent): SoundNote[] {
   if (event === "updated") {
     // A short, buzzy down-up double tap, unlike either chime.
     return [
-      { frequency: 440, duration: 0.075, gap: 0.035, wave: "square", harmonic: 1.5, volume: 0.36, overtoneVolume: 0.04 },
-      { frequency: 349.23, duration: 0.085, gap: 0.035, wave: "square", harmonic: 1.5, volume: 0.36, overtoneVolume: 0.04 },
-      { frequency: 440, duration: 0.095, gap: 0.045, wave: "square", harmonic: 1.5, volume: 0.36, overtoneVolume: 0.04 }
+      { frequency: 440, duration: 0.075, gap: 0.035, wave: "square", harmonic: 1.5, volume: 0.48, overtoneVolume: 0.08 },
+      { frequency: 349.23, duration: 0.085, gap: 0.035, wave: "square", harmonic: 1.5, volume: 0.48, overtoneVolume: 0.08 },
+      { frequency: 440, duration: 0.095, gap: 0.045, wave: "square", harmonic: 1.5, volume: 0.48, overtoneVolume: 0.08 }
     ];
   }
   if (event === "cancelled") {
@@ -151,6 +131,6 @@ export async function playTaskSound(event: TaskSoundEvent) {
 }
 
 export async function playTaskSoundIfEnabled(event: TaskSoundEvent) {
-  if (!isTaskSoundEnabled()) return;
+  // Kept as a backwards-compatible name; action sounds are always enabled.
   await playTaskSound(event);
 }

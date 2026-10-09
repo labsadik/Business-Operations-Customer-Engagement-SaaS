@@ -1,7 +1,5 @@
 "use client";
 
-const STORAGE_KEY = "conventus:feedback-sound:v1";
-
 function getContext() {
   if (typeof window === "undefined") return null;
   const Context =
@@ -21,20 +19,13 @@ function getAudioContext() {
   return audioContext;
 }
 
-export function isFeedbackSoundEnabled() {
-  if (typeof window === "undefined") return false;
+export async function unlockFeedbackSound() {
+  const context = getAudioContext();
+  if (!context) return;
   try {
-    return window.localStorage.getItem(STORAGE_KEY) === "on";
+    if (context.state === "suspended") await context.resume();
   } catch {
-    return false;
-  }
-}
-
-export function setFeedbackSoundEnabled(enabled: boolean) {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, enabled ? "on" : "off");
-  } catch {
-    // First-party preference is optional and never blocks feedback.
+    // The browser may require a later first-party gesture.
   }
 }
 
@@ -49,6 +40,17 @@ export async function playFeedbackSound() {
     if (context.state === "suspended") await context.resume();
     if (context.state !== "running") return;
 
+    const compressor = context.createDynamicsCompressor();
+    compressor.threshold.setValueAtTime(-8, context.currentTime);
+    compressor.knee.setValueAtTime(8, context.currentTime);
+    compressor.ratio.setValueAtTime(12, context.currentTime);
+    compressor.attack.setValueAtTime(0.003, context.currentTime);
+    compressor.release.setValueAtTime(0.15, context.currentTime);
+    const master = context.createGain();
+    master.gain.setValueAtTime(0.95, context.currentTime);
+    master.connect(compressor);
+    compressor.connect(context.destination);
+
     const start = context.currentTime + 0.01;
     const notes = [587.33, 880];
     for (let index = 0; index < notes.length; index += 1) {
@@ -58,10 +60,10 @@ export async function playFeedbackSound() {
       oscillator.type = "sine";
       oscillator.frequency.setValueAtTime(notes[index], start + offset);
       gain.gain.setValueAtTime(0.0001, start + offset);
-      gain.gain.exponentialRampToValueAtTime(0.035, start + offset + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.36, start + offset + 0.012);
       gain.gain.exponentialRampToValueAtTime(0.0001, start + offset + 0.075);
       oscillator.connect(gain);
-      gain.connect(context.destination);
+      gain.connect(master);
       oscillator.start(start + offset);
       oscillator.stop(start + offset + 0.09);
     }
@@ -72,6 +74,6 @@ export async function playFeedbackSound() {
 }
 
 export async function playFeedbackSoundIfEnabled() {
-  if (!isFeedbackSoundEnabled()) return;
+  // Kept as a backwards-compatible name; feedback action sounds are always enabled.
   await playFeedbackSound();
 }

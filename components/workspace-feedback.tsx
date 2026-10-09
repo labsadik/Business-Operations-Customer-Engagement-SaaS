@@ -3,11 +3,8 @@
 import { clientApi } from "@/lib/client-api";
 
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, ChevronLeft, MessageSquareText, Volume2, VolumeX, X } from "lucide-react";
-import {
-  isFeedbackSoundEnabled,
-  setFeedbackSoundEnabled
-} from "@/lib/client-feedback-sound";
+import { Check, CheckCircle2, ChevronLeft, Copy, ExternalLink, MessageSquareText, X } from "lucide-react";
+import { playFeedbackSound } from "@/lib/client-feedback-sound";
 
 type FeedbackItem = {
   id: string;
@@ -15,7 +12,10 @@ type FeedbackItem = {
   description: string;
   createdAt: string;
   reviewStatus: "NEW" | "REVIEWED" | "RESOLVED";
+  source: "CUSTOMER_BOOKING" | "COMPANY_PLATFORM" | "PUBLIC_EMBED";
   submitter: { name: string } | null;
+  submitterEmail?: string | null;
+  submitterPhone?: string | null;
 };
 
 async function request<T>(url: string, init?: RequestInit) {
@@ -27,20 +27,24 @@ export default function WorkspaceFeedback({
   asPage = false,
   onClose,
   canViewCustomerFeedback,
-  canSubmit = true
+  canSubmit = true,
+  canManageReviews = false,
+  companySlug
 }: {
   open: boolean;
   asPage?: boolean;
   onClose: () => void;
   canViewCustomerFeedback: boolean;
   canSubmit?: boolean;
+  canManageReviews?: boolean;
+  companySlug: string;
 }) {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const [customerFeedback, setCustomerFeedback] = useState<FeedbackItem[]>([]);
   const [sentFeedback, setSentFeedback] = useState<FeedbackItem[]>([]);
-  const [tab, setTab] = useState<"customer" | "platform">("platform");
+  const [tab, setTab] = useState<"customer" | "platform" | "embed">("platform");
   const [rating, setRating] = useState(0);
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
@@ -48,14 +52,14 @@ export default function WorkspaceFeedback({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [soundEnabled, setSoundEnabled] = useState(false);
+  const [publicOrigin, setPublicOrigin] = useState("");
+  const [embedCopyState, setEmbedCopyState] = useState<"idle" | "copied" | "error">("idle");
+  const [reviewingId, setReviewingId] = useState("");
 
   useEffect(() => {
     if (!open) return;
-    const soundTimer = window.setTimeout(() => {
-      setSoundEnabled(isFeedbackSoundEnabled());
-    }, 0);
-    if (asPage) return () => window.clearTimeout(soundTimer);
+    const originTimer = window.setTimeout(() => setPublicOrigin(window.location.origin), 0);
+    if (asPage) return () => window.clearTimeout(originTimer);
 
     previousFocusRef.current = document.activeElement instanceof HTMLElement
       ? document.activeElement
@@ -96,7 +100,7 @@ export default function WorkspaceFeedback({
     window.addEventListener("keydown", onKeyDown);
     return () => {
       window.clearTimeout(focusTimer);
-      window.clearTimeout(soundTimer);
+      window.clearTimeout(originTimer);
       window.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previousOverflow;
       window.setTimeout(() => previousFocusRef.current?.focus(), 0);
@@ -124,6 +128,27 @@ export default function WorkspaceFeedback({
     return () => window.clearTimeout(timer);
   }, [open, canViewCustomerFeedback]);
 
+  async function updateReviewStatus(item: FeedbackItem, reviewStatus: FeedbackItem["reviewStatus"]) {
+    if (!canManageReviews || reviewingId) return;
+    setReviewingId(item.id);
+    setError("");
+    setNotice("");
+    try {
+      const updated = await request<{ reviewStatus: FeedbackItem["reviewStatus"] }>("/api/company/feedback", {
+        method: "PATCH",
+        body: JSON.stringify({ feedbackId: item.id, reviewStatus })
+      });
+      setCustomerFeedback((current) => current.map((entry) =>
+        entry.id === item.id ? { ...entry, reviewStatus: updated.reviewStatus } : entry
+      ));
+      setNotice(updated.reviewStatus === "REVIEWED" ? "Review published to the public widget." : "Review is no longer public.");
+    } catch (errorValue) {
+      setError(errorValue instanceof Error ? errorValue.message : "FEEDBACK_STATUS_UPDATE_FAILED");
+    } finally {
+      setReviewingId("");
+    }
+  }
+
   function close() {
     if (saving) return;
     setRating(0);
@@ -135,11 +160,12 @@ export default function WorkspaceFeedback({
     onClose();
   }
 
-  function toggleSound() {
-    const next = !soundEnabled;
-    setSoundEnabled(next);
-    setFeedbackSoundEnabled(next);
-  }
+  const embedUrl = publicOrigin && companySlug
+    ? `${publicOrigin}/embed/feedback/${encodeURIComponent(companySlug)}`
+    : "";
+  const embedCode = embedUrl
+    ? `<iframe\n  src="${embedUrl}"\n  title="Leave a review"\n  width="100%"\n  height="760"\n  loading="lazy"\n  referrerpolicy="strict-origin-when-cross-origin"\n  style="width:100%;max-width:760px;height:760px;border:0;border-radius:16px"\n></iframe>`
+    : "";
 
   async function submit() {
     if (!canSubmit || !rating || saving) return;
@@ -156,6 +182,7 @@ export default function WorkspaceFeedback({
       setRating(0);
       setDescription("");
       setNotice("Your feedback was sent privately to the Conventus platform team.");
+      void playFeedbackSound();
       if (canViewCustomerFeedback) {
         const data = await request<{ customerFeedback: FeedbackItem[]; companyFeedback: FeedbackItem[] }>(
           "/api/company/feedback?limit=25"
@@ -245,6 +272,15 @@ export default function WorkspaceFeedback({
               >
                 Customer feedback
               </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === "embed"}
+                onClick={() => setTab("embed")}
+                className={"rounded-lg px-4 py-2 text-xs font-semibold " + (tab === "embed" ? "bg-white text-blue-700 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-800")}
+              >
+                Public embed
+              </button>
             </div>
           )}
 
@@ -271,7 +307,74 @@ export default function WorkspaceFeedback({
             </div>
           )}
 
-          {tab === "platform" ? (
+          {tab === "embed" ? (
+            <section className="space-y-5" aria-labelledby="public-feedback-embed-title">
+              <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-700">Public feedback</p>
+                <h3 id="public-feedback-embed-title" className="mt-1 text-base font-semibold text-slate-950">Collect reviews on any website</h3>
+                <p className="mt-2 max-w-3xl text-xs leading-5 text-slate-600">
+                  Copy this iframe snippet into your website HTML. Visitors can submit their name, email, phone number, star rating, and review without creating a Conventus account. Submissions are attached to this company automatically.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold text-slate-900">Embed code</p>
+                    <p className="mt-1 text-[11px] leading-5 text-slate-500">Works in HTML pages, site builders, and CMS content blocks that allow iframes.</p>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={!publicOrigin || !embedCode}
+                      onClick={() => {
+                        if (!embedCode) return;
+                        void navigator.clipboard.writeText(embedCode).then(
+                          () => setEmbedCopyState("copied"),
+                          () => setEmbedCopyState("error")
+                        );
+                      }}
+                      className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {embedCopyState === "copied" ? <Check className="size-4" aria-hidden="true" /> : <Copy className="size-4" aria-hidden="true" />}
+                      {embedCopyState === "copied" ? "Copied" : "Copy code"}
+                    </button>
+                    {embedUrl && (
+                      <a
+                        href={embedUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        <ExternalLink className="size-4" aria-hidden="true" />
+                        Preview
+                      </a>
+                    )}
+                  </div>
+                </div>
+                <textarea
+                  aria-label="Public feedback embed code"
+                  readOnly
+                  value={embedCode || "Preparing the embed code…"}
+                  rows={7}
+                  className="mt-4 w-full resize-y rounded-xl border border-slate-300 bg-slate-950 p-3 font-mono text-[11px] leading-5 text-slate-100 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+                {embedCopyState === "error" && <p role="alert" className="mt-2 text-xs text-rose-700">Could not copy automatically. Select the code above and copy it manually.</p>}
+                {embedCopyState === "copied" && <p role="status" className="mt-2 text-xs text-emerald-700">Embed snippet copied.</p>}
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <section className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <h4 className="text-xs font-semibold text-slate-900">Privacy and security</h4>
+                  <p className="mt-2 text-[11px] leading-5 text-slate-600">The form submits to Conventus over HTTPS. Company identity comes from the embed URL rather than visitor-supplied IDs. Phone and email are visible only to authorized company members, not to the public review list.</p>
+                </section>
+                <section className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <h4 className="text-xs font-semibold text-slate-900">Review publishing</h4>
+                  <p className="mt-2 text-[11px] leading-5 text-slate-600">New reviews are stored as private until a company owner or administrator publishes them from Customer feedback. Only published reviews appear in the embedded public review list.</p>
+                </section>
+              </div>
+            </section>
+          ) : tab === "platform" ? (
             canSubmit ? (
               <>
                 <form onSubmit={(event) => { event.preventDefault(); void submit(); }} className="space-y-5">
@@ -316,21 +419,7 @@ export default function WorkspaceFeedback({
                 />
               </label>
 
-              <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3.5 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-xs font-semibold text-slate-800">Feedback sound</p>
-                  <p className="mt-1 text-[10px] leading-4 text-slate-500">Off by default. Sound only plays after you explicitly open this feedback form.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={toggleSound}
-                  className="inline-flex items-center gap-2 self-start rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:self-auto"
-                  aria-pressed={soundEnabled}
-                >
-                  {soundEnabled ? <Volume2 className="size-4" aria-hidden="true" /> : <VolumeX className="size-4" aria-hidden="true" />}
-                  {soundEnabled ? "Sound on" : "Sound off"}
-                </button>
-              </div>
+              <p className="text-[10px] leading-4 text-slate-500">Action sounds are enabled automatically for supported feedback actions.</p>
 
               <div className="flex items-center justify-between gap-3 text-[11px]">
                 <span aria-live="polite" className="text-slate-400">{description.length}/300</span>
@@ -403,18 +492,39 @@ export default function WorkspaceFeedback({
             <div className="space-y-2">
               {customerFeedback.map((item) => (
                 <article key={item.id} className="rounded-xl border border-slate-200 bg-white p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
                       <span className="text-amber-500" aria-label={item.rating + " of 5 stars"}>
                         {Array.from({ length: 5 }).map((_, index) => <span key={index}>{index < item.rating ? "★" : "☆"}</span>)}
                       </span>
                       <p className="mt-1 text-[10px] text-slate-400">
-                        {item.submitter?.name || "Authenticated customer"} · {new Date(item.createdAt).toLocaleString()}
+                        {item.submitter?.name || "Customer"} · {new Date(item.createdAt).toLocaleString()}
                       </p>
+                      {(item.submitterEmail || item.submitterPhone) && (
+                        <p className="mt-1 break-all text-[11px] text-slate-500">
+                          {item.submitterEmail || "Email not provided"}{item.submitterPhone ? " · " + item.submitterPhone : ""}
+                        </p>
+                      )}
                     </div>
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500">{item.reviewStatus}</span>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500">{item.reviewStatus}</span>
+                      <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-700">{item.source === "PUBLIC_EMBED" ? "Website embed" : "Booking page"}</span>
+                    </div>
                   </div>
                   {item.description && <p className="mt-3 whitespace-pre-wrap text-xs leading-5 text-slate-600">{item.description}</p>}
+                  {canManageReviews && (
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
+                      <p className="text-[10px] text-slate-500">{item.reviewStatus === "REVIEWED" ? "Visible on the public widget" : "Private until published"}</p>
+                      <button
+                        type="button"
+                        disabled={reviewingId === item.id}
+                        onClick={() => void updateReviewStatus(item, item.reviewStatus === "REVIEWED" ? "NEW" : "REVIEWED")}
+                        className={`rounded-lg px-3 py-2 text-[11px] font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${item.reviewStatus === "REVIEWED" ? "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}
+                      >
+                        {reviewingId === item.id ? "Saving…" : item.reviewStatus === "REVIEWED" ? "Hide review" : "Publish review"}
+                      </button>
+                    </div>
+                  )}
                 </article>
               ))}
             </div>

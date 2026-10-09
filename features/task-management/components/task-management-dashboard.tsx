@@ -20,13 +20,12 @@ import {
   List,
   RotateCcw,
   Volume2,
-  VolumeX,
   X
 } from "lucide-react";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
 import UserAvatar from "@/components/user-avatar";
 import WorkspaceUserProfile from "@/components/workspace-user-profile";
-import { isTaskSoundEnabled, playTaskSound, playTaskSoundIfEnabled, setTaskSoundEnabled, unlockTaskSound } from "@/lib/client-task-sound";
+import { playTaskSoundIfEnabled } from "@/lib/client-task-sound";
 import { TASK_PRIORITIES, TASK_STATUSES, type TaskPriority, type TaskStatus } from "@/features/task-management/shared/constants";
 
 type Employee = {
@@ -202,7 +201,6 @@ export default function TaskManagementDashboard({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [cancelConfirm, setCancelConfirm] = useState<{ task: TaskItem; assignment: TaskAssignmentItem } | null>(null);
-  const [soundEnabled, setSoundEnabled] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dropTargetStatus, setDropTargetStatus] = useState<TaskStatus | null>(null);
@@ -331,7 +329,6 @@ export default function TaskManagementDashboard({
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
-      setSoundEnabled(isTaskSoundEnabled());
       void load();
     });
     return () => window.cancelAnimationFrame(frame);
@@ -458,7 +455,6 @@ export default function TaskManagementDashboard({
       return;
     }
 
-    if (soundEnabled) void unlockTaskSound();
     setSaving(true);
     try {
       const created = await api<TaskItem>("/api/tasks", {
@@ -504,7 +500,6 @@ export default function TaskManagementDashboard({
     setError("");
     setNotice("");
     setBusyAssignmentId(assignment.id);
-    if (soundEnabled) void unlockTaskSound();
     const managerForTask = canManage || task.createdByUserId === userId;
     try {
       await api<{ taskStatus: TaskStatus }>(`/api/tasks/${task.id}/status`, {
@@ -720,48 +715,10 @@ export default function TaskManagementDashboard({
                     Clear task history
                   </button>
                 )}
-                <button
-                  type="button"
-                  aria-pressed={soundEnabled}
-                  onClick={() => {
-                    const next = !soundEnabled;
-                    setSoundEnabled(next);
-                    setTaskSoundEnabled(next);
-                    if (next) void unlockTaskSound();
-                  }}
-                  title={soundEnabled ? "Turn task sound effects off" : "Turn task sound effects on"}
-                  className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-3 text-xs font-semibold transition ${soundEnabled ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
-                >
-                  {soundEnabled ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
-                  Sound effects {soundEnabled ? "on" : "off"}
-                </button>
-                <button
-                  type="button"
-                  aria-label="Preview task created sound"
-                  title="Preview the new-task sound"
-                  onClick={() => void playTaskSound("created")}
-                  className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100"
-                >
-                  Created
-                </button>
-                <button
-                  type="button"
-                  aria-label="Preview task updated sound"
-                  title="Preview the task-update sound"
-                  onClick={() => void playTaskSound("updated")}
-                  className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
-                >
-                  Updated
-                </button>
-                <button
-                  type="button"
-                  aria-label="Preview task completed sound"
-                  title="Preview the task-complete sound"
-                  onClick={() => void playTaskSound("completed")}
-                  className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-3 text-xs font-semibold text-violet-800 transition hover:bg-violet-100"
-                >
-                  Completed
-                </button>
+                <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-xs font-medium text-slate-600" aria-label="Task action sounds are enabled automatically">
+                  <Volume2 className="size-4 text-blue-600" aria-hidden="true" />
+                  Action sounds on automatically
+                </div>
               </div>
             </div>
           </section>
