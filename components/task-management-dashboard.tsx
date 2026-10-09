@@ -13,6 +13,7 @@ import {
   Users
 } from "lucide-react";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
+import UserAvatar from "@/components/user-avatar";
 import { TASK_PRIORITIES, TASK_STATUSES, type TaskPriority, type TaskStatus } from "@/features/task-management/shared/constants";
 
 type Employee = {
@@ -268,13 +269,14 @@ export default function TaskManagementDashboard({
     <main className="min-h-screen bg-[#faf9f1] text-slate-950">
       <WorkspaceSidebar
         companyName={companyName}
-        userName={userName}
+        userName={userName || userEmail}
         userEmail={userEmail}
         userImage={userImage}
         currentRole={currentRole}
         taskManagementEnabled={taskManagementEnabled}
         canManage={canManage}
         adminManaged={currentRole === "PLATFORM_ADMIN"}
+        avatarFallback="/api/profile/avatar"
       />
       <div className="lg:pl-72">
         <header className="sticky top-0 z-40 border-b border-slate-200/90 bg-[#faf9f1]/95 backdrop-blur-xl">
@@ -282,6 +284,19 @@ export default function TaskManagementDashboard({
             <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-600">Workspace</p>
               <h1 className="mt-1 truncate text-base font-semibold tracking-tight text-slate-950">Task management</h1>
+            </div>
+            <div className="flex min-w-0 items-center gap-3">
+              <UserAvatar
+                name={userName || userEmail}
+                email={userEmail}
+                image={userImage}
+                fallbackImage="/api/profile/avatar"
+                size={36}
+              />
+              <div className="hidden min-w-0 sm:block">
+                <p className="max-w-48 truncate text-xs font-semibold text-slate-800">{userName || userEmail}</p>
+                <p className="max-w-48 truncate text-[10px] text-slate-500">{userEmail}</p>
+              </div>
             </div>
             <button
               type="button"
