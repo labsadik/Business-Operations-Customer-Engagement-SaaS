@@ -149,7 +149,6 @@ export default function WorkspaceUserProfile({
     if (!open) return;
     let cancelled = false;
     const controller = new AbortController();
-    setLoading(true);
     clientApi<ProfilePayload>("/api/profile/member", { signal: controller.signal })
       .then((profile) => {
         if (cancelled) return;
