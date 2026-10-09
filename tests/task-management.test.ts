@@ -241,3 +241,10 @@ test("shared client API deduplicates mount reads and rejects invalid success pay
   assert.ok(clientApi.includes("(response.ok && !hasJsonContentType)"));
   assert.ok(clientApi.includes("RETRYABLE_SERVER_STATUSES"));
 });
+
+
+test("production MongoDB connections explicitly require transport TLS", () => {
+  const mongo = source("lib/mongodb.ts");
+  assert.ok(mongo.includes('tls: process.env.NODE_ENV === "production"'));
+  assert.ok(mongo.includes("serverSelectionTimeoutMS: 5000"));
+});

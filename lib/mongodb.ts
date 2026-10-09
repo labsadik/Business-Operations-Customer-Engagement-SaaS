@@ -42,6 +42,9 @@ export async function getMongo() {
       // keep the pool small enough for serverless instances.
       maxPoolSize: 5,
       minPoolSize: 0,
+      // Always encrypt app-to-database traffic in production. MongoDB Atlas
+      // enables TLS by default too; this makes the application's requirement explicit.
+      tls: process.env.NODE_ENV === "production",
       waitQueueTimeoutMS: 5000,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 10000
