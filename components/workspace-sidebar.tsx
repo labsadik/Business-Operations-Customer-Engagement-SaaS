@@ -139,7 +139,7 @@ export default function WorkspaceSidebar({
         </div>
 
         <nav aria-label="Company workspace navigation" className={`flex-1 overflow-y-auto py-5 ${collapsed ? "px-2" : "px-4"}`}>
-          {!collapsed && <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Workspace</p>
+          {!collapsed && <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Workspace</p>}
 
           <div className="space-y-1">
             {primaryItems.map((item) => {
