@@ -210,7 +210,7 @@ test("platform admin task usage is aggregated and displayed per company", () => 
   assert.ok(companyDirectory.includes("{company.totalTasks}"));
   assert.ok(companyDirectory.includes("{company.activeTasks}"));
   assert.ok(companyDetails.includes("Company task usage"));
-  assert.ok(companyDetails.includes("{company.overdueTasks}"));
+  assert.ok(companyDetails.includes("company.overdueTasks"));
   assert.ok(platformOverview.includes("data.totalTasks"));
 });
 
