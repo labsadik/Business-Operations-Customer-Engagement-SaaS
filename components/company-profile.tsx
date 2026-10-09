@@ -229,7 +229,6 @@ export default function CompanyProfile({
             name={user.name}
             email={user.email}
             image={user.image}
-            companyName={form.name}
             currentRole={currentRole}
           />
         </div>
