@@ -119,9 +119,12 @@ export default function DesktopNotificationCenter({
   }, [userId]);
 
   useEffect(() => {
-    syncPreference();
+    const initialSync = window.setTimeout(syncPreference, 0);
     window.addEventListener("conventus:desktop-alerts-changed", syncPreference);
-    return () => window.removeEventListener("conventus:desktop-alerts-changed", syncPreference);
+    return () => {
+      window.clearTimeout(initialSync);
+      window.removeEventListener("conventus:desktop-alerts-changed", syncPreference);
+    };
   }, [syncPreference]);
 
   useEffect(() => {
