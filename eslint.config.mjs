@@ -6,7 +6,6 @@ export default defineConfig([
   globalIgnores([
     ".next/**",
     ".open-next/**",
-    ".wrangler/**",
     "out/**",
     "dist/**",
     "node_modules/**"
