@@ -5,6 +5,7 @@ import { BookingRequest } from "@/models/booking-request";
 import { queryFreeBusy } from "@/lib/google-calendar";
 import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
 import { Workspace } from "@/models/workspace";
+import { getRedis } from "@/lib/redis";
 import { getTodayIso, nextDateIso, zonedDateTimeToUtc } from "@/lib/timezone";
 import {
   buildScheduleSlots,
@@ -36,7 +37,7 @@ const ACTIVE_BOOKING_STATUSES = [
   "IN_PROGRESS"
 ] as const;
 
-export async function getAvailableSlots(
+async function calculateAvailableSlots(
   companyId: string,
   dateIso: string,
   durationMinutes: number,
@@ -270,4 +271,146 @@ export async function getAvailableSlots(
     scheduleConfiguredMemberCount,
     calendarErrorCount
   };
+}
+
+
+const AVAILABILITY_CACHE_TTL_SECONDS = 75;
+const AVAILABILITY_LOCAL_SHARED_TTL_MS = 10_000;
+const MAX_AVAILABILITY_CACHE_ENTRIES = 128;
+
+const availabilityCache = new Map<
+  string,
+  { expiresAt: number; value: AvailabilityResult }
+>();
+const inFlightAvailability = new Map<string, Promise<AvailabilityResult>>();
+
+function isAvailabilityResult(value: unknown): value is AvailabilityResult {
+  if (!value || typeof value !== "object") return false;
+  const result = value as Partial<AvailabilityResult>;
+  return (
+    Array.isArray(result.slots) &&
+    typeof result.reason === "string" &&
+    Number.isFinite(result.schedulingReadyMemberCount) &&
+    Number.isFinite(result.scheduleConfiguredMemberCount) &&
+    Number.isFinite(result.calendarErrorCount)
+  );
+}
+
+function rememberAvailability(
+  key: string,
+  value: AvailabilityResult,
+  ttlMs: number
+) {
+  availabilityCache.delete(key);
+  availabilityCache.set(key, { value, expiresAt: Date.now() + ttlMs });
+  while (availabilityCache.size > MAX_AVAILABILITY_CACHE_ENTRIES) {
+    const oldestKey = availabilityCache.keys().next().value;
+    if (oldestKey === undefined) break;
+    availabilityCache.delete(oldestKey);
+  }
+}
+
+export async function getAvailableSlots(
+  companyId: string,
+  dateIso: string,
+  durationMinutes: number,
+  options: {
+    bufferBeforeMinutes?: number;
+    bufferAfterMinutes?: number;
+    maxConcurrentMeetings?: number;
+  } = {}
+): Promise<AvailabilityResult> {
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(dateIso)) {
+    throw new Error("INVALID_DATE");
+  }
+  if (!Number.isInteger(durationMinutes) || durationMinutes <= 0) {
+    throw new Error("INVALID_DURATION");
+  }
+
+  const cacheKey = "conventus:availability:v1:" + [
+    companyId,
+    dateIso,
+    durationMinutes,
+    options.bufferBeforeMinutes ?? 0,
+    options.bufferAfterMinutes ?? 0,
+    options.maxConcurrentMeetings ?? "unlimited"
+  ].join(":");
+
+  const cached = availabilityCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    // Refresh recency for bounded in-process eviction.
+    availabilityCache.delete(cacheKey);
+    availabilityCache.set(cacheKey, cached);
+    return cached.value;
+  }
+  if (cached) availabilityCache.delete(cacheKey);
+
+  const existing = inFlightAvailability.get(cacheKey);
+  if (existing) return existing;
+
+  const pending = (async () => {
+    let redis: Awaited<ReturnType<typeof getRedis>> = null;
+    try {
+      redis = await getRedis();
+    } catch {
+      redis = null;
+    }
+
+    if (redis) {
+      try {
+        const raw = await redis.get(cacheKey);
+        if (raw) {
+          const parsed: unknown = JSON.parse(raw);
+          if (isAvailabilityResult(parsed)) {
+            rememberAvailability(
+              cacheKey,
+              parsed,
+              AVAILABILITY_LOCAL_SHARED_TTL_MS
+            );
+            return parsed;
+          }
+        }
+      } catch {
+        // Redis is an optimization only; booking availability still works without it.
+        redis = null;
+      }
+    }
+
+    const result = await calculateAvailableSlots(
+      companyId,
+      dateIso,
+      durationMinutes,
+      options
+    );
+
+    if (redis) {
+      try {
+        await redis.set(
+          cacheKey,
+          JSON.stringify(result),
+          { EX: AVAILABILITY_CACHE_TTL_SECONDS }
+        );
+      } catch {
+        redis = null;
+      }
+    }
+
+    rememberAvailability(
+      cacheKey,
+      result,
+      redis
+        ? AVAILABILITY_LOCAL_SHARED_TTL_MS
+        : AVAILABILITY_CACHE_TTL_SECONDS * 1000
+    );
+    return result;
+  })();
+
+  inFlightAvailability.set(cacheKey, pending);
+  try {
+    return await pending;
+  } finally {
+    if (inFlightAvailability.get(cacheKey) === pending) {
+      inFlightAvailability.delete(cacheKey);
+    }
+  }
 }

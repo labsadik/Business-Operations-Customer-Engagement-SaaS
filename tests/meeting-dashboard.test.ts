@@ -49,7 +49,7 @@ test("workspace refresh requests made during an in-flight read are queued rather
 test("task board refreshes quietly when visible and queues refreshes that overlap a request", () => {
   const taskDashboard = source("features/task-management/components/task-management-dashboard.tsx");
 
-  assert.ok(taskDashboard.includes("window.setInterval(refreshVisibleTasks, 15_000)"));
+  assert.ok(taskDashboard.includes("window.setInterval(refreshVisibleTasks, 30_000)"));
   assert.ok(taskDashboard.includes('document.addEventListener("visibilitychange", refreshVisibleTasks)'));
   assert.ok(taskDashboard.includes('window.addEventListener("focus", refreshVisibleTasks)'));
   assert.ok(taskDashboard.includes("void load(false)"));

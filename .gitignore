@@ -1,5 +1,6 @@
 node_modules
 .next
+/tsconfig.tsbuildinfo
 .open-next
 out
 dist

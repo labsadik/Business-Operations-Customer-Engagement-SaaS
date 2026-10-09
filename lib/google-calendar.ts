@@ -5,8 +5,49 @@ import { GoogleAccount } from "@/models/google-account";
 import { googleApi, refreshGoogleAccessToken } from "@/lib/google";
 
 const GOOGLE_CALENDAR_REQUEST_TIMEOUT_MS = 10000;
+const MAX_ACCESS_TOKEN_CACHE_ENTRIES = 500;
+const TOKEN_CACHE_FROM_REDIS_TTL_MS = 1000;
+
+const accessTokenMemoryCache = new Map<
+  string,
+  { accessToken: string; expiresAt: number }
+>();
+const pendingAccessTokenLoads = new Map<
+  string,
+  Promise<{ accessToken: string }>
+>();
+
+function getMemoryAccessToken(userId: string) {
+  const cached = accessTokenMemoryCache.get(userId);
+  if (!cached) return null;
+  if (cached.expiresAt <= Date.now()) {
+    accessTokenMemoryCache.delete(userId);
+    return null;
+  }
+  // LRU recency without allowing this cache to grow with arbitrary user IDs.
+  accessTokenMemoryCache.delete(userId);
+  accessTokenMemoryCache.set(userId, cached);
+  return cached.accessToken;
+}
+
+function rememberAccessToken(userId: string, accessToken: string, ttlMs: number) {
+  accessTokenMemoryCache.delete(userId);
+  accessTokenMemoryCache.set(userId, {
+    accessToken,
+    expiresAt: Date.now() + Math.max(1, ttlMs)
+  });
+  for (const [key, entry] of accessTokenMemoryCache) {
+    if (entry.expiresAt <= Date.now()) accessTokenMemoryCache.delete(key);
+  }
+  while (accessTokenMemoryCache.size > MAX_ACCESS_TOKEN_CACHE_ENTRIES) {
+    const oldestKey = accessTokenMemoryCache.keys().next().value;
+    if (oldestKey === undefined) break;
+    accessTokenMemoryCache.delete(oldestKey);
+  }
+}
 
 export async function clearGoogleAccessTokenCache(userId: string) {
+  accessTokenMemoryCache.delete(userId);
   try {
     const redis = await getRedis();
     if (redis) {
@@ -18,7 +59,7 @@ export async function clearGoogleAccessTokenCache(userId: string) {
   }
 }
 
-export async function getGoogleAccessToken(userId: string) {
+async function loadGoogleAccessToken(userId: string) {
   const cacheKey = `google:access:${userId}`;
   let redis: Awaited<ReturnType<typeof getRedis>> = null;
 
@@ -27,7 +68,12 @@ export async function getGoogleAccessToken(userId: string) {
     if (redis) {
       try {
         const cached = await redis.get(cacheKey);
-        if (cached) return { accessToken: cached };
+        if (cached) {
+          // Redis does not expose remaining TTL through this wrapper. Keep this
+          // cache hit only briefly; tokens refreshed by this process use the known expiry.
+          rememberAccessToken(userId, cached, TOKEN_CACHE_FROM_REDIS_TTL_MS);
+          return { accessToken: cached };
+        }
       } catch (error) {
         const code = error instanceof Error ? error.message : "REDIS_CACHE_READ_FAILED";
         console.warn("[Conventus] Google access-token cache read failed", { code });
@@ -70,8 +116,10 @@ export async function getGoogleAccessToken(userId: string) {
   account.lastErrorCode = undefined;
   await account.save();
 
+  const ttl = Math.max(30, Math.floor(refreshed.expires_in) - 60);
+  rememberAccessToken(userId, refreshed.access_token, ttl * 1000);
+
   if (redis) {
-    const ttl = Math.max(30, Math.floor(refreshed.expires_in) - 60);
     try {
       await redis.set(cacheKey, refreshed.access_token, { EX: ttl });
     } catch (error) {
@@ -187,4 +235,23 @@ export async function createCalendarEvent(userId: string, input: {
       })
     }
   );
+}
+
+
+export async function getGoogleAccessToken(userId: string) {
+  const cached = getMemoryAccessToken(userId);
+  if (cached) return { accessToken: cached };
+
+  const existing = pendingAccessTokenLoads.get(userId);
+  if (existing) return existing;
+
+  const pending = loadGoogleAccessToken(userId);
+  pendingAccessTokenLoads.set(userId, pending);
+  try {
+    return await pending;
+  } finally {
+    if (pendingAccessTokenLoads.get(userId) === pending) {
+      pendingAccessTokenLoads.delete(userId);
+    }
+  }
 }

@@ -9,6 +9,10 @@ import { bookingErrorCode } from "@/lib/booking-errors";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const EXPIRY_SWEEP_BATCH_LIMIT = 25;
+const RETRY_SWEEP_BATCH_LIMIT = 25;
+const MEETING_RETRY_SWEEP_BATCH_LIMIT = 5;
+
 function authorized(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) return process.env.NODE_ENV !== "production";
@@ -29,7 +33,7 @@ export async function GET(request: Request) {
   })
     .select("_id companyId status expiresAt assignedEmployeeId")
     .sort({ expiresAt: 1 })
-    .limit(100)
+    .limit(EXPIRY_SWEEP_BATCH_LIMIT)
     .lean();
 
   let expired = 0;
@@ -91,7 +95,7 @@ export async function GET(request: Request) {
   })
     .select("_id companyId status")
     .sort({ nextRetryAt: 1 })
-    .limit(100)
+    .limit(RETRY_SWEEP_BATCH_LIMIT)
     .lean();
 
   let retried = 0;
@@ -142,7 +146,7 @@ export async function GET(request: Request) {
   })
     .select("_id companyId assignedEmployeeId status")
     .sort({ nextRetryAt: 1 })
-    .limit(25)
+    .limit(MEETING_RETRY_SWEEP_BATCH_LIMIT)
     .lean();
 
   let meetingRetries = 0;
@@ -168,6 +172,10 @@ export async function GET(request: Request) {
     expired,
     retried,
     meetingRetries,
+    hasMoreWork:
+      expiring.length === EXPIRY_SWEEP_BATCH_LIMIT ||
+      dueRetries.length === RETRY_SWEEP_BATCH_LIMIT ||
+      creating.length === MEETING_RETRY_SWEEP_BATCH_LIMIT,
     timestamp: now.toISOString()
   });
 }

@@ -345,7 +345,7 @@ export default function TaskManagementDashboard({
     const refreshVisibleTasks = () => {
       if (document.visibilityState === "visible") void load(false);
     };
-    const poll = window.setInterval(refreshVisibleTasks, 15_000);
+    const poll = window.setInterval(refreshVisibleTasks, 30_000);
     document.addEventListener("visibilitychange", refreshVisibleTasks);
     window.addEventListener("focus", refreshVisibleTasks);
     return () => {

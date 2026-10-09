@@ -305,16 +305,21 @@ export default function PublicBooking({
     availabilityPollingDisabledRef.current = false;
 
     const initial = window.setTimeout(() => {
-      void loadAvailability();
+      if (document.visibilityState === "visible") void loadAvailability();
     }, 0);
 
-    const interval = window.setInterval(() => {
-      void loadAvailability(true);
-    }, 15000);
+    const refreshAvailabilityWhenVisible = () => {
+      if (document.visibilityState === "visible") void loadAvailability(true);
+    };
+    const interval = window.setInterval(refreshAvailabilityWhenVisible, 60_000);
+    document.addEventListener("visibilitychange", refreshAvailabilityWhenVisible);
+    window.addEventListener("focus", refreshAvailabilityWhenVisible);
 
     return () => {
       window.clearTimeout(initial);
       window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshAvailabilityWhenVisible);
+      window.removeEventListener("focus", refreshAvailabilityWhenVisible);
       cancelAvailability();
     };
   }, [
@@ -374,7 +379,20 @@ export default function PublicBooking({
   useEffect(() => {
     if (!bookingId) return;
 
-    const timer = window.setInterval(async () => {
+    // A single request at a time avoids a slow API call causing a poll backlog.
+    // Hidden tabs stop sending status requests; returning to the tab refreshes immediately.
+    let requestInFlight = false;
+    let terminal = false;
+    let timer: number | undefined;
+
+    const pollBookingStatus = async () => {
+      if (
+        requestInFlight ||
+        terminal ||
+        document.visibilityState !== "visible"
+      ) return;
+
+      requestInFlight = true;
       try {
         const response = await clientFetch(`/api/bookings/${bookingId}`);
         const body = await response.json();
@@ -421,18 +439,34 @@ export default function PublicBooking({
         if (nextMeeting?.status === "READY" && nextMeetingUri) {
           setMeetingUri(nextMeetingUri);
           setStatus("CONFIRMED");
-          window.clearInterval(timer);
+          terminal = true;
+          if (timer !== undefined) window.clearInterval(timer);
         }
 
         if (nextStatus === "EXPIRED" || nextStatus === "CANCELLED") {
-          window.clearInterval(timer);
+          terminal = true;
+          if (timer !== undefined) window.clearInterval(timer);
         }
       } catch {
         // Keep polling quietly; transient client/network failures should not end the request.
+      } finally {
+        requestInFlight = false;
       }
-    }, 1000);
+    };
 
-    return () => window.clearInterval(timer);
+    timer = window.setInterval(() => void pollBookingStatus(), 5000);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void pollBookingStatus();
+    };
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    window.addEventListener("focus", refreshWhenVisible);
+    void pollBookingStatus();
+
+    return () => {
+      if (timer !== undefined) window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.removeEventListener("focus", refreshWhenVisible);
+    };
   }, [bookingId]);
 
   const loginUrl = useMemo(

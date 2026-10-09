@@ -772,9 +772,10 @@ export default function WorkspaceDashboard({
     // Schedule initial work outside the effect body; shared GET deduplication and
     // refreshAll's guard prevent duplicate backend reads during Strict Mode mounts.
     const initialLoad = window.setTimeout(() => void refreshAll(), 0);
+    // Keep cross-user refreshes responsive without generating frequent API reads for every open workspace.
     const poll = window.setInterval(() => {
       if (document.visibilityState === "visible") void refreshLive();
-    }, 10_000);
+    }, 30_000);
 
     const onVisible = () => {
       if (document.visibilityState === "visible") void refreshLive();
