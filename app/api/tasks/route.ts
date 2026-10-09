@@ -4,12 +4,12 @@ import { assertSameOrigin } from "@/lib/security";
 import { jsonError, jsonOk } from "@/lib/http";
 import { Task } from "@/models/task";
 import { TaskAssignment } from "@/models/task-assignment";
-import { TaskPriority, TASK_PRIORITIES, TASK_STATUSES } from "@/features/task-management/shared/constants";
+import { TASK_PRIORITIES, TASK_STATUSES, type TaskPriority } from "@/features/task-management/shared/constants";
 import { validateTaskCreateInput } from "@/features/task-management/shared/task-validation";
 import { assertAssignableEmployees, assertTaskFeatureAccess, requireTaskScope } from "@/features/task-management/server/task-authorization";
 import { decodeTaskCursor, encodeTaskCursor, parseTaskLimit } from "@/features/task-management/server/task-pagination";
 import { taskErrorResponse } from "@/features/task-management/server/task-errors";
-import { recordTaskEvent } from "@/features/task-management/server/task-events";
+import { recordTaskEvent, type TaskNotificationDraft } from "@/features/task-management/server/task-events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -139,7 +139,7 @@ export async function POST(request: Request) {
       throw error;
     }
 
-    const assigneeNotifications = input.assigneeUserIds
+    const assigneeNotifications: TaskNotificationDraft[] = input.assigneeUserIds
       .filter((userId) => userId !== scope.session.userId)
       .map((userId) => ({
         recipientUserId: userId,
