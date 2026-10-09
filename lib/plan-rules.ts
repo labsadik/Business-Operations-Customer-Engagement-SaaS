@@ -29,6 +29,7 @@ export type PlanDraftInput = {
   monthlyMeetingLimit: unknown;
   maxMeetingDurationMinutes: unknown;
   maxConcurrentMeetings: unknown;
+  taskManagementEnabled?: unknown;
   validityDays: unknown;
   freeFeatureDays?: unknown;
 };
@@ -196,6 +197,10 @@ export function validatePlanDraft(input: PlanDraftInput) {
     1,
     1000000
   );
+  const taskManagementEnabled = input.taskManagementEnabled == null
+    ? false
+    : assertBoolean(input.taskManagementEnabled, "task_management_enabled");
+
   const validityDays = assertIntegerRange(
     input.validityDays,
     "validity_days",
@@ -233,6 +238,7 @@ export function validatePlanDraft(input: PlanDraftInput) {
     monthlyMeetingLimit,
     maxMeetingDurationMinutes,
     maxConcurrentMeetings,
+    taskManagementEnabled,
     validityDays,
     freeFeatureDays,
     requiresPayment: priceInr > 0,
