@@ -49,3 +49,18 @@ test("company profile failure state does not leave a sidebar-less endless skelet
   assert.match(profile, /WorkspaceLoadError/);
   assert.match(profile, /loadFailed/);
 });
+
+
+test("workspace and profile boot reads start immediately and use shared request deduplication", async () => {
+  const [dashboard, profile, clientApi] = await Promise.all([
+    read("components/workspace-dashboard.tsx"),
+    read("components/company-profile.tsx"),
+    read("lib/client-api.ts")
+  ]);
+
+  assert.doesNotMatch(dashboard, /const initialLoad = window\.setTimeout\(\(\) => void refreshAll\(\), 0\)/);
+  assert.doesNotMatch(profile, /window\.setTimeout\(\(\) => void load\(\), 0\)/);
+  assert.match(dashboard, /void refreshAll\(\)/);
+  assert.match(profile, /void load\(\)/);
+  assert.match(clientApi, /pendingApiReads/);
+});

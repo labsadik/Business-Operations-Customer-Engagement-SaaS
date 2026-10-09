@@ -676,7 +676,9 @@ export default function WorkspaceDashboard({
   }, []);
 
   useEffect(() => {
-    const initialLoad = window.setTimeout(() => void refreshAll(), 0);
+    // Refresh immediately; refreshAll's in-flight guard and clientApi's GET
+    // deduplication prevent the second request in Strict Mode from duplicating work.
+    void refreshAll();
     const poll = window.setInterval(() => {
       if (document.visibilityState === "visible") void refreshLive();
     }, 10_000);
@@ -687,7 +689,6 @@ export default function WorkspaceDashboard({
 
     document.addEventListener("visibilitychange", onVisible);
     return () => {
-      window.clearTimeout(initialLoad);
       window.clearInterval(poll);
       document.removeEventListener("visibilitychange", onVisible);
     };
