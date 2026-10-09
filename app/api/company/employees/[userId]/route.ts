@@ -58,7 +58,7 @@ export async function PATCH(
         companyId: session.companyId,
         userId: new Types.ObjectId(userId),
         active: true,
-        role: "EMPLOYEE"
+        role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] }
       },
       { $set: update },
       { new: true, runValidators: true }
