@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Megaphone, RefreshCw, X } from "lucide-react";
+import { ChevronDown, Megaphone, RefreshCw, X } from "lucide-react";
 import {
   parsePlatformAnnouncementResponse,
   type PlatformAnnouncementClientItem
@@ -51,6 +51,20 @@ export default function PlatformAnnouncementBanner({
   const [dismissed, setDismissed] = useState<Set<string>>(() =>
     surface === "landing" ? new Set<string>() : getDismissed(scope)
   );
+
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
   const loadAnnouncements = useCallback(async () => {
     if (!endpoint) {
@@ -124,30 +138,26 @@ export default function PlatformAnnouncementBanner({
 
   if (loadState === "error" && surface === "dashboard") {
     return (
-      <section
-        className="border-y border-amber-100 bg-amber-50/90"
-        aria-label="Platform announcements unavailable"
-      >
-        <div className="mx-auto max-w-[1600px] px-4 py-3 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-white px-4 py-3 shadow-sm">
-            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-100 text-amber-700" aria-hidden="true">
-              <Megaphone className="size-4" />
+      <aside className="w-full border-b border-amber-200/80 bg-amber-50/90 text-amber-950">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-5 py-2.5 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-800" aria-hidden="true">
+              <Megaphone className="size-4 animate-bounce" />
             </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-slate-900">Platform announcements are temporarily unavailable.</p>
-              <p className="mt-0.5 text-[11px] leading-5 text-slate-500">Your workspace continues to work normally. Retry to check for published announcements.</p>
-            </div>
-            <button
-              type="button"
-              onClick={retryAnnouncements}
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-            >
-              <RefreshCw className="size-3.5" />
-              Retry
-            </button>
+            <p className="truncate text-sm font-medium tracking-tight">
+              Platform announcements are temporarily unavailable.
+            </p>
           </div>
+          <button
+            type="button"
+            onClick={retryAnnouncements}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-300 bg-white/90 px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+          >
+            <RefreshCw className="size-3.5" />
+            Retry
+          </button>
         </div>
-      </section>
+      </aside>
     );
   }
 
@@ -156,75 +166,85 @@ export default function PlatformAnnouncementBanner({
   const isLanding = surface === "landing";
 
   return (
-    <section
+    <aside
       className={
         isLanding
-          ? "border-y border-amber-200 bg-[#fff8e6]"
-          : "border-y border-blue-100 bg-blue-50/80"
+          ? "w-full border-b border-amber-200/80 bg-gradient-to-r from-amber-50/90 via-white to-amber-50/90 text-slate-900"
+          : "w-full border-b border-blue-200/80 bg-gradient-to-r from-blue-50/80 via-white to-blue-50/80 text-slate-900"
       }
       aria-label="Platform announcements"
     >
-      <div className="mx-auto max-w-[1600px] px-4 py-3 sm:px-6 sm:py-3.5 lg:px-8">
-        <div className="space-y-2">
-          {visible.slice(0, 5).map((item) => (
-            <div
-              key={item.id}
-              className={
-                isLanding
-                  ? "flex items-start gap-3 rounded-2xl border border-amber-200 bg-white px-4 py-3.5 shadow-sm sm:px-5"
-                  : "flex items-start gap-3 rounded-2xl border border-blue-100 bg-white px-4 py-3 shadow-sm sm:px-5"
-              }
-            >
-              <span
-                className={
-                  isLanding
-                    ? "grid size-9 shrink-0 place-items-center rounded-xl bg-blue-600 text-white"
-                    : "grid size-9 shrink-0 place-items-center rounded-xl bg-blue-600 text-white shadow-sm"
-                }
-                aria-hidden="true"
-              >
-                <Megaphone className="size-4" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span
+      <div className="mx-auto max-w-7xl px-5 py-2 sm:px-6 lg:px-8">
+        <div className="divide-y divide-amber-200/40">
+          {visible.slice(0, 5).map((item) => {
+            const isExpanded = expandedIds.has(item.id);
+
+            return (
+              <div key={item.id} className="py-1.5 first:pt-0 last:pb-0">
+                <div className="flex items-center justify-between gap-3">
+                  {/* Left Side: Animated Megaphone Icon, Title & Chevron */}
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <span
+                      className={
+                        isLanding
+                          ? "relative flex size-7 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-white shadow-xs"
+                          : "relative flex size-7 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white shadow-xs"
+                      }
+                      aria-hidden="true"
+                    >
+                      <Megaphone className="size-4 animate-bounce [animation-duration:2s]" />
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => toggleExpand(item.id)}
+                      className="group flex min-w-0 flex-1 items-center gap-2 text-left rounded-md py-0.5 px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                      aria-expanded={isExpanded}
+                    >
+                      <span className="truncate text-sm font-semibold tracking-tight text-slate-900 group-hover:text-amber-900 transition-colors">
+                        {item.title}
+                      </span>
+
+                      <ChevronDown
+                        className={`size-4 shrink-0 text-amber-700/80 transition-transform duration-200 ease-in-out group-hover:text-amber-950 ${
+                          isExpanded ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Right Side: Dismiss Button */}
+                  <button
+                    type="button"
+                    onClick={() => dismiss(item.id)}
                     className={
                       isLanding
-                        ? "text-[10px] font-bold uppercase tracking-[0.16em] text-blue-300"
-                        : "text-[10px] font-bold uppercase tracking-[0.16em] text-blue-700"
+                        ? "flex size-7 shrink-0 items-center justify-center rounded-md text-amber-800/80 hover:bg-amber-200/50 hover:text-amber-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                        : "flex size-7 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-blue-100/80 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     }
+                    aria-label={`Dismiss announcement: ${item.title}`}
                   >
-                    Conventus platform
-                  </span>
-                  <span className="text-[10px] text-slate-400">Announcement</span>
+                    <X className="size-4" />
+                  </button>
                 </div>
-                <h2 className="mt-1 text-sm font-semibold text-slate-950">
-                  {item.title}
-                </h2>
-                <p
-                  className={
-                    "mt-1 whitespace-pre-wrap text-xs leading-5 text-slate-600"
-                  }
+
+                {/* Smooth CSS Grid expander for Description */}
+                <div
+                  className={`grid transition-[grid-template-rows] duration-200 ease-out ${
+                    isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                  }`}
                 >
-                  {item.message}
-                </p>
+                  <div className="overflow-hidden">
+                    <div className="mt-2 ml-10 pr-8 text-sm leading-relaxed text-slate-700 whitespace-pre-wrap border-l-2 border-amber-300/80 pl-3 py-1 sm:text-base">
+                      {item.message}
+                    </div>
+                  </div>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => dismiss(item.id)}
-                className={
-                  isLanding
-                    ? "grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-amber-50 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-                    : "grid size-8 shrink-0 place-items-center rounded-lg text-slate-400 hover:bg-blue-50 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                }
-                aria-label={`Dismiss announcement: ${item.title}`}
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
-    </section>
+    </aside>
   );
 }

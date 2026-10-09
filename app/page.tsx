@@ -130,55 +130,7 @@ export default async function Home() {
 
   return (
     <main className="min-h-screen bg-[#f8fafc] text-slate-950">
-      <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
-        <div className="mx-auto flex min-h-[72px] max-w-7xl items-center justify-between gap-5 px-5 sm:px-6 lg:px-8">
-          <Link
-            href="/"
-            className="flex shrink-0 items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-          >
-            <span className="grid size-10 place-items-center overflow-hidden rounded-xl border border-slate-200 bg-slate-950 shadow-sm">
-              <Image src="/favicon.svg" alt="" width={40} height={40} className="size-full object-contain" />
-            </span>
-            <span className="text-sm font-semibold tracking-tight text-slate-950">Conventus</span>
-          </Link>
-
-          <nav aria-label="Main navigation" className="hidden items-center gap-8 text-sm font-medium text-slate-600 md:flex">
-            <a href="#how-it-works" className="rounded-lg px-1.5 py-2 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">How it works</a>
-            <a href="#features" className="rounded-lg px-1.5 py-2 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Features</a>
-            <a href="#pricing" className="rounded-lg px-1.5 py-2 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Pricing</a>
-            <a href="#faq" className="rounded-lg px-1.5 py-2 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">FAQ</a>
-          </nav>
-
-          <div className="flex items-center gap-2">
-            <Link href="/login" className="hidden rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
-              Sign in
-            </Link>
-            <CountrySelector className="hidden sm:block" />
-            <details className="relative md:hidden">
-              <summary className="grid size-10 cursor-pointer list-none place-items-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
-                <span className="sr-only">Open menu</span>
-                <span className="flex flex-col gap-1.5" aria-hidden="true">
-                  <span className="h-0.5 w-4 rounded-full bg-current" />
-                  <span className="h-0.5 w-4 rounded-full bg-current" />
-                  <span className="h-0.5 w-4 rounded-full bg-current" />
-                </span>
-              </summary>
-              <div className="absolute right-0 top-12 z-50 w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
-                <div className="grid gap-1">
-                  <a href="#how-it-works" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">How it works</a>
-                  <a href="#features" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Features</a>
-                  <a href="#pricing" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Pricing</a>
-                  <a href="#faq" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">FAQ</a>
-                  <div className="my-1 border-t border-slate-200" />
-                  <Link href="/login" className="rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Sign in</Link>
-                  <CountrySelector className="w-full" menuClassName="left-0 right-auto w-full" />
-                </div>
-              </div>
-            </details>
-          </div>
-        </div>
-      </header>
-
+      {/* Platform Announcement Banner placed above the platform header */}
       <PlatformAnnouncementBanner
         initialAnnouncements={platformAnnouncements.map((item) => ({
           id: String(item._id),
@@ -192,6 +144,58 @@ export default async function Home() {
         scope="landing"
         surface="landing"
       />
+
+      <header className="sticky top-0 z-50 border-b border-amber-200/80 bg-gradient-to-r from-amber-50/90 via-white to-amber-50/90 backdrop-blur-xl">
+        <div className="mx-auto flex min-h-[72px] max-w-7xl items-center justify-between gap-5 px-5 sm:px-6 lg:px-8">
+          <Link
+            href="/"
+            className="flex shrink-0 items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
+          >
+            <span className="grid size-10 place-items-center overflow-hidden rounded-xl border border-slate-200 bg-slate-950 shadow-sm">
+              <Image src="/favicon.svg" alt="" width={40} height={40} className="size-full object-contain" />
+            </span>
+            <span className="text-sm font-semibold tracking-tight text-slate-950">Conventus</span>
+          </Link>
+
+          <nav aria-label="Main navigation" className="hidden items-center gap-8 text-sm font-medium text-slate-600 md:flex">
+            <a href="#how-it-works" className="rounded-lg px-1.5 py-2 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">How it works</a>
+            <a href="#features" className="rounded-lg px-1.5 py-2 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">Features</a>
+            <a href="#pricing" className="rounded-lg px-1.5 py-2 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">Pricing</a>
+            <a href="#faq" className="rounded-lg px-1.5 py-2 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">FAQ</a>
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <Link href="/login" className="hidden rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-amber-100/50 sm:inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2">
+              Sign in
+            </Link>
+            
+            {/* Country Selector shown for both desktop and mobile header (small size) */}
+            <CountrySelector className="[&_button]:h-9 [&_button]:px-2.5 [&_button]:text-xs" />
+
+            {/* Animated Interactive Hamburger Menu (not a button element) */}
+            <details className="group relative md:hidden">
+              <summary className="grid size-9 cursor-pointer list-none place-items-center rounded-xl border border-amber-200 bg-white text-slate-700 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2">
+                <span className="sr-only">Open menu</span>
+                <span className="relative flex size-4 flex-col items-center justify-center gap-1" aria-hidden="true">
+                  <span className="h-0.5 w-3.5 rounded-full bg-slate-700 transition-all duration-300 ease-in-out group-open:translate-y-1.5 group-open:rotate-45" />
+                  <span className="h-0.5 w-3.5 rounded-full bg-slate-700 transition-all duration-300 ease-in-out group-open:opacity-0" />
+                  <span className="h-0.5 w-3.5 rounded-full bg-slate-700 transition-all duration-300 ease-in-out group-open:-translate-y-1.5 group-open:-rotate-45" />
+                </span>
+              </summary>
+              <div className="absolute right-0 top-11 z-50 w-56 rounded-2xl border border-amber-200 bg-white p-2 shadow-xl animate-in fade-in zoom-in-95 duration-150">
+                <div className="grid gap-1">
+                  <a href="#how-it-works" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-amber-50">How it works</a>
+                  <a href="#features" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-amber-50">Features</a>
+                  <a href="#pricing" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-amber-50">Pricing</a>
+                  <a href="#faq" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-amber-50">FAQ</a>
+                  <div className="my-1 border-t border-slate-200" />
+                  <Link href="/login" className="rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-amber-50">Sign in</Link>
+                </div>
+              </div>
+            </details>
+          </div>
+        </div>
+      </header>
 
       <section className="relative overflow-hidden border-b border-slate-200 bg-white">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_10%,_rgba(254,240,138,0.28),_transparent_30%),radial-gradient(circle_at_86%_12%,_rgba(37,99,235,0.11),_transparent_34%)]" />
@@ -549,7 +553,6 @@ export default async function Home() {
           </div>
         </footer>
       </section>
-
     </main>
   );
 }

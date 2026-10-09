@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Building2, CalendarDays, CheckCircle2, Clock3, LockKeyhole } from "lucide-react";
 import { getMongo } from "@/lib/mongodb";
 import { Announcement } from "@/models/announcement";
 import { getSession } from "@/lib/session";
@@ -92,54 +91,7 @@ export default async function CompanyPublicPage({
           />
         ) : null}
 
-        <section className="relative overflow-hidden rounded-[2rem] border border-blue-100 bg-white p-6 shadow-sm sm:p-8 lg:p-10">
-          <div className="pointer-events-none absolute -right-24 -top-24 size-64 rounded-full bg-[#fbf4c9]/70 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-20 -left-20 size-56 rounded-full bg-blue-50 blur-3xl" />
-          <div className="relative grid gap-8 lg:items-end">
-            <div className="max-w-3xl">
-              <div className="flex items-start gap-4">
-                <div className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-2xl border border-blue-100 bg-blue-50 text-blue-700 shadow-sm sm:size-16">
-                  {displayLogoUrl ? (
-                    // Company-provided logo URLs are not constrained to the Next image allowlist.
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={displayLogoUrl} alt="" className="size-full object-cover" />
-                  ) : (
-                    <Building2 className="size-6 sm:size-7" aria-hidden="true" />
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-600">Book time with {company.name}</p>
-                  <h1 className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-slate-950 sm:text-4xl lg:text-5xl">
-                    A clear path to the right conversation.
-                  </h1>
-                  <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
-                    {company.description || `Choose a meeting type, select a time that works for you, and send a request to ${company.name}.`}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-7 grid gap-2 sm:grid-cols-4">
-                {[
-                  ["01", "Pick a date", CalendarDays],
-                  ["02", "Choose meeting", CheckCircle2],
-                  ["03", "Select a time", Clock3],
-                  ["04", "Confirm request", LockKeyhole]
-                ].map(([number, label, Icon]) => {
-                  const StepIcon = Icon as typeof CalendarDays;
-                  return (
-                    <div key={number as string} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-3.5 py-3">
-                      <span className="text-[10px] font-semibold tracking-[0.14em] text-blue-600">{number as string}</span>
-                      <StepIcon className="size-4 text-slate-500" aria-hidden="true" />
-                      <span className="text-xs font-semibold text-slate-700">{label as string}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-          </div>
-        </section>
-
-        <section className="mt-5" aria-labelledby="booking-experience-title">
+        <section className="mt-2" aria-labelledby="booking-experience-title">
           <div className="mb-3 flex flex-col gap-3 px-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-600">Availability</p>
