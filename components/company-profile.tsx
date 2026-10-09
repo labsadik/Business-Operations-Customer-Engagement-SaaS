@@ -8,6 +8,7 @@ import WorkspaceSidebar from "@/components/workspace-sidebar";
 import WorkspaceUserProfile from "@/components/workspace-user-profile";
 import PublicPageShare from "@/components/public-page-share";
 import ConfirmDialog from "@/components/confirm-dialog";
+import { clientApi } from "@/lib/client-api";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
@@ -53,18 +54,7 @@ type CompanyResponse = {
 };
 
 async function api<T>(url: string, init?: RequestInit) {
-  const response = await fetch(url, {
-    ...init,
-    headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
-    cache: "no-store"
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new Error(body.error || "REQUEST_FAILED") as Error & { details?: unknown };
-    error.details = body.details;
-    throw error;
-  }
-  return body.data as T;
+  return clientApi<T>(url, init);
 }
 
 export default function CompanyProfile({

@@ -1,5 +1,6 @@
 "use client";
 
+import { clientApi } from "@/lib/client-api";
 import { Fragment, useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   AlertCircle,
@@ -94,21 +95,7 @@ type TaskPageProps = {
 const MANAGER_ROLES = ["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"];
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      "content-type": "application/json",
-      ...(init?.headers ?? {})
-    },
-    cache: "no-store"
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new Error(body.message || body.error || "REQUEST_FAILED") as Error & { code?: string };
-    error.code = body.error;
-    throw error;
-  }
-  return body.data as T;
+  return clientApi<T>(url, init);
 }
 
 function errorMessage(error: unknown) {
@@ -273,7 +260,7 @@ export default function TaskManagementDashboard({
     try {
       const [taskPage, staff] = await Promise.all([
         api<{ items: TaskItem[]; nextCursor: string | null }>("/api/tasks?limit=50"),
-        api<Employee[]>("/api/company/employees")
+        api<Employee[]>("/api/company/employees").catch(() => [] as Employee[])
       ]);
       setTasks(taskPage.items);
       setNextCursor(taskPage.nextCursor);

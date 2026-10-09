@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
+import { clientApi } from "@/lib/client-api";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Activity,
@@ -255,25 +256,7 @@ type Confirmation =
   | null;
 
 async function api<T>(url: string, init?: RequestInit) {
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      "content-type": "application/json",
-      ...(init?.headers ?? {})
-    },
-    cache: "no-store"
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new Error(body.message || body.error || "REQUEST_FAILED") as Error & {
-      details?: unknown;
-      code?: string;
-    };
-    error.details = body.details;
-    error.code = body.error;
-    throw error;
-  }
-  return body.data as T;
+  return clientApi<T>(url, init);
 }
 
 function initials(name: string) {
@@ -519,8 +502,21 @@ export default function WorkspaceDashboard({
     if (refreshingRef.current) return;
     refreshingRef.current = true;
 
+    const settle = <T,>(request: Promise<T>) => request
+      .then((value) => ({ ok: true as const, value }))
+      .catch(() => ({ ok: false as const, value: undefined as T | undefined }));
+
     try {
-      const company = await api<CompanyData | null>("/api/company");
+      // Start independent reads together: one optional endpoint must not blank the whole workspace.
+      const [companyResult, staffResult, pendingResult, historyResult, announcementResult] = await Promise.all([
+        settle(api<CompanyData | null>("/api/company")),
+        settle(api<Employee[]>("/api/company/employees")),
+        settle(api<RequestItem[]>("/api/employee/requests?limit=6")),
+        settle(api<MeetingHistoryItem[]>("/api/employee/meetings?limit=6")),
+        settle(api<AnnouncementItem[]>("/api/company/announcement"))
+      ]);
+      if (!companyResult.ok) throw new Error("COMPANY_DATA_LOAD_FAILED");
+      const company = companyResult.value;
 
       if (!company) {
         dataLoadedRef.current = false;
@@ -534,38 +530,31 @@ export default function WorkspaceDashboard({
         return;
       }
 
-      const [staff, pending, history, announcementResult] = await Promise.all([
-        api<Employee[]>("/api/company/employees"),
-        api<RequestItem[]>("/api/employee/requests?limit=6"),
-        api<MeetingHistoryItem[]>("/api/employee/meetings?limit=6"),
-        api<AnnouncementItem[]>("/api/company/announcement")
-          .then((items) => ({ items, error: "" }))
-          .catch(() => ({ items: [] as AnnouncementItem[], error: "ANNOUNCEMENT_MANAGEMENT_READ_FAILED" }))
-      ]);
-
+      const alreadyLoaded = dataLoadedRef.current;
       dataLoadedRef.current = true;
       setData(company);
-      setEmployees(staff);
-      setRequests(pending);
-      setMeetingHistory(history);
-      setAnnouncements(
-        ["COMPANY_OWNER", "COMPANY_ADMIN"].includes(company.currentRole)
-          ? announcementResult.items
-          : []
-      );
-      setAnnouncementManagementError(
-        ["COMPANY_OWNER", "COMPANY_ADMIN"].includes(company.currentRole)
-          ? announcementResult.error
-          : ""
-      );
-      setInitialLoadFailed(false);
-      setError("");
-    } catch {
-      if (dataLoadedRef.current) {
-        setError("DASHBOARD_REFRESH_FAILED");
-      } else {
-        setInitialLoadFailed(true);
+      if (staffResult.ok) setEmployees(staffResult.value);
+      else if (!alreadyLoaded) setEmployees([]);
+      if (pendingResult.ok) setRequests(pendingResult.value);
+      else if (!alreadyLoaded) setRequests([]);
+      if (historyResult.ok) setMeetingHistory(historyResult.value);
+      else if (!alreadyLoaded) setMeetingHistory([]);
+
+      const announcementManager = ["COMPANY_OWNER", "COMPANY_ADMIN"].includes(company.currentRole);
+      if (announcementResult.ok) {
+        setAnnouncements(announcementManager ? announcementResult.value : []);
+        setAnnouncementManagementError("");
+      } else if (announcementManager) {
+        setAnnouncementManagementError("ANNOUNCEMENT_MANAGEMENT_READ_FAILED");
       }
+
+      setInitialLoadFailed(false);
+      setError(!staffResult.ok || !pendingResult.ok || !historyResult.ok
+        ? "DASHBOARD_REFRESH_FAILED"
+        : "");
+    } catch {
+      if (dataLoadedRef.current) setError("DASHBOARD_REFRESH_FAILED");
+      else setInitialLoadFailed(true);
     } finally {
       setLoading(false);
       refreshingRef.current = false;
