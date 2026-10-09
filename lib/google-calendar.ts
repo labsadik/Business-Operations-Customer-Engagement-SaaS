@@ -8,6 +8,32 @@ const GOOGLE_CALENDAR_REQUEST_TIMEOUT_MS = 10000;
 const MAX_ACCESS_TOKEN_CACHE_ENTRIES = 500;
 const TOKEN_CACHE_FROM_REDIS_TTL_MS = 1000;
 
+// Each warm server instance limits simultaneous Google free/busy traffic.
+// A finite queue gives a hard bound during large workspace refreshes.
+const MAX_CONCURRENT_FREE_BUSY_REQUESTS = 20;
+const MAX_QUEUED_FREE_BUSY_REQUESTS = 500;
+let activeFreeBusyRequests = 0;
+const queuedFreeBusyRequests: Array<() => void> = [];
+
+async function withFreeBusyCapacity<T>(request: () => Promise<T>): Promise<T> {
+  if (activeFreeBusyRequests >= MAX_CONCURRENT_FREE_BUSY_REQUESTS) {
+    if (queuedFreeBusyRequests.length >= MAX_QUEUED_FREE_BUSY_REQUESTS) {
+      throw new Error("GOOGLE_CALENDAR_BUSY");
+    }
+    await new Promise<void>((resolve) => queuedFreeBusyRequests.push(resolve));
+  } else {
+    activeFreeBusyRequests += 1;
+  }
+
+  try {
+    return await request();
+  } finally {
+    const next = queuedFreeBusyRequests.shift();
+    if (next) next();
+    else activeFreeBusyRequests = Math.max(0, activeFreeBusyRequests - 1);
+  }
+}
+
 const accessTokenMemoryCache = new Map<
   string,
   { accessToken: string; expiresAt: number }
@@ -132,21 +158,23 @@ async function loadGoogleAccessToken(userId: string) {
 }
 
 export async function queryFreeBusy(userId: string, timeMin: Date, timeMax: Date) {
-  const { accessToken } = await getGoogleAccessToken(userId);
-  return googleApi<
-    { calendars?: Record<string, { busy?: Array<{ start: string; end: string }> }> }
-  >(
-    accessToken,
-    "https://www.googleapis.com/calendar/v3/freeBusy",
-    {
-      method: "POST",
-      body: JSON.stringify({
-        timeMin: timeMin.toISOString(),
-        timeMax: timeMax.toISOString(),
-        items: [{ id: "primary" }]
-      })
-    }
-  );
+  return withFreeBusyCapacity(async () => {
+    const { accessToken } = await getGoogleAccessToken(userId);
+    return googleApi<
+      { calendars?: Record<string, { busy?: Array<{ start: string; end: string }> }> }
+    >(
+      accessToken,
+      "https://www.googleapis.com/calendar/v3/freeBusy",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          timeMin: timeMin.toISOString(),
+          timeMax: timeMax.toISOString(),
+          items: [{ id: "primary" }]
+        })
+      }
+    );
+  });
 }
 
 export type GoogleCalendarEvent = {
