@@ -858,7 +858,6 @@ export default function TaskManagementDashboard({
                             {columnTasks.length === 0 ? (
                               <div className="rounded-xl border border-dashed border-slate-300/90 bg-white/55 px-3 py-5 text-center text-[11px] text-slate-400">No tasks</div>
                             ) : columnTasks.map((task) => {
-                              const detail = details[task.id];
                               const expanded = expandedTaskId === task.id;
                               const managerForTask = canManage || task.createdByUserId === userId;
                               const assigneeNames = task.assigneeUserIds.map((id) => {
