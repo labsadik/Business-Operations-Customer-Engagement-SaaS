@@ -103,9 +103,10 @@ export default function CompanyProfile({
     })();
 
     loadInFlightRef.current = pending;
-    void pending.finally(() => {
+    const clearPending = () => {
       if (loadInFlightRef.current === pending) loadInFlightRef.current = null;
-    });
+    };
+    void pending.then(clearPending, clearPending);
     return pending;
   }
 
