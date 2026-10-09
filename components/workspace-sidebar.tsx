@@ -3,7 +3,6 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname, useRouter } from "next/navigation";
-import UserAvatar from "@/components/user-avatar";
 import { useNavigationLabels } from "@/components/navigation-labels-provider";
 import {
   Building2,
@@ -12,8 +11,6 @@ import {
   CalendarDays,
   ClipboardList,
   CreditCard,
-  Globe2,
-  LifeBuoy,
   LogOut,
   Megaphone,
   MessageSquareText,
@@ -28,10 +25,6 @@ type Panel = "meetings" | "team" | "settings" | "billing" | "feedback" | "suppor
 
 type WorkspaceSidebarProps = {
   companyName: string;
-  userName: string;
-  userEmail: string;
-  userImage?: string;
-  currentRole: string;
   taskManagementEnabled?: boolean;
   canManage?: boolean;
   adminManaged?: boolean;
@@ -39,7 +32,6 @@ type WorkspaceSidebarProps = {
   activeSettingsSection?: "public" | "announcements";
   activeProfile?: boolean;
   onOpenPanel?: (panel: Panel, section?: "announcements") => void;
-  avatarFallback?: string;
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
 };
@@ -48,14 +40,8 @@ const primaryItems = [
   { key: "dashboard", href: "/dashboard", label: "Overview", icon: BarChart3 }
 ] as const;
 
-const defaultSupportTicketsLabel = "Raise a ticket";
-
 export default function WorkspaceSidebar({
   companyName,
-  userName,
-  userEmail,
-  userImage,
-  currentRole,
   taskManagementEnabled = false,
   canManage = false,
   adminManaged = false,
@@ -63,7 +49,6 @@ export default function WorkspaceSidebar({
   activeSettingsSection = "public",
   activeProfile = false,
   onOpenPanel,
-  avatarFallback,
   collapsed = false,
   onToggleCollapsed
 }: WorkspaceSidebarProps) {
@@ -119,23 +104,7 @@ export default function WorkspaceSidebar({
               </button>
             )}
           </div>
-          <div className={`rounded-2xl bg-[#faf9f1] p-2.5 ring-1 ring-inset ring-amber-100/80 ${collapsed ? "flex justify-center" : "p-3"}`}>
-            <div className={`flex items-center ${collapsed ? "justify-center" : "gap-2"}`}>
-              <UserAvatar name={userName} email={userEmail} image={userImage} fallbackImage={avatarFallback} size={30} className="border-0 bg-blue-600 text-white" />
-              {!collapsed && (
-                <div className="min-w-0">
-                  <p className="truncate text-[11px] font-semibold text-slate-800">{userName}</p>
-                  <p className="truncate text-[10px] text-slate-500">{userEmail}</p>
-                </div>
-              )}
-            </div>
-            {!collapsed && (
-              <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
-                <span className="size-1.5 rounded-full bg-emerald-500" />
-                {currentRole.replaceAll("_", " ")}
-              </div>
-            )}
-          </div>
+
         </div>
 
         <nav aria-label="Company workspace navigation" className={`flex-1 overflow-y-auto py-5 ${collapsed ? "px-2" : "px-4"}`}>
@@ -201,42 +170,6 @@ export default function WorkspaceSidebar({
             </Link>
           </div>
 
-          <div className="mt-7">
-            {!collapsed && <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Platform Support</p>}
-            {currentRole === "PLATFORM_ADMIN" ? (
-              <Link
-                href={"/admin/support-tickets" as Route}
-                className={buttonClass(pathname.startsWith("/admin/support-tickets"))}
-                title="Open admin support ticket inbox"
-                aria-label="Open admin support tickets"
-              >
-                <LifeBuoy className={"size-4 " + (pathname.startsWith("/admin/support-tickets") ? iconClass(true) : "text-slate-400 group-hover:text-slate-700")} />
-                <span className={collapsed ? "sr-only" : ""}>Support tickets</span>
-              </Link>
-            ) : (
-              <button
-                type="button"
-                onClick={() => open("support-tickets")}
-                className={buttonClass(active("support-tickets"))}
-                title="Platform Support — Raise a ticket"
-                aria-label="Raise a ticket to Platform Support"
-              >
-                <LifeBuoy className={"size-4 " + iconClass(active("support-tickets"))} />
-                <span className={collapsed ? "sr-only" : ""}>{defaultSupportTicketsLabel}</span>
-              </button>
-            )}
-          </div>
-
-          {!collapsed && <p className="mt-7 px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">External</p>}
-
-          <div className="space-y-1">
-            <Link href="/" title="Conventus home" className={buttonClass(false)}>
-              <Globe2 className="size-4 text-slate-400 group-hover:text-slate-700" />
-              <span className={collapsed ? "sr-only" : ""}>Conventus home</span>
-              {!collapsed && <ArrowUpRight className="ml-auto size-3.5 text-slate-300" />}
-            </Link>
-
-          </div>
         </nav>
 
         <div className="border-t border-slate-200/80 p-4">
@@ -247,7 +180,6 @@ export default function WorkspaceSidebar({
               {!collapsed && <ArrowUpRight className="ml-auto size-3.5" />}
             </Link>
           )}
-          {!collapsed && <p className="px-3 pb-2 text-[10px] text-slate-400">Signed in as {userEmail}</p>}
           <form action="/api/auth/logout" method="post">
             <button title="Sign out" className={`flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-600 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${collapsed ? "px-2" : ""}`}>
               {collapsed ? <LogOut className="size-4" /> : "Sign out"}
@@ -265,13 +197,6 @@ export default function WorkspaceSidebar({
           <button type="button" onClick={() => open("team")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("team") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.team}</button>
           {taskManagementEnabled && <Link href={"/dashboard/tasks" as Route} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${isTasks ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Tasks</Link>}
           <button type="button" onClick={() => open("feedback")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("feedback") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.feedback}</button>
-          {currentRole === "PLATFORM_ADMIN" ? (
-            <Link href={"/admin/support-tickets" as Route} className="shrink-0 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">
-              Support tickets
-            </Link>
-          ) : (
-            <button type="button" onClick={() => open("support-tickets")} className={"shrink-0 rounded-xl px-3 py-2 text-xs font-semibold " + (active("support-tickets") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50")}>{defaultSupportTicketsLabel}</button>
-          )}
           {canManage && <button type="button" onClick={() => open("settings", "announcements")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${activePanel === "settings" && activeSettingsSection === "announcements" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.announcements}</button>}
           {canManage && <button type="button" onClick={() => open("billing")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("billing") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.billing}</button>}
           {canManage && <button type="button" onClick={() => open("settings")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${activePanel === "settings" && activeSettingsSection !== "announcements" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.workspaceSettings}</button>}

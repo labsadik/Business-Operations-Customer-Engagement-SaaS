@@ -96,9 +96,9 @@ test("workspace feedback is an explicit accessible modal and does not expose cus
   assert.match(sidebar, /useNavigationLabels/);
   assert.match(sidebar, /labels\.feedback/);
   assert.match(sidebar, /onClick=\{\(\) => open\("feedback"\)\}/);
-  assert.match(sidebar, /userImage\?: string/);
-  assert.match(sidebar, /<UserAvatar name=\{userName\} email=\{userEmail\} image=\{userImage\}/);
-  assert.match(dashboard, /userImage=\{user\.image\}/);
+  assert.doesNotMatch(sidebar, /UserAvatar|userImage|userEmail|Platform Support|External/);
+  assert.match(dashboard, /<WorkspaceUserProfile/);
+  assert.match(dashboard, /image=\{user\.image\}/);
 
   assert.match(dashboard, /openModal\(panel, section, true\)/);
   assert.match(dashboard, /playFeedbackSoundIfEnabled/);

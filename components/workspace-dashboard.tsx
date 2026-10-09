@@ -34,6 +34,7 @@ import MeetingResponseCountdown from "@/components/meeting-response-countdown";
 import RazorpayPlanButton from "@/components/razorpay-plan-button";
 import { playMeetingSound, unlockMeetingSound } from "@/lib/client-meeting-sound";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
+import WorkspaceUserProfile from "@/components/workspace-user-profile";
 import { WorkspaceLoadError, WorkspaceLoading } from "@/components/route-loading";
 import { useNavigationLabels } from "@/components/navigation-labels-provider";
 import PublicPageShare from "@/components/public-page-share";
@@ -126,6 +127,9 @@ type Employee = {
   email: string;
   image: string;
   role: string;
+  jobTitle?: string;
+  department?: string;
+  employmentStatus?: "ACTIVE" | "INACTIVE" | "ON_LEAVE" | string;
   googleConnected: boolean;
 };
 
@@ -282,6 +286,30 @@ function initials(name: string) {
       .join("")
       .toUpperCase() || "?"
   );
+}
+
+function roleName(role: string) {
+  return role === "PLATFORM_ADMIN"
+    ? "Platform Admin"
+    : role === "COMPANY_OWNER"
+      ? "Company Owner"
+      : role === "COMPANY_ADMIN"
+        ? "Company Admin"
+        : role === "EMPLOYEE"
+          ? "Employee"
+          : role.replaceAll("_", " ");
+}
+
+function employeeStatusName(status?: string) {
+  if (status === "ON_LEAVE") return "On leave";
+  if (status === "INACTIVE") return "Inactive";
+  return "Active";
+}
+
+function employeeStatusClass(status?: string) {
+  if (status === "ON_LEAVE") return "bg-amber-50 text-amber-800 ring-amber-200";
+  if (status === "INACTIVE") return "bg-rose-50 text-rose-700 ring-rose-200";
+  return "bg-emerald-50 text-emerald-700 ring-emerald-200";
 }
 
 function formatDate(value: string, timeZone?: string) {
@@ -1159,10 +1187,6 @@ export default function WorkspaceDashboard({
     <main className="min-h-screen bg-[#faf9f1] text-slate-950">
       <WorkspaceSidebar
         companyName={data.company.name}
-        userName={user.name}
-        userEmail={user.email}
-        userImage={user.image}
-        currentRole={data.currentRole}
         taskManagementEnabled={Boolean(data.currentPlan.taskManagementEnabled)}
         canManage={canManage}
         adminManaged={adminManaged}
@@ -1218,7 +1242,19 @@ export default function WorkspaceDashboard({
                 Prepare public page
               </button>
             )}
-            <UserAvatar name={user.name} email={user.email} image={user.image} size={38} />
+            {data.currentRole !== "PLATFORM_ADMIN" && (
+              <button
+                type="button"
+                aria-label="Open company support tickets"
+                title="Open company support tickets"
+                onClick={() => openModal("support-tickets", undefined, true)}
+                className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5 text-[11px] font-semibold text-violet-800 transition hover:bg-violet-100 sm:px-3.5 sm:text-xs"
+              >
+                <MessageSquareText className="size-4" aria-hidden="true" />
+                <span className="hidden md:inline">Support tickets</span>
+              </button>
+            )}
+            <WorkspaceUserProfile name={user.name} email={user.email} image={user.image} companyName={data.company.name} currentRole={data.currentRole} />
             <form action="/api/auth/logout" method="post">
               <button
                 type="submit"
@@ -1584,6 +1620,13 @@ export default function WorkspaceDashboard({
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-semibold">{employee.name}</p>
                       <p className="truncate text-[11px] text-slate-500">{employee.email}</p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-semibold text-blue-700">{roleName(employee.role)}</span>
+                        <span className="text-[10px] text-slate-500">{employee.jobTitle || "Position not set"}</span>
+                        <span className="text-[10px] text-slate-400">· {employee.department || "Department not set"}</span>
+                        <span className={"rounded-full px-2 py-0.5 text-[9px] font-semibold ring-1 ring-inset " + employeeStatusClass(employee.employmentStatus)}>{employeeStatusName(employee.employmentStatus)}</span>
+                      </div>
+                      
                     </div>
                     {employee.googleConnected ? (
                       <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">Connected</span>
@@ -2115,7 +2158,13 @@ export default function WorkspaceDashboard({
                         )}
                       </div>
                       <p className="mt-1 truncate text-xs text-slate-500">{employee.email}</p>
+                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                         <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-semibold text-blue-700">{roleName(employee.role)}</span>
+                         <span className="text-[10px] text-slate-600">{employee.jobTitle || "Position not set"}</span>
+                         <span className="text-[10px] text-slate-400">· {employee.department || "Department not set"}</span>
+                         <span className={"rounded-full px-2 py-0.5 text-[9px] font-semibold ring-1 ring-inset " + employeeStatusClass(employee.employmentStatus)}>{employeeStatusName(employee.employmentStatus)}</span>
                     </div>
+                      </div>
 
                     {!employee.googleConnected && employee.email === user.email && (
                       <Link

@@ -152,10 +152,12 @@ test("company support ticket UI has accessible modal controls, counters, paginat
   const dashboard = source("components/workspace-dashboard.tsx");
   const ui = source("components/workspace-support-tickets.tsx");
 
-  has(sidebar, "Platform Support");
-  has(sidebar, "Raise a ticket");
-  has(sidebar, 'open("support-tickets")');
-  has(dashboard, "support-tickets");
+  lacks(sidebar, "Platform Support");
+  lacks(sidebar, "External");
+  lacks(sidebar, "Raise a ticket");
+  lacks(sidebar, "admin/support-tickets");
+  has(dashboard, 'openModal("support-tickets", undefined, true)');
+  has(dashboard, "Support tickets");
   has(dashboard, "<WorkspaceSupportTickets");
 
   has(ui, 'role="dialog"');

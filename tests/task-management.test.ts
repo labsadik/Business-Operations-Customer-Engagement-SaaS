@@ -95,8 +95,34 @@ test("task dashboard includes searchable Jira-style columns, persistent confirma
   assert.match(sound, /wave: "square"/);
   assert.match(sound, /wave: "sine"/);
   assert.match(sound, /export async function playTaskSound/);
-  assert.match(sidebar, /Platform Support/);
-  assert.match(sidebar, /Raise a ticket/);
+  assert.doesNotMatch(sidebar, /Platform Support|External|Raise a ticket|UserAvatar/);
   assert.match(sidebar, /Collapse sidebar/);
   assert.match(sidebar, /Expand sidebar/);
+});
+
+test("user profile dropdown shows role, company, position, department and status with a scoped persistence route", () => {
+  const taskDashboard = source("components/task-management-dashboard.tsx");
+  const profile = source("components/workspace-user-profile.tsx");
+  const profileRoute = source("app/api/profile/member/route.ts");
+  const userModel = source("models/user.ts");
+  const companyDashboard = source("components/workspace-dashboard.tsx");
+  const adminShell = source("components/admin-shell.tsx");
+
+  assert.match(taskDashboard, /<WorkspaceUserProfile/);
+  assert.match(companyDashboard, /<WorkspaceUserProfile/);
+  assert.match(adminShell, /<WorkspaceUserProfile/);
+  assert.match(profile, /Open your profile/);
+  assert.match(profile, /Company/);
+  assert.match(profile, /Account role/);
+  assert.match(profile, /Position \/ job title/);
+  assert.match(profile, /Department/);
+  assert.match(profile, /Employment status/);
+  assert.match(profile, /On leave/);
+  assert.match(profile, /Save profile/);
+  assert.match(profileRoute, /assertSameOrigin\(request\)/);
+  assert.match(profileRoute, /Membership\.findOneAndUpdate/);
+  assert.match(profileRoute, /User\.findByIdAndUpdate/);
+  assert.match(profileRoute, /department/);
+  assert.match(userModel, /jobTitle/);
+  assert.match(userModel, /department/);
 });

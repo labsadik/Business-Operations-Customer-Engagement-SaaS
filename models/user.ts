@@ -5,6 +5,8 @@ const userSchema = new Schema(
     email: { type: String, required: true, lowercase: true, trim: true, unique: true, index: true },
     name: { type: String, required: true, trim: true },
     image: { type: String },
+    jobTitle: { type: String, trim: true, maxlength: 120, default: "" },
+    department: { type: String, trim: true, maxlength: 100, default: "" },
     role: {
       type: String,
       enum: ["CUSTOMER", "COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE", "PLATFORM_ADMIN"],

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
 import UserAvatar from "@/components/user-avatar";
+import WorkspaceUserProfile from "@/components/workspace-user-profile";
 import { isTaskSoundEnabled, playTaskSound, playTaskSoundIfEnabled, setTaskSoundEnabled, unlockTaskSound } from "@/lib/client-task-sound";
 import { TASK_PRIORITIES, TASK_STATUSES, type TaskPriority, type TaskStatus } from "@/features/task-management/shared/constants";
 
@@ -377,14 +378,9 @@ export default function TaskManagementDashboard({
     <main className="min-h-screen bg-[#faf9f1] text-slate-950">
       <WorkspaceSidebar
         companyName={companyName}
-        userName={userName || userEmail}
-        userEmail={userEmail}
-        userImage={userImage}
-        currentRole={currentRole}
         taskManagementEnabled={taskManagementEnabled}
         canManage={canManage}
         adminManaged={currentRole === "PLATFORM_ADMIN"}
-        avatarFallback="/api/profile/avatar"
         collapsed={sidebarCollapsed}
         onToggleCollapsed={() => setSidebarCollapsed((collapsed) => !collapsed)}
       />
@@ -395,28 +391,18 @@ export default function TaskManagementDashboard({
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-600">Workspace</p>
               <h1 className="mt-1 truncate text-base font-semibold tracking-tight text-slate-950">Task management</h1>
             </div>
-            <div className="flex min-w-0 items-center gap-3">
-              <UserAvatar
-                name={userName || userEmail}
-                email={userEmail}
-                image={userImage}
-                fallbackImage="/api/profile/avatar"
-                size={36}
-              />
-              <div className="hidden min-w-0 sm:block">
-                <p className="max-w-48 truncate text-xs font-semibold text-slate-800">{userName || userEmail}</p>
-                <p className="max-w-48 truncate text-[10px] text-slate-500">{userEmail}</p>
-              </div>
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+              <button
+                type="button"
+                onClick={() => void load()}
+                disabled={loading}
+                className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 sm:px-3.5"
+              >
+                <RefreshCw className={"size-4 " + (loading ? "animate-spin" : "")} />
+                <span className="hidden sm:inline">Refresh</span>
+              </button>
+              <WorkspaceUserProfile name={userName || userEmail} email={userEmail} image={userImage} companyName={companyName} currentRole={currentRole} />
             </div>
-            <button
-              type="button"
-              onClick={() => void load()}
-              disabled={loading}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-            >
-              <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
-              Refresh
-            </button>
           </div>
         </header>
 
