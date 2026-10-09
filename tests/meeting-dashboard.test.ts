@@ -1,0 +1,41 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+function source(path: string) {
+  return readFileSync(resolve(process.cwd(), path), "utf8");
+}
+
+test("meeting workspace shows join and complete actions for every active meeting state", () => {
+  const dashboard = source("components/workspace-dashboard.tsx");
+  const endRoute = source("app/api/bookings/[bookingId]/end/route.ts");
+
+  assert.ok(dashboard.includes('["READY", "LIVE"].includes(meetingStatus)'));
+  assert.ok(dashboard.includes('["CONFIRMED", "IN_PROGRESS"].includes(item.status)'));
+  assert.ok(dashboard.includes("Rejoin meeting"));
+  assert.ok(dashboard.includes("Join meeting"));
+  assert.ok(dashboard.includes("Complete meeting"));
+  assert.ok(dashboard.includes('setConfirmation({ kind: "end-meeting", id: item.id })'));
+  assert.ok(dashboard.includes('/api/bookings/${encodeURIComponent(id)}/end'));
+  assert.ok(endRoute.includes('["READY", "LIVE"].includes(meeting.status)'));
+  assert.ok(endRoute.includes('booking.status = "COMPLETED"'));
+});
+
+test("meeting panel loads from a direct dashboard URL and polls live state without a page reload", () => {
+  const dashboard = source("components/workspace-dashboard.tsx");
+
+  assert.ok(dashboard.includes('if (activeModal === "meetings") void loadAllMeetings()'));
+  assert.ok(dashboard.includes('const requestLimit = panel === "meetings" ? 100 : 6'));
+  assert.ok(dashboard.includes("setModalRequests(pendingResult.value)"));
+  assert.ok(dashboard.includes("setMeetingActivitySummary(summaryResult.value)"));
+  assert.ok(dashboard.includes("window.setInterval"));
+});
+
+test("workspace refresh requests made during an in-flight read are queued rather than dropped", () => {
+  const dashboard = source("components/workspace-dashboard.tsx");
+
+  assert.ok(dashboard.includes("refreshQueuedRef.current = true"));
+  assert.ok(dashboard.includes("if (refreshQueuedRef.current)"));
+  assert.ok(dashboard.includes("window.setTimeout(() => void refreshAll(), 0)"));
+});
