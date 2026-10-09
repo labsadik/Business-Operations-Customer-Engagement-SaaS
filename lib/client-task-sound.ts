@@ -1,6 +1,6 @@
 "use client";
 
-export type TaskSoundEvent = "created" | "updated" | "completed";
+export type TaskSoundEvent = "created" | "updated" | "completed" | "cancelled";
 
 const STORAGE_KEY = "conventus:task-sound:v1";
 let audioContext: AudioContext | null = null;
@@ -63,6 +63,14 @@ function notesFor(event: TaskSoundEvent): SoundNote[] {
       { frequency: 440, duration: 0.075, gap: 0.035, wave: "square", harmonic: 1.5, volume: 0.36, overtoneVolume: 0.04 },
       { frequency: 349.23, duration: 0.085, gap: 0.035, wave: "square", harmonic: 1.5, volume: 0.36, overtoneVolume: 0.04 },
       { frequency: 440, duration: 0.095, gap: 0.045, wave: "square", harmonic: 1.5, volume: 0.36, overtoneVolume: 0.04 }
+    ];
+  }
+  if (event === "cancelled") {
+    // A low three-note alert distinguishes cancelled work from normal updates.
+    return [
+      { frequency: 293.66, duration: 0.16, gap: 0.07, wave: "sawtooth", harmonic: 2, volume: 0.78, overtoneVolume: 0.2 },
+      { frequency: 220, duration: 0.22, gap: 0.06, wave: "sawtooth", harmonic: 1.5, volume: 0.8, overtoneVolume: 0.22 },
+      { frequency: 164.81, duration: 0.3, gap: 0.04, wave: "sawtooth", harmonic: 2, volume: 0.82, overtoneVolume: 0.22 }
     ];
   }
   if (event === "completed") {

@@ -248,3 +248,14 @@ test("production MongoDB connections explicitly require transport TLS", () => {
   assert.match(mongo, /process\.env\.NODE_ENV === "production" \? \{ tls: true \}/);
   assert.ok(mongo.includes("serverSelectionTimeoutMS: 5000"));
 });
+
+
+test("task creation, search and cancellation use modal dialogs and distinct task sounds", () => {
+  const dashboard = source("components/task-management-dashboard.tsx");
+  const sounds = source("lib/client-task-sound.ts");
+  assert.match(dashboard, /role="dialog" aria-modal="true" aria-labelledby="create-task-title"/);
+  assert.match(dashboard, /role="dialog" aria-modal="true" aria-labelledby="task-search-title"/);
+  assert.match(dashboard, /role="dialog" aria-modal="true" aria-labelledby="cancel-task-assignment-title"/);
+  assert.match(dashboard, /setCancelConfirm\(\{ task, assignment \}\)/);
+  assert.match(sounds, /"created" \| "updated" \| "completed" \| "cancelled"/);
+});
