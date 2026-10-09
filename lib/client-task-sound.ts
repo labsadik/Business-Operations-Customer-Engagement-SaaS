@@ -20,7 +20,8 @@ function getAudioContext() {
 export function isTaskSoundEnabled() {
   if (typeof window === "undefined") return false;
   try {
-    return window.localStorage.getItem(STORAGE_KEY) === "on";
+    const savedPreference = window.localStorage.getItem(STORAGE_KEY);
+    return savedPreference === null ? true : savedPreference === "on";
   } catch {
     return false;
   }
@@ -102,22 +103,22 @@ export async function playTaskSound(event: TaskSoundEvent) {
     if (context.state !== "running") return;
 
     const compressor = context.createDynamicsCompressor();
-    compressor.threshold.setValueAtTime(-14, context.currentTime);
-    compressor.knee.setValueAtTime(16, context.currentTime);
-    compressor.ratio.setValueAtTime(8, context.currentTime);
+    compressor.threshold.setValueAtTime(-4, context.currentTime);
+    compressor.knee.setValueAtTime(8, context.currentTime);
+    compressor.ratio.setValueAtTime(4, context.currentTime);
     compressor.attack.setValueAtTime(0.004, context.currentTime);
     compressor.release.setValueAtTime(0.2, context.currentTime);
 
     const master = context.createGain();
-    master.gain.setValueAtTime(0.95, context.currentTime);
+    master.gain.setValueAtTime(1, context.currentTime);
     master.connect(compressor);
     compressor.connect(context.destination);
 
     let cursor = context.currentTime + 0.02;
     for (const note of notesFor(event)) {
       // High signal level and a bright octave harmonics create an audible, clean cue.
-      scheduleTone(context, master, note.frequency, cursor, note.duration, 0.58, "triangle");
-      scheduleTone(context, master, note.frequency * 2, cursor, note.duration * 0.82, 0.16, "sine");
+      scheduleTone(context, master, note.frequency, cursor, note.duration, 0.72, "triangle");
+      scheduleTone(context, master, note.frequency * 2, cursor, note.duration * 0.82, 0.2, "sine");
       cursor += note.duration + note.gap;
     }
     lastPlayedAt = now;

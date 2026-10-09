@@ -73,7 +73,7 @@ test("assignment status is constrained to supported lifecycle states", () => {
 });
 
 
-test("task dashboard includes searchable Jira-style columns, opt-in confirmation sounds and a collapsible sidebar", () => {
+test("task dashboard includes searchable Jira-style columns, persistent confirmation sounds and a collapsible sidebar", () => {
   const dashboard = source("components/task-management-dashboard.tsx");
   const sound = source("lib/client-task-sound.ts");
   const sidebar = source("components/workspace-sidebar.tsx");
