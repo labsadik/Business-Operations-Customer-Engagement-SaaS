@@ -201,9 +201,19 @@ export default function WorkspaceSidebar({
             </Link>
           </div>
 
-          {currentRole !== "PLATFORM_ADMIN" && (
-            <div className="mt-7">
-              {!collapsed && <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Platform Support</p>}
+          <div className="mt-7">
+            {!collapsed && <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Platform Support</p>}
+            {currentRole === "PLATFORM_ADMIN" ? (
+              <Link
+                href={"/admin/support-tickets" as Route}
+                className={buttonClass(pathname.startsWith("/admin/support-tickets"))}
+                title="Open admin support ticket inbox"
+                aria-label="Open admin support tickets"
+              >
+                <LifeBuoy className={"size-4 " + (pathname.startsWith("/admin/support-tickets") ? iconClass(true) : "text-slate-400 group-hover:text-slate-700")} />
+                <span className={collapsed ? "sr-only" : ""}>Support tickets</span>
+              </Link>
+            ) : (
               <button
                 type="button"
                 onClick={() => open("support-tickets")}
@@ -211,11 +221,11 @@ export default function WorkspaceSidebar({
                 title="Platform Support — Raise a ticket"
                 aria-label="Raise a ticket to Platform Support"
               >
-                <LifeBuoy className={`size-4 ${iconClass(active("support-tickets"))}`} />
+                <LifeBuoy className={"size-4 " + iconClass(active("support-tickets"))} />
                 <span className={collapsed ? "sr-only" : ""}>{defaultSupportTicketsLabel}</span>
               </button>
-            </div>
-          )}
+            )}
+          </div>
 
           {!collapsed && <p className="mt-7 px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">External</p>}
 
@@ -255,7 +265,13 @@ export default function WorkspaceSidebar({
           <button type="button" onClick={() => open("team")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("team") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.team}</button>
           {taskManagementEnabled && <Link href={"/dashboard/tasks" as Route} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${isTasks ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Tasks</Link>}
           <button type="button" onClick={() => open("feedback")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("feedback") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.feedback}</button>
-          {currentRole !== "PLATFORM_ADMIN" && <button type="button" onClick={() => open("support-tickets")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("support-tickets") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{defaultSupportTicketsLabel}</button>}
+          {currentRole === "PLATFORM_ADMIN" ? (
+            <Link href={"/admin/support-tickets" as Route} className="shrink-0 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+              Support tickets
+            </Link>
+          ) : (
+            <button type="button" onClick={() => open("support-tickets")} className={"shrink-0 rounded-xl px-3 py-2 text-xs font-semibold " + (active("support-tickets") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50")}>{defaultSupportTicketsLabel}</button>
+          )}
           {canManage && <button type="button" onClick={() => open("settings", "announcements")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${activePanel === "settings" && activeSettingsSection === "announcements" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.announcements}</button>}
           {canManage && <button type="button" onClick={() => open("billing")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("billing") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.billing}</button>}
           {canManage && <button type="button" onClick={() => open("settings")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${activePanel === "settings" && activeSettingsSection !== "announcements" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.workspaceSettings}</button>}

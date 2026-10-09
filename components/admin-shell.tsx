@@ -78,7 +78,7 @@ export default function AdminShell({
 
         <div className="border-b border-slate-200 px-5 py-5">
           <div className="flex items-center gap-3 rounded-2xl bg-[#faf9f1] p-3 ring-1 ring-inset ring-amber-100/80">
-            <UserAvatar name={user.name} email={user.email} image={user.image} size={40} className="border-0 bg-slate-950 text-white" />
+            <UserAvatar name={user.name} email={user.email} image={user.image} fallbackImage="/api/profile/avatar" size={40} className="border-0 bg-slate-950 text-white" />
             <div className="min-w-0">
               <p className="truncate text-xs font-semibold">{user.name}</p>
               <p className="truncate text-[11px] text-slate-500">{user.email}</p>
@@ -150,7 +150,7 @@ export default function AdminShell({
               <span className="hidden rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-[10px] font-semibold text-blue-700 sm:inline-flex">
                 Admin access enabled
               </span>
-              <UserAvatar name={user.name} email={user.email} image={user.image} size={36} />
+              <UserAvatar name={user.name} email={user.email} image={user.image} fallbackImage="/api/profile/avatar" size={36} />
             </div>
           </div>
           <div className="border-b border-slate-200/80 bg-white lg:hidden">

@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ClipboardList,
+  GripVertical,
   LoaderCircle,
   Plus,
   RefreshCw,
@@ -24,6 +25,7 @@ type Employee = {
   id: string;
   name: string;
   email: string;
+  image?: string | null;
   role: string;
   employmentStatus?: string;
 };
@@ -174,6 +176,9 @@ export default function TaskManagementDashboard({
   const [searchTerm, setSearchTerm] = useState("");
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [dropTargetStatus, setDropTargetStatus] = useState<TaskStatus | null>(null);
+  const [movingTaskId, setMovingTaskId] = useState<string | null>(null);
 
   const canManage = MANAGER_ROLES.includes(currentRole);
   const employeeById = useMemo(() => new Map(employees.map((employee) => [employee.id, employee])), [employees]);
@@ -189,6 +194,19 @@ export default function TaskManagementDashboard({
         .some((value) => value.toLowerCase().includes(query));
     });
   }, [tasks, searchTerm, employeeById]);
+
+  const tasksByStatus = useMemo(() => {
+    const grouped: Record<TaskStatus, TaskItem[]> = {
+      TODO: [],
+      IN_PROGRESS: [],
+      BLOCKED: [],
+      IN_REVIEW: [],
+      COMPLETED: [],
+      CANCELLED: []
+    };
+    for (const task of filteredTasks) grouped[task.status].push(task);
+    return grouped;
+  }, [filteredTasks]);
 
   const load = useCallback(async function loadTasks(showSpinner = true) {
     if (!taskManagementEnabled) {
@@ -302,6 +320,59 @@ export default function TaskManagementDashboard({
     }
   }
 
+  async function moveTaskToStatus(task: TaskItem, status: TaskStatus) {
+    if (task.status === status || movingTaskId || task.status === "CANCELLED") return;
+
+    const managerForTask = canManage || task.createdByUserId === userId;
+    if (status === "CANCELLED" && !managerForTask) {
+      setError("Only a task manager or its creator can cancel a task.");
+      return;
+    }
+
+    setError("");
+    setNotice("");
+    setMovingTaskId(task.id);
+
+    try {
+      const detail = details[task.id] ?? await api<TaskDetails>("/api/tasks/" + task.id);
+      const assignmentsToUpdate = detail.assignments.filter((assignment) =>
+        assignment.status !== status &&
+        assignment.status !== "CANCELLED" &&
+        (managerForTask || assignment.assignee?.id === userId)
+      );
+
+      if (!assignmentsToUpdate.length) {
+        throw new Error("No editable assignment was found for this task.");
+      }
+
+      // Managers/creators move the whole task; employees move only their own assignment.
+      for (const assignment of assignmentsToUpdate) {
+        await api("/api/tasks/" + task.id + "/status", {
+          method: "PATCH",
+          body: JSON.stringify({
+            status,
+            ...(managerForTask ? { assignmentId: assignment.id } : {})
+          })
+        });
+      }
+
+      const [taskPage, refreshedDetail] = await Promise.all([
+        api<{ items: TaskItem[]; nextCursor: string | null }>("/api/tasks?limit=50"),
+        api<TaskDetails>("/api/tasks/" + task.id)
+      ]);
+      setTasks(taskPage.items);
+      setDetails((current) => ({ ...current, [task.id]: refreshedDetail }));
+      setNotice("Task moved to " + labelStatus(status).toLowerCase() + ".");
+      void playTaskSoundIfEnabled(status === "COMPLETED" ? "completed" : "updated");
+    } catch (moveError) {
+      setError(errorMessage(moveError));
+    } finally {
+      setMovingTaskId(null);
+      setDraggedTaskId(null);
+      setDropTargetStatus(null);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-[#faf9f1] text-slate-950">
       <WorkspaceSidebar
@@ -393,7 +464,7 @@ export default function TaskManagementDashboard({
                     const next = !soundEnabled;
                     setSoundEnabled(next);
                     setTaskSoundEnabled(next);
-                    if (next) void playTaskSound("created");
+                    if (next) void unlockTaskSound();
                   }}
                   title={soundEnabled ? "Turn task sound effects off" : "Turn task sound effects on"}
                   className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-3 text-xs font-semibold transition ${soundEnabled ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
@@ -403,10 +474,30 @@ export default function TaskManagementDashboard({
                 </button>
                 <button
                   type="button"
+                  aria-label="Preview task created sound"
+                  title="Preview the new-task sound"
                   onClick={() => void playTaskSound("created")}
-                  className="rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                  className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100"
                 >
-                  Test sound
+                  Created
+                </button>
+                <button
+                  type="button"
+                  aria-label="Preview task updated sound"
+                  title="Preview the task-update sound"
+                  onClick={() => void playTaskSound("updated")}
+                  className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
+                >
+                  Updated
+                </button>
+                <button
+                  type="button"
+                  aria-label="Preview task completed sound"
+                  title="Preview the task-complete sound"
+                  onClick={() => void playTaskSound("completed")}
+                  className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-3 text-xs font-semibold text-violet-800 transition hover:bg-violet-100"
+                >
+                  Completed
                 </button>
               </div>
             </div>
@@ -493,6 +584,7 @@ export default function TaskManagementDashboard({
                                 : current.filter((id) => id !== employee.id))}
                               className="size-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                             />
+                            <UserAvatar name={employee.name || employee.email} email={employee.email} image={employee.image} size={34} className="border-2 border-white shadow-sm" />
                             <span className="min-w-0">
                               <span className="block truncate text-xs font-semibold text-slate-800">{employee.name || employee.email}</span>
                               <span className="block truncate text-[10px] text-slate-500">{employee.email}</span>
@@ -545,9 +637,37 @@ export default function TaskManagementDashboard({
                 ) : (
                   <div aria-label="Task status board" className="grid grid-flow-col auto-cols-[minmax(18rem,21rem)] gap-4 overflow-x-auto pb-4">
                     {TASK_STATUSES.map((status) => {
-                      const columnTasks = filteredTasks.filter((task) => task.status === status);
+                      const columnTasks = tasksByStatus[status];
                       return (
-                        <section key={status} aria-label={labelStatus(status) + " tasks"} className="flex min-h-64 min-w-0 flex-col rounded-2xl border border-slate-200 bg-slate-100/70 p-3">
+                        <section
+                          key={status}
+                          aria-label={labelStatus(status) + " tasks"}
+                          onDragOver={(event) => {
+                            if (!draggedTaskId || movingTaskId) return;
+                            event.preventDefault();
+                            event.dataTransfer.dropEffect = "move";
+                            setDropTargetStatus(status);
+                          }}
+                          onDragLeave={(event) => {
+                            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                              setDropTargetStatus((current) => current === status ? null : current);
+                            }
+                          }}
+                          onDrop={(event) => {
+                            event.preventDefault();
+                            const taskId = event.dataTransfer.getData("text/plain") || draggedTaskId;
+                            setDraggedTaskId(null);
+                            setDropTargetStatus(null);
+                            const draggedTask = tasks.find((item) => item.id === taskId);
+                            if (draggedTask) void moveTaskToStatus(draggedTask, status);
+                          }}
+                          className={[
+                            "flex min-h-64 min-w-0 flex-col rounded-2xl border border-slate-200 border-t-4 p-3 transition-colors",
+                            status === "IN_PROGRESS" ? "border-t-blue-500" : status === "BLOCKED" ? "border-t-rose-500" : status === "IN_REVIEW" ? "border-t-violet-500" : status === "COMPLETED" ? "border-t-emerald-500" : status === "CANCELLED" ? "border-t-slate-400" : "border-t-slate-500",
+                            status === "IN_PROGRESS" ? "bg-blue-50/55" : status === "BLOCKED" ? "bg-rose-50/55" : status === "IN_REVIEW" ? "bg-violet-50/55" : status === "COMPLETED" ? "bg-emerald-50/55" : status === "CANCELLED" ? "bg-slate-100/80" : "bg-slate-50",
+                            dropTargetStatus === status ? "ring-2 ring-blue-400 ring-offset-2 shadow-lg" : ""
+                          ].join(" ")}
+                        >
                           <div className="mb-3 flex items-center justify-between gap-2 px-1">
                             <div className="flex min-w-0 items-center gap-2">
                               <span className={`size-2 shrink-0 rounded-full ${status === "IN_PROGRESS" ? "bg-blue-500" : status === "BLOCKED" ? "bg-rose-500" : status === "IN_REVIEW" ? "bg-violet-500" : status === "COMPLETED" ? "bg-emerald-500" : status === "CANCELLED" ? "bg-slate-400" : "bg-slate-500"}`} />
@@ -566,11 +686,40 @@ export default function TaskManagementDashboard({
                                 const employee = employeeById.get(id);
                                 return employee?.name || employee?.email || "Workspace member";
                               });
+                              const assigneeMembers = task.assigneeUserIds
+                                .map((id) => employeeById.get(id))
+                                .filter((employee): employee is Employee => Boolean(employee));
+                              const canDragTask = task.status !== "CANCELLED" &&
+                                (managerForTask || task.assigneeUserIds.includes(userId));
                               return (
-                                <article key={task.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md">
+                                <article
+                                  key={task.id}
+                                  draggable={canDragTask && movingTaskId !== task.id}
+                                  onDragStart={(event) => {
+                                    if (!canDragTask) {
+                                      event.preventDefault();
+                                      return;
+                                    }
+                                    event.dataTransfer.effectAllowed = "move";
+                                    event.dataTransfer.setData("text/plain", task.id);
+                                    setDraggedTaskId(task.id);
+                                  }}
+                                  onDragEnd={() => {
+                                    setDraggedTaskId(null);
+                                    setDropTargetStatus(null);
+                                  }}
+                                  className={[
+                                    "overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md",
+                                    canDragTask ? "cursor-grab active:cursor-grabbing" : "",
+                                    draggedTaskId === task.id ? "opacity-55" : ""
+                                  ].join(" ")}
+                                >
                                   <button type="button" onClick={() => void openTask(task.id)} aria-expanded={expanded} className="w-full p-3.5 text-left transition hover:bg-slate-50">
                                     <span className="flex items-center justify-between gap-2">
-                                      <span className="truncate text-[10px] font-semibold tracking-wide text-slate-400">TASK-{task.id.slice(-6).toUpperCase()}</span>
+                                      <span className="inline-flex min-w-0 items-center gap-1 text-[10px] font-semibold tracking-wide text-slate-400">
+                                        {canDragTask && <GripVertical className="size-3.5 shrink-0 text-slate-300" aria-hidden="true" />}
+                                        <span className="truncate">TASK-{task.id.slice(-6).toUpperCase()}</span>
+                                      </span>
                                       <span className={`shrink-0 rounded-md px-2 py-1 text-[9px] font-semibold ring-1 ring-inset ${priorityClasses(task.priority)}`}>{labelStatus(task.priority)}</span>
                                     </span>
                                     <span className="mt-2 block text-sm font-semibold leading-5 text-slate-900">{task.title}</span>
@@ -579,8 +728,13 @@ export default function TaskManagementDashboard({
                                       <span className="inline-flex min-w-0 items-center gap-1.5"><CalendarClock className="size-3.5 shrink-0" /><span className="truncate">{formatDate(task.dueAt)}</span></span>
                                       <span className="shrink-0 rounded-md bg-slate-100 px-2 py-1 font-semibold tabular-nums">{task.assignmentSummary.completed}/{task.assignmentSummary.total}</span>
                                     </span>
-                                    <span className="mt-2 flex items-center gap-1.5 text-[10px] text-slate-500">
+                                    <span className="mt-2 flex min-w-0 items-center gap-1.5 text-[10px] text-slate-500">
                                       <Users className="size-3.5 shrink-0" />
+                                      <span className="inline-flex shrink-0 -space-x-2">
+                                        {assigneeMembers.slice(0, 2).map((employee) => (
+                                          <UserAvatar key={employee.id} name={employee.name || employee.email} email={employee.email} image={employee.image} size={22} className="border-2 border-white text-[8px]" />
+                                        ))}
+                                      </span>
                                       <span className="truncate">{assigneeNames.slice(0, 2).join(", ") || "Unassigned"}</span>
                                       {assigneeNames.length > 2 && <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5">+{assigneeNames.length - 2}</span>}
                                       <ChevronDown className={`ml-auto size-3.5 shrink-0 transition ${expanded ? "rotate-180" : ""}`} />
@@ -593,7 +747,10 @@ export default function TaskManagementDashboard({
                                       ) : (
                                         <div className="space-y-3">
                                           <div className="flex flex-wrap items-center justify-between gap-2">
-                                            <p className="text-[10px] text-slate-500">Created by {detail.createdBy?.name ?? detail.createdBy?.email ?? "Workspace member"}</p>
+                                            <div className="flex min-w-0 items-center gap-2">
+                                              <UserAvatar name={detail.createdBy?.name ?? detail.createdBy?.email ?? "Workspace member"} email={detail.createdBy?.email ?? ""} image={detail.createdBy?.image} size={24} className="text-[8px]" />
+                                              <p className="truncate text-[10px] text-slate-500">Created by {detail.createdBy?.name ?? detail.createdBy?.email ?? "Workspace member"}</p>
+                                            </div>
                                             <span className="text-[10px] text-slate-400">Updated {formatDate(detail.updatedAt)}</span>
                                           </div>
                                           {detail.assignments.map((assignment) => {
@@ -602,9 +759,7 @@ export default function TaskManagementDashboard({
                                             return (
                                               <div key={assignment.id} className="rounded-xl border border-slate-200 bg-white p-3">
                                                 <div className="mb-2 flex min-w-0 items-center gap-2">
-                                                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-blue-50 text-[10px] font-bold text-blue-700">
-                                                    {(assignment.assignee?.name || assignment.assignee?.email || "?").trim().slice(0, 1).toUpperCase()}
-                                                  </span>
+                                                  <UserAvatar name={assignment.assignee?.name ?? assignment.assignee?.email ?? "Workspace member"} email={assignment.assignee?.email ?? ""} image={assignment.assignee?.image} size={28} className="text-[8px]" />
                                                   <div className="min-w-0">
                                                     <p className="truncate text-[10px] font-semibold text-slate-800">{assignment.assignee?.name ?? assignment.assignee?.email ?? "Workspace member"}</p>
                                                     <p className="truncate text-[9px] text-slate-500">{assignment.assignee?.email ?? ""}</p>
