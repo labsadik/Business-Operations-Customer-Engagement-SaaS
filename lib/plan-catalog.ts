@@ -78,6 +78,7 @@ export function createEntitlementSnapshot(plan: PlanEntitlements): PlanEntitleme
     monthlyMeetingLimit: plan.monthlyMeetingLimit,
     maxMeetingDurationMinutes: plan.maxMeetingDurationMinutes,
     maxConcurrentMeetings: plan.maxConcurrentMeetings,
+    taskManagementEnabled: Boolean(plan.taskManagementEnabled),
     validityDays: plan.validityDays,
     freeFeatureDays: plan.freeFeatureDays,
     requiresPayment: plan.requiresPayment
@@ -107,6 +108,7 @@ export function isValidEntitlementSnapshot(value: unknown): value is PlanEntitle
     isPositiveSafeInteger(item.monthlyMeetingLimit) &&
     isPositiveSafeInteger(item.maxMeetingDurationMinutes) &&
     isPositiveSafeInteger(item.maxConcurrentMeetings) &&
+    typeof item.taskManagementEnabled === "boolean" &&
     isPositiveSafeInteger(item.validityDays) &&
     (
       item.freeFeatureDays === null ||
@@ -129,6 +131,7 @@ export function serializeManagedPlan(doc: any): ManagedPlan {
     monthlyMeetingLimit: Number(doc.monthlyMeetingLimit),
     maxMeetingDurationMinutes: Number(doc.maxMeetingDurationMinutes),
     maxConcurrentMeetings: Number(doc.maxConcurrentMeetings),
+    taskManagementEnabled: Boolean(doc.taskManagementEnabled),
     validityDays: Number(doc.validityDays),
     freeFeatureDays: doc.freeFeatureDays == null ? null : Number(doc.freeFeatureDays),
     requiresPayment: Boolean(doc.requiresPayment),
@@ -212,6 +215,7 @@ async function seedLegacyPlans() {
             monthlyMeetingLimit: plan.monthlyMeetingLimit,
             maxMeetingDurationMinutes: plan.maxMeetingDurationMinutes,
             maxConcurrentMeetings: plan.maxConcurrentMeetings,
+            taskManagementEnabled: Boolean(plan.taskManagementEnabled),
             validityDays: plan.validityDays,
             freeFeatureDays: plan.freeFeatureDays,
             requiresPayment: plan.requiresPayment,
