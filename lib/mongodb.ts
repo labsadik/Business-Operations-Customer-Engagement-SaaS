@@ -38,8 +38,11 @@ export async function getMongo() {
     const connectionPromise = mongoose.connect(uri, {
       dbName: databaseName,
       bufferCommands: false,
-      maxPoolSize: 1,
+      // Dashboard SSR and its independent API reads need a little parallelism;
+      // keep the pool small enough for serverless instances.
+      maxPoolSize: 5,
       minPoolSize: 0,
+      waitQueueTimeoutMS: 5000,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 10000
     });

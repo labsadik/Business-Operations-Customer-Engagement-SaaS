@@ -1,6 +1,6 @@
 type ApiError = Error & { code?: string; details?: unknown };
 
-const RETRYABLE_SERVER_STATUSES = new Set([502, 503, 504]);
+const RETRYABLE_SERVER_STATUSES = new Set([500, 502, 503, 504]);
 
 function pause(milliseconds: number, signal?: AbortSignal) {
   return new Promise<void>((resolve, reject) => {
