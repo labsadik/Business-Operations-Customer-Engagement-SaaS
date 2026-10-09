@@ -410,6 +410,7 @@ export default function WorkspaceDashboard({
   const [meetingHistory, setMeetingHistory] = useState<MeetingHistoryItem[]>([]);
   const [modalRequests, setModalRequests] = useState<RequestItem[]>([]);
   const [modalMeetingHistory, setModalMeetingHistory] = useState<MeetingHistoryItem[]>([]);
+  const [meetingHistoryTotalCount, setMeetingHistoryTotalCount] = useState(0);
   const [modalRequestHistory, setModalRequestHistory] = useState<RequestHistoryItem[]>([]);
   const [requestHistoryCursor, setRequestHistoryCursor] = useState<string | null>(null);
   const [requestHistoryLoadingMore, setRequestHistoryLoadingMore] = useState(false);
@@ -525,7 +526,9 @@ export default function WorkspaceDashboard({
   const meetingRequestCount = meetingActivitySummary?.requestedCount ?? modalRequests.filter((item) => ["REQUESTED", "RETRYING"].includes(item.status)).length;
   const meetingProcessingCount = meetingActivitySummary?.processingCount ?? modalRequests.filter((item) => ["ASSIGNED", "CREATING_MEETING"].includes(item.status)).length;
   const ongoingMeetingCount = meetingActivitySummary?.ongoingCount ?? modalRequests.filter((item) => ["CONFIRMED", "IN_PROGRESS"].includes(item.status)).length;
-  const happenedMeetingCount = meetingActivitySummary?.happenedCount ?? modalMeetingHistory.filter((item) => ["COMPLETED", "READY", "LIVE"].includes(item.status)).length;
+  const happenedMeetingCount = meetingDateFilter
+    ? meetingHistoryTotalCount
+    : meetingActivitySummary?.happenedCount ?? modalMeetingHistory.filter((item) => ["COMPLETED", "READY", "LIVE"].includes(item.status)).length;
 
   const refreshAll = useCallback(async function refreshAll() {
     if (refreshingRef.current) return;
@@ -607,13 +610,15 @@ export default function WorkspaceDashboard({
     }
   }, []);
 
-  async function loadAllMeetings() {
+  async function loadAllMeetings(dateFilter = meetingDateFilter) {
     setMeetingsLoading(true);
     setMeetingsError("");
     try {
+      const historyUrl = "/api/employee/meetings?paginated=true&limit=50" +
+        (dateFilter ? "&date=" + encodeURIComponent(dateFilter) : "");
       const [allRequests, allHistory, historyPage, activitySummary] = await Promise.all([
         api<RequestItem[]>("/api/employee/requests?limit=100"),
-        api<{ items: MeetingHistoryItem[]; nextCursor: string | null }>("/api/employee/meetings?paginated=true&limit=50"),
+        api<{ items: MeetingHistoryItem[]; nextCursor: string | null; totalCount?: number }>(historyUrl),
         api<{ items: RequestHistoryItem[]; nextCursor: string | null }>(
           "/api/employee/requests?history=true&limit=25"
         ),
@@ -621,6 +626,7 @@ export default function WorkspaceDashboard({
       ]);
       setModalRequests(allRequests);
       setModalMeetingHistory(allHistory.items);
+      setMeetingHistoryTotalCount(allHistory.totalCount ?? allHistory.items.length);
       setModalRequestHistory(historyPage.items);
       setRequestHistoryCursor(historyPage.nextCursor);
       setMeetingActivitySummary(activitySummary);
@@ -1830,7 +1836,7 @@ export default function WorkspaceDashboard({
               { label: "Requested", value: meetingRequestCount, detail: "Awaiting a team response", tone: "text-amber-700" },
               { label: "Processing", value: meetingProcessingCount, detail: "Assignment / setup", tone: "text-blue-700" },
               { label: "Ongoing", value: ongoingMeetingCount, detail: "Confirmed active meetings", tone: "text-indigo-700" },
-              { label: "Meetings happened", value: happenedMeetingCount, detail: meetingActivitySummary ? "Company-scope total" : "Loaded history", tone: "text-emerald-700" }
+              { label: meetingDateFilter ? "History on date" : "Meetings happened", value: happenedMeetingCount, detail: meetingDateFilter ? "All records on selected date" : meetingActivitySummary ? "Company-scope total" : "Loaded history", tone: "text-emerald-700" }
             ].map((metric) => (
               <article key={metric.label} className="rounded-2xl border border-slate-200 bg-white p-3.5">
                 <p className="text-[10px] font-semibold text-slate-500">{metric.label}</p>
@@ -1847,9 +1853,9 @@ export default function WorkspaceDashboard({
             <div className="flex items-center gap-2">
               <label className="block">
                 <span className="sr-only">Filter meeting history by date</span>
-                <input type="date" value={meetingDateFilter} onChange={(event) => { setMeetingDateFilter(event.target.value); setMeetingModalView("meeting-history"); }} className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+                <input type="date" value={meetingDateFilter} onChange={(event) => { const nextDate = event.target.value; setMeetingDateFilter(nextDate); setMeetingModalView("meeting-history"); void loadAllMeetings(nextDate); }} className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
               </label>
-              {meetingDateFilter && <button type="button" onClick={() => setMeetingDateFilter("")} className="rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Clear date</button>}
+              {meetingDateFilter && <button type="button" onClick={() => { setMeetingDateFilter(""); void loadAllMeetings(""); }} className="rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Clear date</button>}
             </div>
           </div>
           <div className="mb-5 rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-xs text-blue-950">
