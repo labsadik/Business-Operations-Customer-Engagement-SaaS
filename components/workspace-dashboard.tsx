@@ -70,6 +70,7 @@ type DashboardPlan = {
   monthlyMeetingLimit: number;
   maxMeetingDurationMinutes: number;
   maxConcurrentMeetings: number;
+  taskManagementEnabled?: boolean;
   validityDays: number;
   freeFeatureDays: number | null;
   requiresPayment: boolean;
@@ -1162,6 +1163,7 @@ export default function WorkspaceDashboard({
         userEmail={user.email}
         userImage={user.image}
         currentRole={data.currentRole}
+        taskManagementEnabled={Boolean(data.currentPlan.taskManagementEnabled)}
         canManage={canManage}
         adminManaged={adminManaged}
         activePanel={activeModal}
