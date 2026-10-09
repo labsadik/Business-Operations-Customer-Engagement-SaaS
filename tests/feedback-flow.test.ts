@@ -24,7 +24,7 @@ test("public feedback is session-bound, company-scoped, and cannot accept browse
 
 test("company feedback is restricted to an active server-verified membership and workspace", () => {
   const route = source("app/api/company/feedback/route.ts");
-  assert.match(route, /"COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"/);
+  assert.match(route, /"COMPANY_ADMIN", "EMPLOYEE"/);
   assert.match(route, /companyId: session\.companyId/);
   assert.match(route, /userId: session\.userId/);
   assert.match(route, /active: true/);

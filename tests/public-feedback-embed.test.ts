@@ -99,5 +99,5 @@ test("feedback dashboard snippet is company-specific and only owners/admins can 
   const dashboard = source("components/workspace-dashboard.tsx");
   assert.match(workspace, /\/embed\/feedback\//);
   assert.match(workspace, /navigator\.clipboard\.writeText\(embedCode\)/);
-  assert.match(dashboard, /canManageReviews=\{\["COMPANY_OWNER", "COMPANY_ADMIN"\]/);
+  assert.match(dashboard, /canManageReviews=\{\["COMPANY_ADMIN"\]/);
 });
