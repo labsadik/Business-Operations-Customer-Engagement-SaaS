@@ -1,7 +1,7 @@
 "use client";
 
 import { clientApi } from "@/lib/client-api";
-import { Fragment, useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   AlertCircle,
   CalendarClock,
@@ -274,29 +274,45 @@ export default function TaskManagementDashboard({
     return grouped;
   }, [filteredTasks]);
 
+  const loadInFlightRef = useRef<Promise<void> | null>(null);
+
   const load = useCallback(async function loadTasks(showSpinner = true) {
+    // Collapse overlapping initial, retry, and post-mutation refreshes into one
+    // operation so they cannot race each other or toggle the page spinner twice.
+    if (loadInFlightRef.current) return loadInFlightRef.current;
     if (!taskManagementEnabled) {
       setLoading(false);
       return;
     }
+
     if (showSpinner) setLoading(true);
     setError("");
+
+    const pending = (async () => {
+      try {
+        const [taskPage, staff] = await Promise.all([
+          api<{ items: TaskItem[]; nextCursor: string | null }>("/api/tasks?limit=50"),
+          api<Employee[]>("/api/company/employees").catch(() => [] as Employee[])
+        ]);
+        setTasks(taskPage.items);
+        setNextCursor(taskPage.nextCursor);
+        setEmployees(staff);
+        const assignableIds = new Set(staff.filter((member) => member.employmentStatus === "ACTIVE").map((member) => member.id));
+        setSelectedAssigneeIds((current) => current.length
+          ? current.filter((id) => assignableIds.has(id))
+          : assignableIds.has(userId) ? [userId] : []);
+      } catch (loadError) {
+        setError(errorMessage(loadError));
+      } finally {
+        setLoading(false);
+      }
+    })();
+
+    loadInFlightRef.current = pending;
     try {
-      const [taskPage, staff] = await Promise.all([
-        api<{ items: TaskItem[]; nextCursor: string | null }>("/api/tasks?limit=50"),
-        api<Employee[]>("/api/company/employees").catch(() => [] as Employee[])
-      ]);
-      setTasks(taskPage.items);
-      setNextCursor(taskPage.nextCursor);
-      setEmployees(staff);
-      const assignableIds = new Set(staff.filter((member) => member.employmentStatus === "ACTIVE").map((member) => member.id));
-      setSelectedAssigneeIds((current) => current.length
-        ? current.filter((id) => assignableIds.has(id))
-        : assignableIds.has(userId) ? [userId] : []);
-    } catch (loadError) {
-      setError(errorMessage(loadError));
+      await pending;
     } finally {
-      setLoading(false);
+      if (loadInFlightRef.current === pending) loadInFlightRef.current = null;
     }
   }, [taskManagementEnabled, userId]);
 

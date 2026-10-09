@@ -9,7 +9,6 @@ import {
   Activity,
   ArrowUpRight,
   CalendarDays,
-  CheckCircle2,
   ChevronRight,
   Copy,
   CreditCard,
@@ -254,7 +253,6 @@ type InvoiceItem = {
 };
 
 type ModalName = "meetings" | "team" | "settings" | "billing" | "feedback" | "support-tickets" | null;
-type MeetingView = "new" | "old";
 type TeamTab = "members" | "invitations";
 
 type Confirmation =
@@ -407,7 +405,6 @@ export default function WorkspaceDashboard({
   const [data, setData] = useState<CompanyData | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [requests, setRequests] = useState<RequestItem[]>([]);
-  const [meetingHistory, setMeetingHistory] = useState<MeetingHistoryItem[]>([]);
   const [modalRequests, setModalRequests] = useState<RequestItem[]>([]);
   const [modalMeetingHistory, setModalMeetingHistory] = useState<MeetingHistoryItem[]>([]);
   const [meetingHistoryTotalCount, setMeetingHistoryTotalCount] = useState(0);
@@ -415,7 +412,6 @@ export default function WorkspaceDashboard({
   const [requestHistoryCursor, setRequestHistoryCursor] = useState<string | null>(null);
   const [requestHistoryLoadingMore, setRequestHistoryLoadingMore] = useState(false);
   const [meetingsLoading, setMeetingsLoading] = useState(false);
-  const [meetingView, setMeetingView] = useState<MeetingView>("new");
   const [meetingModalView, setMeetingModalView] = useState<MeetingModalView>("requests");
   const [meetingDateFilter, setMeetingDateFilter] = useState("");
   const [meetingActivitySummary, setMeetingActivitySummary] = useState<MeetingActivitySummary | null>(null);
@@ -501,15 +497,10 @@ export default function WorkspaceDashboard({
         Math.round(((data?.subscription?.monthlyMeetingsUsed ?? 0) / plan.monthlyMeetingLimit) * 100)
       )
     : 0;
-  const readyCount = requests.filter(
-    (item) => item.meeting?.status === "READY" && item.meeting.meetingUri
-  ).length;
 
-  const hasVisibleMainMeetings = meetingView === "new"
-    ? requests.length > 0
-    : meetingHistory.length > 0;
-  const hasMoreMeetings =
-    meetingView === "new" ? requests.length > 5 : meetingHistory.length > 5;
+
+
+
   const filteredModalMeetingHistory = meetingDateFilter
     ? modalMeetingHistory.filter((meeting) => {
         const timezone = data?.workspace?.timezone || "UTC";
@@ -540,11 +531,10 @@ export default function WorkspaceDashboard({
 
     try {
       // Start independent reads together: one optional endpoint must not blank the whole workspace.
-      const [companyResult, staffResult, pendingResult, historyResult, announcementResult] = await Promise.all([
+      const [companyResult, staffResult, pendingResult, announcementResult] = await Promise.all([
         settle(api<CompanyData | null>("/api/company")),
         settle(api<Employee[]>("/api/company/employees")),
         settle(api<RequestItem[]>("/api/employee/requests?limit=6")),
-        settle(api<MeetingHistoryItem[]>("/api/employee/meetings?limit=6")),
         settle(api<AnnouncementItem[]>("/api/company/announcement"))
       ]);
       if (!companyResult.ok) throw new Error("COMPANY_DATA_LOAD_FAILED");
@@ -555,7 +545,6 @@ export default function WorkspaceDashboard({
         setData(null);
         setEmployees([]);
         setRequests([]);
-        setMeetingHistory([]);
         setAnnouncements([]);
         setInitialLoadFailed(false);
         setError("");
@@ -569,8 +558,6 @@ export default function WorkspaceDashboard({
       else if (!alreadyLoaded) setEmployees([]);
       if (pendingResult.ok) setRequests(pendingResult.value);
       else if (!alreadyLoaded) setRequests([]);
-      if (historyResult.ok) setMeetingHistory(historyResult.value);
-      else if (!alreadyLoaded) setMeetingHistory([]);
 
       const announcementManager = ["COMPANY_OWNER", "COMPANY_ADMIN"].includes(company.currentRole);
       if (announcementResult.ok) {
@@ -581,7 +568,7 @@ export default function WorkspaceDashboard({
       }
 
       setInitialLoadFailed(false);
-      setError(!staffResult.ok || !pendingResult.ok || !historyResult.ok
+      setError(!staffResult.ok || !pendingResult.ok
         ? "DASHBOARD_REFRESH_FAILED"
         : "");
     } catch {
@@ -597,12 +584,8 @@ export default function WorkspaceDashboard({
     if (refreshingRef.current) return;
     refreshingRef.current = true;
     try {
-      const [pending, history] = await Promise.all([
-        api<RequestItem[]>("/api/employee/requests?limit=6"),
-        api<MeetingHistoryItem[]>("/api/employee/meetings?limit=6")
-      ]);
+      const pending = await api<RequestItem[]>("/api/employee/requests?limit=6");
       setRequests(pending);
-      setMeetingHistory(history);
     } catch {
       // Keep the last good dashboard state during transient polling failures.
     } finally {
@@ -1029,13 +1012,8 @@ export default function WorkspaceDashboard({
     }
 
     try {
-      const [pending, history] = await Promise.all([
-        api<RequestItem[]>("/api/employee/requests?limit=6"),
-        api<{ items: MeetingHistoryItem[]; nextCursor: string | null }>("/api/employee/meetings?paginated=true&limit=6")
-      ]);
-
+      const pending = await api<RequestItem[]>("/api/employee/requests?limit=6");
       setRequests(pending);
-      setMeetingHistory(history.items);
 
       let latestMessage = actionError?.message ?? "";
 
@@ -1435,171 +1413,45 @@ export default function WorkspaceDashboard({
         </section>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.45fr)_360px]">
-          <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-200 px-6 py-5">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <CalendarDays className="size-4 text-blue-600" />
-                    <h2 className="text-base font-semibold">{labels.meetings}</h2>
-                  </div>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Showing five at a time. Open the meeting popup for the full list.
-                  </p>
-                </div>
-
-                <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
-                  <button type="button" onClick={() => setMeetingView("new")} className={`rounded-lg px-3.5 py-2 text-xs font-semibold ${meetingView === "new" ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200" : "text-slate-500"}`}>
-                    New <span className="ml-1 text-slate-400">{requests.length > 5 ? "5+" : requests.length}</span>
-                  </button>
-                  <button type="button" onClick={() => setMeetingView("old")} className={`rounded-lg px-3.5 py-2 text-xs font-semibold ${meetingView === "old" ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200" : "text-slate-500"}`}>
-                    Old <span className="ml-1 text-slate-400">{meetingHistory.length > 5 ? "5+" : meetingHistory.length}</span>
-                  </button>
-                </div>
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex items-start gap-4">
+              <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-blue-50 text-blue-700">
+                <CalendarDays className="size-5" aria-hidden="true" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Meetings</p>
+                <h2 className="mt-2 text-base font-semibold text-slate-950">Meeting workspace</h2>
+                <p className="mt-1 max-w-xl text-xs leading-5 text-slate-500">
+                  Review incoming requests, accept or decline meetings, follow the response timer, and browse meeting and request history by date.
+                </p>
               </div>
             </div>
-
-            {!hasVisibleMainMeetings ? (
-              <div className="px-6 py-16 text-center">
-                <div className="mx-auto grid size-11 place-items-center rounded-2xl bg-slate-100 text-slate-400">
-                  <Video className="size-5" />
-                </div>
-                <p className="mt-4 text-sm font-semibold">
-                  {meetingView === "new" ? "No active meetings" : "No closed meetings"}
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Plan allowance</p>
+                <p className="mt-1.5 text-lg font-semibold tabular-nums text-slate-950">
+                  {data.subscription?.monthlyMeetingsUsed ?? 0} <span className="text-sm font-medium text-slate-400">/ {plan.monthlyMeetingLimit}</span>
                 </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {meetingView === "new"
-                    ? "New requests and confirmed meetings will appear here."
-                    : "Completed meeting records will appear here."}
+                <p className="mt-1 text-[10px] text-slate-500">Monthly meetings used</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Remaining</p>
+                <p className="mt-1.5 text-lg font-semibold tabular-nums text-emerald-700">
+                  {Math.max(0, plan.monthlyMeetingLimit - (data.subscription?.monthlyMeetingsUsed ?? 0))}
+                </p>
+                <p className="mt-1 text-[10px] text-slate-500">
+                  Renewal {data.subscription?.periodEnd ? formatDate(data.subscription.periodEnd, data.workspace?.timezone) : "not set"}
                 </p>
               </div>
-            ) : meetingView === "new" ? (
-              <div className="divide-y divide-slate-100">
-                {requests.slice(0, 5).map((item) => {
-                  const actionable = activeModal === "meetings" && canRespondToMeetings && (item.status === "REQUESTED" || item.status === "RETRYING");
-                  const creating = item.status === "ASSIGNED" || item.status === "CREATING_MEETING";
-                  const ready = item.meeting?.status === "READY" && Boolean(item.meeting.meetingUri);
-                  const scheduled = item.status === "CONFIRMED" || item.status === "IN_PROGRESS";
-
-                  return (
-                    <div key={item.id} className="px-6 py-5">
-                      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                        <div className="flex min-w-0 items-start gap-3">
-                          {item.customer ? (
-                            <UserAvatar
-                              name={item.customer.name}
-                              email={item.customer.email}
-                              image={item.customer.image}
-                              size={40}
-                            />
-                          ) : (
-                            <div className="grid size-10 shrink-0 place-items-center rounded-full bg-slate-100 text-xs font-semibold text-slate-500">?</div>
-                          )}
-
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="truncate text-sm font-semibold">{item.customer?.name ?? "Customer"}</p>
-                              <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${ready ? "bg-emerald-50 text-emerald-700" : creating ? "bg-blue-50 text-blue-700" : item.status === "RETRYING" ? "bg-amber-50 text-amber-700" : scheduled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
-                                {ready ? "Ready" : creating ? "Preparing" : item.status === "RETRYING" ? "Retrying" : scheduled ? "Confirmed" : "Awaiting response"}
-                              </span>
-                            </div>
-                            <p className="mt-1 text-xs text-slate-500">
-                              {new Date(item.startAt).toLocaleString()} · {item.durationMinutes} min
-                            </p>
-                            {item.customer?.email && <p className="mt-1 truncate text-[11px] text-slate-400">{item.customer.email}</p>}
-                            {!ready && !scheduled && (
-                              <MeetingResponseCountdown
-                                expiresAt={item.expiresAt}
-                                label={
-                                  creating
-                                    ? "Preparing the meeting"
-                                    : item.status === "RETRYING"
-                                      ? "Finding the next available team member"
-                                      : "Response window"
-                                }
-                              />
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2 xl:justify-end">
-                          {ready && item.meeting?.meetingUri && (
-                            <>
-                              <a href={item.meeting.meetingUri} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700">
-                                <Video className="size-4" />
-                                Join meeting
-                              </a>
-                              <button type="button" disabled={endingRequestId === item.id} onClick={() => setConfirmation({ kind: "end-meeting", id: item.id })} className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50">
-                                <XCircle className="size-4" />
-                                {endingRequestId === item.id ? "Ending..." : "End"}
-                              </button>
-                            </>
-                          )}
-                          {actionable && (
-                            <>
-                              <button type="button" disabled={actingRequestId === item.id} onClick={() => setConfirmation({ kind: "respond-request", id: item.id, customerName: item.customer?.name ?? "Customer", action: "decline" })} className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50">Decline</button>
-                              <button type="button" disabled={actingRequestId === item.id} onClick={() => setConfirmation({ kind: "respond-request", id: item.id, customerName: item.customer?.name ?? "Customer", action: "accept" })} className="rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">
-                                {actingRequestId === item.id ? "Accepting..." : "Accept"}
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="divide-y divide-slate-100">
-                {meetingHistory.slice(0, 5).map((meeting, index) => {
-                  const timeZone = data.workspace?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-                  const scheduledBy = meeting.scheduledBy ?? meeting.customer;
-                  return (
-                    <div key={`${meeting.startAt}-${meeting.customer?.email ?? index}`} className="px-6 py-5">
-                      <div className="grid gap-5 xl:grid-cols-[1fr_1.1fr_auto] xl:items-center">
-                        <div className="flex min-w-0 items-center gap-3">
-                          <UserAvatar name={scheduledBy?.name ?? "Customer"} email={scheduledBy?.email} image={scheduledBy?.image} size={40} />
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="truncate text-sm font-semibold">{scheduledBy?.name ?? "Customer"}</p>
-                              <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">
-                                {meeting.status === "CANCELLED" ? "Cancelled" : "Completed"}
-                              </span>
-                            </div>
-                            <p className="mt-1 text-[11px] text-slate-400">Scheduled by</p>
-                            <p className="truncate text-xs text-slate-500">{scheduledBy?.email ?? "Email unavailable"}</p>
-                          </div>
-                        </div>
-
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                          <p className="text-xs font-semibold text-slate-900">{formatDate(meeting.startAt, timeZone)}</p>
-                          <p className="mt-1 text-xs text-slate-700">
-                            {formatTime(meeting.startAt, timeZone)} – {formatTime(meeting.endAt, timeZone)} · {meeting.durationMinutes} min
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-2 xl:justify-end">
-                          <div className="text-right">
-                            <p className="text-xs font-semibold text-slate-700">{meeting.employee?.name ?? "Team member"}</p>
-                            <p className="mt-1 text-[10px] text-slate-400">Handled by</p>
-                          </div>
-                          <CheckCircle2 className="size-4 text-emerald-600" />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {hasMoreMeetings && (
-              <div className="border-t border-slate-200 bg-slate-50 px-6 py-4">
-                <button type="button" onClick={() => openModal("meetings")} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                  See More
-                  <ArrowUpRight className="size-3.5" />
-                </button>
-              </div>
-            )}
+            </div>
+            <button
+              type="button"
+              onClick={() => openModal("meetings")}
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            >
+              Open meetings &amp; history
+              <ArrowUpRight className="size-4" aria-hidden="true" />
+            </button>
           </section>
 
           <div className="space-y-6">

@@ -9,7 +9,7 @@ import WorkspaceUserProfile from "@/components/workspace-user-profile";
 import PublicPageShare from "@/components/public-page-share";
 import ConfirmDialog from "@/components/confirm-dialog";
 import { clientApi } from "@/lib/client-api";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Building2,
@@ -78,22 +78,36 @@ export default function CompanyProfile({
   const [publishConfirmationOpen, setPublishConfirmationOpen] = useState(false);
   const { labels } = useNavigationLabels();
 
-  async function load() {
-    setLoadFailed(false);
-    setError("");
-    setLoading(true);
-    try {
-      const data = await api<CompanyResponse>("/api/company");
-      setProfile(data.company);
-      setForm(data.company);
-      setMemberCount(data.memberCount);
-      setCanPublish(data.canPublish);
-      setFeatureLocked(data.featureLocked);
-    } catch {
-      setLoadFailed(true);
-    } finally {
-      setLoading(false);
-    }
+  const loadInFlightRef = useRef<Promise<void> | null>(null);
+
+  function load(): Promise<void> {
+    // Retry clicks and Strict Mode effect replays share a single read.
+    if (loadInFlightRef.current) return loadInFlightRef.current;
+
+    const pending = (async () => {
+      setLoadFailed(false);
+      setError("");
+      setLoading(true);
+      try {
+        const data = await api<CompanyResponse>("/api/company");
+        setProfile(data.company);
+        setForm(data.company);
+        setMemberCount(data.memberCount);
+        setCanPublish(data.canPublish);
+        setFeatureLocked(data.featureLocked);
+      } catch {
+        setLoadFailed(true);
+      } finally {
+        setLoading(false);
+      }
+    })();
+
+    loadInFlightRef.current = pending;
+    const clearPending = () => {
+      if (loadInFlightRef.current === pending) loadInFlightRef.current = null;
+    };
+    void pending.then(clearPending, clearPending);
+    return pending;
   }
 
   useEffect(() => {
