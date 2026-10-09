@@ -53,5 +53,5 @@ test("task board refreshes quietly when visible and queues refreshes that overla
   assert.ok(taskDashboard.includes('window.addEventListener("focus", refreshVisibleTasks)'));
   assert.ok(taskDashboard.includes("void load(false)"));
   assert.ok(taskDashboard.includes("loadQueuedRef.current = true"));
-  assert.ok(taskDashboard.includes("window.setTimeout(() => void load(false), 0)"));
+  assert.ok(taskDashboard.includes("window.setTimeout(() => void loadTaskRef.current?.(false), 0)"));
 });
