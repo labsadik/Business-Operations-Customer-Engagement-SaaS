@@ -25,14 +25,21 @@ export async function GET() {
     const connected = new Set(
       connections.filter(isGoogleSchedulingReady).map((item) => String(item.userId))
     );
-    return jsonOk(users.map((user) => ({
+    const membershipByUserId = new Map(members.map((member) => [String(member.userId), member]));
+    return jsonOk(users.map((user) => {
+      const membership = membershipByUserId.get(String(user._id));
+      return {
       id: String(user._id),
       name: user.name,
       email: user.email,
       image: user.image ?? "",
-      role: user.role,
+      role: membership?.role ?? user.role,
+      jobTitle: membership?.jobTitle ?? "",
+      department: membership?.department ?? "",
+      employmentStatus: membership?.employmentStatus ?? "ACTIVE",
       googleConnected: connected.has(String(user._id))
-    })));
+      };
+    }));
   } catch (error) {
     const code = error instanceof Error ? error.message : "FORBIDDEN";
     return jsonError(code, code === "UNAUTHENTICATED" ? 401 : 403);
