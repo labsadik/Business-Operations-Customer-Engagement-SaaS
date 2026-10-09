@@ -5,6 +5,8 @@ import { requireCompanyMember } from "@/lib/authz";
 import { jsonError, jsonOk } from "@/lib/http";
 import { encodeHistoryCursor, decodeHistoryCursor } from "@/lib/history-cursor";
 import { Types } from "mongoose";
+import { Workspace } from "@/models/workspace";
+import { nextDateIso, zonedDateTimeToUtc } from "@/lib/timezone";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +18,7 @@ export async function GET(request: Request) {
     ? Math.min(100, Math.max(1, Math.floor(requestedLimit)))
     : 50;
   const paginated = searchParams.get("paginated") === "true";
+  const requestedDate = searchParams.get("date");
   const cursorValue = searchParams.get("cursor");
   const cursor = paginated ? decodeHistoryCursor(cursorValue) : null;
 
@@ -44,6 +47,26 @@ export async function GET(request: Request) {
 
   await getMongo();
 
+  let dateRange: { startAt: Date; endAt: Date } | null = null;
+  if (requestedDate) {
+    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(requestedDate)) {
+      return jsonError("INVALID_HISTORY_DATE", 400);
+    }
+    try {
+      const workspace = await Workspace.findOne({
+        companyId: session.companyId,
+        active: true
+      }).select("timezone").lean();
+      const timezone = workspace?.timezone || "Asia/Kolkata";
+      const startAt = zonedDateTimeToUtc(requestedDate, 0, timezone);
+      const endAt = zonedDateTimeToUtc(nextDateIso(requestedDate), 0, timezone);
+      if (startAt >= endAt) return jsonError("INVALID_HISTORY_DATE", 400);
+      dateRange = { startAt, endAt };
+    } catch {
+      return jsonError("INVALID_HISTORY_DATE", 400);
+    }
+  }
+
   const filter: Record<string, unknown> = {
     companyId: session.companyId,
     $or: [
@@ -51,10 +74,13 @@ export async function GET(request: Request) {
       { status: { $in: ["READY", "LIVE"] }, endAt: { $lte: new Date() } }
     ]
   };
+  if (dateRange) filter.startAt = { $gte: dateRange.startAt, $lt: dateRange.endAt };
 
   if (session.role === "EMPLOYEE") {
     filter.employeeId = session.userId;
   }
+
+  const totalCount = paginated ? await Meeting.countDocuments(filter) : undefined;
 
   if (paginated && cursor) {
     filter.$and = [
@@ -125,6 +151,7 @@ export async function GET(request: Request) {
 
   return jsonOk({
     items,
+    totalCount,
     nextCursor:
       hasMore && page.length > 0
         ? encodeHistoryCursor(
