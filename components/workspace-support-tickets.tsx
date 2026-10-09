@@ -83,11 +83,13 @@ function formatDate(value: string) {
 
 export default function WorkspaceSupportTickets({
   open,
+  asPage = false,
   onClose,
   user,
   company
 }: {
   open: boolean;
+  asPage?: boolean;
   onClose: () => void;
   user: { name: string; email: string };
   company: CompanyContext;
@@ -111,7 +113,7 @@ export default function WorkspaceSupportTickets({
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || asPage) return;
 
     previousFocusRef.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -155,7 +157,7 @@ export default function WorkspaceSupportTickets({
       document.body.style.overflow = previousOverflow;
       window.setTimeout(() => previousFocusRef.current?.focus(), 0);
     };
-  }, [open, onClose]);
+  }, [open, onClose, asPage]);
 
   const loadTickets = useCallback(async (nextPage = page) => {
     setLoading(true);
@@ -265,18 +267,22 @@ export default function WorkspaceSupportTickets({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/55 p-3 backdrop-blur-sm sm:items-center sm:p-5"
-      role="presentation"
-      onMouseDown={(event) => {
+      className={asPage
+        ? "mx-auto max-w-[1400px] px-5 py-6 sm:px-6 lg:px-10 lg:py-8"
+        : "fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/55 p-3 backdrop-blur-sm sm:items-center sm:p-5"}
+      role={asPage ? undefined : "presentation"}
+      onMouseDown={asPage ? undefined : (event) => {
         if (event.target === event.currentTarget && !saving) closeModal();
       }}
     >
       <div
         ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
+        role={asPage ? "region" : "dialog"}
+        aria-modal={asPage ? undefined : true}
         aria-labelledby="support-ticket-title"
-        className="motion-reduce:animate-none flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-2xl [animation:feedback-modal-in_180ms_ease-out]"
+        className={asPage
+          ? "w-full overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm"
+          : "motion-reduce:animate-none flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-2xl [animation:feedback-modal-in_180ms_ease-out]"}
       >
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 sm:px-6">
           <div className="min-w-0">
@@ -295,14 +301,16 @@ export default function WorkspaceSupportTickets({
             ref={closeRef}
             type="button"
             onClick={closeModal}
-            className="grid size-9 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-            aria-label="Close support tickets"
+            className={asPage
+              ? "inline-flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              : "grid size-9 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"}
+            aria-label={asPage ? "Back to overview" : "Close support tickets"}
           >
-            <X className="size-4" aria-hidden="true" />
+            {asPage ? <><ChevronLeft className="size-4" aria-hidden="true" /> Overview</> : <X className="size-4" aria-hidden="true" />}
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
+        <div className={asPage ? "p-5 sm:p-6" : "min-h-0 flex-1 overflow-y-auto p-5 sm:p-6"}>
           {(error || notice) && (
             <div
               role={error ? "alert" : "status"}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, MessageSquareText, Volume2, VolumeX, X } from "lucide-react";
+import { CheckCircle2, ChevronLeft, MessageSquareText, Volume2, VolumeX, X } from "lucide-react";
 import {
   isFeedbackSoundEnabled,
   setFeedbackSoundEnabled
@@ -34,11 +34,13 @@ async function request<T>(url: string, init?: RequestInit) {
 
 export default function WorkspaceFeedback({
   open,
+  asPage = false,
   onClose,
   canViewCustomerFeedback,
   canSubmit = true
 }: {
   open: boolean;
+  asPage?: boolean;
   onClose: () => void;
   canViewCustomerFeedback: boolean;
   canSubmit?: boolean;
@@ -60,14 +62,16 @@ export default function WorkspaceFeedback({
 
   useEffect(() => {
     if (!open) return;
+    const soundTimer = window.setTimeout(() => {
+      setSoundEnabled(isFeedbackSoundEnabled());
+    }, 0);
+    if (asPage) return () => window.clearTimeout(soundTimer);
+
     previousFocusRef.current = document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const soundTimer = window.setTimeout(() => {
-      setSoundEnabled(isFeedbackSoundEnabled());
-    }, 0);
 
     const focusTimer = window.setTimeout(() => closeButtonRef.current?.focus(), 0);
 
@@ -107,7 +111,7 @@ export default function WorkspaceFeedback({
       document.body.style.overflow = previousOverflow;
       window.setTimeout(() => previousFocusRef.current?.focus(), 0);
     };
-  }, [open, onClose]);
+  }, [open, onClose, asPage]);
 
   useEffect(() => {
     if (!open || !canViewCustomerFeedback) return;
@@ -186,19 +190,23 @@ export default function WorkspaceFeedback({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/55 p-3 backdrop-blur-sm sm:items-center sm:p-5"
-      role="presentation"
-      onMouseDown={(event) => {
+      className={asPage
+        ? "mx-auto max-w-[1400px] px-5 py-6 sm:px-6 lg:px-10 lg:py-8"
+        : "fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/55 p-3 backdrop-blur-sm sm:items-center sm:p-5"}
+      role={asPage ? undefined : "presentation"}
+      onMouseDown={asPage ? undefined : (event) => {
         if (event.target === event.currentTarget) close();
       }}
     >
       <div
         ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
+        role={asPage ? "region" : "dialog"}
+        aria-modal={asPage ? undefined : true}
         aria-labelledby="workspace-feedback-title"
         aria-describedby="workspace-feedback-description"
-        className="motion-reduce:animate-none w-full max-w-2xl overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-2xl [animation:feedback-modal-in_180ms_ease-out]"
+        className={asPage
+          ? "w-full overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm"
+          : "motion-reduce:animate-none w-full max-w-2xl overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-2xl [animation:feedback-modal-in_180ms_ease-out]"}
       >
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 sm:px-6">
           <div className="min-w-0">
@@ -217,14 +225,16 @@ export default function WorkspaceFeedback({
             ref={closeButtonRef}
             type="button"
             onClick={close}
-            className="grid size-9 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-            aria-label="Close feedback"
+            className={asPage
+              ? "inline-flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              : "grid size-9 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"}
+            aria-label={asPage ? "Back to overview" : "Close feedback"}
           >
-            <X className="size-4" aria-hidden="true" />
+            {asPage ? <><ChevronLeft className="size-4" aria-hidden="true" /> Overview</> : <X className="size-4" aria-hidden="true" />}
           </button>
         </div>
 
-        <div className="max-h-[80vh] overflow-y-auto px-5 py-5 sm:px-6">
+        <div className={asPage ? "px-5 py-5 sm:px-6" : "max-h-[80vh] overflow-y-auto px-5 py-5 sm:px-6"}>
           {canViewCustomerFeedback && (
             <div className="mb-5 flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-slate-50 p-1" role="tablist" aria-label="Feedback views">
               <button

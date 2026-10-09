@@ -16,7 +16,6 @@ import {
   LogOut,
   Mail,
   Megaphone,
-  MessageSquareText,
   MoreHorizontal,
   Plus,
   RefreshCw,
@@ -333,6 +332,7 @@ function AppModal({
   title,
   subtitle,
   size = "lg",
+  asPage = false,
   onClose,
   children
 }: {
@@ -340,6 +340,7 @@ function AppModal({
   title: string;
   subtitle?: string;
   size?: "md" | "lg" | "xl";
+  asPage?: boolean;
   onClose: () => void;
   children: React.ReactNode;
 }) {
@@ -347,6 +348,31 @@ function AppModal({
 
   const maxWidth =
     size === "md" ? "max-w-xl" : size === "xl" ? "max-w-6xl" : "max-w-4xl";
+
+  if (asPage) {
+    return (
+      <section className="mx-auto max-w-[1400px] px-5 py-6 sm:px-6 lg:px-10 lg:py-8">
+        <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-5 sm:px-7">
+            <div className="min-w-0">
+              <h2 className="text-xl font-semibold tracking-tight text-slate-950">{title}</h2>
+              {subtitle && <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">{subtitle}</p>}
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              aria-label={`Back to overview from ${title}`}
+            >
+              <ChevronRight className="size-3.5 rotate-180" aria-hidden="true" />
+              <span>Overview</span>
+            </button>
+          </div>
+          <div className="min-w-0">{children}</div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <div
@@ -432,7 +458,10 @@ export default function WorkspaceDashboard({
   const seenRequestIdsRef = useRef(new Set<string>());
   const router = useRouter();
   const { labels } = useNavigationLabels();
-  const closeFeedbackModal = useCallback(() => setActiveModal(null), []);
+  const closeFeedbackModal = useCallback(() => {
+    setActiveModal(null);
+    router.push("/dashboard");
+  }, [router]);
 
   const canManage = Boolean(
     data && ["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(data.currentRole)
@@ -676,7 +705,7 @@ export default function WorkspaceDashboard({
   }, [refreshAll, refreshLive]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
+    const syncPanelFromUrl = () => {
       const params = new URLSearchParams(window.location.search);
       const panel = params.get("panel");
       if (
@@ -688,12 +717,22 @@ export default function WorkspaceDashboard({
         panel === "support-tickets"
       ) {
         setActiveModal(panel);
-        if (panel === "settings") {
-          setSettingsSection(params.get("section") === "announcements" ? "announcements" : "public");
-        }
+        setSettingsSection(
+          panel === "settings" && params.get("section") === "announcements"
+            ? "announcements"
+            : "public"
+        );
+      } else {
+        setActiveModal(null);
       }
-    }, 0);
-    return () => window.clearTimeout(timer);
+    };
+
+    const timer = window.setTimeout(syncPanelFromUrl, 0);
+    window.addEventListener("popstate", syncPanelFromUrl);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("popstate", syncPanelFromUrl);
+    };
   }, []);
 
   useEffect(() => {
@@ -712,15 +751,6 @@ export default function WorkspaceDashboard({
     }, 50);
     return () => window.clearTimeout(timer);
   }, [activeModal, settingsSection]);
-
-  useEffect(() => {
-    if (!activeModal) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previous;
-    };
-  }, [activeModal]);
 
   useEffect(() => {
     const ids = requests.map((item) => item.id);
@@ -1053,6 +1083,9 @@ export default function WorkspaceDashboard({
     setError("");
     setSettingsSection(section === "announcements" ? "announcements" : "public");
     setActiveModal(name);
+    const params = new URLSearchParams({ panel: name });
+    if (section) params.set("section", section);
+    router.push(`/dashboard?${params.toString()}`);
     if (name === "feedback" && fromUserGesture) void playFeedbackSoundIfEnabled();
     if (name === "meetings") void loadAllMeetings();
   }
@@ -1243,18 +1276,6 @@ export default function WorkspaceDashboard({
                 Prepare public page
               </button>
             )}
-            {data.currentRole !== "PLATFORM_ADMIN" && (
-              <button
-                type="button"
-                aria-label="Open company support tickets"
-                title="Open company support tickets"
-                onClick={() => openModal("support-tickets", undefined, true)}
-                className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5 text-[11px] font-semibold text-violet-800 transition hover:bg-violet-100 sm:px-3.5 sm:text-xs"
-              >
-                <MessageSquareText className="size-4" aria-hidden="true" />
-                <span className="hidden md:inline">Support tickets</span>
-              </button>
-            )}
             <WorkspaceUserProfile name={user.name} email={user.email} image={user.image} companyName={data.company.name} currentRole={data.currentRole} />
             <form action="/api/auth/logout" method="post">
               <button
@@ -1269,9 +1290,9 @@ export default function WorkspaceDashboard({
         </div>
       </header>
 
-      <PlatformAnnouncementBanner scope={"company:" + data.company.id} />
+      {!activeModal && <PlatformAnnouncementBanner scope={"company:" + data.company.id} />}
 
-      <div className="mx-auto max-w-[1400px] px-5 py-6 sm:px-6 lg:px-10 lg:py-8">
+      <div className={`mx-auto max-w-[1400px] px-5 py-6 sm:px-6 lg:px-10 lg:py-8 ${activeModal ? "hidden" : ""}`}>
         {data.featureLocked && (
           <div className="mb-6 flex items-start justify-between gap-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-900">
             <div>
@@ -1715,6 +1736,7 @@ export default function WorkspaceDashboard({
 
       <WorkspaceFeedback
         open={activeModal === "feedback"}
+        asPage
         onClose={closeFeedbackModal}
         canViewCustomerFeedback={Boolean(data.currentRole && data.company?.id)}
         canSubmit={data.currentRole !== "PLATFORM_ADMIN"}
@@ -1723,6 +1745,7 @@ export default function WorkspaceDashboard({
       {data.currentRole !== "PLATFORM_ADMIN" && (
         <WorkspaceSupportTickets
           open={activeModal === "support-tickets"}
+          asPage
           onClose={closeFeedbackModal}
           user={{ name: user.name, email: user.email }}
           company={{
@@ -1738,7 +1761,8 @@ export default function WorkspaceDashboard({
         title="Meetings & requests"
         subtitle="Current requests, completed meetings, and an auditable request history are kept separate."
         size="xl"
-        onClose={() => setActiveModal(null)}
+        asPage
+        onClose={closeFeedbackModal}
       >
         <div className="p-5 sm:p-6">
           {meetingsError && (
@@ -1992,7 +2016,8 @@ export default function WorkspaceDashboard({
         title={labels.workspaceSettings}
         subtitle="Public page and company announcements are managed here without opening another settings page."
         size="lg"
-        onClose={() => setActiveModal(null)}
+        asPage
+        onClose={closeFeedbackModal}
       >
         <div className="p-5 sm:p-6">
           {canManage && (
@@ -2007,17 +2032,17 @@ export default function WorkspaceDashboard({
             </div>
           )}
             <div className="mt-4 flex flex-wrap gap-2">
-              <Link href="/dashboard/company-profile" onClick={() => setActiveModal(null)} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+              <Link href="/dashboard/company-profile" onClick={closeFeedbackModal} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
                 <Settings2 className="size-4" />
                 Company profile
               </Link>
               {data.company.publicBookingEnabled ? (
-                <Link href={`/${data.company.slug}`} onClick={() => setActiveModal(null)} className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">
+                <Link href={`/${data.company.slug}`} onClick={closeFeedbackModal} className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">
                   <Globe2 className="size-4" />
                   Open live page
                 </Link>
               ) : (
-                <button type="button" onClick={() => setActiveModal(null)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold text-slate-600">
+                <button type="button" onClick={closeFeedbackModal} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold text-slate-600">
                   <Globe2 className="size-4" />
                   Draft stays private
                 </button>
@@ -2114,7 +2139,8 @@ export default function WorkspaceDashboard({
         title="Team management"
         subtitle="Manage every member and keep invitations in the same popup."
         size="lg"
-        onClose={() => setActiveModal(null)}
+        asPage
+        onClose={closeFeedbackModal}
       >
         <div className="p-5 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -2318,7 +2344,8 @@ export default function WorkspaceDashboard({
         title="Billing details"
         subtitle="Compare plans, review current subscription usage, and view invoices generated from successful payments."
         size="xl"
-        onClose={() => setActiveModal(null)}
+        asPage
+        onClose={closeFeedbackModal}
       >
         <div className="p-5 sm:p-6">
           {billingError && (
@@ -2341,7 +2368,7 @@ export default function WorkspaceDashboard({
                   Company name, email, and phone are required before Razorpay checkout can start.
                 </p>
               </div>
-              <Link href="/dashboard/company-profile" onClick={() => setActiveModal(null)} className="inline-flex shrink-0 items-center justify-center rounded-xl bg-amber-900 px-3.5 py-2.5 text-xs font-semibold text-white">
+              <Link href="/dashboard/company-profile" onClick={closeFeedbackModal} className="inline-flex shrink-0 items-center justify-center rounded-xl bg-amber-900 px-3.5 py-2.5 text-xs font-semibold text-white">
                 Complete profile
               </Link>
             </div>
