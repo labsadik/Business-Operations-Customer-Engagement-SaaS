@@ -35,7 +35,11 @@ test("workspace navigation opens page panels and keeps platform support tickets 
   assert.match(sidebar, /Support tickets/);
   assert.doesNotMatch(sidebar, /Platform Support|External|Raise a ticket/);
   assert.match(dashboard, /asPage/);
-  assert.match(dashboard, /WorkspaceSupportTickets[\\s\\S]*?asPage/);
+  const supportTicketSection = dashboard.slice(
+    dashboard.indexOf("<WorkspaceSupportTickets"),
+    dashboard.indexOf("/>", dashboard.indexOf("<WorkspaceSupportTickets")) + 2
+  );
+  assert.match(supportTicketSection, /asPage/);
 });
 
 test("company profile failure state does not leave a sidebar-less endless skeleton", async () => {
