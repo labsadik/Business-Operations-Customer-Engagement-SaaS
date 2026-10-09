@@ -108,7 +108,7 @@ export function isValidEntitlementSnapshot(value: unknown): value is PlanEntitle
     isPositiveSafeInteger(item.monthlyMeetingLimit) &&
     isPositiveSafeInteger(item.maxMeetingDurationMinutes) &&
     isPositiveSafeInteger(item.maxConcurrentMeetings) &&
-    typeof item.taskManagementEnabled === "boolean" &&
+    (item.taskManagementEnabled === undefined || typeof item.taskManagementEnabled === "boolean") &&
     isPositiveSafeInteger(item.validityDays) &&
     (
       item.freeFeatureDays === null ||
