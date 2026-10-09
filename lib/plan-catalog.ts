@@ -364,6 +364,7 @@ export function serializePublicPlan(plan: ManagedPlan) {
     monthlyMeetingLimit: plan.monthlyMeetingLimit,
     maxMeetingDurationMinutes: plan.maxMeetingDurationMinutes,
     maxConcurrentMeetings: plan.maxConcurrentMeetings,
+    taskManagementEnabled: Boolean(plan.taskManagementEnabled),
     validityDays: plan.validityDays,
     freeFeatureDays: plan.freeFeatureDays,
     requiresPayment: plan.requiresPayment
