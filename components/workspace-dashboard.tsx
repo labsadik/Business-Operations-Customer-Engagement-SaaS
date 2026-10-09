@@ -1012,13 +1012,8 @@ export default function WorkspaceDashboard({
     }
 
     try {
-      const [pending, history] = await Promise.all([
-        api<RequestItem[]>("/api/employee/requests?limit=6"),
-        api<{ items: MeetingHistoryItem[]; nextCursor: string | null }>("/api/employee/meetings?paginated=true&limit=6")
-      ]);
-
+      const pending = await api<RequestItem[]>("/api/employee/requests?limit=6");
       setRequests(pending);
-      setMeetingHistory(history.items);
 
       let latestMessage = actionError?.message ?? "";
 
