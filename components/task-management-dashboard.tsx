@@ -644,6 +644,7 @@ export default function TaskManagementDashboard({
             <div className="mt-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <button
                 type="button"
+                aria-label="Search tasks"
                 onClick={() => setSearchOpen(true)}
                 aria-haspopup="dialog"
                 aria-expanded={searchOpen}
