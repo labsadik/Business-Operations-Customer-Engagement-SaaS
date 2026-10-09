@@ -39,6 +39,7 @@ type Plan = {
   monthlyMeetingLimit: number;
   maxMeetingDurationMinutes: number;
   maxConcurrentMeetings: number;
+  taskManagementEnabled: boolean;
   validityDays: number;
   freeFeatureDays: number | null;
   requiresPayment: boolean;
@@ -68,6 +69,7 @@ type Draft = {
   monthlyMeetingLimit: string;
   maxMeetingDurationMinutes: string;
   maxConcurrentMeetings: string;
+  taskManagementEnabled: boolean;
   validityDays: string;
   freeFeatureDays: string;
 };
@@ -88,6 +90,7 @@ const emptyDraft: Draft = {
   monthlyMeetingLimit: "1",
   maxMeetingDurationMinutes: "30",
   maxConcurrentMeetings: "1",
+  taskManagementEnabled: false,
   validityDays: "30",
   freeFeatureDays: ""
 };
@@ -117,6 +120,7 @@ function toDraft(plan: Plan): Draft {
     monthlyMeetingLimit: String(plan.monthlyMeetingLimit),
     maxMeetingDurationMinutes: String(plan.maxMeetingDurationMinutes),
     maxConcurrentMeetings: String(plan.maxConcurrentMeetings),
+    taskManagementEnabled: Boolean(plan.taskManagementEnabled),
     validityDays: String(plan.validityDays),
     freeFeatureDays: plan.freeFeatureDays == null ? "" : String(plan.freeFeatureDays)
   };
@@ -144,6 +148,7 @@ function draftPayload(draft: Draft) {
     monthlyMeetingLimit: parseNumber(draft.monthlyMeetingLimit),
     maxMeetingDurationMinutes: parseNumber(draft.maxMeetingDurationMinutes),
     maxConcurrentMeetings: parseNumber(draft.maxConcurrentMeetings),
+    taskManagementEnabled: draft.taskManagementEnabled,
     validityDays: parseNumber(draft.validityDays),
     freeFeatureDays: draft.freeFeatureDays.trim() === "" ? null : parseNumber(draft.freeFeatureDays)
   };
@@ -294,6 +299,7 @@ export default function AdminPlans() {
       "monthlyMeetingLimit",
       "maxMeetingDurationMinutes",
       "maxConcurrentMeetings",
+      "taskManagementEnabled",
       "validityDays",
       "freeFeatureDays"
     ].some((key) => nextDraft[key as keyof Draft] !== original[key as keyof Draft]);
@@ -769,6 +775,7 @@ export default function AdminPlans() {
                     <Field label="Free feature days" type="number" min="0" step="1" placeholder="Blank = none" value={draft.freeFeatureDays} onChange={(value) => setDraft((current) => ({ ...current, freeFeatureDays: value }))} />
                   </div>
                   <div className="grid gap-3 sm:grid-cols-3">
+                    <Toggle label="Task management & employee assignment" value={draft.taskManagementEnabled} onChange={(value) => setDraft((current) => ({ ...current, taskManagementEnabled: value }))} />
                     <Info title="Unlimited behavior" text="The existing entitlement model has no generic unlimited sentinel. Keep each supported limit as an explicit positive integer; blank is only supported for free-feature days." />
                     <Info title="Payment" text="Payment requirement is derived from price: INR 0 is non-payable; positive price uses the existing Razorpay flow." />
                     <Info title="Safe edits" text="Active subscribers keep their stored entitlement snapshot until a future purchase/renewal explicitly uses the current catalog configuration." />
