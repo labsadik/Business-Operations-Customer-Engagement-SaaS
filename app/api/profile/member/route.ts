@@ -94,8 +94,8 @@ export async function PATCH(request: Request) {
     await getMongo();
 
     if (session.role === "PLATFORM_ADMIN") {
-      if (body.employmentStatus === "ON_LEAVE") {
-        return jsonError("EMPLOYEE_STATUS_INVALID", 400);
+      if (body.employmentStatus !== undefined) {
+        return jsonError("EMPLOYMENT_STATUS_NOT_APPLICABLE", 400);
       }
       const userUpdate: Record<string, unknown> = {
         ...(body.jobTitle !== undefined ? { jobTitle: update.jobTitle } : {}),

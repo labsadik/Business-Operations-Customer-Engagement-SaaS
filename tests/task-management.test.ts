@@ -185,7 +185,9 @@ test("members can save their own work availability and only active members can b
   assert.ok(profileRoute.includes('["ACTIVE", "ON_LEAVE", "INACTIVE"]'));
   assert.ok(profileRoute.includes("Membership.findOneAndUpdate"));
   assert.ok(profile.includes("Work availability"));
+  assert.ok(profile.includes('profileRole !== "PLATFORM_ADMIN"'));
   assert.ok(profile.includes("On leave — not eligible for new tasks"));
+  assert.ok(profileRoute.includes("EMPLOYMENT_STATUS_NOT_APPLICABLE"));
   assert.ok(profile.includes('method: "PATCH"'));
   assert.ok(dashboard.includes("Team availability"));
   assert.ok(dashboard.includes('employee.employmentStatus === "ACTIVE"'));

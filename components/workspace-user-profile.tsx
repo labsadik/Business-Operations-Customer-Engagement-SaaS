@@ -122,15 +122,23 @@ export default function WorkspaceUserProfile({
     try {
       const updated = await clientApi<ProfilePayload>("/api/profile/member", {
         method: "PATCH",
-        body: JSON.stringify({ jobTitle, department, employmentStatus })
+        body: JSON.stringify({
+          jobTitle,
+          department,
+          ...(profileRole === "PLATFORM_ADMIN" ? {} : { employmentStatus })
+        })
       });
       setJobTitle(updated.jobTitle || "");
       setDepartment(updated.department || "");
       setEmploymentStatus(updated.employmentStatus || employmentStatus);
-      window.dispatchEvent(new CustomEvent("conventus:employment-status-updated", {
-        detail: { userId: undefined, employmentStatus: updated.employmentStatus || employmentStatus }
-      }));
-      setNotice("Your profile and work status have been saved.");
+      if (profileRole !== "PLATFORM_ADMIN") {
+        window.dispatchEvent(new CustomEvent("conventus:employment-status-updated", {
+          detail: { employmentStatus: updated.employmentStatus || employmentStatus }
+        }));
+      }
+      setNotice(profileRole === "PLATFORM_ADMIN"
+        ? "Your position and department have been saved."
+        : "Your profile and work status have been saved.");
     } catch {
       setError("Your profile could not be saved. Your changes are still here; please retry.");
     } finally {
@@ -212,20 +220,22 @@ export default function WorkspaceUserProfile({
             </div>
 
             <form onSubmit={saveProfile} className="space-y-3 border-t border-slate-100 pt-4">
-              <label className="block text-[11px] font-semibold text-slate-700">
-                Work availability
-                <select
-                  value={employmentStatus}
-                  onChange={(event) => setEmploymentStatus(event.target.value)}
-                  disabled={!canEdit || loading || saving}
-                  className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50 disabled:text-slate-500"
-                >
-                  <option value="ACTIVE">Active — eligible for new tasks</option>
-                  {profileRole !== "PLATFORM_ADMIN" && <option value="ON_LEAVE">On leave — not eligible for new tasks</option>}
-                  <option value="INACTIVE">Inactive — not eligible for new tasks</option>
-                </select>
-                <span className="mt-1 block text-[10px] font-normal leading-4 text-slate-500">Your status is saved to your workspace membership.</span>
-              </label>
+              {profileRole !== "PLATFORM_ADMIN" && (
+                <label className="block text-[11px] font-semibold text-slate-700">
+                  Work availability
+                  <select
+                    value={employmentStatus}
+                    onChange={(event) => setEmploymentStatus(event.target.value)}
+                    disabled={!canEdit || loading || saving}
+                    className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50 disabled:text-slate-500"
+                  >
+                    <option value="ACTIVE">Active — eligible for new tasks</option>
+                    <option value="ON_LEAVE">On leave — not eligible for new tasks</option>
+                    <option value="INACTIVE">Inactive — not eligible for new tasks</option>
+                  </select>
+                  <span className="mt-1 block text-[10px] font-normal leading-4 text-slate-500">Your status is saved to your workspace membership.</span>
+                </label>
+              )}
               <label className="block text-[11px] font-semibold text-slate-700">
                 Position / job title
                 <span className="relative mt-1.5 block">
