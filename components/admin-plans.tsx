@@ -778,7 +778,7 @@ export default function AdminPlans() {
                     <Toggle label="Task management & employee assignment" value={draft.taskManagementEnabled} onChange={(value) => setDraft((current) => ({ ...current, taskManagementEnabled: value }))} />
                     <Info title="Unlimited behavior" text="The existing entitlement model has no generic unlimited sentinel. Keep each supported limit as an explicit positive integer; blank is only supported for free-feature days." />
                     <Info title="Payment" text="Payment requirement is derived from price: INR 0 is non-payable; positive price uses the existing Razorpay flow." />
-                    <Info title="Safe edits" text="Active subscribers keep their stored entitlement snapshot until a future purchase/renewal explicitly uses the current catalog configuration." />
+                    <Info title="Safe edits" text="Active subscribers keep their stored pricing and capacity limits. Task Management enablement applies immediately when this switch is changed." />
                   </div>
                 </section>
               </div>
