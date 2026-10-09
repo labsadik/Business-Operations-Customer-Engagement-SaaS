@@ -12,7 +12,7 @@ import { jsonError, jsonOk } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
 import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
 import { invoiceTaxConfig } from "@/lib/invoicing";
-import { listPublicPlans, resolvePlanEntitlementsForSubscription, getManagedPlan, createEntitlementSnapshot } from "@/lib/plan-catalog";
+import { listPublicPlans, getManagedPlan, createEntitlementSnapshot } from "@/lib/plan-catalog";
 import { GoogleAccount } from "@/models/google-account";
 
 export const runtime = "nodejs";
@@ -131,7 +131,9 @@ export async function GET() {
     listPublicPlans()
   ]);
 
-  const currentEntitlements = await resolvePlanEntitlementsForSubscription(subscription);
+  const currentEntitlements = await import("@/lib/plans-server").then(({ getCompanyEntitlements }) =>
+    getCompanyEntitlements(String(company._id))
+  );
   const currentCatalogPlan = await getManagedPlan(subscription.planId, { includeArchived: true });
 
   const connectedAccounts = await GoogleAccount.find({
