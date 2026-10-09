@@ -70,7 +70,6 @@ export function canManageTask(scope: TaskScope, task: { createdByUserId: unknown
   return (
     scope.isPlatformAdmin ||
     scope.session.role === "COMPANY_ADMIN" ||
-    scope.session.role === "COMPANY_ADMIN" ||
     String(task.createdByUserId) === scope.session.userId
   );
 }
