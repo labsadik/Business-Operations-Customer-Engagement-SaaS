@@ -164,3 +164,12 @@ The demo environment reference is intentionally documented in `.env.example.md`;
 Company owners and administrators can open `/dashboard?panel=feedback`, select **Public embed**, and copy a company-specific iframe snippet for another website. Visitors need no Conventus account; the embedded form requires name, email, phone, a 1–5 star rating, and a written review. Public embed API and UI boundaries are documented in [`features/public-feedback/README.md`](./features/public-feedback/README.md). New submissions stay private until a company owner or administrator publishes them. The public widget receives only approved display fields, never the reviewer's email or phone.
 
 Application action sounds are enabled automatically. Since browsers restrict audio before the first user gesture, the root sound handler attempts to unlock audio on the first normal click, tap, or key press; employees do not need a separate sound setting.
+
+
+## Production resource guardrails and desktop alerts
+
+The application uses a small MongoDB connection pool per running instance, bounded task/history query pages, short-lived/capped availability caching, single-flight Google access-token refresh, capped Google Calendar free/busy concurrency, a bounded queue for uncached availability calculations, and bounded batches for the booking maintenance sweep. Browser polling is slower for hidden tabs and desktop alert polling runs only after a user grants browser permission and explicitly enables it.
+
+Desktop alerts cover newly assigned tasks and new public meeting requests while Conventus is open in a browser tab (a hidden tab is polled less frequently to limit resource use). Standard browser Notification permission does **not** provide push delivery after all Conventus tabs/browser processes are closed. True closed-browser delivery requires a service worker, registered push subscriptions, VAPID keys, and a server-side push delivery provider; configure and test that separately rather than assuming the browser permission alone provides it.
+
+Availability results are advisory and cached briefly to reduce repeated Google Calendar reads. Booking submission still revalidates availability and capacity server-side. When the application is saturated, the availability endpoint can return HTTP 503 so clients retry later instead of expanding unbounded work.

@@ -74,3 +74,22 @@ test("desktop alerts are opt-in, recipient scoped, and use lightweight event fee
   assert.ok(workspacePage.includes("id: session.userId"));
   assert.ok(taskPage.includes("<DesktopNotificationCenter userId={userId}"));
 });
+
+test("Google-backed availability work has bounded concurrency and fails fast when saturated", () => {
+  const availability = source("lib/public-availability.ts");
+  const route = source("app/api/public/[companySlug]/availability/route.ts");
+
+  assert.ok(availability.includes("MAX_CONCURRENT_AVAILABILITY_CALCULATIONS = 10"));
+  assert.ok(availability.includes("MAX_QUEUED_AVAILABILITY_CALCULATIONS = 40"));
+  assert.ok(availability.includes('throw new Error("AVAILABILITY_BUSY")'));
+  assert.ok(availability.includes("withAvailabilityCalculationCapacity(async () =>"));
+  assert.ok(route.includes('code === "AVAILABILITY_BUSY" || code === "GOOGLE_CALENDAR_BUSY" ? 503 : 400'));
+});
+
+test("desktop notifications continue to cover public meetings without the optional task feature", () => {
+  const center = source("components/desktop-notification-settings.tsx");
+  assert.ok(center.includes('clientApi<{ items: MeetingAlert[] }>'));
+  assert.ok(center.includes('"/api/employee/requests?notifications=true&limit=10"'));
+  assert.ok(center.includes("taskManagementEnabled"));
+  assert.ok(!center.includes("if (!taskManagementEnabled) return;"));
+});

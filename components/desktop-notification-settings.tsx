@@ -126,8 +126,6 @@ export default function DesktopNotificationCenter({
   }, [syncPreference]);
 
   useEffect(() => {
-    if (!taskManagementEnabled) return;
-
     let active = true;
     let inFlight = false;
     let timer: number | undefined;
@@ -136,10 +134,13 @@ export default function DesktopNotificationCenter({
       if (!active || inFlight || !isDesktopNotificationsEnabled(userId)) return;
       inFlight = true;
       try {
+        const taskRequest = taskManagementEnabled
+          ? clientApi<{ items: DesktopNotificationEvent[] }>(
+              "/api/tasks/notifications?desktop=1&limit=10"
+            )
+          : Promise.resolve({ items: [] as DesktopNotificationEvent[] });
         const [taskResult, meetingResult] = await Promise.allSettled([
-          clientApi<{ items: DesktopNotificationEvent[] }>(
-            "/api/tasks/notifications?desktop=1&limit=10"
-          ),
+          taskRequest,
           clientApi<{ items: MeetingAlert[] }>(
             "/api/employee/requests?notifications=true&limit=10"
           )

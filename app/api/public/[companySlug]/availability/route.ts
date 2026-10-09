@@ -98,6 +98,7 @@ export async function GET(
     });
   } catch (error) {
     const code = error instanceof Error ? error.message : "AVAILABILITY_FAILED";
-    return jsonError(code, 400);
+    const status = code === "AVAILABILITY_BUSY" || code === "GOOGLE_CALENDAR_BUSY" ? 503 : 400;
+    return jsonError(code, status);
   }
 }

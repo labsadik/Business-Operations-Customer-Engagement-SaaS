@@ -277,6 +277,31 @@ async function calculateAvailableSlots(
 const AVAILABILITY_CACHE_TTL_SECONDS = 75;
 const AVAILABILITY_LOCAL_SHARED_TTL_MS = 10_000;
 const MAX_AVAILABILITY_CACHE_ENTRIES = 128;
+const MAX_CONCURRENT_AVAILABILITY_CALCULATIONS = 10;
+const MAX_QUEUED_AVAILABILITY_CALCULATIONS = 40;
+let activeAvailabilityCalculations = 0;
+const queuedAvailabilityCalculations: Array<() => void> = [];
+
+async function withAvailabilityCalculationCapacity<T>(
+  work: () => Promise<T>
+): Promise<T> {
+  if (activeAvailabilityCalculations >= MAX_CONCURRENT_AVAILABILITY_CALCULATIONS) {
+    if (queuedAvailabilityCalculations.length >= MAX_QUEUED_AVAILABILITY_CALCULATIONS) {
+      throw new Error("AVAILABILITY_BUSY");
+    }
+    await new Promise<void>((resolve) => queuedAvailabilityCalculations.push(resolve));
+  } else {
+    activeAvailabilityCalculations += 1;
+  }
+
+  try {
+    return await work();
+  } finally {
+    const next = queuedAvailabilityCalculations.shift();
+    if (next) next();
+    else activeAvailabilityCalculations = Math.max(0, activeAvailabilityCalculations - 1);
+  }
+}
 
 const availabilityCache = new Map<
   string,
@@ -348,7 +373,7 @@ export async function getAvailableSlots(
   const existing = inFlightAvailability.get(cacheKey);
   if (existing) return existing;
 
-  const pending = (async () => {
+  const pending = withAvailabilityCalculationCapacity(async () => {
     let redis: Awaited<ReturnType<typeof getRedis>> = null;
     try {
       redis = await getRedis();
@@ -403,7 +428,7 @@ export async function getAvailableSlots(
         : AVAILABILITY_CACHE_TTL_SECONDS * 1000
     );
     return result;
-  })();
+  });
 
   inFlightAvailability.set(cacheKey, pending);
   try {
