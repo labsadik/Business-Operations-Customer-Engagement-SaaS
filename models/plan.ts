@@ -35,7 +35,7 @@ const planSchema = new Schema(
     monthlyMeetingLimit: { type: Number, required: true, min: 1, max: 10000000 },
     maxMeetingDurationMinutes: { type: Number, required: true, min: 1, max: 1440 },
     maxConcurrentMeetings: { type: Number, required: true, min: 1, max: 1000000 },
-    taskManagementEnabled: { type: Boolean, required: true, default: false, index: true },
+    taskManagementEnabled: { type: Boolean, required: true, default: false },
     validityDays: { type: Number, required: true, min: 1, max: 3650 },
     freeFeatureDays: { type: Number, default: null, min: 0, max: 3650 },
     requiresPayment: { type: Boolean, required: true },
