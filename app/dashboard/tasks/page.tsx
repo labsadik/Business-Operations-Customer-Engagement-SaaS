@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import TaskManagementDashboard from "@/components/task-management-dashboard";
+import { TaskManagementDashboard } from "@/features/task-management/components";
 import { getMongo } from "@/lib/mongodb";
 import { getSession } from "@/lib/session";
 import { getCompanyEntitlements } from "@/lib/plans-server";

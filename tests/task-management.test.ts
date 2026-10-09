@@ -74,7 +74,7 @@ test("assignment status is constrained to supported lifecycle states", () => {
 
 
 test("task dashboard includes searchable Jira-style columns, persistent confirmation sounds and a collapsible sidebar", () => {
-  const dashboard = source("components/task-management-dashboard.tsx");
+  const dashboard = source("features/task-management/components/task-management-dashboard.tsx");
   const sound = source("lib/client-task-sound.ts");
   const sidebar = source("components/workspace-sidebar.tsx");
 
@@ -101,7 +101,7 @@ test("task dashboard includes searchable Jira-style columns, persistent confirma
 });
 
 test("user profile dropdown shows role, company, position, department and status with a scoped persistence route", () => {
-  const taskDashboard = source("components/task-management-dashboard.tsx");
+  const taskDashboard = source("features/task-management/components/task-management-dashboard.tsx");
   const profile = source("components/workspace-user-profile.tsx");
   const profileRoute = source("app/api/profile/member/route.ts");
   const userModel = source("models/user.ts");
@@ -129,7 +129,7 @@ test("user profile dropdown shows role, company, position, department and status
 
 
 test("task management provides enterprise filters, list/board views, pagination and tenant-safe APIs", () => {
-  const dashboard = source("components/task-management-dashboard.tsx");
+  const dashboard = source("features/task-management/components/task-management-dashboard.tsx");
   const listRoute = source("app/api/tasks/route.ts");
   const statusRoute = source("app/api/tasks/[taskId]/status/route.ts");
   const authorization = source("features/task-management/server/task-authorization.ts");
@@ -156,7 +156,7 @@ test("task management provides enterprise filters, list/board views, pagination 
 
 test("task cleanup is tenant-scoped, permission-checked, period-limited, and cascades related records", () => {
   const route = source("app/api/tasks/route.ts");
-  const dashboard = source("components/task-management-dashboard.tsx");
+  const dashboard = source("features/task-management/components/task-management-dashboard.tsx");
 
   assert.ok(route.includes('body?.confirm !== "CLEAR_CLOSED_TASKS"'));
   assert.ok(route.includes("WEEKLY: 7, MONTHLY: 30, YEARLY: 365"));
@@ -177,7 +177,7 @@ test("task cleanup is tenant-scoped, permission-checked, period-limited, and cas
 test("members can save their own work availability and only active members can be newly assigned tasks", () => {
   const profileRoute = source("app/api/profile/member/route.ts");
   const profile = source("components/workspace-user-profile.tsx");
-  const dashboard = source("components/task-management-dashboard.tsx");
+  const dashboard = source("features/task-management/components/task-management-dashboard.tsx");
   const auth = source("features/task-management/server/task-authorization.ts");
   const employeeRoute = source("app/api/company/employees/route.ts");
 
@@ -251,7 +251,7 @@ test("production MongoDB connections explicitly require transport TLS", () => {
 
 
 test("task creation, search and cancellation use modal dialogs and distinct task sounds", () => {
-  const dashboard = source("components/task-management-dashboard.tsx");
+  const dashboard = source("features/task-management/components/task-management-dashboard.tsx");
   const sounds = source("lib/client-task-sound.ts");
   assert.match(dashboard, /role="dialog" aria-modal="true" aria-labelledby="create-task-title"/);
   assert.match(dashboard, /role="dialog" aria-modal="true" aria-labelledby="task-search-title"/);
