@@ -30,6 +30,7 @@ export const PLANS: Record<PlanId, PlanEntitlements> = {
     maxMeetingDurationMinutes: 5,
     maxConcurrentMeetings: 1,
     taskManagementEnabled: false,
+    taskManagementDailyLimit: 10,
     validityDays: 30,
     freeFeatureDays: 14,
     requiresPayment: false
@@ -45,6 +46,7 @@ export const PLANS: Record<PlanId, PlanEntitlements> = {
     maxMeetingDurationMinutes: 20,
     maxConcurrentMeetings: 10,
     taskManagementEnabled: false,
+    taskManagementDailyLimit: 10,
     validityDays: 30,
     freeFeatureDays: null,
     requiresPayment: true
@@ -60,6 +62,7 @@ export const PLANS: Record<PlanId, PlanEntitlements> = {
     maxMeetingDurationMinutes: 60,
     maxConcurrentMeetings: 25,
     taskManagementEnabled: false,
+    taskManagementDailyLimit: 10,
     validityDays: 30,
     freeFeatureDays: null,
     requiresPayment: true
@@ -75,6 +78,7 @@ export const PLANS: Record<PlanId, PlanEntitlements> = {
     maxMeetingDurationMinutes: 90,
     maxConcurrentMeetings: 50,
     taskManagementEnabled: false,
+    taskManagementDailyLimit: 10,
     validityDays: 30,
     freeFeatureDays: null,
     requiresPayment: true
@@ -90,6 +94,7 @@ export const PLANS: Record<PlanId, PlanEntitlements> = {
     maxMeetingDurationMinutes: 120,
     maxConcurrentMeetings: 100,
     taskManagementEnabled: false,
+    taskManagementDailyLimit: 10,
     validityDays: 30,
     freeFeatureDays: null,
     requiresPayment: true

@@ -38,6 +38,13 @@ type Employee = {
   employmentStatus?: string;
 };
 
+type TaskDailyUsage = {
+  enabled: boolean;
+  usedToday: number;
+  dailyLimit: number | null;
+  remainingToday: number | null;
+};
+
 type TaskItem = {
   id: string;
   title: string;
@@ -113,6 +120,8 @@ function errorMessage(error: unknown) {
     TASK_TITLE_REQUIRED: "Enter a title for the task.",
     TASK_LIST_FAILED: "Tasks couldn't be loaded. Please try again.",
     TASK_CREATE_FAILED: "The task couldn't be created. Please check the details and try again.",
+    TASK_DAILY_LIMIT_REACHED: "Today’s task-assignment limit has been reached. You can assign more tasks after the workspace day resets.",
+    TASK_LIMIT_CONFIGURATION_INVALID: "The task limit for this plan is misconfigured. Please contact your platform administrator.",
     TASK_STATUS_CONFLICT: "This task changed in another session. Refresh the board and try again.",
     ASSIGNMENT_NOT_FOUND: "This assignment is no longer available. Refresh the board and try again.",
     TASK_ALREADY_CANCELLED: "This task has been cancelled and can no longer be changed.",
@@ -175,6 +184,18 @@ export default function TaskManagementDashboard({
   taskManagementEnabled
 }: TaskPageProps) {
   const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [dailyUsage, setDailyUsage] = useState<TaskDailyUsage>({
+    enabled: taskManagementEnabled,
+    usedToday: 0,
+    dailyLimit: 10,
+    remainingToday: 10
+  });
+  const dailyLimitReached = Boolean(
+    taskManagementEnabled &&
+    dailyUsage.enabled &&
+    dailyUsage.dailyLimit !== null &&
+    (dailyUsage.remainingToday ?? 0) <= 0
+  );
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -308,11 +329,12 @@ export default function TaskManagementDashboard({
           : Promise.resolve(null);
 
         const [taskPage, staff] = await Promise.all([
-          api<{ items: TaskItem[]; nextCursor: string | null }>("/api/tasks?limit=50"),
+          api<{ items: TaskItem[]; nextCursor: string | null; usage?: TaskDailyUsage }>("/api/tasks?limit=50"),
           staffRequest
         ]);
         setTasks(taskPage.items);
         setNextCursor(taskPage.nextCursor);
+        if (taskPage.usage) setDailyUsage(taskPage.usage);
         if (staff !== null) {
           setEmployees(staff);
           const assignableIds = new Set(staff.filter((member) => member.employmentStatus === "ACTIVE").map((member) => member.id));
@@ -466,6 +488,10 @@ export default function TaskManagementDashboard({
     event.preventDefault();
     setNotice("");
     setError("");
+    if (dailyLimitReached) {
+      setError("Today’s task-assignment limit has been reached. You can assign more tasks after the workspace day resets.");
+      return;
+    }
     if (!selectedAssigneeIds.length) {
       setError("Choose at least one employee to assign this task to.");
       return;
@@ -490,6 +516,7 @@ export default function TaskManagementDashboard({
       setDueAt("");
       setShowCreateForm(false);
       setNotice("Task created and assigned.");
+      void load(false);
       void playTaskSoundIfEnabled("created");
     } catch (createError) {
       setError(errorMessage(createError));
@@ -717,7 +744,8 @@ export default function TaskManagementDashboard({
                   onClick={() => setShowCreateForm(true)}
                   aria-haspopup="dialog"
                   aria-expanded={showCreateForm}
-                  className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3.5 py-3 text-xs font-semibold text-white transition hover:bg-slate-800"
+                  disabled={dailyLimitReached}
+                  className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3.5 py-3 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <Plus className="size-4" />
                   {"Create task"}
@@ -876,6 +904,26 @@ export default function TaskManagementDashboard({
                 ))}
               </section>
 
+              <section aria-label="Daily task assignment allowance" className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm sm:flex sm:items-center sm:justify-between sm:gap-6">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-slate-900">Daily task-assignment allowance</p>
+                  <p id="task-daily-limit-message" className="mt-1 text-[11px] leading-5 text-slate-500">
+                    {dailyUsage.dailyLimit === null
+                      ? String(dailyUsage.usedToday) + " tasks assigned today · Unlimited daily cap."
+                      : String(dailyUsage.usedToday) + " of " + String(dailyUsage.dailyLimit) + " task assignments used today."}
+                    {dailyLimitReached ? " Limit reached. New task assignments are locked until the next workspace day." : ""}
+                  </p>
+                </div>
+                {dailyUsage.dailyLimit !== null && (
+                  <div className="mt-3 h-2 min-w-28 flex-1 overflow-hidden rounded-full bg-slate-100 sm:mt-0 sm:max-w-xs">
+                    <div className={"h-full rounded-full " + (dailyLimitReached ? "bg-rose-600" : "bg-violet-600")} style={{ width: String(Math.min(100, (dailyUsage.usedToday / Math.max(1, dailyUsage.dailyLimit)) * 100)) + "%" }} />
+                  </div>
+                )}
+                {dailyLimitReached && (
+                  <span className="mt-3 inline-flex shrink-0 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[10px] font-semibold text-rose-700 sm:mt-0">Daily cap reached</span>
+                )}
+              </section>
+
               {showCreateForm && (
               <div
                 className="fixed inset-0 z-[90] grid place-items-center bg-slate-950/55 p-3 backdrop-blur-sm sm:p-6"
@@ -962,11 +1010,16 @@ export default function TaskManagementDashboard({
                   </fieldset>
 
                   <div className="flex justify-end">
-                    <button type="submit" disabled={saving || !title.trim() || !selectedAssigneeIds.length} className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50">
+                    <button type="submit" disabled={saving || dailyLimitReached || !title.trim() || !selectedAssigneeIds.length} className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50">
                       {saving ? <LoaderCircle className="size-4 animate-spin" /> : <Plus className="size-4" />}
                       {saving ? "Creating task…" : "Create task"}
                     </button>
                   </div>
+                  {dailyLimitReached && (
+                    <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
+                      Today’s assignment limit is reached. Task creation will unlock after the workspace day resets.
+                    </p>
+                  )}
                 </form>
               </section>
               </div>
@@ -1031,7 +1084,7 @@ export default function TaskManagementDashboard({
                     <ClipboardList className="mx-auto size-8 text-slate-300" />
                     <h3 className="mt-3 text-sm font-semibold">No tasks yet</h3>
                     <p className="mt-1 text-xs text-slate-500">Create the first task to start tracking your team’s work.</p>
-                    <button type="button" onClick={() => setShowCreateForm(true)} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-semibold text-white hover:bg-slate-800">
+                    <button type="button" onClick={() => setShowCreateForm(true)} disabled={dailyLimitReached} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40">
                       <Plus className="size-4" /> Create task
                     </button>
                   </div>

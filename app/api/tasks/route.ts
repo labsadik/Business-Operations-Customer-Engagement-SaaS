@@ -6,6 +6,12 @@ import { Task } from "@/models/task";
 import { TaskAssignment } from "@/models/task-assignment";
 import { TaskActivity } from "@/models/task-activity";
 import { TaskNotification } from "@/models/task-notification";
+import { TaskDailyUsage } from "@/models/task-daily-usage";
+import { getTodayIso } from "@/lib/timezone";
+import {
+  releaseDailyTaskAssignment,
+  reserveDailyTaskAssignment
+} from "@/features/task-management/server/task-daily-limit";
 import { TASK_PRIORITIES, TASK_STATUSES, type TaskPriority } from "@/features/task-management/shared/constants";
 import { validateTaskCreateInput } from "@/features/task-management/shared/task-validation";
 import { assertAssignableEmployees, assertTaskFeatureAccess, requireTaskScope } from "@/features/task-management/server/task-authorization";
@@ -19,7 +25,11 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   try {
     const scope = await requireTaskScope();
-    await assertTaskFeatureAccess(scope);
+    const entitlements = await assertTaskFeatureAccess(scope);
+    const dailyLimit =
+      "taskManagementDailyLimit" in entitlements
+        ? entitlements.taskManagementDailyLimit
+        : null;
     await getMongo();
 
     const url = new URL(request.url);
@@ -94,7 +104,22 @@ export async function GET(request: Request) {
       })),
       nextCursor: hasMore && page.length
         ? encodeTaskCursor(page[page.length - 1].createdAt, String(page[page.length - 1]._id))
-        : null
+        : null,
+      usage: await (async () => {
+        const dayKey = getTodayIso(scope.timezone);
+        const usage = await TaskDailyUsage.findOne({
+          companyId: new Types.ObjectId(scope.companyId),
+          workspaceId: new Types.ObjectId(scope.workspaceId),
+          dayKey
+        }).select("count").lean();
+        const usedToday = usage?.count ?? 0;
+        return {
+          enabled: true,
+          usedToday,
+          dailyLimit,
+          remainingToday: dailyLimit === null ? null : Math.max(0, dailyLimit - usedToday)
+        };
+      })()
     });
   } catch (error) {
     return taskErrorResponse(error, "TASK_LIST_FAILED");
@@ -105,7 +130,11 @@ export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
     const scope = await requireTaskScope();
-    await assertTaskFeatureAccess(scope);
+    const entitlements = await assertTaskFeatureAccess(scope);
+    const dailyLimit =
+      "taskManagementDailyLimit" in entitlements
+        ? entitlements.taskManagementDailyLimit
+        : null;
 
     const body = await request.json().catch(() => null);
     const input = validateTaskCreateInput(body);
@@ -125,7 +154,9 @@ export async function POST(request: Request) {
       createdAt
     });
 
+    let dailyReservation: { dayKey: string } | null = null;
     try {
+      dailyReservation = await reserveDailyTaskAssignment(scope, dailyLimit);
       await TaskAssignment.insertMany(assigneeIds.map((assigneeUserId) => ({
         companyId: new Types.ObjectId(scope.companyId),
         workspaceId: new Types.ObjectId(scope.workspaceId),
@@ -139,6 +170,7 @@ export async function POST(request: Request) {
     } catch (error) {
       await TaskAssignment.deleteMany({ taskId: task._id, companyId: task.companyId, workspaceId: task.workspaceId });
       await Task.deleteOne({ _id: task._id, companyId: task.companyId, workspaceId: task.workspaceId });
+      if (dailyReservation) await releaseDailyTaskAssignment(scope, dailyReservation);
       throw error;
     }
 

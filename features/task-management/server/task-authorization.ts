@@ -11,6 +11,7 @@ export type TaskScope = {
   session: AuthSession;
   companyId: string;
   workspaceId: string;
+  timezone: string;
   isPlatformAdmin: boolean;
 };
 
@@ -33,7 +34,7 @@ export async function requireTaskScope(): Promise<TaskScope> {
     _id: new Types.ObjectId(workspaceId),
     companyId: new Types.ObjectId(companyId),
     active: true
-  }).select("_id companyId").lean();
+  }).select("_id companyId timezone").lean();
   if (!workspace) throw new Error("WORKSPACE_NOT_FOUND");
 
   if (session.role !== "PLATFORM_ADMIN") {
@@ -51,6 +52,7 @@ export async function requireTaskScope(): Promise<TaskScope> {
     session,
     companyId,
     workspaceId,
+    timezone: typeof workspace.timezone === "string" && workspace.timezone ? workspace.timezone : "Asia/Kolkata",
     isPlatformAdmin: session.role === "PLATFORM_ADMIN"
   };
 }

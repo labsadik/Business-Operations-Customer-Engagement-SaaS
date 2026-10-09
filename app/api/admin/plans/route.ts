@@ -56,6 +56,7 @@ export async function POST(request: Request) {
       maxMeetingDurationMinutes: body.maxMeetingDurationMinutes,
       maxConcurrentMeetings: body.maxConcurrentMeetings,
       taskManagementEnabled: body.taskManagementEnabled ?? false,
+      taskManagementDailyLimit: body.taskManagementDailyLimit === undefined ? 10 : body.taskManagementDailyLimit,
       validityDays: body.validityDays,
       freeFeatureDays: body.freeFeatureDays ?? null
     });
@@ -84,6 +85,7 @@ export async function POST(request: Request) {
       maxMeetingDurationMinutes: draft.maxMeetingDurationMinutes,
       maxConcurrentMeetings: draft.maxConcurrentMeetings,
       taskManagementEnabled: draft.taskManagementEnabled,
+      taskManagementDailyLimit: draft.taskManagementDailyLimit,
       validityDays: draft.validityDays,
       freeFeatureDays: draft.freeFeatureDays,
       requiresPayment: draft.requiresPayment,

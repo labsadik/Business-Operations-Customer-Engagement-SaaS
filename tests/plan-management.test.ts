@@ -73,7 +73,13 @@ test("plan validation keeps tags as labels and derives payment requirement from 
 
   assert.equal(plain.requiresPayment, true);
   assert.equal(plain.taskManagementEnabled, false);
+  assert.equal(plain.taskManagementDailyLimit, 10);
   assert.equal(validatePlanDraft({ ...baseDraft, taskManagementEnabled: true }).taskManagementEnabled, true);
+  assert.equal(validatePlanDraft({ ...baseDraft, taskManagementEnabled: true, taskManagementDailyLimit: 1 }).taskManagementDailyLimit, 1);
+  assert.equal(validatePlanDraft({ ...baseDraft, taskManagementEnabled: true, taskManagementDailyLimit: 50 }).taskManagementDailyLimit, 50);
+  assert.equal(validatePlanDraft({ ...baseDraft, taskManagementEnabled: true, taskManagementDailyLimit: null }).taskManagementDailyLimit, null);
+  assert.throws(() => validatePlanDraft({ ...baseDraft, taskManagementDailyLimit: 0 }), /TASK_MANAGEMENT_DAILY_LIMIT_INVALID/);
+  assert.throws(() => validatePlanDraft({ ...baseDraft, taskManagementDailyLimit: 1000001 }), /TASK_MANAGEMENT_DAILY_LIMIT_INVALID/);
   assert.throws(() => validatePlanDraft({ ...baseDraft, taskManagementEnabled: "true" }), /TASK_MANAGEMENT_ENABLED_INVALID/);
   assert.equal(tagged.requiresPayment, true);
   assert.equal(tagged.popular, true);

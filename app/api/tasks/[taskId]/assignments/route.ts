@@ -8,6 +8,10 @@ import { assertAssignableEmployees, assertTaskFeatureAccess, canManageTask, requ
 import { taskErrorResponse } from "@/features/task-management/server/task-errors";
 import { validateAssigneeUserIds } from "@/features/task-management/shared/task-validation";
 import { recordTaskEvent, type TaskNotificationDraft } from "@/features/task-management/server/task-events";
+import {
+  releaseDailyTaskAssignment,
+  reserveDailyTaskAssignment
+} from "@/features/task-management/server/task-daily-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,7 +23,11 @@ export async function POST(
   try {
     assertSameOrigin(request);
     const scope = await requireTaskScope();
-    await assertTaskFeatureAccess(scope);
+    const entitlements = await assertTaskFeatureAccess(scope);
+    const dailyLimit =
+      "taskManagementDailyLimit" in entitlements
+        ? entitlements.taskManagementDailyLimit
+        : null;
     await getMongo();
 
     const { taskId } = await params;
@@ -40,7 +48,9 @@ export async function POST(
     const targetIds = await assertAssignableEmployees(scope, userIds);
     const now = new Date();
 
+    let dailyReservation: { dayKey: string } | null = null;
     try {
+      dailyReservation = await reserveDailyTaskAssignment(scope, dailyLimit);
       await TaskAssignment.insertMany(targetIds.map((assigneeUserId) => ({
         companyId: new Types.ObjectId(scope.companyId),
         workspaceId: new Types.ObjectId(scope.workspaceId),
@@ -52,6 +62,7 @@ export async function POST(
         statusChangedAt: now
       })));
     } catch (error) {
+      if (dailyReservation) await releaseDailyTaskAssignment(scope, dailyReservation);
       if (typeof error === "object" && error && "code" in error && (error as { code?: unknown }).code === 11000) {
         return jsonError("ASSIGNEE_ALREADY_ASSIGNED", 409);
       }

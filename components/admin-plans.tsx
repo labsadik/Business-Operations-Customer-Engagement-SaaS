@@ -40,6 +40,7 @@ type Plan = {
   maxMeetingDurationMinutes: number;
   maxConcurrentMeetings: number;
   taskManagementEnabled: boolean;
+  taskManagementDailyLimit: number | null;
   validityDays: number;
   freeFeatureDays: number | null;
   requiresPayment: boolean;
@@ -70,6 +71,8 @@ type Draft = {
   maxMeetingDurationMinutes: string;
   maxConcurrentMeetings: string;
   taskManagementEnabled: boolean;
+  taskManagementDailyLimit: string;
+  taskManagementUnlimitedDaily: boolean;
   validityDays: string;
   freeFeatureDays: string;
 };
@@ -91,6 +94,8 @@ const emptyDraft: Draft = {
   maxMeetingDurationMinutes: "30",
   maxConcurrentMeetings: "1",
   taskManagementEnabled: false,
+  taskManagementDailyLimit: "10",
+  taskManagementUnlimitedDaily: false,
   validityDays: "30",
   freeFeatureDays: ""
 };
@@ -121,6 +126,8 @@ function toDraft(plan: Plan): Draft {
     maxMeetingDurationMinutes: String(plan.maxMeetingDurationMinutes),
     maxConcurrentMeetings: String(plan.maxConcurrentMeetings),
     taskManagementEnabled: Boolean(plan.taskManagementEnabled),
+    taskManagementDailyLimit: String(plan.taskManagementDailyLimit ?? 10),
+    taskManagementUnlimitedDaily: plan.taskManagementDailyLimit === null,
     validityDays: String(plan.validityDays),
     freeFeatureDays: plan.freeFeatureDays == null ? "" : String(plan.freeFeatureDays)
   };
@@ -149,6 +156,7 @@ function draftPayload(draft: Draft) {
     maxMeetingDurationMinutes: parseNumber(draft.maxMeetingDurationMinutes),
     maxConcurrentMeetings: parseNumber(draft.maxConcurrentMeetings),
     taskManagementEnabled: draft.taskManagementEnabled,
+    taskManagementDailyLimit: draft.taskManagementUnlimitedDaily ? null : parseNumber(draft.taskManagementDailyLimit),
     validityDays: parseNumber(draft.validityDays),
     freeFeatureDays: draft.freeFeatureDays.trim() === "" ? null : parseNumber(draft.freeFeatureDays)
   };
@@ -300,6 +308,8 @@ export default function AdminPlans() {
       "maxMeetingDurationMinutes",
       "maxConcurrentMeetings",
       "taskManagementEnabled",
+      "taskManagementDailyLimit",
+      "taskManagementUnlimitedDaily",
       "validityDays",
       "freeFeatureDays"
     ].some((key) => nextDraft[key as keyof Draft] !== original[key as keyof Draft]);
@@ -596,6 +606,17 @@ export default function AdminPlans() {
                     ))}
                   </div>
 
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-3">
+                    <p className="text-[10px] uppercase tracking-[0.11em] text-slate-400">Task management</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-800">
+                      {item.taskManagementEnabled
+                        ? item.taskManagementDailyLimit === null
+                          ? "Included · Unlimited tasks/day"
+                          : "Included · " + item.taskManagementDailyLimit + " tasks/day"
+                        : "Not included"}
+                    </p>
+                  </div>
+
                   <div className="flex flex-wrap gap-2 text-[10px] text-slate-500">
                     <span className="rounded-full border border-slate-200 px-2.5 py-1">{item.activeSubscriptionCount} active subscriptions</span>
                     <span className="rounded-full border border-slate-200 px-2.5 py-1">{item.paymentCount} payment records</span>
@@ -774,11 +795,41 @@ export default function AdminPlans() {
                     <Field label="Validity (days)" type="number" min="1" step="1" value={draft.validityDays} onChange={(value) => setDraft((current) => ({ ...current, validityDays: value }))} />
                     <Field label="Free feature days" type="number" min="0" step="1" placeholder="Blank = none" value={draft.freeFeatureDays} onChange={(value) => setDraft((current) => ({ ...current, freeFeatureDays: value }))} />
                   </div>
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <Toggle label="Task management & employee assignment" value={draft.taskManagementEnabled} onChange={(value) => setDraft((current) => ({ ...current, taskManagementEnabled: value }))} />
-                    <Info title="Unlimited behavior" text="The existing entitlement model has no generic unlimited sentinel. Keep each supported limit as an explicit positive integer; blank is only supported for free-feature days." />
-                    <Info title="Payment" text="Payment requirement is derived from price: INR 0 is non-payable; positive price uses the existing Razorpay flow." />
-                    <Info title="Safe edits" text="Active subscribers keep their stored pricing and capacity limits. Task Management enablement applies immediately when this switch is changed." />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <Toggle label="Task management & employee assignment" value={draft.taskManagementEnabled} onChange={(value) => setDraft((current) => ({ ...current, taskManagementEnabled: value }))} />
+                      {draft.taskManagementEnabled && (
+                        <div className="mt-4 space-y-3 border-t border-slate-200 pt-4">
+                          <label className="flex items-start gap-2 text-xs font-semibold text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={draft.taskManagementUnlimitedDaily}
+                              onChange={(event) => setDraft((current) => ({ ...current, taskManagementUnlimitedDaily: event.target.checked }))}
+                              className="mt-0.5 size-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span>Unlimited task assignments per day</span>
+                          </label>
+                          {!draft.taskManagementUnlimitedDaily && (
+                            <Field
+                              label="Task assignments per day"
+                              type="number"
+                              min="1"
+                              step="1"
+                              value={draft.taskManagementDailyLimit}
+                              onChange={(value) => setDraft((current) => ({ ...current, taskManagementDailyLimit: value }))}
+                            />
+                          )}
+                          <p className="text-[11px] leading-5 text-slate-500">
+                            Defaults to 10 when enabled. The cap is enforced by the server per company workspace and resets at midnight in that workspace’s timezone. When reached, new task assignments are blocked until the next day.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-3">
+                      <Info title="Payment" text="Payment requirement is derived from price: INR 0 is non-payable; positive price uses the existing Razorpay flow." />
+                      <Info title="Secure plan limits" text="The browser only configures the plan. Server-side entitlement checks and atomic daily counters enforce limits; company owners cannot change their own cap." />
+                      <Info title="Active subscribers" text="Task Management access and its daily cap apply immediately to current subscribers. Historical invoices and payments remain unchanged." />
+                    </div>
                   </div>
                 </section>
               </div>

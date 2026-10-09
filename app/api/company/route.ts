@@ -16,6 +16,8 @@ import { listPublicPlans, getManagedPlan, createEntitlementSnapshot } from "@/li
 import { GoogleAccount } from "@/models/google-account";
 import { Task } from "@/models/task";
 import { TaskAssignment } from "@/models/task-assignment";
+import { TaskDailyUsage } from "@/models/task-daily-usage";
+import { getTodayIso } from "@/lib/timezone";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -153,11 +155,35 @@ export async function GET() {
     inProgress: 0,
     completed: 0,
     overdue: 0,
-    assignments: 0
+    assignments: 0,
+    assignedToday: 0,
+    dailyLimit: currentEntitlements.taskManagementDailyLimit === undefined
+      ? 10
+      : currentEntitlements.taskManagementDailyLimit,
+    remainingToday: currentEntitlements.taskManagementDailyLimit === null
+      ? null
+      : Math.max(0, currentEntitlements.taskManagementDailyLimit ?? 10)
   };
+  let workspaceOperations = { activeMeetingTypeCount: 0, activeAvailabilityRuleCount: 0 };
+  if (workspace) {
+    const [activeMeetingTypeCount, activeAvailabilityRuleCount] = await Promise.all([
+      MeetingType.countDocuments({
+        companyId: company._id,
+        workspaceId: workspace._id,
+        active: true
+      }),
+      AvailabilityRule.countDocuments({
+        companyId: company._id,
+        active: true
+      })
+    ]);
+    workspaceOperations = { activeMeetingTypeCount, activeAvailabilityRuleCount };
+  }
+
   if (currentEntitlements.taskManagementEnabled && workspace) {
     const taskScope = { companyId: company._id, workspaceId: workspace._id };
-    const [taskStatusCounts, overdue, assignments] = await Promise.all([
+    const todayKey = getTodayIso(workspace.timezone || "Asia/Kolkata");
+    const [taskStatusCounts, overdue, assignments, dailyUsage] = await Promise.all([
       Task.aggregate<{ _id: string; count: number }>([
         { $match: taskScope },
         { $group: { _id: "$status", count: { $sum: 1 } } }
@@ -167,7 +193,8 @@ export async function GET() {
         dueAt: { $lt: new Date() },
         status: { $nin: ["COMPLETED", "CANCELLED"] }
       }),
-      TaskAssignment.countDocuments(taskScope)
+      TaskAssignment.countDocuments(taskScope),
+      TaskDailyUsage.findOne({ ...taskScope, dayKey: todayKey }).select("count").lean()
     ]);
     const counts = new Map(taskStatusCounts.map((item) => [item._id, item.count]));
     taskUsage = {
@@ -177,7 +204,18 @@ export async function GET() {
       inProgress: counts.get("IN_PROGRESS") ?? 0,
       completed: counts.get("COMPLETED") ?? 0,
       overdue,
-      assignments
+      assignments,
+      assignedToday: dailyUsage?.count ?? 0,
+      dailyLimit: currentEntitlements.taskManagementDailyLimit === undefined
+        ? 10
+        : currentEntitlements.taskManagementDailyLimit,
+      remainingToday: currentEntitlements.taskManagementDailyLimit === null
+        ? null
+        : Math.max(
+            0,
+            (currentEntitlements.taskManagementDailyLimit ?? 10) -
+              (dailyUsage?.count ?? 0)
+          )
     };
   }
 
@@ -236,6 +274,8 @@ export async function GET() {
       monthlyMeetingLimit: plan.monthlyMeetingLimit,
       maxMeetingDurationMinutes: plan.maxMeetingDurationMinutes,
       maxConcurrentMeetings: plan.maxConcurrentMeetings,
+      taskManagementEnabled: Boolean(plan.taskManagementEnabled),
+      taskManagementDailyLimit: plan.taskManagementDailyLimit,
       validityDays: plan.validityDays,
       freeFeatureDays: plan.freeFeatureDays,
       requiresPayment: plan.requiresPayment
@@ -253,6 +293,7 @@ export async function GET() {
       : null,
     memberCount,
     employeeStatusCounts,
+    workspaceOperations,
     taskUsage,
     connectedMemberCount,
     canPublish: connectedMemberCount > 0,

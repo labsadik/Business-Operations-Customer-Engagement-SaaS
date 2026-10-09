@@ -79,6 +79,10 @@ export function createEntitlementSnapshot(plan: PlanEntitlements): PlanEntitleme
     maxMeetingDurationMinutes: plan.maxMeetingDurationMinutes,
     maxConcurrentMeetings: plan.maxConcurrentMeetings,
     taskManagementEnabled: Boolean(plan.taskManagementEnabled),
+    taskManagementDailyLimit:
+      (plan as Partial<PlanEntitlements>).taskManagementDailyLimit === undefined
+        ? 10
+        : plan.taskManagementDailyLimit,
     validityDays: plan.validityDays,
     freeFeatureDays: plan.freeFeatureDays,
     requiresPayment: plan.requiresPayment
@@ -109,6 +113,11 @@ export function isValidEntitlementSnapshot(value: unknown): value is PlanEntitle
     isPositiveSafeInteger(item.maxMeetingDurationMinutes) &&
     isPositiveSafeInteger(item.maxConcurrentMeetings) &&
     (item.taskManagementEnabled === undefined || typeof item.taskManagementEnabled === "boolean") &&
+    (
+      item.taskManagementDailyLimit === undefined ||
+      item.taskManagementDailyLimit === null ||
+      isPositiveSafeInteger(item.taskManagementDailyLimit)
+    ) &&
     isPositiveSafeInteger(item.validityDays) &&
     (
       item.freeFeatureDays === null ||
@@ -132,6 +141,12 @@ export function serializeManagedPlan(doc: any): ManagedPlan {
     maxMeetingDurationMinutes: Number(doc.maxMeetingDurationMinutes),
     maxConcurrentMeetings: Number(doc.maxConcurrentMeetings),
     taskManagementEnabled: Boolean(doc.taskManagementEnabled),
+    taskManagementDailyLimit:
+      doc.taskManagementDailyLimit === undefined
+        ? 10
+        : doc.taskManagementDailyLimit === null
+          ? null
+          : Number(doc.taskManagementDailyLimit),
     validityDays: Number(doc.validityDays),
     freeFeatureDays: doc.freeFeatureDays == null ? null : Number(doc.freeFeatureDays),
     requiresPayment: Boolean(doc.requiresPayment),
@@ -216,6 +231,7 @@ async function seedLegacyPlans() {
             maxMeetingDurationMinutes: plan.maxMeetingDurationMinutes,
             maxConcurrentMeetings: plan.maxConcurrentMeetings,
             taskManagementEnabled: Boolean(plan.taskManagementEnabled),
+            taskManagementDailyLimit: plan.taskManagementDailyLimit ?? 10,
             validityDays: plan.validityDays,
             freeFeatureDays: plan.freeFeatureDays,
             requiresPayment: plan.requiresPayment,
@@ -365,6 +381,7 @@ export function serializePublicPlan(plan: ManagedPlan) {
     maxMeetingDurationMinutes: plan.maxMeetingDurationMinutes,
     maxConcurrentMeetings: plan.maxConcurrentMeetings,
     taskManagementEnabled: Boolean(plan.taskManagementEnabled),
+    taskManagementDailyLimit: plan.taskManagementDailyLimit,
     validityDays: plan.validityDays,
     freeFeatureDays: plan.freeFeatureDays,
     requiresPayment: plan.requiresPayment

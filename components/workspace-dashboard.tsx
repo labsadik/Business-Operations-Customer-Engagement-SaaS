@@ -78,6 +78,7 @@ type DashboardPlan = {
   maxMeetingDurationMinutes: number;
   maxConcurrentMeetings: number;
   taskManagementEnabled?: boolean;
+  taskManagementDailyLimit?: number | null;
   validityDays: number;
   freeFeatureDays: number | null;
   requiresPayment: boolean;
@@ -118,7 +119,22 @@ type CompanyData = {
   } | null;
   memberCount: number;
   employeeStatusCounts?: { total: number; active: number; inactive: number; onLeave: number };
-  taskUsage?: { enabled: boolean; total: number; active: number; inProgress: number; completed: number; overdue: number; assignments: number };
+  taskUsage?: {
+    enabled: boolean;
+    total: number;
+    active: number;
+    inProgress: number;
+    completed: number;
+    overdue: number;
+    assignments: number;
+    assignedToday: number;
+    dailyLimit: number | null;
+    remainingToday: number | null;
+  };
+  workspaceOperations?: {
+    activeMeetingTypeCount: number;
+    activeAvailabilityRuleCount: number;
+  };
   connectedMemberCount: number;
   canPublish: boolean;
   gstRatePercent: number;
@@ -1483,7 +1499,9 @@ export default function WorkspaceDashboard({
               ["Employees active", String(data.employeeStatusCounts?.active ?? 0) + " / " + String(data.employeeStatusCounts?.total ?? 0), UsersRound],
               ["Employees on leave", String(data.employeeStatusCounts?.onLeave ?? 0), UsersRound],
               ["Employees inactive", String(data.employeeStatusCounts?.inactive ?? 0), UsersRound],
-              ["Task usage", data.taskUsage?.enabled ? String(data.taskUsage.total) : "Not included", Activity],
+              ["Task assignments today", data.taskUsage?.enabled
+                ? String(data.taskUsage.assignedToday) + " / " + (data.taskUsage.dailyLimit === null ? "∞" : String(data.taskUsage.dailyLimit))
+                : "Not included", Activity],
               ["Meetings used", String(data.subscription?.monthlyMeetingsUsed ?? 0) + " / " + String(plan.monthlyMeetingLimit), Video],
               ["Plan renewal", data.subscription?.periodEnd ? (nowMs === null ? "Checking…" : String(Math.max(0, Math.ceil((Date.parse(data.subscription.periodEnd) - nowMs) / 86400000))) + " day(s)") : "Not set", Settings2]
             ].map(([title, value, Icon]) => {
@@ -1498,6 +1516,197 @@ export default function WorkspaceDashboard({
                 </article>
               );
             })}
+          </div>
+        </section>
+
+        <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Workspace overview</p>
+                <h2 className="mt-2 text-lg font-semibold tracking-tight">Setup, readiness &amp; activity</h2>
+                <p className="mt-1 text-xs leading-5 text-slate-500">Live counts from this company and its active workspace.</p>
+              </div>
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-semibold text-slate-600">
+                {data.workspace?.timezone || "Timezone not set"}
+              </span>
+            </div>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Company profile</p>
+                <p className="mt-2 text-sm font-semibold text-slate-900">{data.company.profileComplete ? "Complete" : "Needs attention"}</p>
+                <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                  {data.company.profileComplete ? "Contact details are present." : "Add a valid company email and phone number."}
+                </p>
+                {!data.company.profileComplete && canManage && (
+                  <Link href="/dashboard/company-profile" className="mt-2 inline-flex text-xs font-semibold text-blue-700 hover:text-blue-900">Complete profile</Link>
+                )}
+              </div>
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Public booking</p>
+                <p className="mt-2 text-sm font-semibold text-slate-900">{data.company.publicBookingEnabled ? "Published" : "Not published"}</p>
+                <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                  {data.connectedMemberCount} calendar-ready team member{data.connectedMemberCount === 1 ? "" : "s"} · {data.workspaceOperations?.activeMeetingTypeCount ?? 0} active meeting type{(data.workspaceOperations?.activeMeetingTypeCount ?? 0) === 1 ? "" : "s"}.
+                </p>
+                <Link href={`/${data.company.slug}`} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-blue-700 hover:text-blue-900">
+                  View public page <ArrowUpRight className="size-3.5" />
+                </Link>
+              </div>
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Team capacity</p>
+                <p className="mt-2 text-sm font-semibold text-slate-900">
+                  {data.employeeStatusCounts?.total ?? 0} / {plan.maxEmployees} employees
+                </p>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-full rounded-full bg-blue-600" style={{ width: `${Math.min(100, ((data.employeeStatusCounts?.total ?? 0) / Math.max(1, plan.maxEmployees)) * 100)}%` }} />
+                </div>
+                <p className="mt-1 text-[11px] text-slate-500">{data.memberCount} total workspace members, including owners/admins.</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Working schedules</p>
+                <p className="mt-2 text-sm font-semibold text-slate-900">
+                  {data.workspaceOperations?.activeAvailabilityRuleCount ?? 0} active schedule rule{(data.workspaceOperations?.activeAvailabilityRuleCount ?? 0) === 1 ? "" : "s"}
+                </p>
+                <p className="mt-1 text-[11px] leading-5 text-slate-500">Calendar-ready members need a working schedule and a connected Google Calendar for live slots.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Subscription &amp; limits</p>
+                <h2 className="mt-2 text-lg font-semibold tracking-tight">{plan.name} plan</h2>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  {data.subscription?.source === "ADMIN_GRANTED" ? "Granted by platform administration" : data.subscription?.source === "PAID" ? "Paid subscription" : "Free subscription"} · {data.subscription?.status ?? "Status unavailable"}
+                </p>
+              </div>
+              {canManage && (
+                <button type="button" onClick={() => openModal("billing")} className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                  Billing <ArrowUpRight className="size-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="mt-5 space-y-5">
+              <div>
+                <div className="flex items-center justify-between gap-3 text-xs">
+                  <span className="font-semibold text-slate-700">Meetings this plan period</span>
+                  <span className="tabular-nums text-slate-500">{data.subscription?.monthlyMeetingsUsed ?? 0} / {plan.monthlyMeetingLimit}</span>
+                </div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-full rounded-full bg-blue-600" style={{ width: `${usagePercent}%` }} />
+                </div>
+                <p className="mt-1.5 text-[11px] text-slate-500">{Math.max(0, plan.monthlyMeetingLimit - (data.subscription?.monthlyMeetingsUsed ?? 0))} meeting allowance remaining.</p>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between gap-3 text-xs">
+                  <span className="font-semibold text-slate-700">Task assignments today</span>
+                  <span className="tabular-nums text-slate-500">
+                    {data.taskUsage?.enabled
+                      ? String(data.taskUsage.assignedToday) + " / " + (data.taskUsage.dailyLimit === null ? "Unlimited" : String(data.taskUsage.dailyLimit))
+                      : "Feature not included"}
+                  </span>
+                </div>
+                {data.taskUsage?.enabled && data.taskUsage.dailyLimit !== null && (
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-full rounded-full bg-violet-600" style={{ width: `${Math.min(100, (data.taskUsage.assignedToday / Math.max(1, data.taskUsage.dailyLimit)) * 100)}%` }} />
+                  </div>
+                )}
+                <p className="mt-1.5 text-[11px] leading-5 text-slate-500">
+                  {data.taskUsage?.enabled
+                    ? data.taskUsage.dailyLimit === null
+                      ? "Task management is enabled with no daily assignment cap."
+                      : `${data.taskUsage.remainingToday ?? 0} assignments remaining today. The limit resets at midnight in the workspace timezone.`
+                    : "The platform administrator has not included Task Management in this plan."}
+                </p>
+                {data.taskUsage?.enabled && (
+                  <Link href="/dashboard/tasks" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-blue-700 hover:text-blue-900">
+                    Open task board <ArrowUpRight className="size-3.5" />
+                  </Link>
+                )}
+              </div>
+
+              <div className="grid gap-3 border-t border-slate-200 pt-4 sm:grid-cols-2">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.11em] text-slate-400">Plan period started</p>
+                  <p className="mt-1.5 text-xs font-semibold text-slate-800">{data.subscription?.periodStart ? formatDate(data.subscription.periodStart, data.workspace?.timezone) : "Not recorded"}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.11em] text-slate-400">Plan ends / renews</p>
+                  <p className="mt-1.5 text-xs font-semibold text-slate-800">{data.subscription?.periodEnd ? formatDate(data.subscription.periodEnd, data.workspace?.timezone) : "Not recorded"}</p>
+                  <p className="mt-1 text-[10px] text-slate-500">
+                    {subscriptionPeriodActive && nowMs !== null
+                      ? Math.max(0, Math.ceil((subscriptionPeriodEndMs - nowMs) / 86400000)) + " days remaining"
+                      : "Period ended or not active"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Feature availability</p>
+              <h2 className="mt-2 text-lg font-semibold tracking-tight">What is enabled in this workspace</h2>
+              <p className="mt-1 text-xs leading-5 text-slate-500">Feature availability is based on current plan entitlements and actual workspace configuration.</p>
+            </div>
+            <span className="rounded-full bg-slate-50 px-3 py-1.5 text-[10px] font-semibold text-slate-600 ring-1 ring-slate-200">
+              {data.featureLocked ? "Scheduling locked" : "Plan access active"}
+            </span>
+          </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              {
+                title: "Meetings & scheduling",
+                state: data.featureLocked ? "Locked" : data.connectedMemberCount > 0 ? "Ready" : "Setup needed",
+                detail: data.featureLocked
+                  ? "The current free-feature window has ended."
+                  : data.connectedMemberCount > 0
+                    ? `${data.connectedMemberCount} calendar-ready team members.`
+                    : "Connect a Google Calendar and configure working hours.",
+                enabled: !data.featureLocked && data.connectedMemberCount > 0
+              },
+              {
+                title: "Public booking page",
+                state: data.company.publicBookingEnabled ? "Published" : "Draft",
+                detail: data.company.publicBookingEnabled
+                  ? `Public address: /${data.company.slug}`
+                  : "Not visible to customers until published.",
+                enabled: data.company.publicBookingEnabled
+              },
+              {
+                title: "Task management",
+                state: data.taskUsage?.enabled ? "Included" : "Not included",
+                detail: data.taskUsage?.enabled
+                  ? data.taskUsage.dailyLimit === null
+                    ? "Unlimited task assignments per day."
+                    : `${data.taskUsage.dailyLimit} task assignments per day.`
+                  : "Not enabled for this plan by platform administration.",
+                enabled: Boolean(data.taskUsage?.enabled)
+              },
+              {
+                title: "Team calendars & schedules",
+                state: data.connectedMemberCount > 0 && (data.workspaceOperations?.activeAvailabilityRuleCount ?? 0) > 0 ? "Configured" : "Setup needed",
+                detail: `${data.connectedMemberCount} connected calendar-ready members · ${data.workspaceOperations?.activeAvailabilityRuleCount ?? 0} active schedule rules.`,
+                enabled: data.connectedMemberCount > 0 && (data.workspaceOperations?.activeAvailabilityRuleCount ?? 0) > 0
+              }
+            ].map((feature) => (
+              <article key={feature.title} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-xs font-semibold text-slate-900">{feature.title}</p>
+                  {feature.enabled
+                    ? <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+                    : <XCircle className="size-4 shrink-0 text-slate-400" />}
+                </div>
+                <p className={"mt-2 text-xs font-semibold " + (feature.enabled ? "text-emerald-700" : "text-amber-700")}>{feature.state}</p>
+                <p className="mt-1 text-[11px] leading-5 text-slate-500">{feature.detail}</p>
+              </article>
+            ))}
           </div>
         </section>
 

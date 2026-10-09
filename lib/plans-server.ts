@@ -204,13 +204,23 @@ export async function getCompanyEntitlements(companyId: string): Promise<PlanEnt
     ? createEntitlementSnapshot(subscription.entitlementSnapshot)
     : await resolvePlanEntitlementsForSubscription(subscription);
 
-  // Task Management is an explicit plan-level feature switch. Apply changes to
-  // this switch immediately for current subscribers while keeping their stored
-  // price and capacity snapshot stable for historical billing consistency.
+  // Task Management access and its daily cap are centrally managed plan
+  // entitlements. Apply administrator changes immediately without rewriting
+  // historical pricing or billing snapshots.
   const currentPlan = await getManagedPlan(snapshot.id, { includeArchived: true });
   return currentPlan
-    ? { ...snapshot, taskManagementEnabled: Boolean(currentPlan.taskManagementEnabled) }
-    : snapshot;
+    ? {
+        ...snapshot,
+        taskManagementEnabled: Boolean(currentPlan.taskManagementEnabled),
+        taskManagementDailyLimit:
+          currentPlan.taskManagementDailyLimit === undefined
+            ? snapshot.taskManagementDailyLimit ?? 10
+            : currentPlan.taskManagementDailyLimit
+      }
+    : {
+        ...snapshot,
+        taskManagementDailyLimit: snapshot.taskManagementDailyLimit ?? 10
+      };
 }
 
 export async function assertFeatureAccess(companyId: string) {

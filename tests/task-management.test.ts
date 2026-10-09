@@ -46,6 +46,23 @@ test("task input validation rejects malformed or unsafe assignment data", () => 
   assert.throws(() => validateTaskCreateInput({ title: "Work", dueAt: "not-a-date", assigneeUserIds: [employeeA] }), /DUE_AT_INVALID/);
 });
 
+test("daily task caps are enforced at both assignment entry points and are tenant-scoped", () => {
+  const createRoute = source("app/api/tasks/route.ts");
+  const assignmentRoute = source("app/api/tasks/[taskId]/assignments/route.ts");
+  const limiter = source("features/task-management/server/task-daily-limit.ts");
+  const usageModel = source("models/task-daily-usage.ts");
+  const authorization = source("features/task-management/server/task-authorization.ts");
+
+  assert.match(createRoute, /reserveDailyTaskAssignment\(scope, dailyLimit\)/);
+  assert.match(createRoute, /releaseDailyTaskAssignment\(scope, dailyReservation\)/);
+  assert.match(assignmentRoute, /reserveDailyTaskAssignment\(scope, dailyLimit\)/);
+  assert.match(assignmentRoute, /releaseDailyTaskAssignment\(scope, dailyReservation\)/);
+  assert.match(limiter, /count:\s*\{\s*\$lt:\s*effectiveLimit\s*\}/);
+  assert.match(limiter, /companyId[\s\S]*workspaceId[\s\S]*dayKey/);
+  assert.match(usageModel, /unique:\s*true/);
+  assert.match(authorization, /timezone:/);
+});
+
 test("assignee selection is bounded and requires at least one recipient", () => {
   assert.throws(() => validateAssigneeUserIds([]), /ASSIGNEE_REQUIRED/);
   assert.throws(() => validateAssigneeUserIds(Array.from({ length: 51 }, (_, i) =>

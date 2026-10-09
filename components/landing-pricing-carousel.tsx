@@ -24,6 +24,7 @@ type PublicPlan = {
   maxMeetingDurationMinutes: number;
   maxConcurrentMeetings: number;
   taskManagementEnabled: boolean;
+  taskManagementDailyLimit: number | null;
   validityDays: number;
   freeFeatureDays: number | null;
   requiresPayment: boolean;
@@ -219,7 +220,12 @@ export default function LandingPricingCarousel({ plans }: { plans: PublicPlan[] 
                   ) : (
                     <X className="size-4 shrink-0 text-slate-400" aria-hidden="true" />
                   )}
-                  <span>Task management &amp; employee assignment</span>
+                  <span>
+                    Task management &amp; employee assignment
+                    {plan.taskManagementEnabled
+                      ? " (" + (plan.taskManagementDailyLimit === null ? "unlimited tasks/day" : plan.taskManagementDailyLimit + " tasks/day") + ")"
+                      : " (not included)"}
+                  </span>
                   <span className="sr-only">
                     {plan.taskManagementEnabled ? "Included" : "Not included"}
                   </span>
