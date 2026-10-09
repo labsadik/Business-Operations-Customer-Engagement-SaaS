@@ -190,6 +190,31 @@ The payment flow is:
 - The successful result page is `/billing/result` and is company-scoped; it shows Conventus merchant branding plus the paying company's name, short description, and logo.
 
 For the Razorpay account itself, the legal merchant/business identity, settlement account, checkout branding, and statement descriptor must also be configured in the Conventus-owned Razorpay account. Application code cannot change the Razorpay account holder or settlement account.
+## Task management module (feature-gated)
+
+Task Management is a separate feature module within the existing Next.js application. UI pages live under `app/dashboard/tasks` and `components/task-management`; route handlers live under `app/api/tasks`; business logic lives under `features/task-management/server`; MongoDB documents live under `models/task*`.
+
+The global platform-admin read-only view lives under `/api/admin/task-management/tasks`. Tenant task APIs always derive company/workspace scope from the authenticated session and active membership; they do not accept a client-supplied company ID to choose the tenant. Global cross-company reads are restricted to platform administrators.
+
+The `taskManagementEnabled` entitlement is configurable in the platform admin plan editor. It is captured in checkout and subscription entitlement snapshots. Plan edits intentionally do not rewrite existing subscription snapshots; the new configuration applies to new purchases/renewals. A company whose effective entitlement is disabled receives `403 FEATURE_NOT_IN_PLAN` from task APIs.
+
+### Task API route map
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| GET, POST | `/api/tasks` | List visible tasks; create a task with one or more assignees |
+| GET, PATCH | `/api/tasks/:taskId` | Read task details; update task metadata |
+| POST | `/api/tasks/:taskId/assignments` | Assign additional active employees |
+| DELETE | `/api/tasks/:taskId/assignments/:assignmentId` | Remove an unfinished assignment |
+| PATCH | `/api/tasks/:taskId/status` | Update the current user's assignment status (or a target assignment for managers) |
+| GET | `/api/tasks/:taskId/activity` | Read a tenant-scoped activity timeline |
+| GET | `/api/tasks/notifications` | Poll notifications for the current recipient only |
+| PATCH | `/api/tasks/notifications/:notificationId` | Mark the current user's notification as read |
+| GET | `/api/admin/task-management/tasks` | Platform-admin list across all companies |
+| GET | `/api/admin/task-management/tasks/:taskId` | Platform-admin cross-company task detail |
+
+Every task query and mutation is company/workspace-scoped, and assignees must have an active membership in the same workspace. Notification rows carry a recipient ID and the notification feed is filtered server-side so users cannot read other users' alerts.
+
 ## Security
 
 Do not commit real production secrets. Google refresh tokens, application secrets, Redis credentials, database credentials, billing secrets, and email provider keys must stay server-side.
