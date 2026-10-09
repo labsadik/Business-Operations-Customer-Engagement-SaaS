@@ -157,6 +157,7 @@ type MeetingHistoryItem = {
   durationMinutes: number;
   status: string;
   calendarSyncStatus?: string;
+  meetingUri: string | null;
   employee: { name: string; email: string; image: string | null } | null;
   customer: { name: string; email: string; image: string | null } | null;
   scheduledBy: { name: string; email: string; image: string | null } | null;
@@ -1933,6 +1934,7 @@ export default function WorkspaceDashboard({
                 {filteredModalMeetingHistory.map((meeting) => {
                   const timeZone = data.workspace?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
                   const scheduledBy = meeting.scheduledBy ?? meeting.customer;
+                  const activeMeeting = ["READY", "LIVE"].includes(meeting.status);
                   return (
                     <div key={meeting.id} className="rounded-2xl border border-slate-200 bg-white p-4">
                       <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-center">
@@ -1954,9 +1956,35 @@ export default function WorkspaceDashboard({
                             {formatTime(meeting.startAt, timeZone)} – {formatTime(meeting.endAt, timeZone)} · {meeting.durationMinutes} min
                           </p>
                         </div>
-                        <div className="text-right">
-                          <p className="text-xs font-semibold text-slate-700">{meeting.employee?.name ?? "Team member"}</p>
-                          <p className="mt-1 text-[10px] text-slate-400">{meeting.status.replaceAll("_", " ")}</p>
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          <div className="text-right">
+                            <p className="text-xs font-semibold text-slate-700">{meeting.employee?.name ?? "Team member"}</p>
+                            <p className="mt-1 text-[10px] text-slate-400">{meeting.status.replaceAll("_", " ")}</p>
+                          </div>
+                          {canRespondToMeetings && activeMeeting && (
+                            <>
+                              {meeting.meetingUri && (
+                                <a
+                                  href={meeting.meetingUri}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                                >
+                                  <Video className="size-4" aria-hidden="true" />
+                                  {meeting.status === "LIVE" ? "Rejoin meeting" : "Join meeting"}
+                                </a>
+                              )}
+                              <button
+                                type="button"
+                                disabled={endingRequestId === meeting.bookingRequestId}
+                                onClick={() => setConfirmation({ kind: "end-meeting", id: meeting.bookingRequestId })}
+                                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <CheckCircle2 className="size-4" aria-hidden="true" />
+                                {endingRequestId === meeting.bookingRequestId ? "Completing..." : "Complete meeting"}
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
