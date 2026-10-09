@@ -40,16 +40,23 @@ export async function POST(
     const targetIds = await assertAssignableEmployees(scope, userIds);
     const now = new Date();
 
-    await TaskAssignment.insertMany(targetIds.map((assigneeUserId) => ({
-      companyId: new Types.ObjectId(scope.companyId),
-      workspaceId: new Types.ObjectId(scope.workspaceId),
-      taskId: task._id,
-      assigneeUserId,
-      assignedByUserId: new Types.ObjectId(scope.session.userId),
-      status: "TODO",
-      assignedAt: now,
-      statusChangedAt: now
-    })));
+    try {
+      await TaskAssignment.insertMany(targetIds.map((assigneeUserId) => ({
+        companyId: new Types.ObjectId(scope.companyId),
+        workspaceId: new Types.ObjectId(scope.workspaceId),
+        taskId: task._id,
+        assigneeUserId,
+        assignedByUserId: new Types.ObjectId(scope.session.userId),
+        status: "TODO",
+        assignedAt: now,
+        statusChangedAt: now
+      })));
+    } catch (error) {
+      if (typeof error === "object" && error && "code" in error && (error as { code?: unknown }).code === 11000) {
+        return jsonError("ASSIGNEE_ALREADY_ASSIGNED", 409);
+      }
+      throw error;
+    }
 
     await Task.updateOne(
       { _id: task._id, companyId: task.companyId, workspaceId: task.workspaceId },
