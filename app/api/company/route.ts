@@ -97,7 +97,9 @@ async function getScopedCompany(session: Awaited<ReturnType<typeof getSession>>)
   if (session.companyId && ["COMPANY_ADMIN", "EMPLOYEE"].includes(session.role)) {
     const membership = await Membership.findOne({
       companyId: session.companyId,
+      workspaceId: session.workspaceId,
       userId: session.userId,
+      role: session.role,
       active: true
     }).lean();
     if (!membership) return null;
@@ -106,14 +108,16 @@ async function getScopedCompany(session: Awaited<ReturnType<typeof getSession>>)
     return Company.findById(session.companyId).lean();
   }
 
-  return session.companyId
-    ? Company.findById(session.companyId).lean()
-    : Company.findOne({ ownerUserId: session.userId }).lean();
+  // Never infer tenant access from ownerUserId. Unscoped sessions cannot read private company data.
+  return session.companyId ? Company.findById(session.companyId).lean() : null;
 }
 
 export async function GET() {
   const session = await getSession();
   if (!session) return jsonError("UNAUTHENTICATED", 401);
+  if (!["COMPANY_ADMIN", "EMPLOYEE", "PLATFORM_ADMIN"].includes(session.role)) {
+    return jsonError("FORBIDDEN", 403);
+  }
 
   await getMongo();
   const company = await getScopedCompany(session);

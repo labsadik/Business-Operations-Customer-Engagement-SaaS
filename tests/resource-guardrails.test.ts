@@ -206,3 +206,14 @@ test("platform admin tenant scope only comes from explicit managed-company conte
   assert.ok(manageRoute.includes("active: true"));
   assert.ok(unmanageRoute.includes("store.delete(ADMIN_MANAGED_COMPANY_COOKIE)"));
 });
+
+
+test("private company overview rejects customers and never infers tenant scope from owner identity", () => {
+  const route = source("app/api/company/route.ts");
+  const scopedResolver = route.slice(route.indexOf("async function getScopedCompany"), route.indexOf("export async function GET"));
+  assert.ok(route.includes('["COMPANY_ADMIN", "EMPLOYEE", "PLATFORM_ADMIN"].includes(session.role)'));
+  assert.ok(scopedResolver.includes('role: session.role'));
+  assert.ok(scopedResolver.includes('workspaceId: session.workspaceId'));
+  assert.ok(scopedResolver.includes('return session.companyId ? Company.findById(session.companyId).lean() : null;'));
+  assert.ok(!scopedResolver.includes('Company.findOne({ ownerUserId: session.userId })'));
+});
