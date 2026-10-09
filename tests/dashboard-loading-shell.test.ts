@@ -58,8 +58,9 @@ test("workspace and profile boot reads start immediately and use shared request 
     read("lib/client-api.ts")
   ]);
 
-  assert.doesNotMatch(dashboard, /const initialLoad = window\.setTimeout\(\(\) => void refreshAll\(\), 0\)/);
-  assert.doesNotMatch(profile, /window\.setTimeout\(\(\) => void load\(\), 0\)/);
+  assert.match(dashboard, /const initialLoad = window\.setTimeout\(\(\) => void refreshAll\(\), 0\)/);
+  assert.match(profile, /const initialLoad = window\.setTimeout\(\(\) => void load\(\), 0\)/);
+  assert.match(dashboard, /clientApi<T>\(url, init\)/);
   assert.match(dashboard, /void refreshAll\(\)/);
   assert.match(profile, /void load\(\)/);
   assert.match(clientApi, /pendingApiReads/);
