@@ -10,6 +10,7 @@ function source(path: string) {
 test("meeting workspace shows join and complete actions for every active meeting state", () => {
   const dashboard = source("components/workspace-dashboard.tsx");
   const endRoute = source("app/api/bookings/[bookingId]/end/route.ts");
+  const historyRoute = source("app/api/employee/meetings/route.ts");
 
   assert.ok(dashboard.includes('["READY", "LIVE"].includes(meetingStatus)'));
   assert.ok(dashboard.includes('["CONFIRMED", "IN_PROGRESS"].includes(item.status)'));
@@ -17,9 +18,13 @@ test("meeting workspace shows join and complete actions for every active meeting
   assert.ok(dashboard.includes("Join meeting"));
   assert.ok(dashboard.includes("Complete meeting"));
   assert.ok(dashboard.includes('setConfirmation({ kind: "end-meeting", id: item.id })'));
+  assert.ok(dashboard.includes('setConfirmation({ kind: "end-meeting", id: meeting.bookingRequestId })'));
   assert.ok(dashboard.includes('/api/bookings/${encodeURIComponent(id)}/end'));
+  assert.ok(dashboard.includes("meeting.meetingUri"));
   assert.ok(endRoute.includes('["READY", "LIVE"].includes(meeting.status)'));
   assert.ok(endRoute.includes('booking.status = "COMPLETED"'));
+  assert.ok(historyRoute.includes("googleMeetingUri"));
+  assert.ok(historyRoute.includes('if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(requestedDate))'));
 });
 
 test("meeting panel loads from a direct dashboard URL and polls live state without a page reload", () => {
