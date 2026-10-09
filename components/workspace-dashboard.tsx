@@ -820,7 +820,9 @@ export default function WorkspaceDashboard({
   }, []);
 
   useEffect(() => {
-    if (activeModal === "meetings") void loadAllMeetings();
+    if (activeModal !== "meetings") return;
+    const timer = window.setTimeout(() => void loadAllMeetings(), 0);
+    return () => window.clearTimeout(timer);
   }, [activeModal, loadAllMeetings]);
 
   useEffect(() => {
