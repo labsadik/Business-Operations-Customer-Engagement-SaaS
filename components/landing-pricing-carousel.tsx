@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, Rocket, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Rocket, Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 type PublicPlan = {
@@ -23,6 +23,7 @@ type PublicPlan = {
   monthlyMeetingLimit: number;
   maxMeetingDurationMinutes: number;
   maxConcurrentMeetings: number;
+  taskManagementEnabled: boolean;
   validityDays: number;
   freeFeatureDays: number | null;
   requiresPayment: boolean;
@@ -208,10 +209,21 @@ export default function LandingPricingCarousel({ plans }: { plans: PublicPlan[] 
                   plan.maxCompanies + " company"
                 ].map((item) => (
                   <div key={item} className="flex items-center gap-2 text-sm text-slate-700">
-                    <Check className="size-4 shrink-0 text-blue-600" />
+                    <Check className="size-4 shrink-0 text-blue-600" aria-hidden="true" />
                     <span>{item}</span>
                   </div>
                 ))}
+                <div className="flex items-center gap-2 text-sm text-slate-700">
+                  {plan.taskManagementEnabled ? (
+                    <Check className="size-4 shrink-0 text-blue-600" aria-hidden="true" />
+                  ) : (
+                    <X className="size-4 shrink-0 text-slate-400" aria-hidden="true" />
+                  )}
+                  <span>Task management &amp; employee assignment</span>
+                  <span className="sr-only">
+                    {plan.taskManagementEnabled ? "Included" : "Not included"}
+                  </span>
+                </div>
               </div>
             </button>
           );
