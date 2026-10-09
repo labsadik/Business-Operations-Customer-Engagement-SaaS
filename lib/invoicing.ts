@@ -187,6 +187,7 @@ export async function buildInvoiceSnapshots(input: {
       monthlyMeetingLimit: input.plan.monthlyMeetingLimit,
       maxMeetingDurationMinutes: input.plan.maxMeetingDurationMinutes,
       maxConcurrentMeetings: input.plan.maxConcurrentMeetings,
+      taskManagementEnabled: Boolean(input.plan.taskManagementEnabled),
       validityDays: input.plan.validityDays,
       freeFeatureDays: input.plan.freeFeatureDays,
       requiresPayment: input.plan.requiresPayment
