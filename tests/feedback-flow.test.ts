@@ -105,8 +105,9 @@ test("workspace feedback is an explicit accessible modal and does not expose cus
   assert.match(dashboard, /<WorkspaceFeedback/);
   assert.doesNotMatch(dashboard, /<AppModal[\s\S]*WorkspaceFeedback/);
 
-  assert.match(modal, /role="dialog"/);
-  assert.match(modal, /aria-modal="true"/);
+  assert.match(modal, /role=\{asPage \? "region" : "dialog"\}/);
+  assert.match(modal, /aria-modal=\{asPage \? undefined : true\}/);
+  assert.match(modal, /if \(asPage\) return/);
   assert.match(modal, /Submit feedback/);
   assert.match(modal, /Cancel/);
   assert.match(modal, /role="radiogroup"/);

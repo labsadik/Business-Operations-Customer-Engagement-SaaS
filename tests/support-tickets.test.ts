@@ -156,12 +156,13 @@ test("company support ticket UI has accessible modal controls, counters, paginat
   lacks(sidebar, "External");
   lacks(sidebar, "Raise a ticket");
   lacks(sidebar, "admin/support-tickets");
-  has(dashboard, 'openModal("support-tickets", undefined, true)');
-  has(dashboard, "Support tickets");
+  has(sidebar, 'open("support-tickets")');
+  has(dashboard, 'open={activeModal === "support-tickets"}');
+  has(dashboard, "asPage");
   has(dashboard, "<WorkspaceSupportTickets");
 
-  has(ui, 'role="dialog"');
-  has(ui, 'aria-modal="true"');
+  has(ui, 'role={asPage ? "region" : "dialog"}');
+  has(ui, 'aria-modal={asPage ? undefined : true}');
   has(ui, 'event.key === "Escape"');
   has(ui, 'event.key !== "Tab"');
   has(ui, 'document.body.style.overflow = "hidden"');
