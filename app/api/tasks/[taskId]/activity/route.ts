@@ -30,7 +30,7 @@ export async function GET(
     if (!task) return jsonError("TASK_NOT_FOUND", 404);
     if (!scope.isPlatformAdmin && !["COMPANY_OWNER", "COMPANY_ADMIN"].includes(scope.session.role) &&
       String(task.createdByUserId) !== scope.session.userId &&
-      !task.assigneeUserIds.some((id) => String(id) === scope.session.userId)) {
+      !task.assigneeUserIds.some((id: unknown) => String(id) === scope.session.userId)) {
       return jsonError("TASK_NOT_FOUND", 404);
     }
 
