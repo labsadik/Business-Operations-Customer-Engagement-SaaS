@@ -20,16 +20,19 @@ test("dashboard and route loading share the same workspace shell", async () => {
   assert.match(routeEntry, /WorkspaceLoading/);
 });
 
-test("dashboard recognizes every panel supported by the sidebar", async () => {
+test("dashboard panels stay connected while company support tickets live outside the sidebar", async () => {
   const [dashboard, sidebar] = await Promise.all([
     read("components/workspace-dashboard.tsx"),
     read("components/workspace-sidebar.tsx")
   ]);
 
-  for (const panel of ["meetings", "team", "settings", "billing", "feedback", "support-tickets"]) {
+  for (const panel of ["meetings", "team", "settings", "billing", "feedback"]) {
     assert.match(dashboard, new RegExp("panel === \"" + panel + "\""));
     assert.match(sidebar, new RegExp("open\\(\"" + panel + "\"\\)"));
   }
+
+  assert.doesNotMatch(sidebar, /open\("support-tickets"\)|Platform Support|External|Raise a ticket/);
+  assert.match(dashboard, /openModal\("support-tickets", undefined, true\)/);
 });
 
 test("company profile failure state does not leave a sidebar-less endless skeleton", async () => {
