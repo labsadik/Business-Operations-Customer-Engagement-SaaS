@@ -1,5 +1,7 @@
 "use client";
 
+import { clientApi } from "@/lib/client-api";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CheckCircle2,
@@ -39,23 +41,7 @@ const SUBJECT_MAX = 120;
 const DESCRIPTION_MAX = 2000;
 
 async function request<T>(url: string, init?: RequestInit) {
-  const response = await fetch(url, {
-    ...init,
-    cache: "no-store",
-    headers: {
-      "content-type": "application/json",
-      ...(init?.headers ?? {})
-    }
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new Error(String(body.error || "REQUEST_FAILED")) as Error & {
-      code?: string;
-    };
-    error.code = body.error;
-    throw error;
-  }
-  return body.data as T;
+  return clientApi<T>(url, init);
 }
 
 function ticketNumber(id: string) {
