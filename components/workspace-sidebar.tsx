@@ -10,6 +10,7 @@ import {
   ArrowUpRight,
   BarChart3,
   CalendarDays,
+  ClipboardList,
   CreditCard,
   Globe2,
   LifeBuoy,
@@ -28,6 +29,7 @@ type WorkspaceSidebarProps = {
   userEmail: string;
   userImage?: string;
   currentRole: string;
+  taskManagementEnabled?: boolean;
   canManage?: boolean;
   adminManaged?: boolean;
   activePanel?: Panel | null;
@@ -49,6 +51,7 @@ export default function WorkspaceSidebar({
   userEmail,
   userImage,
   currentRole,
+  taskManagementEnabled = false,
   canManage = false,
   adminManaged = false,
   activePanel = null,
@@ -62,6 +65,7 @@ export default function WorkspaceSidebar({
   const { labels } = useNavigationLabels();
 
   const isDashboard = pathname === "/dashboard" && !activePanel;
+  const isTasks = pathname === "/dashboard/tasks" || pathname.startsWith("/dashboard/tasks/");
   const active = (key: "dashboard" | Panel | "profile") => {
     if (key === "dashboard") return isDashboard;
     if (key === "profile") return activeProfile;
@@ -135,6 +139,14 @@ export default function WorkspaceSidebar({
               <span>{labels.team}</span>
             </button>
 
+            {taskManagementEnabled && (
+              <Link href={"/dashboard/tasks" as Route} className={buttonClass(isTasks)}>
+                <ClipboardList className={`size-4 ${iconClass(isTasks)}`} />
+                <span>Tasks</span>
+                {isTasks && <span className="ml-auto size-1.5 rounded-full bg-blue-600" />}
+              </Link>
+            )}
+
             <button type="button" onClick={() => open("feedback")} className={buttonClass(active("feedback"))}>
               <MessageSquareText className={`size-4 ${iconClass(active("feedback"))}`} />
               <span>{labels.feedback}</span>
@@ -207,6 +219,7 @@ export default function WorkspaceSidebar({
           </Link>
           <button type="button" onClick={() => open("meetings")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("meetings") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.meetings}</button>
           <button type="button" onClick={() => open("team")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("team") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.team}</button>
+          {taskManagementEnabled && <Link href={"/dashboard/tasks" as Route} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${isTasks ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Tasks</Link>}
           <button type="button" onClick={() => open("feedback")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("feedback") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.feedback}</button>
           {currentRole !== "PLATFORM_ADMIN" && <button type="button" onClick={() => open("support-tickets")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("support-tickets") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.supportTickets}</button>}
           {canManage && <button type="button" onClick={() => open("settings", "announcements")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${activePanel === "settings" && activeSettingsSection === "announcements" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.announcements}</button>}
