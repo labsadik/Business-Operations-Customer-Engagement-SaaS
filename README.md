@@ -213,7 +213,7 @@ The `taskManagementEnabled` entitlement is configurable in the platform admin pl
 | GET | `/api/admin/task-management/tasks` | Platform-admin list across all companies |
 | GET | `/api/admin/task-management/tasks/:taskId` | Platform-admin cross-company task detail |
 
-Every task query and mutation is company/workspace-scoped, and assignees must have an active membership in the same workspace. Notification rows carry a recipient ID and the notification feed is filtered server-side so users cannot read other users' alerts.
+Every task query and mutation is company/workspace-scoped, and assignees must have an active membership in the same workspace. Notification rows carry a recipient ID and the notification feed is filtered server-side so users cannot read other users' alerts. The notification endpoint is intended for an authenticated client poller; the browser must play sounds only for events returned to that signed-in recipient. Browser sound playback and Web Push for closed tabs are not implemented by this backend-only change.
 
 ## Security
 
