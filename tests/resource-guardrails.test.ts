@@ -17,7 +17,7 @@ test("live views throttle API polling and pause background work", () => {
   assert.ok(booking.includes("window.setInterval(refreshAvailabilityWhenVisible, 60_000)"));
   assert.ok(booking.includes("timer = window.setInterval(() => void pollBookingStatus(), 5000)"));
   assert.ok(booking.includes("document.visibilityState !== \"visible\""));
-  assert.ok(/requestInFlight\\s*\\|\\|\\s*terminal/.test(booking));
+  assert.ok(/requestInFlight\s*\|\|\s*terminal/.test(booking));
 });
 
 test("availability results use a bounded short-lived cache and coalesce duplicate reads", () => {
