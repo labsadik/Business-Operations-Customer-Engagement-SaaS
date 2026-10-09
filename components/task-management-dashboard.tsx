@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   AlertCircle,
   CalendarClock,
@@ -13,6 +13,10 @@ import {
   RefreshCw,
   Search,
   Users,
+  Filter,
+  LayoutGrid,
+  List,
+  RotateCcw,
   Volume2,
   VolumeX
 } from "lucide-react";
@@ -73,6 +77,10 @@ type TaskDetails = {
   assignments: TaskAssignmentItem[];
 };
 
+type TaskViewMode = "BOARD" | "LIST";
+type TaskSortMode = "UPDATED" | "DUE_DATE" | "PRIORITY";
+type TaskOwnerFilter = "ALL" | "ASSIGNED_TO_ME" | "CREATED_BY_ME" | "OVERDUE";
+
 type TaskPageProps = {
   companyName: string;
   userName: string;
@@ -113,9 +121,13 @@ function errorMessage(error: unknown) {
     ASSIGNEE_NOT_FOUND: "One of the selected employees is no longer active in this workspace.",
     TASK_TITLE_REQUIRED: "Enter a title for the task.",
     TASK_LIST_FAILED: "Tasks couldn't be loaded. Please try again.",
-    TASK_CREATE_FAILED: "The task couldn't be created. Please check the details and try again."
+    TASK_CREATE_FAILED: "The task couldn't be created. Please check the details and try again.",
+    TASK_STATUS_CONFLICT: "This task changed in another session. Refresh the board and try again.",
+    ASSIGNMENT_NOT_FOUND: "This assignment is no longer available. Refresh the board and try again.",
+    TASK_ALREADY_CANCELLED: "This task has been cancelled and can no longer be changed.",
+    INVALID_TASK_CURSOR: "The task list cursor expired. Refresh the board and try again."
   };
-  return messages[code] ?? code.replaceAll("_", " ").toLowerCase();
+  return messages[code] ?? "Something went wrong while working with tasks. Please try again.";
 }
 
 function labelStatus(status: string) {
@@ -161,6 +173,14 @@ export default function TaskManagementDashboard({
 }: TaskPageProps) {
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<TaskStatus | "ALL">("ALL");
+  const [priorityFilter, setPriorityFilter] = useState<TaskPriority | "ALL">("ALL");
+  const [ownerFilter, setOwnerFilter] = useState<TaskOwnerFilter>("ALL");
+  const [sortMode, setSortMode] = useState<TaskSortMode>("UPDATED");
+  const [viewMode, setViewMode] = useState<TaskViewMode>("BOARD");
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const [details, setDetails] = useState<Record<string, TaskDetails>>({});
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -185,16 +205,50 @@ export default function TaskManagementDashboard({
   const employeeById = useMemo(() => new Map(employees.map((employee) => [employee.id, employee])), [employees]);
   const filteredTasks = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
-    if (!query) return tasks;
-    return tasks.filter((task) => {
+    const priorityRank: Record<TaskPriority, number> = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+    const matching = tasks.filter((task) => {
+      if (statusFilter !== "ALL" && task.status !== statusFilter) return false;
+      if (priorityFilter !== "ALL" && task.priority !== priorityFilter) return false;
+      if (ownerFilter === "ASSIGNED_TO_ME" && !task.assigneeUserIds.includes(userId)) return false;
+      if (ownerFilter === "CREATED_BY_ME" && task.createdByUserId !== userId) return false;
+      if (ownerFilter === "OVERDUE") {
+        const dueTime = task.dueAt ? new Date(task.dueAt).getTime() : Number.NaN;
+        if (!Number.isFinite(dueTime) || dueTime >= nowMs || ["COMPLETED", "CANCELLED"].includes(task.status)) return false;
+      }
+      if (!query) return true;
       const assignedNames = task.assigneeUserIds.map((id) => {
         const employee = employeeById.get(id);
         return employee ? employee.name + " " + employee.email : "";
       }).join(" ");
-      return [task.title, task.description, assignedNames, task.priority, task.status]
+      return [task.title, task.description, assignedNames, task.priority, task.status, task.id]
         .some((value) => value.toLowerCase().includes(query));
     });
-  }, [tasks, searchTerm, employeeById]);
+
+    return matching.sort((left, right) => {
+      if (sortMode === "PRIORITY") {
+        const difference = priorityRank[left.priority] - priorityRank[right.priority];
+        if (difference) return difference;
+      } else if (sortMode === "DUE_DATE") {
+        const leftDue = left.dueAt ? new Date(left.dueAt).getTime() : Number.POSITIVE_INFINITY;
+        const rightDue = right.dueAt ? new Date(right.dueAt).getTime() : Number.POSITIVE_INFINITY;
+        if (leftDue !== rightDue) return leftDue - rightDue;
+      }
+      return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+    });
+  }, [tasks, searchTerm, employeeById, statusFilter, priorityFilter, ownerFilter, sortMode, userId, nowMs]);
+
+  const taskMetrics = useMemo(() => ({
+    total: tasks.length,
+    active: tasks.filter((task) => !["COMPLETED", "CANCELLED"].includes(task.status)).length,
+    inProgress: tasks.filter((task) => task.status === "IN_PROGRESS").length,
+    blocked: tasks.filter((task) => task.status === "BLOCKED").length,
+    overdue: tasks.filter((task) => {
+      const dueTime = task.dueAt ? new Date(task.dueAt).getTime() : Number.NaN;
+      return Number.isFinite(dueTime) && dueTime < nowMs && !["COMPLETED", "CANCELLED"].includes(task.status);
+    }).length
+  }), [tasks, nowMs]);
+
+  const hasActiveFilters = Boolean(searchTerm.trim() || statusFilter !== "ALL" || priorityFilter !== "ALL" || ownerFilter !== "ALL");
 
   const tasksByStatus = useMemo(() => {
     const grouped: Record<TaskStatus, TaskItem[]> = {
@@ -222,6 +276,7 @@ export default function TaskManagementDashboard({
         api<Employee[]>("/api/company/employees")
       ]);
       setTasks(taskPage.items);
+      setNextCursor(taskPage.nextCursor);
       setEmployees(staff);
       setSelectedAssigneeIds((current) => current.length ? current.filter((id) => staff.some((member) => member.id === id)) : [userId]);
     } catch (loadError) {
@@ -238,6 +293,30 @@ export default function TaskManagementDashboard({
     });
     return () => window.cancelAnimationFrame(frame);
   }, [load]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  async function loadMoreTasks() {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    setError("");
+    try {
+      const params = new URLSearchParams({ limit: "50", cursor: nextCursor });
+      const page = await api<{ items: TaskItem[]; nextCursor: string | null }>("/api/tasks?" + params.toString());
+      setTasks((current) => {
+        const knownIds = new Set(current.map((task) => task.id));
+        return [...current, ...page.items.filter((task) => !knownIds.has(task.id))];
+      });
+      setNextCursor(page.nextCursor);
+    } catch (loadError) {
+      setError(errorMessage(loadError));
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   async function openTask(taskId: string) {
     if (expandedTaskId === taskId) {
@@ -292,6 +371,20 @@ export default function TaskManagementDashboard({
     }
   }
 
+  function syncTaskFromDetail(taskId: string, detail: TaskDetails) {
+    const completed = detail.assignments.filter((assignment) => assignment.status === "COMPLETED").length;
+    setTasks((current) => current.map((task) => task.id === taskId ? {
+      ...task,
+      status: detail.status,
+      dueAt: detail.dueAt,
+      startedAt: detail.startedAt,
+      completedAt: detail.completedAt,
+      updatedAt: detail.updatedAt,
+      assignmentSummary: { total: detail.assignments.length, completed }
+    } : task));
+    setDetails((current) => ({ ...current, [taskId]: detail }));
+  }
+
   async function updateAssignment(task: TaskItem, assignment: TaskAssignmentItem, status: TaskStatus) {
     setError("");
     setNotice("");
@@ -306,12 +399,8 @@ export default function TaskManagementDashboard({
           ...(managerForTask ? { assignmentId: assignment.id } : {})
         })
       });
-      const [taskPage, detail] = await Promise.all([
-        api<{ items: TaskItem[]; nextCursor: string | null }>("/api/tasks?limit=50"),
-        api<TaskDetails>(`/api/tasks/${task.id}`)
-      ]);
-      setTasks(taskPage.items);
-      setDetails((current) => ({ ...current, [task.id]: detail }));
+      const detail = await api<TaskDetails>(`/api/tasks/${task.id}`);
+      syncTaskFromDetail(task.id, detail);
       setNotice("Task status updated.");
       void playTaskSoundIfEnabled(status === "COMPLETED" ? "completed" : "updated");
     } catch (updateError) {
@@ -357,12 +446,8 @@ export default function TaskManagementDashboard({
         });
       }
 
-      const [taskPage, refreshedDetail] = await Promise.all([
-        api<{ items: TaskItem[]; nextCursor: string | null }>("/api/tasks?limit=50"),
-        api<TaskDetails>("/api/tasks/" + task.id)
-      ]);
-      setTasks(taskPage.items);
-      setDetails((current) => ({ ...current, [task.id]: refreshedDetail }));
+      const refreshedDetail = await api<TaskDetails>("/api/tasks/" + task.id);
+      syncTaskFromDetail(task.id, refreshedDetail);
       setNotice("Task moved to " + labelStatus(status).toLowerCase() + ".");
       void playTaskSoundIfEnabled(status === "COMPLETED" ? "completed" : "updated");
     } catch (moveError) {
@@ -372,6 +457,59 @@ export default function TaskManagementDashboard({
       setDraggedTaskId(null);
       setDropTargetStatus(null);
     }
+  }
+
+  function renderTaskDetails(task: TaskItem) {
+    const detail = details[task.id];
+    const managerForTask = canManage || task.createdByUserId === userId;
+    return (
+      <div className="border-t border-slate-200 bg-slate-50/70 px-3.5 py-3">
+        {!detail ? (
+          <p className="flex items-center gap-2 text-xs text-slate-500" role="status">
+            <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+            Loading assignments…
+          </p>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <UserAvatar name={detail.createdBy?.name ?? detail.createdBy?.email ?? "Workspace member"} email={detail.createdBy?.email ?? ""} image={detail.createdBy?.image} size={24} className="text-[8px]" />
+                <p className="truncate text-[10px] text-slate-500">Created by {detail.createdBy?.name ?? detail.createdBy?.email ?? "Workspace member"}</p>
+              </div>
+              <span className="text-[10px] text-slate-400">Updated {formatDate(detail.updatedAt)}</span>
+            </div>
+            {detail.assignments.map((assignment) => {
+              const canChange = managerForTask || assignment.assignee?.id === userId;
+              const statuses = managerForTask ? TASK_STATUSES : TASK_STATUSES.filter((item) => item !== "CANCELLED");
+              return (
+                <div key={assignment.id} className="rounded-xl border border-slate-200 bg-white p-3">
+                  <div className="mb-2 flex min-w-0 items-center gap-2">
+                    <UserAvatar name={assignment.assignee?.name ?? assignment.assignee?.email ?? "Workspace member"} email={assignment.assignee?.email ?? ""} image={assignment.assignee?.image} size={28} className="text-[8px]" />
+                    <div className="min-w-0">
+                      <p className="truncate text-[10px] font-semibold text-slate-800">{assignment.assignee?.name ?? assignment.assignee?.email ?? "Workspace member"}</p>
+                      <p className="truncate text-[9px] text-slate-500">{assignment.assignee?.email ?? ""}</p>
+                    </div>
+                  </div>
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] font-semibold text-slate-500">Assignment status</span>
+                    <select
+                      aria-label={`Status for ${assignment.assignee?.name ?? "assignee"}`}
+                      disabled={!canChange || busyAssignmentId === assignment.id || task.status === "CANCELLED"}
+                      value={assignment.status}
+                      onChange={(event) => void updateAssignment(task, assignment, event.target.value as TaskStatus)}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-xs outline-none focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
+                    >
+                      {statuses.map((item) => <option key={item} value={item}>{labelStatus(item)}</option>)}
+                    </select>
+                  </label>
+                  {busyAssignmentId === assignment.id && <LoaderCircle className="mt-2 size-4 animate-spin text-blue-600" aria-label="Saving assignment status" />}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -509,6 +647,21 @@ export default function TaskManagementDashboard({
             </section>
           ) : (
             <>
+              <section aria-label="Task workload summary" className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+                {[
+                  { label: "Tasks loaded", value: taskMetrics.total, detail: nextCursor ? "More tasks available" : "All tasks loaded", tone: "text-slate-950" },
+                  { label: "Active work", value: taskMetrics.active, detail: "Not completed or cancelled", tone: "text-blue-700" },
+                  { label: "In progress", value: taskMetrics.inProgress, detail: "Being worked on", tone: "text-indigo-700" },
+                  { label: "Blocked / overdue", value: taskMetrics.blocked + taskMetrics.overdue, detail: taskMetrics.blocked + " blocked · " + taskMetrics.overdue + " overdue", tone: taskMetrics.blocked + taskMetrics.overdue > 0 ? "text-rose-700" : "text-slate-950" }
+                ].map((metric) => (
+                  <article key={metric.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                    <p className="text-[11px] font-semibold text-slate-500">{metric.label}</p>
+                    <p className={`mt-2 text-2xl font-semibold tracking-tight tabular-nums ${metric.tone}`}>{metric.value}</p>
+                    <p className="mt-1 text-[10px] leading-4 text-slate-400">{metric.detail}</p>
+                  </article>
+                ))}
+              </section>
+
               {showCreateForm && (
               <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="mb-5 flex items-center gap-2">
@@ -594,12 +747,52 @@ export default function TaskManagementDashboard({
               )}
 
               <section className="space-y-3">
+                <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 sm:flex-row sm:flex-wrap sm:items-center">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-500"><Filter className="size-4" aria-hidden="true" />Filters</div>
+                  <label className="min-w-36 flex-1 sm:flex-none">
+                    <span className="sr-only">Filter tasks by status</span>
+                    <select aria-label="Filter tasks by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as TaskStatus | "ALL")} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                      <option value="ALL">All statuses</option>
+                      {TASK_STATUSES.map((item) => <option key={item} value={item}>{labelStatus(item)}</option>)}
+                    </select>
+                  </label>
+                  <label className="min-w-32 flex-1 sm:flex-none">
+                    <span className="sr-only">Filter tasks by priority</span>
+                    <select aria-label="Filter tasks by priority" value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value as TaskPriority | "ALL")} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                      <option value="ALL">All priorities</option>
+                      {TASK_PRIORITIES.map((item) => <option key={item} value={item}>{labelStatus(item)}</option>)}
+                    </select>
+                  </label>
+                  <label className="min-w-40 flex-1 sm:flex-none">
+                    <span className="sr-only">Filter by task ownership</span>
+                    <select aria-label="Filter by task ownership" value={ownerFilter} onChange={(event) => setOwnerFilter(event.target.value as TaskOwnerFilter)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                      <option value="ALL">Everyone’s tasks</option>
+                      <option value="ASSIGNED_TO_ME">Assigned to me</option>
+                      <option value="CREATED_BY_ME">Created by me</option>
+                      <option value="OVERDUE">Overdue only</option>
+                    </select>
+                  </label>
+                  <label className="min-w-40 flex-1 sm:flex-none">
+                    <span className="sr-only">Sort tasks</span>
+                    <select aria-label="Sort tasks" value={sortMode} onChange={(event) => setSortMode(event.target.value as TaskSortMode)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                      <option value="UPDATED">Recently updated</option>
+                      <option value="DUE_DATE">Due date first</option>
+                      <option value="PRIORITY">Highest priority</option>
+                    </select>
+                  </label>
+                  {hasActiveFilters && <button type="button" onClick={() => { setSearchTerm(""); setStatusFilter("ALL"); setPriorityFilter("ALL"); setOwnerFilter("ALL"); }} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"><RotateCcw className="size-3.5" aria-hidden="true" />Clear filters</button>}
+                  <div className="ml-auto inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1" aria-label="Task view">
+                    <button type="button" aria-label="Board view" aria-pressed={viewMode === "BOARD"} onClick={() => setViewMode("BOARD")} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold ${viewMode === "BOARD" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}><LayoutGrid className="size-3.5" aria-hidden="true" />Board</button>
+                    <button type="button" aria-label="List view" aria-pressed={viewMode === "LIST"} onClick={() => setViewMode("LIST")} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold ${viewMode === "LIST" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}><List className="size-3.5" aria-hidden="true" />List</button>
+                  </div>
+                </div>
+
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                   <div>
                     <h2 className="text-lg font-semibold">Task board</h2>
-                    <p className="mt-1 text-xs text-slate-500">Open a card to inspect assigned members and update assignment progress.</p>
+                    <p className="mt-1 text-xs text-slate-500">Open a task to inspect assignments and update progress.</p>
                   </div>
-                  <p className="text-[11px] text-slate-500">{filteredTasks.length} of {tasks.length} tasks</p>
+                  <p className="text-[11px] text-slate-500" aria-live="polite">{filteredTasks.length} matching · {tasks.length} loaded</p>
                 </div>
 
                 {loading ? (
@@ -620,7 +813,7 @@ export default function TaskManagementDashboard({
                   <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
                     No tasks match “{searchTerm}”. Try another search.
                   </div>
-                ) : (
+                ) : viewMode === "BOARD" ? (
                   <div aria-label="Task status board" className="grid grid-flow-col auto-cols-[minmax(18rem,21rem)] gap-4 overflow-x-auto pb-4">
                     {TASK_STATUSES.map((status) => {
                       const columnTasks = tasksByStatus[status];
@@ -726,51 +919,7 @@ export default function TaskManagementDashboard({
                                       <ChevronDown className={`ml-auto size-3.5 shrink-0 transition ${expanded ? "rotate-180" : ""}`} />
                                     </span>
                                   </button>
-                                  {expanded && (
-                                    <div className="border-t border-slate-200 bg-slate-50/70 px-3.5 py-3">
-                                      {!detail ? (
-                                        <p className="flex items-center gap-2 text-xs text-slate-500"><LoaderCircle className="size-4 animate-spin" />Loading assignments…</p>
-                                      ) : (
-                                        <div className="space-y-3">
-                                          <div className="flex flex-wrap items-center justify-between gap-2">
-                                            <div className="flex min-w-0 items-center gap-2">
-                                              <UserAvatar name={detail.createdBy?.name ?? detail.createdBy?.email ?? "Workspace member"} email={detail.createdBy?.email ?? ""} image={detail.createdBy?.image} size={24} className="text-[8px]" />
-                                              <p className="truncate text-[10px] text-slate-500">Created by {detail.createdBy?.name ?? detail.createdBy?.email ?? "Workspace member"}</p>
-                                            </div>
-                                            <span className="text-[10px] text-slate-400">Updated {formatDate(detail.updatedAt)}</span>
-                                          </div>
-                                          {detail.assignments.map((assignment) => {
-                                            const canChange = managerForTask || assignment.assignee?.id === userId;
-                                            const statuses = managerForTask ? TASK_STATUSES : TASK_STATUSES.filter((item) => item !== "CANCELLED");
-                                            return (
-                                              <div key={assignment.id} className="rounded-xl border border-slate-200 bg-white p-3">
-                                                <div className="mb-2 flex min-w-0 items-center gap-2">
-                                                  <UserAvatar name={assignment.assignee?.name ?? assignment.assignee?.email ?? "Workspace member"} email={assignment.assignee?.email ?? ""} image={assignment.assignee?.image} size={28} className="text-[8px]" />
-                                                  <div className="min-w-0">
-                                                    <p className="truncate text-[10px] font-semibold text-slate-800">{assignment.assignee?.name ?? assignment.assignee?.email ?? "Workspace member"}</p>
-                                                    <p className="truncate text-[9px] text-slate-500">{assignment.assignee?.email ?? ""}</p>
-                                                  </div>
-                                                </div>
-                                                <label className="block">
-                                                  <span className="mb-1 block text-[10px] font-semibold text-slate-500">Assignment status</span>
-                                                  <select
-                                                    aria-label={`Status for ${assignment.assignee?.name ?? "assignee"}`}
-                                                    disabled={!canChange || busyAssignmentId === assignment.id || task.status === "CANCELLED"}
-                                                    value={assignment.status}
-                                                    onChange={(event) => void updateAssignment(task, assignment, event.target.value as TaskStatus)}
-                                                    className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-xs outline-none focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
-                                                  >
-                                                    {statuses.map((item) => <option key={item} value={item}>{labelStatus(item)}</option>)}
-                                                  </select>
-                                                </label>
-                                                {busyAssignmentId === assignment.id && <LoaderCircle className="mt-2 size-4 animate-spin text-blue-600" />}
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
+                                  {expanded && renderTaskDetails(task)}
                                 </article>
                               );
                             })}
@@ -778,6 +927,59 @@ export default function TaskManagementDashboard({
                         </section>
                       );
                     })}
+                  </div>
+                ) : (
+                  <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[980px] border-collapse text-left">
+                        <thead className="border-b border-slate-200 bg-slate-50"><tr>
+                          {["Task", "Assignees", "Priority", "Status", "Due date", "Progress"].map((heading) => <th key={heading} scope="col" className="px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">{heading}</th>)}
+                        </tr></thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {filteredTasks.map((task) => {
+                            const assigneeNames = task.assigneeUserIds.map((id) => {
+                              const employee = employeeById.get(id);
+                              return employee?.name || employee?.email || "Workspace member";
+                            });
+                            const assigneeMembers = task.assigneeUserIds.map((id) => employeeById.get(id)).filter((employee): employee is Employee => Boolean(employee));
+                            const overdue = Boolean(task.dueAt && new Date(task.dueAt).getTime() < nowMs && !["COMPLETED", "CANCELLED"].includes(task.status));
+                            return (
+                              <Fragment key={task.id}>
+                                <tr className="transition hover:bg-slate-50/80">
+                                  <td className="max-w-[320px] px-4 py-3.5">
+                                    <button type="button" onClick={() => void openTask(task.id)} aria-expanded={expandedTaskId === task.id} className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+                                      <span className="block text-[10px] font-semibold tracking-wide text-slate-400">TASK-{task.id.slice(-6).toUpperCase()}</span>
+                                      <span className="mt-1 block truncate text-sm font-semibold text-slate-900">{task.title}</span>
+                                      {task.description && <span className="mt-1 block line-clamp-2 text-[11px] leading-4 text-slate-500">{task.description}</span>}
+                                    </button>
+                                  </td>
+                                  <td className="px-4 py-3.5"><div className="flex items-center gap-2">
+                                    <span className="inline-flex shrink-0 -space-x-2">{assigneeMembers.slice(0, 3).map((employee) => <UserAvatar key={employee.id} name={employee.name || employee.email} email={employee.email} image={employee.image} size={24} className="border-2 border-white text-[8px]" />)}</span>
+                                    <span className="max-w-40 truncate text-xs text-slate-600">{assigneeNames.join(", ") || "Unassigned"}</span>
+                                  </div></td>
+                                  <td className="px-4 py-3.5"><span className={`inline-flex rounded-md px-2 py-1 text-[10px] font-semibold ring-1 ring-inset ${priorityClasses(task.priority)}`}>{labelStatus(task.priority)}</span></td>
+                                  <td className="px-4 py-3.5"><span className={`inline-flex rounded-md px-2 py-1 text-[10px] font-semibold ring-1 ring-inset ${statusColumnClasses(task.status)}`}>{labelStatus(task.status)}</span></td>
+                                  <td className={`whitespace-nowrap px-4 py-3.5 text-xs ${overdue ? "font-semibold text-rose-700" : "text-slate-500"}`}>{overdue && <span className="mr-1">Overdue ·</span>}{formatDate(task.dueAt)}</td>
+                                  <td className="px-4 py-3.5"><div className="flex items-center gap-2">
+                                    <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${task.assignmentSummary.total ? Math.round(task.assignmentSummary.completed / task.assignmentSummary.total * 100) : 0}%` }} /></div>
+                                    <span className="text-[10px] tabular-nums text-slate-500">{task.assignmentSummary.completed}/{task.assignmentSummary.total}</span>
+                                  </div></td>
+                                </tr>
+                                {expandedTaskId === task.id && <tr className="bg-slate-50/60"><td colSpan={6} className="p-0">{renderTaskDetails(task)}</td></tr>}
+                              </Fragment>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+                {nextCursor && !loading && (
+                  <div className="flex items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-4">
+                    <button type="button" onClick={() => void loadMoreTasks()} disabled={loadingMore} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
+                      {loadingMore ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Plus className="size-4" aria-hidden="true" />}
+                      {loadingMore ? "Loading more tasks…" : "Load 50 more tasks"}
+                    </button>
                   </div>
                 )}
               </section>

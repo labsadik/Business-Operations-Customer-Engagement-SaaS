@@ -126,3 +126,29 @@ test("user profile dropdown shows role, company, position, department and status
   assert.match(userModel, /jobTitle/);
   assert.match(userModel, /department/);
 });
+
+
+test("task management provides enterprise filters, list/board views, pagination and tenant-safe APIs", () => {
+  const dashboard = source("components/task-management-dashboard.tsx");
+  const listRoute = source("app/api/tasks/route.ts");
+  const statusRoute = source("app/api/tasks/[taskId]/status/route.ts");
+  const authorization = source("features/task-management/server/task-authorization.ts");
+
+  for (const feature of [
+    'aria-label="Filter tasks by status"',
+    'aria-label="Filter tasks by priority"',
+    'aria-label="Filter by task ownership"',
+    'aria-label="List view"',
+    'aria-label="Board view"',
+    "Load 50 more tasks",
+    "Overdue",
+    "syncTaskFromDetail",
+    "Something went wrong while working with tasks"
+  ]) assert.ok(dashboard.includes(feature), "Missing task board feature: " + feature);
+
+  assert.ok(listRoute.includes("companyId: new Types.ObjectId(scope.companyId)"));
+  assert.ok(listRoute.includes("workspaceId: new Types.ObjectId(scope.workspaceId)"));
+  assert.ok(statusRoute.includes("assertSameOrigin(request)"));
+  assert.ok(authorization.includes("active: true"));
+  assert.ok(authorization.includes("assertAssignableEmployees"));
+});
