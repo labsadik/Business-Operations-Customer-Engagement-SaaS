@@ -49,7 +49,7 @@ export async function GET(request: Request) {
 
   let dateRange: { startAt: Date; endAt: Date } | null = null;
   if (requestedDate) {
-    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(requestedDate)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) {
       return jsonError("INVALID_HISTORY_DATE", 400);
     }
     try {
@@ -97,7 +97,7 @@ export async function GET(request: Request) {
     .sort({ startAt: -1, _id: -1 })
     .limit(paginated ? limit + 1 : limit)
     .select(
-      "_id bookingRequestId employeeId customerId startAt endAt endedAt status calendarSyncStatus"
+      "_id bookingRequestId employeeId customerId startAt endAt endedAt status calendarSyncStatus googleMeetingUri"
     )
     .lean();
 
@@ -141,6 +141,7 @@ export async function GET(request: Request) {
       durationMinutes,
       status: meeting.status,
       calendarSyncStatus: meeting.calendarSyncStatus,
+      meetingUri: meeting.googleMeetingUri ?? null,
       employee: participantMap.get(String(meeting.employeeId)) ?? null,
       customer: participantMap.get(String(meeting.customerId)) ?? null,
       scheduledBy: participantMap.get(String(meeting.customerId)) ?? null
