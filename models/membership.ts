@@ -13,7 +13,7 @@ const membershipSchema = new Schema(
     active: { type: Boolean, default: true, index: true },
     jobTitle: { type: String, trim: true, maxlength: 120, default: "" },
     department: { type: String, trim: true, maxlength: 100, default: "" },
-    employmentStatus: { type: String, enum: ["ACTIVE", "ON_LEAVE", "INACTIVE"], default: "ACTIVE", index: true },
+    employmentStatus: { type: String, enum: ["ACTIVE", "ON_LEAVE", "INACTIVE"], default: "ACTIVE" },
     googleConnectionStatus: {
       type: String,
       enum: ["CONNECTED", "REAUTH_REQUIRED", "DISCONNECTED"],
@@ -24,5 +24,6 @@ const membershipSchema = new Schema(
 );
 
 membershipSchema.index({ companyId: 1, userId: 1 }, { unique: true });
+membershipSchema.index({ companyId: 1, workspaceId: 1, active: 1, employmentStatus: 1, userId: 1 });
 
 export const Membership = models.Membership ?? model("Membership", membershipSchema);
