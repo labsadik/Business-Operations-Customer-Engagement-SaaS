@@ -229,3 +229,15 @@ test("session and transport hardening reduce avoidable reads and fail closed on 
   assert.ok(config.includes("Cross-Origin-Opener-Policy"));
   assert.ok(config.includes("X-Content-Type-Options"));
 });
+
+
+test("shared client API deduplicates mount reads and rejects invalid success payloads", () => {
+  const clientApi = source("lib/client-api.ts");
+
+  assert.ok(clientApi.includes("pendingApiReads"));
+  assert.ok(clientApi.includes("if (pending) return pending as Promise<T>"));
+  assert.ok(clientApi.includes("if (method !== \"GET\" || init?.signal)"));
+  assert.ok(clientApi.includes('throw new Error("API_RESPONSE_INVALID")'));
+  assert.ok(clientApi.includes("(response.ok && !hasJsonContentType)"));
+  assert.ok(clientApi.includes("RETRYABLE_SERVER_STATUSES"));
+});

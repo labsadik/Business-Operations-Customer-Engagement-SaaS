@@ -35,7 +35,14 @@ export async function clientFetch(url: string, init?: RequestInit): Promise<Resp
       continue;
     }
 
-    if (canRetry && attempt === 0 && RETRYABLE_SERVER_STATUSES.has(response.status) && !init?.signal?.aborted) {
+    const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+    const hasJsonContentType = contentType.includes("application/json") || contentType.includes("+json");
+    const transientFailure =
+      RETRYABLE_SERVER_STATUSES.has(response.status) ||
+      (response.ok && !hasJsonContentType);
+
+    // A login/proxy HTML response with a 200 code must not masquerade as empty API data.
+    if (canRetry && attempt === 0 && transientFailure && !init?.signal?.aborted) {
       await pause(150, init?.signal ?? undefined);
       continue;
     }
@@ -44,13 +51,17 @@ export async function clientFetch(url: string, init?: RequestInit): Promise<Resp
   throw new Error("REQUEST_FAILED");
 }
 
-export async function clientApi<T>(url: string, init?: RequestInit): Promise<T> {
+// Strict Mode and page-level components can request the same GET while mounting.
+// Share only in-flight, non-cancellable reads; never cache a completed response.
+const pendingApiReads = new Map<string, Promise<unknown>>();
+
+async function performClientApi<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await clientFetch(url, {
     ...init,
     headers: { "content-type": "application/json", ...(init?.headers ?? {}) }
   });
   const body = await response.json().catch(() => ({})) as {
-    data?: T; error?: string; message?: string; details?: unknown;
+    ok?: unknown; data?: T; error?: string; message?: string; details?: unknown;
   };
   if (!response.ok) {
     const error = new Error(body.message || body.error || "REQUEST_FAILED") as ApiError;
@@ -58,5 +69,27 @@ export async function clientApi<T>(url: string, init?: RequestInit): Promise<T> 
     error.details = body.details;
     throw error;
   }
+  if (!body || typeof body !== "object" || !("data" in body)) {
+    throw new Error("API_RESPONSE_INVALID");
+  }
   return body.data as T;
+}
+
+export async function clientApi<T>(url: string, init?: RequestInit): Promise<T> {
+  const method = (init?.method ?? "GET").toUpperCase();
+  if (method !== "GET" || init?.signal) {
+    return performClientApi<T>(url, init);
+  }
+
+  const key = url;
+  const pending = pendingApiReads.get(key);
+  if (pending) return pending as Promise<T>;
+
+  const promise = performClientApi<T>(url, init);
+  pendingApiReads.set(key, promise);
+  try {
+    return await promise;
+  } finally {
+    if (pendingApiReads.get(key) === promise) pendingApiReads.delete(key);
+  }
 }
