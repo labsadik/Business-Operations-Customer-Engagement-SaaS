@@ -36,7 +36,7 @@ Conventus is a multi-tenant scheduling SaaS for companies that want customers to
 
 1. Use [`.env.example.md`](./.env.example.md) as the local environment setup reference.
 2. Create a real `.env.local` file in the repository root and fill in development credentials.
-3. Install dependencies with `npm ci`.
+3. Install dependencies with `npm install`.
 4. Run `npm run dev` and open `http://localhost:3000`.
 
 The `.env.example.md` file is documentation only; Next.js does not load Markdown files as environment files. Do not commit `.env.local` or real credentials.
