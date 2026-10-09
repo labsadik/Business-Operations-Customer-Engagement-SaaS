@@ -28,6 +28,7 @@ const taskNotificationSchema = new Schema(
   { timestamps: true }
 );
 
+taskNotificationSchema.index({ eventKey: 1 }, { unique: true });
 taskNotificationSchema.index({ companyId: 1, workspaceId: 1, recipientUserId: 1, createdAt: -1, _id: -1 });
 taskNotificationSchema.index({ recipientUserId: 1, readAt: 1, createdAt: -1 });
 
