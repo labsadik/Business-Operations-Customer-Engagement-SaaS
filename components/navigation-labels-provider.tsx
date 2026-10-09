@@ -6,6 +6,7 @@ import {
   normalizeNavigationLabels,
   type NavigationLabels
 } from "@/lib/navigation-labels";
+import { clientApi } from "@/lib/client-api";
 
 type NavigationLabelsContextValue = {
   labels: NavigationLabels;
@@ -24,15 +25,12 @@ export default function NavigationLabelsProvider({
 
   const refresh = useCallback(async () => {
     try {
-      const response = await fetch("/api/navigation-settings", {
-        cache: "no-store",
+      const data = await clientApi<unknown>("/api/navigation-settings", {
         headers: { accept: "application/json" }
       });
-      if (!response.ok) return;
-      const body = await response.json().catch(() => null);
-      if (body?.data) setLabels(normalizeNavigationLabels(body.data));
+      if (data) setLabels(normalizeNavigationLabels(data));
     } catch {
-      // Keep the current labels during transient network/database failures.
+      // The shared API reader retries transient failures; keep the last good labels if it still fails.
     }
   }, []);
 
