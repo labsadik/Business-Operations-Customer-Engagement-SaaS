@@ -176,7 +176,7 @@ test("task cleanup is tenant-scoped, permission-checked, period-limited, and cas
 
   assert.ok(route.includes('body?.confirm !== "CLEAR_CLOSED_TASKS"'));
   assert.ok(route.includes("WEEKLY: 7, MONTHLY: 30, YEARLY: 365"));
-  assert.ok(route.includes('["COMPANY_OWNER", "COMPANY_ADMIN"]'));
+  assert.ok(route.includes('["COMPANY_ADMIN"]'));
   assert.ok(route.includes('status: { $in: ["COMPLETED", "CANCELLED"] }'));
   assert.ok(route.includes("updatedAt: { $gte: cutoff }"));
   assert.ok(route.includes("TaskAssignment.deleteMany(childFilter, { session: dbSession })"));

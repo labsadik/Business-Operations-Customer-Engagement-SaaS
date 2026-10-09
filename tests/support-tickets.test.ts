@@ -56,7 +56,7 @@ test("support ticket statuses are stable and transition explicitly", () => {
 test("company ticket creation derives identity and tenant scope from active membership", () => {
   const route = source("app/api/company/support-tickets/route.ts");
   has(route, "getSession()");
-  has(route, '"COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"');
+  has(route, '"COMPANY_ADMIN", "EMPLOYEE"');
   has(route, "companyId: session.companyId");
   has(route, "userId: session.userId");
   has(route, "active: true");
