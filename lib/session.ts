@@ -199,18 +199,12 @@ export async function getSession(): Promise<AuthSession | null> {
     if (role !== "PLATFORM_ADMIN") {
       await Session.updateOne({ _id: session._id }, { $set: { role: "PLATFORM_ADMIN", lastSeenAt: new Date() } });
     }
+    // Tenant access is an explicit, temporary platform-admin action only.
+    // Never infer tenant scope from an old session or a personal membership:
+    // removing the managed-company cookie must immediately restore platform-only access.
     const managed = await getManagedCompanyScope(user._id, true, store);
-    let scopedCompanyId = managed?.companyId ?? (session.companyId ? String(session.companyId) : undefined);
-    let scopedWorkspaceId = managed?.workspaceId ?? (session.workspaceId ? String(session.workspaceId) : undefined);
-
-    if (!managed && !scopedCompanyId) {
-      const defaultMembership = await Membership.findOne({ userId: user._id, active: true, role: { $in: COMPANY_ROLES } })
-        .sort({ createdAt: -1 }).select("companyId workspaceId").lean();
-      if (defaultMembership) {
-        scopedCompanyId = String(defaultMembership.companyId);
-        scopedWorkspaceId = String(defaultMembership.workspaceId);
-      }
-    }
+    const scopedCompanyId = managed?.companyId;
+    const scopedWorkspaceId = managed?.workspaceId;
 
     if (scopedCompanyId && (!Types.ObjectId.isValid(scopedCompanyId) || !scopedWorkspaceId || !Types.ObjectId.isValid(scopedWorkspaceId))) {
       return { userId: String(user._id), role: "PLATFORM_ADMIN", email: String(user.email), name: String(user.name), image: googleAvatarUrl(user.image) || undefined };

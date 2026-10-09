@@ -27,7 +27,7 @@ export async function POST(
     const company = await Company.findById(companyId).select("_id name").lean();
     if (!company) return jsonError("COMPANY_NOT_FOUND", 404);
 
-    const workspace = await Workspace.findOne({ companyId: company._id })
+    const workspace = await Workspace.findOne({ companyId: company._id, active: true })
       .select("_id")
       .sort({ createdAt: 1 })
       .lean();

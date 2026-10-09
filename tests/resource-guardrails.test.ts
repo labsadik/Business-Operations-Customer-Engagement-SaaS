@@ -193,3 +193,16 @@ test("findOneAndUpdate and findOneAndReplace call sites avoid deprecated new: tr
     assert.doesNotMatch(source(path), /\bnew\s*:\s*true\b/, `${path} still uses the deprecated option`);
   }
 });
+
+
+test("platform admin tenant scope only comes from explicit managed-company context", () => {
+  const session = source("lib/session.ts");
+  const manageRoute = source("app/api/admin/companies/[companyId]/manage/route.ts");
+  const unmanageRoute = source("app/api/admin/companies/unmanage/route.ts");
+
+  assert.ok(session.includes("const scopedCompanyId = managed?.companyId;"));
+  assert.ok(!session.includes("defaultMembership"));
+  assert.ok(session.includes("store.get(ADMIN_MANAGED_COMPANY_COOKIE)"));
+  assert.ok(manageRoute.includes("active: true"));
+  assert.ok(unmanageRoute.includes("store.delete(ADMIN_MANAGED_COMPANY_COOKIE)"));
+});
