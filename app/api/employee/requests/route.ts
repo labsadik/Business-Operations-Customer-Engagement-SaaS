@@ -172,6 +172,39 @@ export async function GET(request: Request) {
   await getMongo();
   if (isHistory) return historyResponse(request, session);
 
+  if (url.searchParams.get("notifications") === "true") {
+    if (!session.companyId) return jsonError("COMPANY_NOT_CONFIGURED", 403);
+    const cutoff = new Date(Date.now() - 10 * 60 * 1000);
+    const notifications = await BookingRequest.find({
+      companyId: session.companyId,
+      createdAt: { $gte: cutoff },
+      $or: [
+        {
+          status: { $in: ["REQUESTED", "RETRYING"] },
+          declinedBy: { $ne: session.userId }
+        },
+        {
+          status: { $in: ["ASSIGNED", "CREATING_MEETING"] },
+          assignedEmployeeId: session.userId
+        }
+      ]
+    })
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(10)
+      .select("_id status requestedStartAt createdAt assignedEmployeeId")
+      .lean();
+
+    return jsonOk({
+      items: notifications.map((item) => ({
+        id: String(item._id),
+        status: item.status,
+        startAt: item.requestedStartAt,
+        createdAt: item.createdAt,
+        assignedEmployeeId: item.assignedEmployeeId ? String(item.assignedEmployeeId) : null
+      }))
+    });
+  }
+
   if (!session.companyId) return jsonError("COMPANY_NOT_CONFIGURED", 403);
 
   const requestedLimit = Number(url.searchParams.get("limit") ?? "100");

@@ -45,6 +45,7 @@ const bookingRequestSchema = new Schema(
 );
 
 bookingRequestSchema.index({ companyId: 1, status: 1, expiresAt: 1 });
+bookingRequestSchema.index({ companyId: 1, status: 1, createdAt: -1 });
 bookingRequestSchema.index({ assignedEmployeeId: 1, requestedStartAt: 1 });
 
 export const BookingRequest =

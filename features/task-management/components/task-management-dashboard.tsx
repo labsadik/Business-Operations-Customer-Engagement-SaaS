@@ -26,6 +26,7 @@ import WorkspaceSidebar from "@/components/workspace-sidebar";
 import UserAvatar from "@/components/user-avatar";
 import WorkspaceUserProfile from "@/components/workspace-user-profile";
 import { playTaskSoundIfEnabled } from "@/lib/client-task-sound";
+import DesktopNotificationCenter from "@/components/desktop-notification-settings";
 import { TASK_PRIORITIES, TASK_STATUSES, type TaskPriority, type TaskStatus } from "@/features/task-management/shared/constants";
 
 type Employee = {
@@ -660,6 +661,7 @@ export default function TaskManagementDashboard({
                 <RefreshCw className={"size-4 " + (loading ? "animate-spin" : "")} />
                 <span className="hidden sm:inline">Refresh</span>
               </button>
+              <DesktopNotificationCenter userId={userId} taskManagementEnabled={taskManagementEnabled} />
               <WorkspaceUserProfile name={userName || userEmail} email={userEmail} image={userImage} companyName={companyName} currentRole={currentRole} />
             </div>
           </div>

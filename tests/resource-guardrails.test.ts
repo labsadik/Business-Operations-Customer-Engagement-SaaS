@@ -56,3 +56,21 @@ test("Google Calendar free/busy calls have bounded concurrency and queue size", 
   assert.ok(calendar.includes('throw new Error("GOOGLE_CALENDAR_BUSY")'));
   assert.ok(calendar.includes("return withFreeBusyCapacity(async () =>"));
 });
+
+test("desktop alerts are opt-in, recipient scoped, and use lightweight event feeds", () => {
+  const center = source("components/desktop-notification-settings.tsx");
+  const tasks = source("app/api/tasks/notifications/route.ts");
+  const meetings = source("app/api/employee/requests/route.ts");
+  const workspacePage = source("app/dashboard/page.tsx");
+  const taskPage = source("features/task-management/components/task-management-dashboard.tsx");
+
+  assert.ok(center.includes("Notification.requestPermission()"));
+  assert.ok(center.includes("isDesktopNotificationsEnabled(userId)"));
+  assert.ok(center.includes("TASK_POLL_HIDDEN_MS = 120_000"));
+  assert.ok(tasks.includes('url.searchParams.get("desktop") === "1"'));
+  assert.ok(tasks.includes('type: "TASK_ASSIGNED"'));
+  assert.ok(meetings.includes('url.searchParams.get("notifications") === "true"'));
+  assert.ok(meetings.includes("createdAt: { $gte: cutoff }"));
+  assert.ok(workspacePage.includes("id: session.userId"));
+  assert.ok(taskPage.includes("<DesktopNotificationCenter userId={userId}"));
+});

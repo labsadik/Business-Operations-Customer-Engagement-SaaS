@@ -45,6 +45,10 @@ import PlatformAnnouncementBanner from "@/components/platform-announcement-banne
 import WorkspaceFeedback from "@/components/workspace-feedback";
 import WorkspaceSupportTickets from "@/components/workspace-support-tickets";
 import { playFeedbackSound } from "@/lib/client-feedback-sound";
+import DesktopNotificationCenter, {
+  getUnseenDesktopNotificationIds,
+  sendDesktopNotification
+} from "@/components/desktop-notification-settings";
 
 type Address = {
   line1: string;
@@ -403,7 +407,7 @@ function AppModal({
 export default function WorkspaceDashboard({
   user
 }: {
-  user: { name: string; email: string; image?: string };
+  user: { id: string; name: string; email: string; image?: string };
 }) {
   const [data, setData] = useState<CompanyData | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -844,16 +848,37 @@ export default function WorkspaceDashboard({
   }, [activeModal, settingsSection]);
 
   useEffect(() => {
+    if (!dataLoadedRef.current) return;
+
     const ids = requests.map((item) => item.id);
-    if (
-      initializedRequestsRef.current &&
-      ids.some((id) => !seenRequestIdsRef.current.has(id))
-    ) {
+    const newlyObserved = requests.filter((item) => !seenRequestIdsRef.current.has(item.id));
+    const persistedUnseen = new Set(
+      getUnseenDesktopNotificationIds(user.id, "meetings", ids)
+    );
+
+    if (initializedRequestsRef.current && newlyObserved.length > 0) {
       void playMeetingSound("incoming");
+      for (const item of newlyObserved) {
+        if (!persistedUnseen.has(item.id)) continue;
+        const start = new Date(item.startAt);
+        const when = Number.isNaN(start.getTime())
+          ? ""
+          : " Starts " + start.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) + ".";
+        const assignedToMe = item.assignedEmployeeId === user.id;
+        sendDesktopNotification(user.id, {
+          title: assignedToMe ? "A meeting was assigned to you" : "New public meeting request",
+          body: assignedToMe
+            ? "A public booking is now assigned to you." + when
+            : "A new public meeting request is available for your team." + when,
+          url: "/dashboard?panel=meetings",
+          tag: "conventus-meeting-" + item.id
+        });
+      }
     }
+
     for (const id of ids) seenRequestIdsRef.current.add(id);
     initializedRequestsRef.current = true;
-  }, [requests]);
+  }, [requests, user.id]);
 
   async function createCompany(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1350,6 +1375,10 @@ export default function WorkspaceDashboard({
                 Prepare public page
               </button>
             )}
+            <DesktopNotificationCenter
+              userId={user.id}
+              taskManagementEnabled={Boolean(data.currentPlan.taskManagementEnabled)}
+            />
             <WorkspaceUserProfile name={user.name} email={user.email} image={user.image} companyName={data.company.name} currentRole={data.currentRole} />
             <form action="/api/auth/logout" method="post">
               <button
