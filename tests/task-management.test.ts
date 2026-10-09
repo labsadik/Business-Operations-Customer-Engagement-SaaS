@@ -275,3 +275,17 @@ test("workspace overview exposes employee states and tenant-scoped task usage on
   assert.match(dashboard, /Meeting activity summary/);
   assert.match(dashboard, /playMeetingSound\(action === "accept" \? "accepted" : "declined"\)/);
 });
+
+
+test("meeting activity summary counts are authorized and isolated to the current company", () => {
+  const route = source("app/api/employee/meetings/summary/route.ts");
+  assert.match(route, /requireCompanyMember/);
+  assert.match(route, /const scope = \{ companyId: session\.companyId \}/);
+  assert.match(route, /BookingRequest\.countDocuments/);
+  assert.match(route, /Meeting\.countDocuments/);
+  assert.match(route, /requestedCount/);
+  assert.match(route, /processingCount/);
+  assert.match(route, /ongoingCount/);
+  assert.match(route, /happenedCount/);
+  assert.doesNotMatch(route, /searchParams\.get\("companyId"\)/);
+});

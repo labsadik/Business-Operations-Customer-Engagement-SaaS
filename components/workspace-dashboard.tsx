@@ -181,6 +181,14 @@ type RequestHistoryItem = {
 
 type MeetingModalView = "requests" | "meeting-history" | "request-history";
 
+type MeetingActivitySummary = {
+  requestedCount: number;
+  processingCount: number;
+  ongoingCount: number;
+  happenedCount: number;
+  checkedAt: string;
+};
+
 type AnnouncementItem = {
   id: string;
   title: string;
@@ -409,6 +417,7 @@ export default function WorkspaceDashboard({
   const [meetingView, setMeetingView] = useState<MeetingView>("new");
   const [meetingModalView, setMeetingModalView] = useState<MeetingModalView>("requests");
   const [meetingDateFilter, setMeetingDateFilter] = useState("");
+  const [meetingActivitySummary, setMeetingActivitySummary] = useState<MeetingActivitySummary | null>(null);
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
   const [invitations, setInvitations] = useState<InvitationItem[]>([]);
   const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
@@ -513,10 +522,10 @@ export default function WorkspaceDashboard({
         return values.year + "-" + values.month + "-" + values.day === meetingDateFilter;
       })
     : modalMeetingHistory;
-  const meetingRequestCount = modalRequests.filter((item) => ["REQUESTED", "RETRYING"].includes(item.status)).length;
-  const meetingProcessingCount = modalRequests.filter((item) => ["ASSIGNED", "CREATING_MEETING"].includes(item.status)).length;
-  const ongoingMeetingCount = modalRequests.filter((item) => ["CONFIRMED", "IN_PROGRESS"].includes(item.status)).length;
-  const happenedMeetingCount = modalMeetingHistory.filter((item) => ["COMPLETED", "READY", "LIVE"].includes(item.status)).length;
+  const meetingRequestCount = meetingActivitySummary?.requestedCount ?? modalRequests.filter((item) => ["REQUESTED", "RETRYING"].includes(item.status)).length;
+  const meetingProcessingCount = meetingActivitySummary?.processingCount ?? modalRequests.filter((item) => ["ASSIGNED", "CREATING_MEETING"].includes(item.status)).length;
+  const ongoingMeetingCount = meetingActivitySummary?.ongoingCount ?? modalRequests.filter((item) => ["CONFIRMED", "IN_PROGRESS"].includes(item.status)).length;
+  const happenedMeetingCount = meetingActivitySummary?.happenedCount ?? modalMeetingHistory.filter((item) => ["COMPLETED", "READY", "LIVE"].includes(item.status)).length;
 
   const refreshAll = useCallback(async function refreshAll() {
     if (refreshingRef.current) return;
@@ -602,17 +611,19 @@ export default function WorkspaceDashboard({
     setMeetingsLoading(true);
     setMeetingsError("");
     try {
-      const [allRequests, allHistory, historyPage] = await Promise.all([
+      const [allRequests, allHistory, historyPage, activitySummary] = await Promise.all([
         api<RequestItem[]>("/api/employee/requests?limit=100"),
         api<{ items: MeetingHistoryItem[]; nextCursor: string | null }>("/api/employee/meetings?paginated=true&limit=50"),
         api<{ items: RequestHistoryItem[]; nextCursor: string | null }>(
           "/api/employee/requests?history=true&limit=25"
-        )
+        ),
+        api<MeetingActivitySummary>("/api/employee/meetings/summary")
       ]);
       setModalRequests(allRequests);
       setModalMeetingHistory(allHistory.items);
       setModalRequestHistory(historyPage.items);
       setRequestHistoryCursor(historyPage.nextCursor);
+      setMeetingActivitySummary(activitySummary);
     } catch {
       setMeetingsError("MEETING_LIST_FAILED");
     } finally {
@@ -1819,7 +1830,7 @@ export default function WorkspaceDashboard({
               { label: "Requested", value: meetingRequestCount, detail: "Awaiting a team response", tone: "text-amber-700" },
               { label: "Processing", value: meetingProcessingCount, detail: "Assignment / setup", tone: "text-blue-700" },
               { label: "Ongoing", value: ongoingMeetingCount, detail: "Confirmed active meetings", tone: "text-indigo-700" },
-              { label: "Meetings happened", value: happenedMeetingCount, detail: "Currently loaded history", tone: "text-emerald-700" }
+              { label: "Meetings happened", value: happenedMeetingCount, detail: meetingActivitySummary ? "Company-scope total" : "Loaded history", tone: "text-emerald-700" }
             ].map((metric) => (
               <article key={metric.label} className="rounded-2xl border border-slate-200 bg-white p-3.5">
                 <p className="text-[10px] font-semibold text-slate-500">{metric.label}</p>
