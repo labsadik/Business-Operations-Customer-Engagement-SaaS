@@ -14,8 +14,11 @@ import {
   CreditCard,
   Globe2,
   LifeBuoy,
+  LogOut,
   Megaphone,
   MessageSquareText,
+  PanelLeftClose,
+  PanelLeftOpen,
   Settings2,
   ShieldCheck,
   UsersRound
@@ -37,13 +40,15 @@ type WorkspaceSidebarProps = {
   activeProfile?: boolean;
   onOpenPanel?: (panel: Panel, section?: "announcements") => void;
   avatarFallback?: string;
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
 };
 
 const primaryItems = [
   { key: "dashboard", href: "/dashboard", label: "Overview", icon: BarChart3 }
 ] as const;
 
-const defaultSupportTicketsLabel = "Support tickets";
+const defaultSupportTicketsLabel = "Raise a ticket";
 
 export default function WorkspaceSidebar({
   companyName,
@@ -58,7 +63,9 @@ export default function WorkspaceSidebar({
   activeSettingsSection = "public",
   activeProfile = false,
   onOpenPanel,
-  avatarFallback
+  avatarFallback,
+  collapsed = false,
+  onToggleCollapsed
 }: WorkspaceSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -83,7 +90,8 @@ export default function WorkspaceSidebar({
   };
 
   const buttonClass = (selected: boolean) => [
-    "group flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-left text-sm font-semibold transition",
+    "group flex w-full items-center rounded-xl py-3 text-left text-sm font-semibold transition",
+    collapsed ? "justify-center px-2.5" : "gap-3 px-3.5",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
     selected
       ? "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-100"
@@ -95,98 +103,123 @@ export default function WorkspaceSidebar({
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-50 hidden w-72 flex-col border-r border-slate-200/90 bg-white lg:flex">
-        <div className="border-b border-slate-200/80 px-4 py-4">
-          <div className="rounded-2xl bg-[#faf9f1] p-3 ring-1 ring-inset ring-amber-100/80">
-            <p className="truncate text-xs font-semibold text-slate-950">{companyName}</p>
-            <div className="mt-2 flex items-center gap-2">
+      <aside className={`fixed inset-y-0 left-0 z-50 hidden flex-col border-r border-slate-200/90 bg-white transition-[width] duration-200 lg:flex ${collapsed ? "w-20" : "w-72"}`}>
+        <div className={`border-b border-slate-200/80 py-4 ${collapsed ? "px-2" : "px-4"}`}>
+          <div className={`mb-3 flex items-center ${collapsed ? "justify-center" : "justify-between gap-2"}`}>
+            {!collapsed && <p className="truncate text-xs font-semibold text-slate-950">{companyName}</p>}
+            {onToggleCollapsed && (
+              <button
+                type="button"
+                onClick={onToggleCollapsed}
+                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                className="grid size-9 shrink-0 place-items-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              >
+                {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+              </button>
+            )}
+          </div>
+          <div className={`rounded-2xl bg-[#faf9f1] p-2.5 ring-1 ring-inset ring-amber-100/80 ${collapsed ? "flex justify-center" : "p-3"}`}>
+            <div className={`flex items-center ${collapsed ? "justify-center" : "gap-2"}`}>
               <UserAvatar name={userName} email={userEmail} image={userImage} fallbackImage={avatarFallback} size={30} className="border-0 bg-blue-600 text-white" />
-              <div className="min-w-0">
-                <p className="truncate text-[11px] font-semibold text-slate-800">{userName}</p>
-                <p className="truncate text-[10px] text-slate-500">{userEmail}</p>
+              {!collapsed && (
+                <div className="min-w-0">
+                  <p className="truncate text-[11px] font-semibold text-slate-800">{userName}</p>
+                  <p className="truncate text-[10px] text-slate-500">{userEmail}</p>
+                </div>
+              )}
+            </div>
+            {!collapsed && (
+              <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
+                <span className="size-1.5 rounded-full bg-emerald-500" />
+                {currentRole.replaceAll("_", " ")}
               </div>
-            </div>
-            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
-              <span className="size-1.5 rounded-full bg-emerald-500" />
-              {currentRole.replaceAll("_", " ")}
-            </div>
+            )}
           </div>
         </div>
 
-        <nav aria-label="Company workspace navigation" className="flex-1 overflow-y-auto px-4 py-5">
-          <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Workspace</p>
+        <nav aria-label="Company workspace navigation" className={`flex-1 overflow-y-auto py-5 ${collapsed ? "px-2" : "px-4"}`}>
+          {!collapsed && <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Workspace</p>
 
           <div className="space-y-1">
             {primaryItems.map((item) => {
               const selected = active("dashboard");
               const Icon = item.icon;
               return (
-                <Link key={item.href} href={item.href as Route} className={buttonClass(selected)}>
+                <Link key={item.href} href={item.href as Route} className={buttonClass(selected)} title={labels.dashboard}>
                   <Icon className={`size-4 ${iconClass(selected)}`} />
-                  <span>{labels.dashboard}</span>
-                  {selected && <span className="ml-auto size-1.5 rounded-full bg-blue-600" />}
+                  <span className={collapsed ? "sr-only" : ""}>{labels.dashboard}</span>
+                  {selected && !collapsed && <span className="ml-auto size-1.5 rounded-full bg-blue-600" />}
                 </Link>
               );
             })}
 
-            <button type="button" onClick={() => open("meetings")} className={buttonClass(active("meetings"))}>
+            <button type="button" onClick={() => open("meetings")} className={buttonClass(active("meetings"))} title={labels.meetings}>
               <CalendarDays className={`size-4 ${iconClass(active("meetings"))}`} />
-              <span>{labels.meetings}</span>
+              <span className={collapsed ? "sr-only" : ""}>{labels.meetings}</span>
             </button>
 
-            <button type="button" onClick={() => open("team")} className={buttonClass(active("team"))}>
+            <button type="button" onClick={() => open("team")} className={buttonClass(active("team"))} title={labels.team}>
               <UsersRound className={`size-4 ${iconClass(active("team"))}`} />
-              <span>{labels.team}</span>
+              <span className={collapsed ? "sr-only" : ""}>{labels.team}</span>
             </button>
 
             {taskManagementEnabled && (
-              <Link href={"/dashboard/tasks" as Route} className={buttonClass(isTasks)}>
+              <Link href={"/dashboard/tasks" as Route} className={buttonClass(isTasks)} title="Tasks">
                 <ClipboardList className={`size-4 ${iconClass(isTasks)}`} />
-                <span>Tasks</span>
-                {isTasks && <span className="ml-auto size-1.5 rounded-full bg-blue-600" />}
+                <span className={collapsed ? "sr-only" : ""}>Tasks</span>
+                {isTasks && !collapsed && <span className="ml-auto size-1.5 rounded-full bg-blue-600" />}
               </Link>
             )}
 
-            <button type="button" onClick={() => open("feedback")} className={buttonClass(active("feedback"))}>
+            <button type="button" onClick={() => open("feedback")} className={buttonClass(active("feedback"))} title={labels.feedback}>
               <MessageSquareText className={`size-4 ${iconClass(active("feedback"))}`} />
-              <span>{labels.feedback}</span>
+              <span className={collapsed ? "sr-only" : ""}>{labels.feedback}</span>
             </button>
-            {currentRole !== "PLATFORM_ADMIN" && (
-              <button type="button" onClick={() => open("support-tickets")} className={buttonClass(active("support-tickets"))}>
-                <LifeBuoy className={`size-4 ${iconClass(active("support-tickets"))}`} />
-                <span>{labels.supportTickets || defaultSupportTicketsLabel}</span>
-              </button>
-            )}
-
             {canManage && (
               <>
-                <button type="button" onClick={() => open("settings", "announcements")} className={buttonClass(activePanel === "settings" && activeSettingsSection === "announcements" && !activeProfile)}>
+                <button type="button" onClick={() => open("settings", "announcements")} className={buttonClass(activePanel === "settings" && activeSettingsSection === "announcements" && !activeProfile)} title={labels.announcements}>
                   <Megaphone className={`size-4 ${iconClass(activePanel === "settings" && activeSettingsSection === "announcements" && !activeProfile)}`} />
-                  <span>{labels.announcements}</span>
+                  <span className={collapsed ? "sr-only" : ""}>{labels.announcements}</span>
                 </button>
 
-                <button type="button" onClick={() => open("billing")} className={buttonClass(active("billing"))}>
+                <button type="button" onClick={() => open("billing")} className={buttonClass(active("billing"))} title={labels.billing}>
                   <CreditCard className={`size-4 ${iconClass(active("billing"))}`} />
-                  <span>{labels.billing}</span>
+                  <span className={collapsed ? "sr-only" : ""}>{labels.billing}</span>
                 </button>
 
-                <button type="button" onClick={() => open("settings")} className={buttonClass(activePanel === "settings" && activeSettingsSection !== "announcements" && !activeProfile)}>
+                <button type="button" onClick={() => open("settings")} className={buttonClass(activePanel === "settings" && activeSettingsSection !== "announcements" && !activeProfile)} title={labels.workspaceSettings}>
                   <Settings2 className={`size-4 ${iconClass(activePanel === "settings" && activeSettingsSection !== "announcements" && !activeProfile)}`} />
-                  <span>{labels.workspaceSettings}</span>
+                  <span className={collapsed ? "sr-only" : ""}>{labels.workspaceSettings}</span>
                 </button>
               </>
             )}
 
-            <Link href="/dashboard/company-profile" className={buttonClass(active("profile"))}>
+            <Link href="/dashboard/company-profile" className={buttonClass(active("profile"))} title={labels.companyProfile}>
               <Building2 className={`size-4 ${iconClass(active("profile"))}`} />
-              <span>{labels.companyProfile}</span>
+              <span className={collapsed ? "sr-only" : ""}>{labels.companyProfile}</span>
             </Link>
           </div>
 
-          <p className="mt-7 px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">External</p>
+          {currentRole !== "PLATFORM_ADMIN" && (
+            <div className="mt-7">
+              {!collapsed && <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Platform Support</p>}
+              <button
+                type="button"
+                onClick={() => open("support-tickets")}
+                className={buttonClass(active("support-tickets"))}
+                title={defaultSupportTicketsLabel}
+              >
+                <LifeBuoy className={`size-4 ${iconClass(active("support-tickets"))}`} />
+                <span className={collapsed ? "sr-only" : ""}>{defaultSupportTicketsLabel}</span>
+              </button>
+            </div>
+          )}
+
+          {!collapsed && <p className="mt-7 px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">External</p>}
 
           <div className="space-y-1">
-            <Link href="/" className={buttonClass(false)}>
+            <Link href="/" title="Conventus home" className={buttonClass(false)}>
               <Globe2 className="size-4 text-slate-400 group-hover:text-slate-700" />
               <span>Conventus home</span>
               <ArrowUpRight className="ml-auto size-3.5 text-slate-300" />
@@ -203,10 +236,10 @@ export default function WorkspaceSidebar({
               <ArrowUpRight className="ml-auto size-3.5" />
             </Link>
           )}
-          <p className="px-3 pb-2 text-[10px] text-slate-400">Signed in as {userEmail}</p>
+          {!collapsed && <p className="px-3 pb-2 text-[10px] text-slate-400">Signed in as {userEmail}</p>}
           <form action="/api/auth/logout" method="post">
-            <button className="flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-600 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
-              Sign out
+            <button title="Sign out" className={`flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-600 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${collapsed ? "px-2" : ""}`}>
+              {collapsed ? <LogOut className="size-4" /> : "Sign out"}
             </button>
           </form>
         </div>
@@ -221,7 +254,7 @@ export default function WorkspaceSidebar({
           <button type="button" onClick={() => open("team")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("team") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.team}</button>
           {taskManagementEnabled && <Link href={"/dashboard/tasks" as Route} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${isTasks ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Tasks</Link>}
           <button type="button" onClick={() => open("feedback")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("feedback") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.feedback}</button>
-          {currentRole !== "PLATFORM_ADMIN" && <button type="button" onClick={() => open("support-tickets")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("support-tickets") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.supportTickets}</button>}
+          {currentRole !== "PLATFORM_ADMIN" && <button type="button" onClick={() => open("support-tickets")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("support-tickets") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{defaultSupportTicketsLabel}</button>}
           {canManage && <button type="button" onClick={() => open("settings", "announcements")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${activePanel === "settings" && activeSettingsSection === "announcements" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.announcements}</button>}
           {canManage && <button type="button" onClick={() => open("billing")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("billing") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.billing}</button>}
           {canManage && <button type="button" onClick={() => open("settings")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${activePanel === "settings" && activeSettingsSection !== "announcements" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.workspaceSettings}</button>}

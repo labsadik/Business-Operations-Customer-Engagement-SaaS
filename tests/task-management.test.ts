@@ -1,5 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+function source(path: string) {
+  return readFileSync(resolve(process.cwd(), path), "utf8");
+}
 import {
   validateAssigneeUserIds,
   validateAssignmentStatus,
@@ -64,4 +70,23 @@ test("assignment status is constrained to supported lifecycle states", () => {
   assert.equal(validateAssignmentStatus("IN_PROGRESS"), "IN_PROGRESS");
   assert.equal(validateAssignmentStatus("COMPLETED"), "COMPLETED");
   assert.throws(() => validateAssignmentStatus("FINISHED"), /TASK_STATUS_INVALID/);
+});
+
+
+test("task dashboard includes searchable Jira-style columns, opt-in confirmation sounds and a collapsible sidebar", () => {
+  const dashboard = source("components/task-management-dashboard.tsx");
+  const sound = source("lib/client-task-sound.ts");
+  const sidebar = source("components/workspace-sidebar.tsx");
+
+  assert.match(dashboard, /TASK_STATUSES\.map/);
+  assert.match(dashboard, /aria-label="Search tasks"/);
+  assert.match(dashboard, /Sound effects/);
+  assert.match(dashboard, /playTaskSoundIfEnabled\("created"\)/);
+  assert.match(dashboard, /setShowCreateForm/);
+  assert.match(sound, /localStorage/);
+  assert.match(sound, /export async function playTaskSound/);
+  assert.match(sidebar, /Platform Support/);
+  assert.match(sidebar, /Raise a ticket/);
+  assert.match(sidebar, /Collapse sidebar/);
+  assert.match(sidebar, /Expand sidebar/);
 });

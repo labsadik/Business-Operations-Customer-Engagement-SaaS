@@ -152,8 +152,10 @@ test("shared user avatars keep a visible fallback when Google image rendering fa
 
   assert.match(avatar, /googleAvatarUrl\(image\)/);
   assert.match(avatar, /aria-hidden="true"/);
-  assert.match(avatar, /onError=\{\(event\) => \{/);
-  assert.match(avatar, /style\.display = "none"/);
+  assert.match(avatar, /onError=\{\(\) => \{/);
+  assert.match(avatar, /setFailedImageSrc\(imageSrc\)/);
+  assert.match(avatar, /failedImageSrc !== fallbackImage/);
+  assert.doesNotMatch(avatar, /style\.display = "none"/);
   assert.match(avatar, /referrerPolicy="no-referrer"/);
   assert.match(session, /image: googleAvatarUrl\(user\.image\)/);
   assert.match(oauth, /image: googleAvatarUrl\(googleUser\.picture\)/);

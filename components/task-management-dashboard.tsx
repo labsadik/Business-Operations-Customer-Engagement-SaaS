@@ -10,10 +10,14 @@ import {
   LoaderCircle,
   Plus,
   RefreshCw,
-  Users
+  Search,
+  Users,
+  Volume2,
+  VolumeX
 } from "lucide-react";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
 import UserAvatar from "@/components/user-avatar";
+import { isTaskSoundEnabled, playTaskSound, playTaskSoundIfEnabled, setTaskSoundEnabled, unlockTaskSound } from "@/lib/client-task-sound";
 import { TASK_PRIORITIES, TASK_STATUSES, type TaskPriority, type TaskStatus } from "@/features/task-management/shared/constants";
 
 type Employee = {
@@ -132,6 +136,17 @@ function priorityClasses(priority: TaskPriority) {
   }
 }
 
+function statusColumnClasses(status: TaskStatus) {
+  switch (status) {
+    case "IN_PROGRESS": return "bg-blue-50 text-blue-700 ring-blue-200";
+    case "BLOCKED": return "bg-rose-50 text-rose-700 ring-rose-200";
+    case "IN_REVIEW": return "bg-violet-50 text-violet-700 ring-violet-200";
+    case "COMPLETED": return "bg-emerald-50 text-emerald-700 ring-emerald-200";
+    case "CANCELLED": return "bg-slate-100 text-slate-500 ring-slate-200";
+    default: return "bg-white text-slate-700 ring-slate-200";
+  }
+}
+
 export default function TaskManagementDashboard({
   companyName,
   userName,
@@ -155,9 +170,25 @@ export default function TaskManagementDashboard({
   const [priority, setPriority] = useState<TaskPriority>("MEDIUM");
   const [dueAt, setDueAt] = useState("");
   const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>([userId]);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const canManage = MANAGER_ROLES.includes(currentRole);
   const employeeById = useMemo(() => new Map(employees.map((employee) => [employee.id, employee])), [employees]);
+  const filteredTasks = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return tasks;
+    return tasks.filter((task) => {
+      const assignedNames = task.assigneeUserIds.map((id) => {
+        const employee = employeeById.get(id);
+        return employee ? employee.name + " " + employee.email : "";
+      }).join(" ");
+      return [task.title, task.description, assignedNames, task.priority, task.status]
+        .some((value) => value.toLowerCase().includes(query));
+    });
+  }, [tasks, searchTerm, employeeById]);
 
   const load = useCallback(async function loadTasks(showSpinner = true) {
     if (!taskManagementEnabled) {
@@ -183,6 +214,7 @@ export default function TaskManagementDashboard({
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
+      setSoundEnabled(isTaskSoundEnabled());
       void load();
     });
     return () => window.cancelAnimationFrame(frame);
@@ -213,6 +245,7 @@ export default function TaskManagementDashboard({
       return;
     }
 
+    if (soundEnabled) void unlockTaskSound();
     setSaving(true);
     try {
       const created = await api<TaskItem>("/api/tasks", {
@@ -230,7 +263,9 @@ export default function TaskManagementDashboard({
       setDescription("");
       setPriority("MEDIUM");
       setDueAt("");
+      setShowCreateForm(false);
       setNotice("Task created and assigned.");
+      void playTaskSoundIfEnabled("created");
     } catch (createError) {
       setError(errorMessage(createError));
     } finally {
@@ -242,6 +277,7 @@ export default function TaskManagementDashboard({
     setError("");
     setNotice("");
     setBusyAssignmentId(assignment.id);
+    if (soundEnabled) void unlockTaskSound();
     const managerForTask = canManage || task.createdByUserId === userId;
     try {
       await api<{ taskStatus: TaskStatus }>(`/api/tasks/${task.id}/status`, {
@@ -258,6 +294,7 @@ export default function TaskManagementDashboard({
       setTasks(taskPage.items);
       setDetails((current) => ({ ...current, [task.id]: detail }));
       setNotice("Task status updated.");
+      void playTaskSoundIfEnabled(status === "COMPLETED" ? "completed" : "updated");
     } catch (updateError) {
       setError(errorMessage(updateError));
     } finally {
@@ -277,8 +314,10 @@ export default function TaskManagementDashboard({
         canManage={canManage}
         adminManaged={currentRole === "PLATFORM_ADMIN"}
         avatarFallback="/api/profile/avatar"
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={() => setSidebarCollapsed((collapsed) => !collapsed)}
       />
-      <div className="lg:pl-72">
+      <div className={sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"}>
         <header className="sticky top-0 z-40 border-b border-slate-200/90 bg-[#faf9f1]/95 backdrop-blur-xl">
           <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
             <div className="min-w-0">
@@ -311,19 +350,64 @@ export default function TaskManagementDashboard({
         </header>
 
         <div className="mx-auto max-w-7xl space-y-6 px-5 py-7 sm:px-6 lg:px-8">
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-600">Team work</p>
                 <h2 className="mt-1 text-2xl font-semibold tracking-tight">Tasks for {companyName}</h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Create tasks, assign them to active workspace members, and follow their progress from one place.</p>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">A project board for assigning work, tracking ownership, and moving tasks through clear stages.</p>
               </div>
               <div className="flex shrink-0 items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3 ring-1 ring-inset ring-slate-200">
                 <ClipboardList className="size-5 text-blue-600" />
                 <div>
                   <p className="text-xl font-semibold tabular-nums">{tasks.length}</p>
-                  <p className="text-[10px] text-slate-500">Tasks loaded</p>
+                  <p className="text-[10px] text-slate-500">Workspace tasks</p>
                 </div>
+              </div>
+            </div>
+            <div className="mt-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <label className="relative block min-w-0 flex-1">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                <input
+                  aria-label="Search tasks"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search tasks, descriptions, assignees…"
+                  className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-3.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </label>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateForm((visible) => !visible)}
+                  aria-expanded={showCreateForm}
+                  className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3.5 py-3 text-xs font-semibold text-white transition hover:bg-slate-800"
+                >
+                  <Plus className="size-4" />
+                  {showCreateForm ? "Hide create form" : "Create task"}
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={soundEnabled}
+                  onClick={() => {
+                    const next = !soundEnabled;
+                    setSoundEnabled(next);
+                    setTaskSoundEnabled(next);
+                    if (next) void playTaskSound("created");
+                  }}
+                  title={soundEnabled ? "Turn task sound effects off" : "Turn task sound effects on"}
+                  className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-3 text-xs font-semibold transition ${soundEnabled ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+                >
+                  {soundEnabled ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
+                  Sound effects {soundEnabled ? "on" : "off"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void playTaskSound("created")}
+                  className="rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Test sound
+                </button>
               </div>
             </div>
           </section>
@@ -348,6 +432,7 @@ export default function TaskManagementDashboard({
             </section>
           ) : (
             <>
+              {showCreateForm && (
               <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="mb-5 flex items-center gap-2">
                   <span className="grid size-9 place-items-center rounded-xl bg-blue-50 text-blue-700">
@@ -428,13 +513,15 @@ export default function TaskManagementDashboard({
                   </div>
                 </form>
               </section>
+              )}
 
               <section className="space-y-3">
-                <div className="flex items-end justify-between gap-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                   <div>
-                    <h2 className="text-lg font-semibold">Workspace tasks</h2>
-                    <p className="mt-1 text-xs text-slate-500">Select a task to view assignments and update progress.</p>
+                    <h2 className="text-lg font-semibold">Task board</h2>
+                    <p className="mt-1 text-xs text-slate-500">Open a card to inspect assigned members and update assignment progress.</p>
                   </div>
+                  <p className="text-[11px] text-slate-500">{filteredTasks.length} of {tasks.length} tasks</p>
                 </div>
 
                 {loading ? (
@@ -446,78 +533,108 @@ export default function TaskManagementDashboard({
                   <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center">
                     <ClipboardList className="mx-auto size-8 text-slate-300" />
                     <h3 className="mt-3 text-sm font-semibold">No tasks yet</h3>
-                    <p className="mt-1 text-xs text-slate-500">Create your first task above to get work moving.</p>
+                    <p className="mt-1 text-xs text-slate-500">Create the first task to start tracking your team’s work.</p>
+                    <button type="button" onClick={() => setShowCreateForm(true)} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-xs font-semibold text-white hover:bg-slate-800">
+                      <Plus className="size-4" /> Create task
+                    </button>
+                  </div>
+                ) : filteredTasks.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+                    No tasks match “{searchTerm}”. Try another search.
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {tasks.map((task) => {
-                      const detail = details[task.id];
-                      const expanded = expandedTaskId === task.id;
-                      const managerForTask = canManage || task.createdByUserId === userId;
+                  <div aria-label="Task status board" className="grid grid-flow-col auto-cols-[minmax(18rem,21rem)] gap-4 overflow-x-auto pb-4">
+                    {TASK_STATUSES.map((status) => {
+                      const columnTasks = filteredTasks.filter((task) => task.status === status);
                       return (
-                        <article key={task.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                          <button type="button" onClick={() => void openTask(task.id)} aria-expanded={expanded} className="flex w-full items-start gap-4 px-4 py-4 text-left transition hover:bg-slate-50 sm:px-5">
-                            <span className="mt-0.5 grid size-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-700">
-                              <ClipboardList className="size-4" />
-                            </span>
-                            <span className="min-w-0 flex-1">
-                              <span className="flex flex-wrap items-center gap-2">
-                                <span className="text-sm font-semibold text-slate-900">{task.title}</span>
-                                <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ring-1 ring-inset ${priorityClasses(task.priority)}`}>{labelStatus(task.priority)}</span>
-                              </span>
-                              {task.description && <span className="mt-1 block line-clamp-2 text-xs leading-5 text-slate-500">{task.description}</span>}
-                              <span className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
-                                <span className="inline-flex items-center gap-1.5"><CalendarClock className="size-3.5" />{formatDate(task.dueAt)}</span>
-                                <span className="inline-flex items-center gap-1.5"><Users className="size-3.5" />{task.assignmentSummary.completed}/{task.assignmentSummary.total} complete</span>
-                                <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600">{labelStatus(task.status)}</span>
-                              </span>
-                              <span className="mt-2 block truncate text-[10px] text-slate-400">
-                                Assigned to {task.assigneeUserIds.map((id) => employeeById.get(id)?.name ?? employeeById.get(id)?.email ?? "Workspace member").join(", ")}
-                              </span>
-                            </span>
-                            <ChevronDown className={`mt-1 size-4 shrink-0 text-slate-400 transition ${expanded ? "rotate-180" : ""}`} />
-                          </button>
-
-                          {expanded && (
-                            <div className="border-t border-slate-200 bg-slate-50/70 px-4 py-4 sm:px-5">
-                              {!detail ? (
-                                <p className="flex items-center gap-2 text-xs text-slate-500"><LoaderCircle className="size-4 animate-spin" />Loading assignment details…</p>
-                              ) : (
-                                <div className="space-y-3">
-                                  <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <p className="text-xs text-slate-500">Created by {detail.createdBy?.name ?? detail.createdBy?.email ?? "Workspace member"}</p>
-                                    <span className="text-[10px] text-slate-400">Updated {formatDate(detail.updatedAt)}</span>
-                                  </div>
-                                  {detail.assignments.map((assignment) => {
-                                    const canChange = managerForTask || assignment.assignee?.id === userId;
-                                    const statuses = managerForTask ? TASK_STATUSES : TASK_STATUSES.filter((item) => item !== "CANCELLED");
-                                    return (
-                                      <div key={assignment.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-                                        <div className="min-w-0">
-                                          <p className="truncate text-xs font-semibold text-slate-800">{assignment.assignee?.name ?? assignment.assignee?.email ?? "Workspace member"}</p>
-                                          <p className="mt-0.5 truncate text-[10px] text-slate-500">{assignment.assignee?.email ?? ""}</p>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-[10px] text-slate-500">Status</span>
-                                          <select
-                                            aria-label={`Status for ${assignment.assignee?.name ?? "assignee"}`}
-                                            disabled={!canChange || busyAssignmentId === assignment.id || task.status === "CANCELLED"}
-                                            value={assignment.status}
-                                            onChange={(event) => void updateAssignment(task, assignment, event.target.value as TaskStatus)}
-                                            className="rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-xs outline-none focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
-                                          >
-                                            {statuses.map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}
-                                          </select>
-                                          {busyAssignmentId === assignment.id && <LoaderCircle className="size-4 animate-spin text-blue-600" />}
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
+                        <section key={status} aria-label={labelStatus(status) + " tasks"} className="flex min-h-64 min-w-0 flex-col rounded-2xl border border-slate-200 bg-slate-100/70 p-3">
+                          <div className="mb-3 flex items-center justify-between gap-2 px-1">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <span className={`size-2 shrink-0 rounded-full ${status === "IN_PROGRESS" ? "bg-blue-500" : status === "BLOCKED" ? "bg-rose-500" : status === "IN_REVIEW" ? "bg-violet-500" : status === "COMPLETED" ? "bg-emerald-500" : status === "CANCELLED" ? "bg-slate-400" : "bg-slate-500"}`} />
+                              <h3 className="truncate text-xs font-bold uppercase tracking-[0.09em] text-slate-700">{labelStatus(status)}</h3>
                             </div>
-                          )}
-                        </article>
+                            <span className={`rounded-lg px-2 py-1 text-[10px] font-bold ring-1 ring-inset ${statusColumnClasses(status)}`}>{columnTasks.length}</span>
+                          </div>
+                          <div className="flex flex-1 flex-col gap-3">
+                            {columnTasks.length === 0 ? (
+                              <div className="rounded-xl border border-dashed border-slate-300/90 bg-white/55 px-3 py-5 text-center text-[11px] text-slate-400">No tasks</div>
+                            ) : columnTasks.map((task) => {
+                              const detail = details[task.id];
+                              const expanded = expandedTaskId === task.id;
+                              const managerForTask = canManage || task.createdByUserId === userId;
+                              const assigneeNames = task.assigneeUserIds.map((id) => {
+                                const employee = employeeById.get(id);
+                                return employee?.name || employee?.email || "Workspace member";
+                              });
+                              return (
+                                <article key={task.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md">
+                                  <button type="button" onClick={() => void openTask(task.id)} aria-expanded={expanded} className="w-full p-3.5 text-left transition hover:bg-slate-50">
+                                    <span className="flex items-center justify-between gap-2">
+                                      <span className="truncate text-[10px] font-semibold tracking-wide text-slate-400">TASK-{task.id.slice(-6).toUpperCase()}</span>
+                                      <span className={`shrink-0 rounded-md px-2 py-1 text-[9px] font-semibold ring-1 ring-inset ${priorityClasses(task.priority)}`}>{labelStatus(task.priority)}</span>
+                                    </span>
+                                    <span className="mt-2 block text-sm font-semibold leading-5 text-slate-900">{task.title}</span>
+                                    {task.description && <span className="mt-1.5 block line-clamp-3 text-[11px] leading-5 text-slate-500">{task.description}</span>}
+                                    <span className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3 text-[10px] text-slate-500">
+                                      <span className="inline-flex min-w-0 items-center gap-1.5"><CalendarClock className="size-3.5 shrink-0" /><span className="truncate">{formatDate(task.dueAt)}</span></span>
+                                      <span className="shrink-0 rounded-md bg-slate-100 px-2 py-1 font-semibold tabular-nums">{task.assignmentSummary.completed}/{task.assignmentSummary.total}</span>
+                                    </span>
+                                    <span className="mt-2 flex items-center gap-1.5 text-[10px] text-slate-500">
+                                      <Users className="size-3.5 shrink-0" />
+                                      <span className="truncate">{assigneeNames.slice(0, 2).join(", ") || "Unassigned"}</span>
+                                      {assigneeNames.length > 2 && <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5">+{assigneeNames.length - 2}</span>}
+                                      <ChevronDown className={`ml-auto size-3.5 shrink-0 transition ${expanded ? "rotate-180" : ""}`} />
+                                    </span>
+                                  </button>
+                                  {expanded && (
+                                    <div className="border-t border-slate-200 bg-slate-50/70 px-3.5 py-3">
+                                      {!detail ? (
+                                        <p className="flex items-center gap-2 text-xs text-slate-500"><LoaderCircle className="size-4 animate-spin" />Loading assignments…</p>
+                                      ) : (
+                                        <div className="space-y-3">
+                                          <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <p className="text-[10px] text-slate-500">Created by {detail.createdBy?.name ?? detail.createdBy?.email ?? "Workspace member"}</p>
+                                            <span className="text-[10px] text-slate-400">Updated {formatDate(detail.updatedAt)}</span>
+                                          </div>
+                                          {detail.assignments.map((assignment) => {
+                                            const canChange = managerForTask || assignment.assignee?.id === userId;
+                                            const statuses = managerForTask ? TASK_STATUSES : TASK_STATUSES.filter((item) => item !== "CANCELLED");
+                                            return (
+                                              <div key={assignment.id} className="rounded-xl border border-slate-200 bg-white p-3">
+                                                <div className="mb-2 flex min-w-0 items-center gap-2">
+                                                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-blue-50 text-[10px] font-bold text-blue-700">
+                                                    {(assignment.assignee?.name || assignment.assignee?.email || "?").trim().slice(0, 1).toUpperCase()}
+                                                  </span>
+                                                  <div className="min-w-0">
+                                                    <p className="truncate text-[10px] font-semibold text-slate-800">{assignment.assignee?.name ?? assignment.assignee?.email ?? "Workspace member"}</p>
+                                                    <p className="truncate text-[9px] text-slate-500">{assignment.assignee?.email ?? ""}</p>
+                                                  </div>
+                                                </div>
+                                                <label className="block">
+                                                  <span className="mb-1 block text-[10px] font-semibold text-slate-500">Assignment status</span>
+                                                  <select
+                                                    aria-label={`Status for ${assignment.assignee?.name ?? "assignee"}`}
+                                                    disabled={!canChange || busyAssignmentId === assignment.id || task.status === "CANCELLED"}
+                                                    value={assignment.status}
+                                                    onChange={(event) => void updateAssignment(task, assignment, event.target.value as TaskStatus)}
+                                                    className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-xs outline-none focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
+                                                  >
+                                                    {statuses.map((item) => <option key={item} value={item}>{labelStatus(item)}</option>)}
+                                                  </select>
+                                                </label>
+                                                {busyAssignmentId === assignment.id && <LoaderCircle className="mt-2 size-4 animate-spin text-blue-600" />}
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </article>
+                              );
+                            })}
+                          </div>
+                        </section>
                       );
                     })}
                   </div>
