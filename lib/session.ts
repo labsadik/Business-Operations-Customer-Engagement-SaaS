@@ -222,19 +222,21 @@ export async function getSession(): Promise<AuthSession | null> {
     }
   }
 
-  // A five-minute heartbeat is enough for presence and audit recency. Avoid a
-  // database write on every API read during dashboard boot/polling.
+  // Use the projected value to avoid even a no-op database update on the
+  // normal request path. Heartbeat at most once every five minutes.
   const lastSeenThreshold = new Date(Date.now() - 5 * 60 * 1000);
-  await Session.updateOne(
-    {
-      _id: session._id,
-      $or: [
-        { lastSeenAt: { $lt: lastSeenThreshold } },
-        { lastSeenAt: { $exists: false } }
-      ]
-    },
-    { $set: { lastSeenAt: new Date() } }
-  );
+  if (!session.lastSeenAt || new Date(session.lastSeenAt).getTime() < lastSeenThreshold.getTime()) {
+    await Session.updateOne(
+      {
+        _id: session._id,
+        $or: [
+          { lastSeenAt: { $lt: lastSeenThreshold } },
+          { lastSeenAt: { $exists: false } }
+        ]
+      },
+      { $set: { lastSeenAt: new Date() } }
+    );
+  }
 
   return {
     userId: String(user._id),
