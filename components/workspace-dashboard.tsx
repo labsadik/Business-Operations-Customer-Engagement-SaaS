@@ -1401,7 +1401,7 @@ export default function WorkspaceDashboard({
               ["Employees inactive", String(data.employeeStatusCounts?.inactive ?? 0), UsersRound],
               ["Task usage", data.taskUsage?.enabled ? String(data.taskUsage.total) : "Not included", Activity],
               ["Meetings used", String(data.subscription?.monthlyMeetingsUsed ?? 0) + " / " + String(plan.monthlyMeetingLimit), Video],
-              ["Plan renewal", data.subscription?.periodEnd ? String(Math.max(0, Math.ceil((Date.parse(data.subscription.periodEnd) - (nowMs ?? Date.now())) / 86400000))) + " day(s)" : "Not set", Settings2]
+              ["Plan renewal", data.subscription?.periodEnd ? (nowMs === null ? "Checking…" : String(Math.max(0, Math.ceil((Date.parse(data.subscription.periodEnd) - nowMs) / 86400000))) + " day(s)") : "Not set", Settings2]
             ].map(([title, value, Icon]) => {
               const StatIcon = Icon as typeof Activity;
               return (
