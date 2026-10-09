@@ -17,7 +17,6 @@ export async function GET(request: Request) {
     await getMongo();
     const url = new URL(request.url);
     const limit = parseTaskLimit(url.searchParams.get("limit"));
-    const desktopOnly = url.searchParams.get("desktop") === "1";
 
     // Recipient identity is always taken from the authenticated session. It is
     // never accepted from query parameters or the request body.
@@ -26,27 +25,6 @@ export async function GET(request: Request) {
       workspaceId: new Types.ObjectId(scope.workspaceId),
       recipientUserId: new Types.ObjectId(scope.session.userId)
     };
-    if (desktopOnly) {
-      const items = await TaskNotification.find({
-        ...recipientFilter,
-        type: "TASK_ASSIGNED"
-      })
-        .sort({ createdAt: -1, _id: -1 })
-        .limit(Math.min(10, limit))
-        .select("_id type title message createdAt")
-        .lean();
-
-      return jsonOk({
-        items: items.map((item) => ({
-          id: String(item._id),
-          type: item.type,
-          title: item.title,
-          message: item.message,
-          createdAt: item.createdAt
-        }))
-      });
-    }
-
     const [items, unreadCount] = await Promise.all([
       TaskNotification.find(recipientFilter)
         .sort({ createdAt: -1, _id: -1 })

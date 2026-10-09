@@ -150,7 +150,7 @@ The `taskManagementEnabled` entitlement is configurable in the platform admin pl
 | GET | `/api/admin/task-management/tasks` | Platform-admin list across all companies |
 | GET | `/api/admin/task-management/tasks/:taskId` | Platform-admin cross-company task detail |
 
-Every task query and mutation is company/workspace-scoped, and assignees must have an active membership in the same workspace. Notification rows carry a recipient ID and the notification feed is filtered server-side so users cannot read other users' alerts. The notification endpoint is intended for an authenticated client poller; the browser must play sounds only for events returned to that signed-in recipient. Browser sound playback and Web Push for closed tabs are not implemented by this backend-only change.
+Every task query and mutation is company/workspace-scoped, and assignees must have an active membership in the same workspace. Notification rows carry a recipient ID and the notification feed is filtered server-side so users cannot read other users' alerts. The authenticated in-app notification endpoint remains available; desktop browser notifications are intentionally not supported.
 
 ## Security
 
@@ -166,15 +166,15 @@ Company owners and administrators can open `/dashboard?panel=feedback`, select *
 Application action sounds are enabled automatically. Since browsers restrict audio before the first user gesture, the root sound handler attempts to unlock audio on the first normal click, tap, or key press; employees do not need a separate sound setting.
 
 
-## Production resource guardrails and desktop alerts
+## Production resource guardrails
 
-The application uses a small MongoDB connection pool per running instance, bounded task/history query pages, short-lived/capped availability caching, single-flight Google access-token refresh, capped Google Calendar free/busy concurrency, a bounded queue for uncached availability calculations, and bounded batches for the booking maintenance sweep. Browser polling is slower for hidden tabs and desktop alert polling runs only after a user grants browser permission and explicitly enables it.
+The application uses a small MongoDB connection pool per running instance, bounded task/history query pages, short-lived/capped availability caching, single-flight Google access-token refresh, capped Google Calendar free/busy concurrency, a bounded queue for uncached availability calculations, and bounded batches for the booking maintenance sweep. Browser polling is throttled while tabs are hidden.
 
-Desktop alerts use the browser Notification API through a registered service worker, so the permission toggle shows an immediate test notification and real alerts use the same OS notification surface. When server-side Web Push is configured, newly assigned tasks and new public meeting requests are also delivered via the browser push service, including when Conventus tabs are closed. The lightweight in-tab poller remains as a fallback and deduplicates against push by notification tag.
-
-To enable closed-tab/background push in each deployment, run `node scripts/generate-vapid-keys.mjs` and set `WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY`, and `WEB_PUSH_VAPID_SUBJECT` as server environment variables (for example, in the deployment environment settings), then redeploy. Keep the private key secret; never commit it or send it to the browser. Users who already enabled desktop alerts are auto-enrolled when the configured deployment loads. Without those server keys, the test notification and in-tab alerts still work, but closed-tab push cannot be sent. Push subscriptions are bound to the authenticated user, endpoint hosts are allowlisted, requests are same-origin protected, and push delivery failures never block booking/task creation.
+Desktop notifications and Web Push delivery have been removed. A temporary service worker at `/sw.js` unregisters older notification workers and unsubscribes their push subscriptions; it does not display notifications. The task notification API remains available to authenticated, tenant-scoped in-app clients.
 
 Availability results are advisory and cached briefly to reduce repeated Google Calendar reads. Booking submission still revalidates availability and capacity server-side. When the application is saturated, the availability endpoint can return HTTP 503 so clients retry later instead of expanding unbounded work.
+
+
 
 
 ## Canonical access roles

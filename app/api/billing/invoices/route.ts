@@ -7,6 +7,7 @@ import { Membership } from "@/models/membership";
 import { jsonError, jsonOk } from "@/lib/http";
 import { ensureInvoicesForCapturedPayments } from "@/lib/billing";
 import { getCompanySubscription } from "@/lib/plans-server";
+import { resolveInvoiceBillingPeriod } from "@/lib/invoicing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,7 +63,15 @@ export async function GET() {
       maxEmployees: 0,
       monthlyMeetingLimit: 0,
       maxMeetingDurationMinutes: 0,
-      maxConcurrentMeetings: 0
+      maxConcurrentMeetings: 0,
+      validityDays: 30
+    });
+
+    const billingPeriod = resolveInvoiceBillingPeriod({
+      issuedAt: invoice.issuedAt,
+      billingPeriodStart: invoice.billingPeriodStart,
+      billingPeriodEnd: invoice.billingPeriodEnd,
+      validityDays: planSnapshot.validityDays ?? currentPlan?.validityDays ?? 30
     });
 
     return {
@@ -76,13 +85,17 @@ export async function GET() {
       amount: invoice.amount,
       currency: invoice.currency,
       issuedAt: invoice.issuedAt,
-      billingPeriodStart: invoice.billingPeriodStart ?? null,
-      billingPeriodEnd: invoice.billingPeriodEnd ?? null,
+      billingPeriodStart: billingPeriod.billingPeriodStart,
+      billingPeriodEnd: billingPeriod.billingPeriodEnd,
       serviceDescription: invoice.serviceDescription,
       taxSnapshot: invoice.taxSnapshot ?? null,
       merchantSnapshot: invoice.merchantSnapshot ?? null,
       companySnapshot: invoice.companySnapshot,
-      isCurrentPlan: invoice.planId === currentPlanId
+      isCurrentPlan: invoice.planId === currentPlanId && Boolean(
+        subscription &&
+        billingPeriod.billingPeriodStart.getTime() === subscription.currentPeriodStart.getTime() &&
+        billingPeriod.billingPeriodEnd.getTime() === subscription.currentPeriodEnd.getTime()
+      )
     };
   }));
 }

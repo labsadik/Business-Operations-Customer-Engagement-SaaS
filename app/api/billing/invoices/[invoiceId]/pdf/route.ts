@@ -5,7 +5,7 @@ import { getMongo } from "@/lib/mongodb";
 import { getSession } from "@/lib/session";
 import { Invoice } from "@/models/invoice";
 import { getPlan } from "@/lib/plans";
-import { calculateInvoiceTax, type InvoiceTaxSnapshot } from "@/lib/invoicing";
+import { calculateInvoiceTax, resolveInvoiceBillingPeriod, type InvoiceTaxSnapshot } from "@/lib/invoicing";
 import { platformLegalProfile } from "@/lib/platform";
 import { getSafeWebsiteUrl } from "@/lib/public-origin";
 import { jsonError } from "@/lib/http";
@@ -300,11 +300,19 @@ export async function GET(
           maxEmployees: plan.maxEmployees,
           monthlyMeetingLimit: plan.monthlyMeetingLimit,
           maxMeetingDurationMinutes: plan.maxMeetingDurationMinutes,
-          maxConcurrentMeetings: plan.maxConcurrentMeetings
+          maxConcurrentMeetings: plan.maxConcurrentMeetings,
+          validityDays: plan.validityDays ?? 30
         }
       : null);
 
     if (!planSnapshot) return jsonError("PLAN_NOT_FOUND", 409);
+
+    const billingPeriod = resolveInvoiceBillingPeriod({
+      issuedAt: invoice.issuedAt,
+      billingPeriodStart: invoice.billingPeriodStart,
+      billingPeriodEnd: invoice.billingPeriodEnd,
+      validityDays: planSnapshot.validityDays ?? plan?.validityDays ?? 30
+    });
 
     const company = {
       name: invoice.companySnapshot.name,
@@ -463,10 +471,8 @@ export async function GET(
     );
 
     drawText(page, "SERVICE PERIOD", 375, subscriptionTop - 17, bold, 7, MUTED);
-    const periodText = invoice.billingPeriodStart
-      ? dateLabel(invoice.billingPeriodStart) +
-        (invoice.billingPeriodEnd ? " - " + dateLabel(invoice.billingPeriodEnd) : "")
-      : "One access period";
+    const periodText = dateLabel(billingPeriod.billingPeriodStart) +
+      " - " + dateLabel(billingPeriod.billingPeriodEnd);
     drawWrapped(page, periodText, 375, subscriptionTop - 34, 164, bold, 8.4, 2, INK);
 
     const tableTop = 495;

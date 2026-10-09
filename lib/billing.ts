@@ -7,7 +7,7 @@ import { Invoice } from "@/models/invoice";
 import { Payment } from "@/models/payment";
 import { Subscription } from "@/models/subscription";
 import { Workspace } from "@/models/workspace";
-import { buildInvoiceSnapshots, type InvoiceTaxSnapshot } from "@/lib/invoicing";
+import { buildInvoiceSnapshots, resolveInvoiceBillingPeriod, type InvoiceTaxSnapshot } from "@/lib/invoicing";
 import { getCompanyEntitlements, reconcileLatestPaidAccess } from "@/lib/plans-server";
 
 function addValidityDays(from: Date, days: number) {
@@ -476,14 +476,31 @@ export async function ensureInvoicesForCapturedPayments(companyId: string) {
     const issuedAt = payment.paidAt ?? payment.createdAt ?? new Date();
     const existing = await Invoice.findOne({ paymentId: payment._id }).lean();
 
-    // Issued invoices are immutable. Missing historical invoices may be created,
-    // but an existing invoice is never rewritten after a plan catalog edit.
-    if (existing) continue;
+    // Do not rewrite issued commercial data. Repair only absent service-period
+    // dates on legacy invoices so all invoice views show the recorded plan term.
+    if (existing) {
+      const period = resolveInvoiceBillingPeriod({
+        issuedAt: existing.issuedAt ?? issuedAt,
+        billingPeriodStart: existing.billingPeriodStart,
+        billingPeriodEnd: existing.billingPeriodEnd,
+        validityDays: existing.planSnapshot?.validityDays ?? plan.validityDays
+      });
+      const missingDates: Record<string, Date> = {};
+      if (!existing.billingPeriodStart) missingDates.billingPeriodStart = period.billingPeriodStart;
+      if (!existing.billingPeriodEnd) missingDates.billingPeriodEnd = period.billingPeriodEnd;
+      if (Object.keys(missingDates).length > 0) {
+        await Invoice.updateOne(
+          { _id: existing._id, companyId, paymentId: payment._id },
+          { $set: missingDates }
+        );
+      }
+      continue;
+    }
 
-    const billingPeriodStart = existing?.billingPeriodStart ?? issuedAt;
-    const billingPeriodEnd =
-      existing?.billingPeriodEnd ??
-      addValidityDays(billingPeriodStart, plan.validityDays);
+    const { billingPeriodStart, billingPeriodEnd } = resolveInvoiceBillingPeriod({
+      issuedAt,
+      validityDays: plan.validityDays
+    });
 
     const taxSnapshot: InvoiceTaxSnapshot = {
       enabled: (payment.taxRatePercent ?? 0) > 0,

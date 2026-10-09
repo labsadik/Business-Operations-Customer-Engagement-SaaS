@@ -9,7 +9,7 @@ export default async function CompanyProfilePage() {
   const session = await getSession();
   if (!session) redirect("/login?error=signin_required");
 
-  if (!["COMPANY_OWNER", "COMPANY_ADMIN"].includes(session.role) || !session.companyId) {
+  if (session.role !== "COMPANY_ADMIN" || !session.companyId) {
     redirect("/dashboard");
   }
 

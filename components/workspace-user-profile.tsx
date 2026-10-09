@@ -5,6 +5,7 @@ import { clientApi, clientFetch } from "@/lib/client-api";
 import {
   Briefcase,
   Building2,
+  CalendarDays,
   ChevronDown,
   LoaderCircle,
   Save,
@@ -13,8 +14,16 @@ import {
 } from "lucide-react";
 import UserAvatar from "@/components/user-avatar";
 
+type ProfileBillingPlan = {
+  name: string;
+  status: string;
+  periodStart: string | null;
+  periodEnd: string | null;
+};
+
 type ProfilePayload = {
   companyName: string;
+  billingPlan?: ProfileBillingPlan | null;
   role: string;
   jobTitle: string;
   department: string;
@@ -29,6 +38,14 @@ function roleLabel(role: string) {
     EMPLOYEE: "Employee"
   };
   return roles[role] ?? role.replaceAll("_", " ").toLowerCase().replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function profileDate(value: string | null | undefined) {
+  if (!value) return "Not recorded";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "Not recorded"
+    : new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(date);
 }
 
 function employmentLabel(status: string) {
@@ -60,6 +77,7 @@ export default function WorkspaceUserProfile({
   const [open, setOpen] = useState(false);
   const [profileCompany, setProfileCompany] = useState(companyName);
   const [profileRole, setProfileRole] = useState(currentRole);
+  const [billingPlan, setBillingPlan] = useState<ProfileBillingPlan | null>(null);
   const [jobTitle, setJobTitle] = useState("");
   const [department, setDepartment] = useState("");
   const [employmentStatus, setEmploymentStatus] = useState("ACTIVE");
@@ -94,6 +112,7 @@ export default function WorkspaceUserProfile({
         if (cancelled) return;
         setProfileCompany(profile.companyName || companyName);
         setProfileRole(profile.role || currentRole);
+        setBillingPlan(profile.billingPlan ?? null);
         setJobTitle(profile.jobTitle || "");
         setDepartment(profile.department || "");
         setEmploymentStatus(profile.employmentStatus || "ACTIVE");
@@ -208,6 +227,21 @@ export default function WorkspaceUserProfile({
                 <p className="mt-1 text-xs font-semibold text-slate-800">{roleLabel(profileRole || currentRole)}</p>
               </div>
             </div>
+            {billingPlan && (
+              <div className="flex items-start gap-3">
+                <CalendarDays className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden="true" />
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Plan period</p>
+                  <p className="mt-1 break-words text-xs font-semibold text-slate-800">{billingPlan.name}</p>
+                  <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                    {profileDate(billingPlan.periodStart)} – {profileDate(billingPlan.periodEnd)}
+                  </p>
+                  <p className={"mt-1 text-[10px] font-semibold " + (billingPlan.status === "ACTIVE" ? "text-emerald-700" : "text-slate-500")}>
+                    {billingPlan.status === "ACTIVE" ? "Active subscription" : "Period ended"}
+                  </p>
+                </div>
+              </div>
+            )}
             <div className="flex items-start gap-3">
               <span className="mt-1.5 size-2 shrink-0 rounded-full bg-current" aria-hidden="true" />
               <div className="min-w-0">

@@ -172,8 +172,7 @@ export async function GET(request: Request) {
   await getMongo();
   if (isHistory) return historyResponse(request, session);
 
-  if (url.searchParams.get("notifications") === "true") {
-    if (!session.companyId) return jsonError("COMPANY_NOT_CONFIGURED", 403);
+  if (!session.companyId) return jsonError("COMPANY_NOT_CONFIGURED", 403);
     const cutoff = new Date(Date.now() - 10 * 60 * 1000);
     const notifications = await BookingRequest.find({
       companyId: session.companyId,

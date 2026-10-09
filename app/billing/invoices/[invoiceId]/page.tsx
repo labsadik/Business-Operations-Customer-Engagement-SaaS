@@ -7,7 +7,7 @@ import { getSession } from "@/lib/session";
 import { ensureInvoicesForCapturedPayments } from "@/lib/billing";
 import { Invoice } from "@/models/invoice";
 import { getPlan } from "@/lib/plans";
-import { calculateInvoiceTax } from "@/lib/invoicing";
+import { calculateInvoiceTax, resolveInvoiceBillingPeriod } from "@/lib/invoicing";
 import { platformLegalProfile } from "@/lib/platform";
 import { getCompanySubscription } from "@/lib/plans-server";
 
@@ -21,7 +21,7 @@ export default async function InvoicePage({
 }) {
   const session = await getSession();
   if (!session) redirect("/login?error=signin_required");
-  if (!session.companyId || !["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role)) {
+  if (!session.companyId || !["COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role)) {
     redirect("/dashboard");
   }
 
@@ -39,6 +39,12 @@ export default async function InvoicePage({
   const fallbackPlan = getPlan(invoice.planId);
   const plan = invoice.planSnapshot ?? fallbackPlan;
   if (!plan) notFound();
+  const billingPeriod = resolveInvoiceBillingPeriod({
+    issuedAt: invoice.issuedAt,
+    billingPeriodStart: invoice.billingPeriodStart,
+    billingPeriodEnd: invoice.billingPeriodEnd,
+    validityDays: plan.validityDays ?? 30
+  });
 
   const legal = await platformLegalProfile();
   const tax = invoice.taxSnapshot ?? calculateInvoiceTax(invoice.amount, legal.gst.ratePercent, legal.gst.inclusive, legal.gst.enabled);
@@ -82,8 +88,8 @@ export default async function InvoicePage({
       freeFeatureDays: plan.freeFeatureDays
     },
     currentPlanId,
-    billingPeriodStart: invoice.billingPeriodStart ?? null,
-    billingPeriodEnd: invoice.billingPeriodEnd ?? null,
+    billingPeriodStart: billingPeriod.billingPeriodStart,
+    billingPeriodEnd: billingPeriod.billingPeriodEnd,
     merchant: merchantSnapshot,
     company: invoice.companySnapshot,
     tax,

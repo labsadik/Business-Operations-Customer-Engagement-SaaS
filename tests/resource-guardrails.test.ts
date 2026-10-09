@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 function source(path: string) {
@@ -68,24 +68,6 @@ test("Google Calendar free/busy calls have bounded concurrency and queue size", 
   assert.ok(calendar.includes("return withFreeBusyCapacity(async () =>"));
 });
 
-test("desktop alerts are opt-in, recipient scoped, and use lightweight event feeds", () => {
-  const center = source("components/desktop-notification-settings.tsx");
-  const tasks = source("app/api/tasks/notifications/route.ts");
-  const meetings = source("app/api/employee/requests/route.ts");
-  const workspacePage = source("app/dashboard/page.tsx");
-  const taskPage = source("features/task-management/components/task-management-dashboard.tsx");
-
-  assert.ok(center.includes("Notification.requestPermission()"));
-  assert.ok(center.includes("isDesktopNotificationsEnabled(userId)"));
-  assert.ok(center.includes("TASK_POLL_HIDDEN_MS = 120_000"));
-  assert.ok(tasks.includes('url.searchParams.get("desktop") === "1"'));
-  assert.ok(tasks.includes('type: "TASK_ASSIGNED"'));
-  assert.ok(meetings.includes('url.searchParams.get("notifications") === "true"'));
-  assert.ok(meetings.includes("createdAt: { $gte: cutoff }"));
-  assert.ok(workspacePage.includes("id: session.userId"));
-  assert.ok(taskPage.includes("<DesktopNotificationCenter userId={userId}"));
-});
-
 test("Google-backed availability work has bounded concurrency and fails fast when saturated", () => {
   const availability = source("lib/public-availability.ts");
   const route = source("app/api/public/[companySlug]/availability/route.ts");
@@ -95,14 +77,6 @@ test("Google-backed availability work has bounded concurrency and fails fast whe
   assert.ok(availability.includes('throw new Error("AVAILABILITY_BUSY")'));
   assert.ok(availability.includes("withAvailabilityCalculationCapacity(async () =>"));
   assert.ok(route.includes('code === "AVAILABILITY_BUSY" || code === "GOOGLE_CALENDAR_BUSY" ? 503 : 400'));
-});
-
-test("desktop notifications continue to cover public meetings without the optional task feature", () => {
-  const center = source("components/desktop-notification-settings.tsx");
-  assert.ok(center.includes('clientApi<{ items: MeetingAlert[] }>'));
-  assert.ok(center.includes('"/api/employee/requests?notifications=true&limit=10"'));
-  assert.ok(center.includes("taskManagementEnabled"));
-  assert.ok(!center.includes("if (!taskManagementEnabled) return;"));
 });
 
 test("task board avoids reloading the whole employee directory on every task poll", () => {
@@ -120,34 +94,6 @@ test("Redis-cached Google tokens use a short local TTL below the token-expiry sa
   assert.ok(calendar.includes("TOKEN_CACHE_FROM_REDIS_TTL_MS = 30_000"));
   assert.ok(calendar.includes("Math.floor(refreshed.expires_in) - 60"));
 });
-
-test("desktop notifications show a real service-worker popup and support authenticated Web Push delivery", () => {
-  const center = source("components/desktop-notification-settings.tsx");
-  const worker = source("public/sw.js");
-  const pushRoute = source("app/api/notifications/push/route.ts");
-  const sender = source("lib/web-push.ts");
-  const subscriptionModel = source("models/push-subscription.ts");
-  const taskEvents = source("features/task-management/server/task-events.ts");
-  const publicBookings = source("app/api/public/[companySlug]/bookings/route.ts");
-
-  assert.ok(center.includes('navigator.serviceWorker.register("/sw.js"'));
-  assert.ok(center.includes('showNotification("Conventus desktop alerts are on"'));
-  assert.ok(center.includes("ensureWebPushSubscription"));
-  assert.ok(center.includes('"/api/notifications/push"'));
-  assert.ok(worker.includes('self.addEventListener("push"'));
-  assert.ok(worker.includes("self.registration.showNotification"));
-  assert.ok(worker.includes('self.addEventListener("notificationclick"'));
-  assert.ok(pushRoute.includes("assertSameOrigin(request)"));
-  assert.ok(pushRoute.includes("authorizedUser()"));
-  assert.ok(pushRoute.includes("isAllowedPushEndpoint(body.endpoint)"));
-  assert.ok(subscriptionModel.includes("userId: 1, endpoint: 1"));
-  assert.ok(sender.includes('createCipheriv("aes-128-gcm"'));
-  assert.ok(sender.includes("Authorization: vapidAuthorization"));
-  assert.ok(sender.includes("AbortSignal.timeout(5000)"));
-  assert.ok(taskEvents.includes("sendWebPushNotifications(pushEvents)"));
-  assert.ok(publicBookings.includes("sendWebPushNotifications(recipients.map"));
-});
-
 
 test("only the four canonical user roles are allowed and tenant authorization does not implicitly bypass roles", () => {
   const domain = source("types/domain.ts");
@@ -216,4 +162,57 @@ test("private company overview rejects customers and never infers tenant scope f
   assert.ok(scopedResolver.includes('workspaceId: session.workspaceId'));
   assert.ok(scopedResolver.includes('return session.companyId ? Company.findById(session.companyId).lean() : null;'));
   assert.ok(!scopedResolver.includes('Company.findOne({ ownerUserId: session.userId })'));
+});
+
+
+test("desktop push delivery is removed and in-app task notifications remain tenant scoped", () => {
+  const workspace = source("components/workspace-dashboard.tsx");
+  const taskBoard = source("features/task-management/components/task-management-dashboard.tsx");
+  const taskEvents = source("features/task-management/server/task-events.ts");
+  const bookings = source("app/api/public/[companySlug]/bookings/route.ts");
+  const meetingRequests = source("app/api/employee/requests/route.ts");
+  const taskNotifications = source("app/api/tasks/notifications/route.ts");
+  const worker = source("public/sw.js");
+  const readme = source("README.md");
+
+  assert.doesNotMatch(workspace, /DesktopNotificationCenter|sendDesktopNotification|getUnseenDesktopNotificationIds/);
+  assert.doesNotMatch(taskBoard, /DesktopNotificationCenter|desktop-notification-settings/);
+  assert.doesNotMatch(taskEvents, /sendWebPushNotifications|web-push|from "next.server"/);
+  assert.doesNotMatch(bookings, /sendWebPushNotifications|isWebPushConfigured|web-push/);
+  assert.doesNotMatch(meetingRequests, /searchParams.get\("notifications"\)/);
+  assert.doesNotMatch(taskNotifications, /desktopOnly|searchParams.get\("desktop"\)/);
+  assert.ok(taskNotifications.includes("TaskNotification.find(recipientFilter)"));
+  assert.ok(worker.includes("self.registration.unregister()"));
+  assert.doesNotMatch(worker, /addEventListener\(["']push["']/);
+  assert.doesNotMatch(readme, /WEB_PUSH_VAPID|generate-vapid-keys|Desktop alerts use the browser Notification API/i);
+  for (const removedPath of [
+    "components/desktop-notification-settings.tsx",
+    "app/api/notifications/push/route.ts",
+    "lib/web-push.ts",
+    "models/push-subscription.ts",
+    "scripts/generate-vapid-keys.mjs"
+  ]) {
+    assert.equal(existsSync(resolve(process.cwd(), removedPath)), false, removedPath + " should be deleted");
+  }
+});
+
+
+test("invoice service periods are hydrated for list, details, PDF, and company admin profiles", () => {
+  const invoicing = source("lib/invoicing.ts");
+  const billing = source("lib/billing.ts");
+  const invoiceList = source("app/api/billing/invoices/route.ts");
+  const invoicePage = source("app/billing/invoices/[invoiceId]/page.tsx");
+  const invoicePdf = source("app/api/billing/invoices/[invoiceId]/pdf/route.ts");
+  const profileRoute = source("app/api/profile/member/route.ts");
+  const profileUi = source("components/workspace-user-profile.tsx");
+  const dashboard = source("components/workspace-dashboard.tsx");
+
+  assert.ok(invoicing.includes("export function resolveInvoiceBillingPeriod"));
+  assert.ok(billing.includes("missingDates.billingPeriodEnd = period.billingPeriodEnd"));
+  assert.ok(invoiceList.includes("billingPeriodStart: billingPeriod.billingPeriodStart"));
+  assert.ok(invoicePage.includes("billingPeriodEnd: billingPeriod.billingPeriodEnd"));
+  assert.ok(invoicePdf.includes("dateLabel(billingPeriod.billingPeriodStart)"));
+  assert.ok(profileRoute.includes("getProfileBillingPlan"));
+  assert.ok(profileUi.includes("Plan period"));
+  assert.ok(dashboard.includes("Plan period:"));
 });

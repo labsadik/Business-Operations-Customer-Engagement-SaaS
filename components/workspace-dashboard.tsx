@@ -45,10 +45,6 @@ import PlatformAnnouncementBanner from "@/components/platform-announcement-banne
 import WorkspaceFeedback from "@/components/workspace-feedback";
 import WorkspaceSupportTickets from "@/components/workspace-support-tickets";
 import { playFeedbackSound } from "@/lib/client-feedback-sound";
-import DesktopNotificationCenter, {
-  getUnseenDesktopNotificationIds,
-  sendDesktopNotification
-} from "@/components/desktop-notification-settings";
 
 type Address = {
   line1: string;
@@ -865,33 +861,14 @@ export default function WorkspaceDashboard({
 
     const ids = requests.map((item) => item.id);
     const newlyObserved = requests.filter((item) => !seenRequestIdsRef.current.has(item.id));
-    const persistedUnseen = new Set(
-      getUnseenDesktopNotificationIds(user.id, "meetings", ids)
-    );
 
     if (initializedRequestsRef.current && newlyObserved.length > 0) {
       void playMeetingSound("incoming");
-      for (const item of newlyObserved) {
-        if (!persistedUnseen.has(item.id)) continue;
-        const start = new Date(item.startAt);
-        const when = Number.isNaN(start.getTime())
-          ? ""
-          : " Starts " + start.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) + ".";
-        const assignedToMe = item.assignedEmployeeId === user.id;
-        sendDesktopNotification(user.id, {
-          title: assignedToMe ? "A meeting was assigned to you" : "New public meeting request",
-          body: assignedToMe
-            ? "A public booking is now assigned to you." + when
-            : "A new public meeting request is available for your team." + when,
-          url: "/dashboard?panel=meetings",
-          tag: "conventus-meeting-" + item.id
-        });
-      }
     }
 
     for (const id of ids) seenRequestIdsRef.current.add(id);
     initializedRequestsRef.current = true;
-  }, [requests, user.id]);
+  }, [requests]);
 
   async function createCompany(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1388,10 +1365,6 @@ export default function WorkspaceDashboard({
                 Prepare public page
               </button>
             )}
-            <DesktopNotificationCenter
-              userId={user.id}
-              taskManagementEnabled={Boolean(data.currentPlan.taskManagementEnabled)}
-            />
             <WorkspaceUserProfile name={user.name} email={user.email} image={user.image} companyName={data.company.name} currentRole={data.currentRole} />
             <form action="/api/auth/logout" method="post">
               <button
@@ -2809,7 +2782,10 @@ export default function WorkspaceDashboard({
                             )}
                           </div>
                           <p className="mt-1 text-xs text-slate-500">
-                            {invoice.planSnapshot.name} · {formatDate(invoice.issuedAt)}
+                            {invoice.planSnapshot.name} · Issued {formatDate(invoice.issuedAt)}
+                          </p>
+                          <p className="mt-1.5 text-[11px] text-slate-500">
+                            Plan period: {formatDate(invoice.billingPeriodStart ?? invoice.issuedAt)} – {invoice.billingPeriodEnd ? formatDate(invoice.billingPeriodEnd) : "Not recorded"}
                           </p>
                           <p className="mt-2 text-[11px] font-medium text-slate-600">
                             {tax?.enabled

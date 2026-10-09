@@ -13,6 +13,27 @@ export type InvoiceTaxCalculation = InvoiceTaxSnapshot & {
   totalAmount: number;
 };
 
+export function resolveInvoiceBillingPeriod(input: {
+  issuedAt: Date | string;
+  billingPeriodStart?: Date | string | null;
+  billingPeriodEnd?: Date | string | null;
+  validityDays?: number | null;
+}) {
+  const billingPeriodStart = input.billingPeriodStart
+    ? new Date(input.billingPeriodStart)
+    : new Date(input.issuedAt);
+  const billingPeriodEnd = input.billingPeriodEnd
+    ? new Date(input.billingPeriodEnd)
+    : new Date(billingPeriodStart);
+  if (!input.billingPeriodEnd) {
+    const days = Number.isFinite(input.validityDays)
+      ? Math.min(3650, Math.max(1, Math.floor(input.validityDays as number)))
+      : 30;
+    billingPeriodEnd.setDate(billingPeriodEnd.getDate() + days);
+  }
+  return { billingPeriodStart, billingPeriodEnd };
+}
+
 export async function invoiceTaxConfig() {
   const legal = await platformLegalProfile();
   return {

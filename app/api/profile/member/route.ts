@@ -5,11 +5,29 @@ import { Membership } from "@/models/membership";
 import { User } from "@/models/user";
 import { assertSameOrigin } from "@/lib/security";
 import { jsonError, jsonOk } from "@/lib/http";
+import { getCompanySubscription } from "@/lib/plans-server";
+import { getManagedPlan } from "@/lib/plan-catalog";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const PROFILE_FIELDS = "jobTitle department employmentStatus role";
+
+async function getProfileBillingPlan(companyId?: string) {
+  if (!companyId) return null;
+  const subscription = await getCompanySubscription(companyId);
+  if (!subscription) return null;
+  const plan = await getManagedPlan(subscription.planId, { includeArchived: true });
+  const periodStart = subscription.currentPeriodStart ?? null;
+  const periodEnd = subscription.currentPeriodEnd ?? null;
+  const active = subscription.status === "ACTIVE" && Boolean(periodEnd && periodEnd.getTime() > Date.now());
+  return {
+    name: plan?.name ?? subscription.planId,
+    status: active ? "ACTIVE" : "ENDED",
+    periodStart: periodStart?.toISOString() ?? null,
+    periodEnd: periodEnd?.toISOString() ?? null
+  };
+}
 
 export async function GET() {
   const session = await getSession();
@@ -23,8 +41,10 @@ export async function GET() {
       session.companyId ? Company.findById(session.companyId).select("name").lean() : null
     ]);
     if (!user) return jsonError("USER_NOT_FOUND", 404);
+    const billingPlan = await getProfileBillingPlan(session.companyId);
     return jsonOk({
       companyName: company?.name ?? "Conventus Platform",
+      billingPlan,
       role: session.role,
       jobTitle: user.jobTitle ?? "",
       department: user.department ?? "",
@@ -44,8 +64,10 @@ export async function GET() {
 
   if (!membership) return jsonError("FORBIDDEN", 403);
   const company = await Company.findById(session.companyId).select("name").lean();
+  const billingPlan = session.role === "COMPANY_ADMIN" ? await getProfileBillingPlan(session.companyId) : null;
   return jsonOk({
     companyName: company?.name ?? "Company",
+    billingPlan,
     role: session.role,
     jobTitle: membership.jobTitle ?? "",
     department: membership.department ?? "",
