@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { clientFetch } from "@/lib/client-api";
 import {
   CalendarDays,
   CheckCircle2,
@@ -219,10 +220,9 @@ export default function PublicBooking({
       setError("");
 
       try {
-        const response = await fetch(
+        const response = await clientFetch(
           `/api/public/${encodeURIComponent(companySlug)}/availability?date=${date}&meetingTypeId=${typeId}&duration=${duration}`,
           {
-            cache: "no-store",
             headers: { "Cache-Control": "no-cache" },
             signal: controller.signal
           }
@@ -376,9 +376,7 @@ export default function PublicBooking({
 
     const timer = window.setInterval(async () => {
       try {
-        const response = await fetch(`/api/bookings/${bookingId}`, {
-          cache: "no-store"
-        });
+        const response = await clientFetch(`/api/bookings/${bookingId}`);
         const body = await response.json();
         if (!response.ok) return;
 

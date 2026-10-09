@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { clientFetch } from "@/lib/client-api";
 import { ChevronDown, Megaphone, RefreshCw, X } from "lucide-react";
 import {
   parsePlatformAnnouncementResponse,
@@ -75,8 +76,7 @@ export default function PlatformAnnouncementBanner({
     const controller = new AbortController();
 
     try {
-      const response = await fetch(endpoint, {
-        cache: "no-store",
+      const response = await clientFetch(endpoint, {
         signal: controller.signal
       });
       const body = await response.json().catch(() => null);
