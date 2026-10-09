@@ -14,7 +14,9 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const { session } = await requireCompanyMember(["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"]);
+    const { session } = await requireCompanyMember(["COMPANY_ADMIN", "EMPLOYEE",
+    "PLATFORM_ADMIN"
+  ]);
     await getMongo();
     const members = await Membership.find({ companyId: session.companyId, active: true })
       .select("userId role jobTitle department employmentStatus")
@@ -53,14 +55,16 @@ export async function GET() {
 export async function POST(request: Request) {
   assertSameOrigin(request);
   try {
-    const { session } = await requireCompanyMember(["COMPANY_OWNER", "COMPANY_ADMIN"]);
+    const { session } = await requireCompanyMember(["COMPANY_ADMIN",
+    "PLATFORM_ADMIN"
+  ]);
     await getMongo();
 
     const body = await request.json().catch(() => null) as { email?: string } | null;
     const email = body?.email?.trim().toLowerCase();
     if (!email || !email.includes("@")) return jsonError("INVALID_EMAIL");
 
-    const companyMemberCount = await Membership.countDocuments({ companyId: session.companyId, active: true, role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] } });
+    const companyMemberCount = await Membership.countDocuments({ companyId: session.companyId, active: true, role: { $in: ["COMPANY_ADMIN", "EMPLOYEE"] } });
     const { getCompanyEntitlements } = await import("@/lib/plans-server");
     const plan = await getCompanyEntitlements(session.companyId!);
     if (companyMemberCount >= plan.maxEmployees) return jsonError("EMPLOYEE_LIMIT_REACHED", 409);

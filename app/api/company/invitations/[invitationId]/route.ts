@@ -17,7 +17,7 @@ export async function DELETE(
     assertSameOrigin(_request);
     const session = await getSession();
     if (!session) return jsonError("UNAUTHENTICATED", 401);
-    if (!session.companyId || (session.role !== "PLATFORM_ADMIN" && !["COMPANY_OWNER", "COMPANY_ADMIN"].includes(session.role))) {
+    if (!session.companyId || (session.role !== "PLATFORM_ADMIN" && !["COMPANY_ADMIN"].includes(session.role))) {
       return jsonError("FORBIDDEN", 403);
     }
 
@@ -27,7 +27,7 @@ export async function DELETE(
         companyId: session.companyId,
         userId: session.userId,
         active: true,
-        role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN"] }
+        role: { $in: ["COMPANY_ADMIN"] }
       }).lean();
       if (!membership) return jsonError("FORBIDDEN", 403);
     }

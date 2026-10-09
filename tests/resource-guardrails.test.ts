@@ -147,3 +147,49 @@ test("desktop notifications show a real service-worker popup and support authent
   assert.ok(taskEvents.includes("sendWebPushNotifications(pushEvents)"));
   assert.ok(publicBookings.includes("sendWebPushNotifications(recipients.map"));
 });
+
+
+test("only the four canonical user roles are allowed and tenant authorization does not implicitly bypass roles", () => {
+  const domain = source("types/domain.ts");
+  const user = source("models/user.ts");
+  const membership = source("models/membership.ts");
+  const session = source("models/session.ts");
+  const authz = source("lib/authz.ts");
+  const dashboardLayout = source("app/dashboard/layout.tsx");
+
+  assert.ok(domain.includes('["PLATFORM_ADMIN", "COMPANY_ADMIN", "EMPLOYEE", "CUSTOMER"] as const'));
+  assert.ok(user.includes("enum: [...USER_ROLES]"));
+  assert.ok(membership.includes("enum: [...COMPANY_MEMBER_ROLES]"));
+  assert.ok(session.includes("enum: [...USER_ROLES]"));
+  assert.ok(authz.includes("!roles.includes(session.role)"));
+  assert.ok(!authz.includes("adminManaged"));
+  assert.ok(dashboardLayout.includes('session.role === "PLATFORM_ADMIN"'));
+  assert.ok(dashboardLayout.includes('session.role !== "EMPLOYEE"'));
+});
+
+test("findOneAndUpdate and findOneAndReplace call sites avoid deprecated new: true", () => {
+  const paths = [
+    "app/api/admin/plans/[identifier]/route.ts",
+    "app/api/admin/platform-settings/route.ts",
+    "app/api/auth/google/callback/route.ts",
+    "app/api/billing/free/route.ts",
+    "app/api/billing/invoices/route.ts",
+    "app/api/bookings/[bookingId]/accept/route.ts",
+    "app/api/bookings/[bookingId]/decline/route.ts",
+    "app/api/company/employees/[userId]/route.ts",
+    "app/api/company/route.ts",
+    "app/api/profile/member/route.ts",
+    "app/api/tasks/[taskId]/route.ts",
+    "app/api/tasks/[taskId]/status/route.ts",
+    "app/api/tasks/notifications/[notificationId]/route.ts",
+    "app/api/jobs/sweep/route.ts",
+    "lib/platform.ts",
+    "lib/booking-history.ts",
+    "lib/plans-server.ts",
+    "lib/billing.ts",
+    "features/task-management/server/task-daily-limit.ts"
+  ];
+  for (const path of paths) {
+    assert.doesNotMatch(source(path), /\bnew\s*:\s*true\b/, `${path} still uses the deprecated option`);
+  }
+});

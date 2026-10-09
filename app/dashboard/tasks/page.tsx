@@ -12,21 +12,21 @@ export const metadata = { title: "Task management" };
 export default async function TaskManagementPage() {
   const session = await getSession();
   if (!session) redirect("/login?error=signin_required");
-  if (!["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE", "PLATFORM_ADMIN"].includes(session.role)) {
+  if (!["COMPANY_ADMIN", "EMPLOYEE", "PLATFORM_ADMIN"].includes(session.role)) {
     redirect("/login?error=workspace_access_required");
   }
   if (session.role === "PLATFORM_ADMIN" && !session.companyId) redirect("/admin");
-  if (["COMPANY_ADMIN", "EMPLOYEE"].includes(session.role) && !session.companyId) {
-    redirect("/login?error=workspace_access_required");
-  }
-  if (session.role === "COMPANY_OWNER" && !session.companyId) redirect("/dashboard");
+  if (session.role === "COMPANY_ADMIN" && !session.companyId) redirect("/dashboard");
+  if (session.role === "EMPLOYEE" && (!session.companyId || !session.workspaceId)) redirect("/login?error=workspace_access_required");
 
   await getMongo();
-  if (session.companyId && ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"].includes(session.role)) {
+  if (session.companyId && ["COMPANY_ADMIN", "EMPLOYEE"].includes(session.role)) {
     const membership = await Membership.findOne({
       companyId: session.companyId,
+      workspaceId: session.workspaceId,
       userId: session.userId,
-      active: true
+      active: true,
+      role: session.role
     }).lean();
     if (!membership) redirect("/login?error=workspace_access_revoked");
   }

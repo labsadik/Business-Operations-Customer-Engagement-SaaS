@@ -8,15 +8,49 @@ import { Workspace } from "@/models/workspace";
 import { Types } from "mongoose";
 import { randomToken, sha256 } from "@/lib/security";
 import { googleAvatarUrl } from "@/lib/avatar";
+import { isUserRole, type UserRole } from "@/types/domain";
 
 const COOKIE_NAME = "conventus_session";
 export const ADMIN_MANAGED_COMPANY_COOKIE = "conventus_admin_company";
 const SESSION_DAYS = 30;
-const COMPANY_ROLES = ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] as const;
+const COMPANY_ROLES = ["COMPANY_ADMIN", "EMPLOYEE"] as const;
+const LEGACY_COMPANY_OWNER_ROLE = "COMPANY_OWNER";
+
+function normalizeRole(value: unknown): UserRole | null {
+  // Legacy database values are migrated to COMPANY_ADMIN, never treated as a separate permission.
+  if (value === LEGACY_COMPANY_OWNER_ROLE) return "COMPANY_ADMIN";
+  return isUserRole(value) ? value : null;
+}
+
+async function normalizeLegacyRoleData(userId: string) {
+  const userObjectId = new Types.ObjectId(userId);
+  const membership = await Membership.findOne({
+    userId: userObjectId,
+    active: true,
+    role: { $in: [LEGACY_COMPANY_OWNER_ROLE, "COMPANY_ADMIN"] }
+  }).sort({ createdAt: -1 }).select("companyId workspaceId").lean();
+
+  await Promise.all([
+    User.updateOne({ _id: userObjectId, role: LEGACY_COMPANY_OWNER_ROLE }, { $set: { role: "COMPANY_ADMIN" } }),
+    User.updateOne({ _id: userObjectId, platformAdminPreviousRole: LEGACY_COMPANY_OWNER_ROLE }, { $set: { platformAdminPreviousRole: "COMPANY_ADMIN" } }),
+    Membership.updateMany({ userId: userObjectId, role: LEGACY_COMPANY_OWNER_ROLE }, { $set: { role: "COMPANY_ADMIN" } }),
+    Session.updateMany(
+      { userId: userObjectId, role: LEGACY_COMPANY_OWNER_ROLE, companyId: { $exists: true, $ne: null } },
+      { $set: { role: "COMPANY_ADMIN" } }
+    ),
+    Session.updateMany(
+      { userId: userObjectId, role: LEGACY_COMPANY_OWNER_ROLE, $or: [{ companyId: { $exists: false } }, { companyId: null }] },
+      { $set: {
+        role: "COMPANY_ADMIN",
+        ...(membership ? { companyId: membership.companyId, workspaceId: membership.workspaceId } : {})
+      } }
+    )
+  ]);
+}
 
 export type AuthSession = {
   userId: string;
-  role: string;
+  role: UserRole;
   companyId?: string;
   workspaceId?: string;
   email: string;
@@ -26,30 +60,47 @@ export type AuthSession = {
 
 async function validateScope(input: {
   userId: string;
-  role: string;
+  role: UserRole;
   companyId?: string;
   workspaceId?: string;
 }) {
   const user = await User.findById(input.userId).select("active role").lean();
-  if (!user || user.active === false) throw new Error("USER_INACTIVE");
+  if (!user || user.active === false || !normalizeRole(user.role)) throw new Error("USER_INACTIVE");
+  const accountRole = normalizeRole(user.role);
+  if (accountRole === "PLATFORM_ADMIN" && input.role !== "PLATFORM_ADMIN") throw new Error("FORBIDDEN");
+  if (input.role === "PLATFORM_ADMIN" && accountRole !== "PLATFORM_ADMIN") throw new Error("FORBIDDEN");
 
-  if (input.role === "PLATFORM_ADMIN" && user.role !== "PLATFORM_ADMIN") {
-    throw new Error("FORBIDDEN");
+  if (input.role === "CUSTOMER") {
+    if (input.companyId || input.workspaceId) throw new Error("FORBIDDEN");
+    return;
+  }
+  if (input.role === "PLATFORM_ADMIN") {
+    if (!input.companyId && !input.workspaceId) return;
+    if (!input.companyId || !input.workspaceId || !Types.ObjectId.isValid(input.companyId) || !Types.ObjectId.isValid(input.workspaceId)) {
+      throw new Error("COMPANY_NOT_CONFIGURED");
+    }
+    const workspace = await Workspace.findOne({ _id: input.workspaceId, companyId: input.companyId, active: true }).select("_id").lean();
+    if (!workspace) throw new Error("FORBIDDEN");
+    return;
   }
 
-  if (input.companyId && COMPANY_ROLES.includes(input.role as typeof COMPANY_ROLES[number])) {
-    const membership = await Membership.findOne({
-      companyId: input.companyId,
-      userId: input.userId,
+  // A company admin may have an unscoped onboarding session solely to create a company.
+  if (input.role === "COMPANY_ADMIN" && !input.companyId && !input.workspaceId) return;
+  if (!input.companyId || !input.workspaceId || !Types.ObjectId.isValid(input.companyId) || !Types.ObjectId.isValid(input.workspaceId)) {
+    throw new Error("COMPANY_NOT_CONFIGURED");
+  }
+
+  const [membership, workspace] = await Promise.all([
+    Membership.findOne({
+      companyId: new Types.ObjectId(input.companyId),
+      workspaceId: new Types.ObjectId(input.workspaceId),
+      userId: new Types.ObjectId(input.userId),
       active: true,
       role: input.role
-    }).lean();
-
-    if (!membership) throw new Error("FORBIDDEN");
-    if (input.workspaceId && String(membership.workspaceId) !== input.workspaceId) {
-      throw new Error("FORBIDDEN");
-    }
-  }
+    }).select("_id").lean(),
+    Workspace.findOne({ _id: input.workspaceId, companyId: input.companyId, active: true }).select("_id").lean()
+  ]);
+  if (!membership || !workspace) throw new Error("FORBIDDEN");
 }
 
 export async function createSession(input: {
@@ -59,7 +110,11 @@ export async function createSession(input: {
   workspaceId?: string;
 }) {
   await getMongo();
-  await validateScope(input);
+  const role = normalizeRole(input.role);
+  if (!role) throw new Error("FORBIDDEN");
+  if (input.role === LEGACY_COMPANY_OWNER_ROLE) await normalizeLegacyRoleData(input.userId);
+  const normalizedInput = { ...input, role };
+  await validateScope(normalizedInput);
 
   const rawToken = randomToken(48);
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
@@ -67,7 +122,7 @@ export async function createSession(input: {
   await Session.create({
     tokenHash: sha256(rawToken),
     userId: input.userId,
-    role: input.role,
+    role,
     companyId: input.companyId,
     workspaceId: input.workspaceId,
     expiresAt,
@@ -104,7 +159,7 @@ async function getManagedCompanyScope(userId: unknown, isPlatformAdmin: boolean,
   const company = await Company.findById(rawCompanyId).select("_id").lean();
   if (!company) return null;
 
-  const workspace = await Workspace.findOne({ companyId: company._id }).select("_id").sort({ createdAt: 1 }).lean();
+  const workspace = await Workspace.findOne({ companyId: company._id, active: true }).select("_id").sort({ createdAt: 1 }).lean();
   if (!workspace) return null;
 
   return {
@@ -120,44 +175,37 @@ export async function getSession(): Promise<AuthSession | null> {
   if (!raw) return null;
 
   await getMongo();
-  const session = await Session.findOne({
-    tokenHash: sha256(raw),
-    expiresAt: { $gt: new Date() }
-  }).select("_id userId role companyId workspaceId expiresAt lastSeenAt").lean();
-
+  let session = await Session.findOne({ tokenHash: sha256(raw), expiresAt: { $gt: new Date() } })
+    .select("_id userId role companyId workspaceId expiresAt lastSeenAt").lean();
   if (!session) return null;
 
   const user = await User.findById(session.userId).select("active role email name image").lean();
   if (!user || user.active === false) return null;
 
-  const platformAdmin = user.role === "PLATFORM_ADMIN";
+  if (session.role === LEGACY_COMPANY_OWNER_ROLE || user.role === LEGACY_COMPANY_OWNER_ROLE) {
+    await normalizeLegacyRoleData(String(user._id));
+    session = await Session.findById(session._id).select("_id userId role companyId workspaceId expiresAt lastSeenAt").lean();
+    if (!session) return null;
+  }
 
-  if (platformAdmin) {
-    if (session.role !== "PLATFORM_ADMIN") {
-      await Session.updateOne(
-        { _id: session._id },
-        {
-          $set: {
-            role: "PLATFORM_ADMIN",
-            lastSeenAt: new Date()
-          }
-        }
-      );
+  const role = normalizeRole(session.role);
+  const accountRole = normalizeRole(user.role);
+  if (!role || !accountRole) {
+    await Session.deleteOne({ _id: session._id });
+    return null;
+  }
+
+  if (accountRole === "PLATFORM_ADMIN") {
+    if (role !== "PLATFORM_ADMIN") {
+      await Session.updateOne({ _id: session._id }, { $set: { role: "PLATFORM_ADMIN", lastSeenAt: new Date() } });
     }
-
     const managed = await getManagedCompanyScope(user._id, true, store);
     let scopedCompanyId = managed?.companyId ?? (session.companyId ? String(session.companyId) : undefined);
     let scopedWorkspaceId = managed?.workspaceId ?? (session.workspaceId ? String(session.workspaceId) : undefined);
 
-    // Preserve a platform admin's existing tenant membership as their default
-    // workspace scope. This makes older admin sessions compatible too.
     if (!managed && !scopedCompanyId) {
-      const defaultMembership = await Membership.findOne({
-        userId: user._id,
-        active: true,
-        role: { $in: COMPANY_ROLES }
-      }).sort({ createdAt: -1 }).select("companyId workspaceId").lean();
-
+      const defaultMembership = await Membership.findOne({ userId: user._id, active: true, role: { $in: COMPANY_ROLES } })
+        .sort({ createdAt: -1 }).select("companyId workspaceId").lean();
       if (defaultMembership) {
         scopedCompanyId = String(defaultMembership.companyId);
         scopedWorkspaceId = String(defaultMembership.workspaceId);
@@ -165,98 +213,79 @@ export async function getSession(): Promise<AuthSession | null> {
     }
 
     if (scopedCompanyId && (!Types.ObjectId.isValid(scopedCompanyId) || !scopedWorkspaceId || !Types.ObjectId.isValid(scopedWorkspaceId))) {
-      return {
-        userId: String(user._id),
-        role: "PLATFORM_ADMIN",
-        email: String(user.email),
-        name: String(user.name),
-        image: googleAvatarUrl(user.image) || undefined
-      };
+      return { userId: String(user._id), role: "PLATFORM_ADMIN", email: String(user.email), name: String(user.name), image: googleAvatarUrl(user.image) || undefined };
     }
-
     if (scopedCompanyId && scopedWorkspaceId) {
-      const workspace = await Workspace.findOne({
-        _id: scopedWorkspaceId,
-        companyId: scopedCompanyId,
-        active: true
-      }).select("_id").lean();
-
+      const workspace = await Workspace.findOne({ _id: scopedWorkspaceId, companyId: scopedCompanyId, active: true }).select("_id").lean();
       if (!workspace) {
-        return {
-          userId: String(user._id),
-          role: "PLATFORM_ADMIN",
-          email: String(user.email),
-          name: String(user.name),
-          image: googleAvatarUrl(user.image) || undefined
-        };
+        return { userId: String(user._id), role: "PLATFORM_ADMIN", email: String(user.email), name: String(user.name), image: googleAvatarUrl(user.image) || undefined };
       }
     }
-
     return {
-      userId: String(user._id),
-      role: "PLATFORM_ADMIN",
-      companyId: scopedCompanyId,
-      workspaceId: scopedWorkspaceId,
-      email: String(user.email),
-      name: String(user.name),
-      image: googleAvatarUrl(user.image) || undefined
+      userId: String(user._id), role: "PLATFORM_ADMIN", companyId: scopedCompanyId, workspaceId: scopedWorkspaceId,
+      email: String(user.email), name: String(user.name), image: googleAvatarUrl(user.image) || undefined
     };
   }
 
-  if (session.role === "PLATFORM_ADMIN" && user.role !== "PLATFORM_ADMIN") {
+  if (role === "PLATFORM_ADMIN") {
     await Session.deleteOne({ _id: session._id });
     return null;
   }
 
-  if (session.companyId && COMPANY_ROLES.includes(session.role as typeof COMPANY_ROLES[number])) {
-    const membership = await Membership.findOne({
-      companyId: session.companyId,
-      userId: session.userId,
-      active: true,
-      role: session.role
-    }).select("_id workspaceId").lean();
-
-    if (!membership || (session.workspaceId && String(membership.workspaceId) !== String(session.workspaceId))) {
-      await Session.deleteOne({ _id: session._id });
-      return null;
+  if (role === "COMPANY_ADMIN" || role === "EMPLOYEE") {
+    const onboardingAdmin = role === "COMPANY_ADMIN" && !session.companyId && !session.workspaceId;
+    if (!onboardingAdmin) {
+      if (!session.companyId || !session.workspaceId || !Types.ObjectId.isValid(String(session.companyId)) || !Types.ObjectId.isValid(String(session.workspaceId))) {
+        await Session.deleteOne({ _id: session._id });
+        return null;
+      }
+      const [membership, activeWorkspace] = await Promise.all([
+        Membership.findOne({
+          companyId: new Types.ObjectId(String(session.companyId)),
+          workspaceId: new Types.ObjectId(String(session.workspaceId)),
+          userId: new Types.ObjectId(String(session.userId)),
+          active: true,
+          role
+        }).select("_id").lean(),
+        Workspace.findOne({
+          _id: new Types.ObjectId(String(session.workspaceId)),
+          companyId: new Types.ObjectId(String(session.companyId)),
+          active: true
+        }).select("_id").lean()
+      ]);
+      if (!membership || !activeWorkspace) {
+        await Session.deleteOne({ _id: session._id });
+        return null;
+      }
     }
+  } else if (role === "CUSTOMER" && (session.companyId || session.workspaceId)) {
+    await Session.deleteOne({ _id: session._id });
+    return null;
   }
 
-  // Use the projected value to avoid even a no-op database update on the
-  // normal request path. Heartbeat at most once every five minutes.
   const lastSeenThreshold = new Date(Date.now() - 5 * 60 * 1000);
   if (!session.lastSeenAt || new Date(session.lastSeenAt).getTime() < lastSeenThreshold.getTime()) {
     await Session.updateOne(
-      {
-        _id: session._id,
-        $or: [
-          { lastSeenAt: { $lt: lastSeenThreshold } },
-          { lastSeenAt: { $exists: false } }
-        ]
-      },
+      { _id: session._id, $or: [{ lastSeenAt: { $lt: lastSeenThreshold } }, { lastSeenAt: { $exists: false } }] },
       { $set: { lastSeenAt: new Date() } }
     );
   }
-
   return {
-    userId: String(user._id),
-    role: String(session.role),
+    userId: String(user._id), role,
     companyId: session.companyId ? String(session.companyId) : undefined,
     workspaceId: session.workspaceId ? String(session.workspaceId) : undefined,
-    email: String(user.email),
-    name: String(user.name),
-    image: googleAvatarUrl(user.image) || undefined
+    email: String(user.email), name: String(user.name), image: googleAvatarUrl(user.image) || undefined
   };
 }
 
-export async function requireSession(roles?: string[]) {
+export async function requireSession(roles?: readonly string[]) {
   const session = await getSession();
   if (!session) throw new Error("UNAUTHENTICATED");
   if (roles && !roles.includes(session.role)) throw new Error("FORBIDDEN");
   return session;
 }
 
-export async function updateSessionScope(userId: string, scope: { companyId?: string; workspaceId?: string; role?: string }) {
+export async function updateSessionScope(userId: string, scope: { companyId?: string; workspaceId?: string; role?: UserRole }) {
   await getMongo();
   const store = await cookies();
   const raw = store.get(COOKIE_NAME)?.value;

@@ -25,9 +25,9 @@ export async function POST(
   try {
     const result = await requireCompanyMember([
       "EMPLOYEE",
-      "COMPANY_OWNER",
-      "COMPANY_ADMIN"
-    ]);
+      "COMPANY_ADMIN",
+    "PLATFORM_ADMIN"
+  ]);
     session = result.session;
   } catch (error) {
     const code = error instanceof Error ? error.message : "UNAUTHENTICATED";
@@ -72,7 +72,6 @@ export async function POST(
 
             const isAssignedEmployee = String(meeting.employeeId) === session.userId;
             const isManager = [
-              "COMPANY_OWNER",
               "COMPANY_ADMIN",
               "PLATFORM_ADMIN"
             ].includes(session.role);

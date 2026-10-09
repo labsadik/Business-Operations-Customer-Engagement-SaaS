@@ -57,7 +57,7 @@ export async function GET(request: Request) {
                 nextRetryAt: null
               }
             },
-            { new: true }
+            { returnDocument: "after" }
           );
 
           if (!current) return;
@@ -116,7 +116,7 @@ export async function GET(request: Request) {
             assignedEmployeeId: null
           }
         },
-        { new: true }
+        { returnDocument: "after" }
       );
 
       if (!updated) continue;

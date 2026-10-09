@@ -42,7 +42,7 @@ export async function eligibleEmployees(
   const memberships = await Membership.find({
     companyId,
     active: true,
-    role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] },
+    role: { $in: ["COMPANY_ADMIN", "EMPLOYEE"] },
     userId: { $nin: excludedIds }
   })
     .select("userId")

@@ -11,8 +11,8 @@ import { jsonError, jsonOk } from "@/lib/http";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MEMBERSHIP_ROLES = ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] as const;
-type RestorableRole = "CUSTOMER" | "COMPANY_OWNER" | "COMPANY_ADMIN" | "EMPLOYEE";
+const MEMBERSHIP_ROLES = ["COMPANY_ADMIN", "EMPLOYEE"] as const;
+type RestorableRole = "CUSTOMER" | "COMPANY_ADMIN" | "EMPLOYEE";
 
 export async function PATCH(
   request: Request,

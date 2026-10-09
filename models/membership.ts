@@ -1,4 +1,5 @@
 import { Schema, model, models } from "mongoose";
+import { COMPANY_MEMBER_ROLES } from "@/types/domain";
 
 const membershipSchema = new Schema(
   {
@@ -7,7 +8,7 @@ const membershipSchema = new Schema(
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     role: {
       type: String,
-      enum: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"],
+      enum: [...COMPANY_MEMBER_ROLES],
       required: true
     },
     active: { type: Boolean, default: true, index: true },

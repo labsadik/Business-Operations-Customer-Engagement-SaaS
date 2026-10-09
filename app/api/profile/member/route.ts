@@ -105,7 +105,7 @@ export async function PATCH(request: Request) {
       const user = await User.findByIdAndUpdate(
         session.userId,
         { $set: userUpdate },
-        { new: true, runValidators: true }
+        { returnDocument: "after", runValidators: true }
       ).select("jobTitle department active").lean();
       if (!user) return jsonError("USER_NOT_FOUND", 404);
       return jsonOk({
@@ -125,7 +125,7 @@ export async function PATCH(request: Request) {
         role: session.role
       },
       { $set: update },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     ).select(PROFILE_FIELDS).lean();
 
     if (!membership) return jsonError("FORBIDDEN", 403);

@@ -60,10 +60,12 @@ const users = db.collection("users");
 const existing = await users.findOne({ email });
 
 const now = new Date();
-const previousRole =
-  existing?.role && existing.role !== "PLATFORM_ADMIN"
-    ? existing.role
-    : undefined;
+const previousRoleRaw = existing?.role && existing.role !== "PLATFORM_ADMIN" ? existing.role : undefined;
+const previousRole = previousRoleRaw === "COMPANY_OWNER"
+  ? "COMPANY_ADMIN"
+  : ["CUSTOMER", "COMPANY_ADMIN", "EMPLOYEE"].includes(previousRoleRaw)
+    ? previousRoleRaw
+    : previousRoleRaw ? "CUSTOMER" : undefined;
 
 const result = await users.findOneAndUpdate(
   { email },

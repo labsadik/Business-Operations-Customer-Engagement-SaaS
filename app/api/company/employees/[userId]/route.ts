@@ -22,7 +22,9 @@ export async function PATCH(
 ) {
   try {
     assertSameOrigin(request);
-    const { session } = await requireCompanyMember(["COMPANY_OWNER", "COMPANY_ADMIN"]);
+    const { session } = await requireCompanyMember(["COMPANY_ADMIN",
+    "PLATFORM_ADMIN"
+  ]);
     await getMongo();
     const { userId } = await params;
     if (!Types.ObjectId.isValid(userId)) return jsonError("INVALID_EMPLOYEE_ID", 400);
@@ -58,10 +60,10 @@ export async function PATCH(
         companyId: session.companyId,
         userId: new Types.ObjectId(userId),
         active: true,
-        role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] }
+        role: { $in: ["COMPANY_ADMIN", "EMPLOYEE"] }
       },
       { $set: update },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     ).select("userId jobTitle department employmentStatus").lean();
 
     if (!membership) return jsonError("EMPLOYEE_NOT_FOUND", 404);
@@ -84,7 +86,9 @@ export async function DELETE(
 ) {
   try {
     assertSameOrigin(request);
-    const { session } = await requireCompanyMember(["COMPANY_OWNER", "COMPANY_ADMIN"]);
+    const { session } = await requireCompanyMember(["COMPANY_ADMIN",
+    "PLATFORM_ADMIN"
+  ]);
     await getMongo();
     const { userId } = await params;
 
@@ -166,7 +170,7 @@ export async function DELETE(
     const activeMembers = await Membership.find({
       companyId: session.companyId,
       active: true,
-      role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] }
+      role: { $in: ["COMPANY_ADMIN", "EMPLOYEE"] }
     }).select("userId").lean();
 
     const connectedAccounts = await GoogleAccount.find({

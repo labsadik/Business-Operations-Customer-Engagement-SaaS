@@ -57,7 +57,7 @@ export async function GET(request: Request) {
     ];
     if (statusParam) filters.push({ status: statusParam });
     if (priorityParam) filters.push({ priority: priorityParam });
-    if (!scope.isPlatformAdmin && !["COMPANY_OWNER", "COMPANY_ADMIN"].includes(scope.session.role)) {
+    if (!scope.isPlatformAdmin && !["COMPANY_ADMIN"].includes(scope.session.role)) {
       filters.push({
         $or: [
           { createdByUserId: new Types.ObjectId(scope.session.userId) },
@@ -236,7 +236,7 @@ export async function DELETE(request: Request) {
     assertSameOrigin(request);
     const scope = await requireTaskScope();
     await assertTaskFeatureAccess(scope);
-    if (!scope.isPlatformAdmin && !["COMPANY_OWNER", "COMPANY_ADMIN"].includes(scope.session.role)) {
+    if (!scope.isPlatformAdmin && !["COMPANY_ADMIN"].includes(scope.session.role)) {
       return jsonError("FORBIDDEN", 403);
     }
 

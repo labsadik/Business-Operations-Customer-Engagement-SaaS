@@ -25,7 +25,6 @@ type ProfilePayload = {
 function roleLabel(role: string) {
   const roles: Record<string, string> = {
     PLATFORM_ADMIN: "Platform Admin",
-    COMPANY_OWNER: "Company Owner",
     COMPANY_ADMIN: "Company Admin",
     EMPLOYEE: "Employee"
   };

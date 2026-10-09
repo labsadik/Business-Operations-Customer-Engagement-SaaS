@@ -33,7 +33,7 @@ export async function PATCH(
         recipientUserId: new Types.ObjectId(scope.session.userId)
       },
       { $set: { readAt: read ? new Date() : null } },
-      { new: true }
+      { returnDocument: "after" }
     ).select("_id readAt").lean();
 
     if (!updated) return jsonError("NOTIFICATION_NOT_FOUND", 404);

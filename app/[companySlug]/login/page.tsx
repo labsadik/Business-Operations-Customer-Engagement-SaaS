@@ -51,7 +51,7 @@ export default async function CompanyLoginPage({
   const session = await getSession();
   if (
     session?.companyId === String(company._id) &&
-    ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"].includes(session.role)
+    ["COMPANY_ADMIN", "EMPLOYEE"].includes(session.role)
   ) {
     return (
       <main className="grid min-h-screen place-items-center bg-[#faf9f1] px-5">
@@ -78,7 +78,7 @@ export default async function CompanyLoginPage({
   const members = await Membership.find({
     companyId: company._id,
     active: true,
-    role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] }
+    role: { $in: ["COMPANY_ADMIN", "EMPLOYEE"] }
   }).select("userId role").lean();
 
   const users = await User.find({ _id: { $in: members.map((member) => member.userId) } })

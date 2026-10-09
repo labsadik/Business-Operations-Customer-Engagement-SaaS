@@ -94,7 +94,7 @@ function profilePayload(company: {
 
 async function getScopedCompany(session: Awaited<ReturnType<typeof getSession>>) {
   if (!session) return null;
-  if (session.companyId && ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"].includes(session.role)) {
+  if (session.companyId && ["COMPANY_ADMIN", "EMPLOYEE"].includes(session.role)) {
     const membership = await Membership.findOne({
       companyId: session.companyId,
       userId: session.userId,
@@ -128,7 +128,7 @@ export async function GET() {
     Membership.find({
       companyId: company._id,
       active: true,
-      role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] }
+      role: { $in: ["COMPANY_ADMIN", "EMPLOYEE"] }
     }).select("userId role employmentStatus").lean(),
     User.findById(company.ownerUserId).select("name email image").lean(),
     invoiceTaxConfig(),
@@ -310,7 +310,7 @@ export async function POST(request: Request) {
   assertSameOrigin(request);
   const session = await getSession();
   if (!session) return jsonError("UNAUTHENTICATED", 401);
-  if (!["COMPANY_OWNER", "PLATFORM_ADMIN"].includes(session.role)) return jsonError("FORBIDDEN", 403);
+  if (!["COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role)) return jsonError("FORBIDDEN", 403);
 
   await getMongo();
   const existing = await Company.findOne({ ownerUserId: session.userId }).lean();
@@ -386,7 +386,7 @@ export async function POST(request: Request) {
         companyId: company._id,
         workspaceId: workspace._id,
         userId: session.userId,
-        role: "COMPANY_OWNER",
+        role: "COMPANY_ADMIN",
         active: true,
         googleConnectionStatus: "DISCONNECTED"
       }], { session: tx });
@@ -445,7 +445,7 @@ export async function PATCH(request: Request) {
   assertSameOrigin(request);
   const session = await getSession();
   if (!session) return jsonError("UNAUTHENTICATED", 401);
-  if (!["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role)) return jsonError("FORBIDDEN", 403);
+  if (!["COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role)) return jsonError("FORBIDDEN", 403);
   if (!session.companyId) return jsonError("COMPANY_NOT_CONFIGURED", 400);
 
   await getMongo();
@@ -453,7 +453,7 @@ export async function PATCH(request: Request) {
     companyId: session.companyId,
     userId: session.userId,
     active: true,
-    role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN"] }
+    role: { $in: ["COMPANY_ADMIN"] }
   }).lean();
   if (!membership && session.role !== "PLATFORM_ADMIN") return jsonError("FORBIDDEN", 403);
 
@@ -520,7 +520,7 @@ export async function PATCH(request: Request) {
       const members = await Membership.find({
         companyId: session.companyId,
         active: true,
-        role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] }
+        role: { $in: ["COMPANY_ADMIN", "EMPLOYEE"] }
       }).select("userId").lean();
 
       const accounts = await GoogleAccount.find({
@@ -538,12 +538,12 @@ export async function PATCH(request: Request) {
   const company = await Company.findOneAndUpdate(
     { _id: session.companyId },
     { $set: update },
-    { new: true }
+    { returnDocument: "after" }
   ).lean();
 
   if (!company) return jsonError("COMPANY_NOT_FOUND", 404);
 
-  if (session.role === "COMPANY_OWNER" && update.slug) {
+  if (session.role === "COMPANY_ADMIN" && update.slug) {
     await updateSessionScope(session.userId, { companyId: String(company._id), workspaceId: session.workspaceId });
   }
 

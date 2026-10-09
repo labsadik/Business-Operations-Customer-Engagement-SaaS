@@ -109,7 +109,7 @@ export async function reconcileLatestPaidAccess(companyId: string) {
         },
         $setOnInsert: { companyId }
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: "after" }
     );
 
     await Workspace.updateOne(
@@ -277,7 +277,7 @@ export async function incrementMeetingUsage(companyId: string) {
       monthlyMeetingsUsed: { $lt: plan.monthlyMeetingLimit }
     },
     { $inc: { monthlyMeetingsUsed: 1 } },
-    { new: true }
+    { returnDocument: "after" }
   );
 
   if (!updated) throw new Error("MONTHLY_MEETING_LIMIT");

@@ -55,7 +55,7 @@ async function requireCompanyFeedbackMember() {
   if (!session) throw new Error("UNAUTHENTICATED");
   if (
     !session.companyId ||
-    !["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"].includes(session.role)
+    !["COMPANY_ADMIN", "EMPLOYEE"].includes(session.role)
   ) {
     throw new Error("FORBIDDEN");
   }
@@ -210,7 +210,7 @@ export async function PATCH(request: Request) {
   try {
     assertSameOrigin(request);
     const { session, companyId } = await requireCompanyFeedbackMember();
-    if (!["COMPANY_OWNER", "COMPANY_ADMIN"].includes(session.role)) return jsonError("FORBIDDEN", 403);
+    if (!["COMPANY_ADMIN"].includes(session.role)) return jsonError("FORBIDDEN", 403);
 
     const body = await request.json().catch(() => null) as { feedbackId?: unknown; reviewStatus?: unknown } | null;
     if (typeof body?.feedbackId !== "string" || !Types.ObjectId.isValid(body.feedbackId)) return jsonError("INVALID_FEEDBACK_ID", 400);

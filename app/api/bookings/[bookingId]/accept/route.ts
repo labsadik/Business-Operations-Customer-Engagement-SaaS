@@ -124,9 +124,9 @@ export async function POST(
   try {
     const result = await requireCompanyMember([
       "EMPLOYEE",
-      "COMPANY_OWNER",
-      "COMPANY_ADMIN"
-    ]);
+      "COMPANY_ADMIN",
+    "PLATFORM_ADMIN"
+  ]);
     session = result.session;
   } catch (error) {
     const code = bookingErrorCode(error);
@@ -220,7 +220,7 @@ export async function POST(
                     nextRetryAt: null
                   }
                 },
-                { new: true, session: tx }
+                { returnDocument: "after", session: tx }
                   )
                 : null;
 

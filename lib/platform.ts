@@ -61,7 +61,7 @@ export async function getPlatformSettings() {
         logoUrl: PLATFORM_BRAND.logoPath
       }
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
   ).lean();
 
   if (!created) throw new Error("PLATFORM_SETTINGS_UNAVAILABLE");

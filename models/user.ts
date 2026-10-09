@@ -1,4 +1,5 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
+import { RESTORABLE_USER_ROLES, USER_ROLES } from "@/types/domain";
 
 const userSchema = new Schema(
   {
@@ -9,7 +10,7 @@ const userSchema = new Schema(
     department: { type: String, trim: true, maxlength: 100, default: "" },
     role: {
       type: String,
-      enum: ["CUSTOMER", "COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE", "PLATFORM_ADMIN"],
+      enum: [...USER_ROLES],
       required: true,
       index: true
     },
@@ -19,7 +20,7 @@ const userSchema = new Schema(
     active: { type: Boolean, default: true, index: true },
     platformAdminPreviousRole: {
       type: String,
-      enum: ["CUSTOMER", "COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"]
+      enum: [...RESTORABLE_USER_ROLES]
     }
   },
   { timestamps: true }

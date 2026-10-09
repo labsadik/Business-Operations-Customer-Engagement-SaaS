@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 async function requireManager() {
   const session = await getSession();
   if (!session) throw new Error("UNAUTHENTICATED");
-  if (!session.companyId || (session.role !== "PLATFORM_ADMIN" && !["COMPANY_OWNER", "COMPANY_ADMIN"].includes(session.role))) {
+  if (!session.companyId || (session.role !== "PLATFORM_ADMIN" && !["COMPANY_ADMIN"].includes(session.role))) {
     throw new Error("FORBIDDEN");
   }
 
@@ -23,7 +23,7 @@ async function requireManager() {
     companyId: session.companyId,
     userId: session.userId,
     active: true,
-    role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN"] }
+    role: { $in: ["COMPANY_ADMIN"] }
   }).lean();
 
   if (!membership) throw new Error("FORBIDDEN");

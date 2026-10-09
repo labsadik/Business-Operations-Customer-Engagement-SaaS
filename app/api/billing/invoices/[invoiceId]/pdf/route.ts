@@ -241,7 +241,7 @@ export async function GET(
     if (!session) return jsonError("UNAUTHENTICATED", 401);
     if (
       !session.companyId ||
-      !["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role)
+      !["COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role)
     ) {
       return jsonError("FORBIDDEN", 403);
     }

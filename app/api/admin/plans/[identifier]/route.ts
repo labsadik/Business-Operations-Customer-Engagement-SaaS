@@ -195,7 +195,7 @@ export async function PATCH(
       checkoutConfigChanged
         ? { $set: update, $inc: { revision: 1 } }
         : { $set: update },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     ).lean();
 
     if (!updated) return jsonError("PLAN_NOT_FOUND", 404);

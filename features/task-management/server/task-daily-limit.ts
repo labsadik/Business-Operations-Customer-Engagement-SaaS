@@ -61,7 +61,7 @@ export async function reserveDailyTaskAssignment(
   const usage = await TaskDailyUsage.findOneAndUpdate(
     { ...filter, count: { $lt: effectiveLimit } },
     { $inc: { count: 1 } },
-    { new: true, runValidators: true }
+    { returnDocument: "after", runValidators: true }
   )
     .select("_id count")
     .lean();

@@ -34,7 +34,7 @@ export async function GET(
       workspaceId: new Types.ObjectId(scope.workspaceId)
     }).lean();
     if (!task) return jsonError("TASK_NOT_FOUND", 404);
-    if (!scope.isPlatformAdmin && !["COMPANY_OWNER", "COMPANY_ADMIN"].includes(scope.session.role) && !visibleToUser(task, scope.session.userId)) {
+    if (!scope.isPlatformAdmin && !["COMPANY_ADMIN"].includes(scope.session.role) && !visibleToUser(task, scope.session.userId)) {
       return jsonError("TASK_NOT_FOUND", 404);
     }
 
@@ -109,7 +109,7 @@ export async function PATCH(
     const updated = await Task.findOneAndUpdate(
       { _id: existing._id, companyId: existing.companyId, workspaceId: existing.workspaceId },
       { $set: update },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     ).lean();
     if (!updated) return jsonError("TASK_NOT_FOUND", 404);
 

@@ -12,9 +12,9 @@ export async function GET() {
   try {
     session = (await requireCompanyMember([
       "EMPLOYEE",
-      "COMPANY_OWNER",
-      "COMPANY_ADMIN"
-    ])).session;
+      "COMPANY_ADMIN",
+    "PLATFORM_ADMIN"
+  ])).session;
   } catch (error) {
     const code = error instanceof Error ? error.message : "UNAUTHENTICATED";
     return jsonError(code, code === "UNAUTHENTICATED" ? 401 : 403);
@@ -25,7 +25,7 @@ export async function GET() {
 
   const now = new Date();
   const scope = { companyId: session.companyId };
-  const roleAllowsAll = ["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role);
+  const roleAllowsAll = ["COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role);
   const employeeScope = roleAllowsAll ? {} : { assignedEmployeeId: session.userId };
   const meetingEmployeeScope = roleAllowsAll ? {} : { employeeId: session.userId };
 

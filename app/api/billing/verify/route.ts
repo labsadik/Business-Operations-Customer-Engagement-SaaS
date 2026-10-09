@@ -18,7 +18,7 @@ export async function POST(request: Request) {
 
     const session = await getSession();
     if (!session) return jsonError("UNAUTHENTICATED", 401);
-    if (!["COMPANY_OWNER", "COMPANY_ADMIN"].includes(session.role) || !session.companyId) {
+    if (!["COMPANY_ADMIN"].includes(session.role) || !session.companyId) {
       return jsonError("FORBIDDEN", 403);
     }
 

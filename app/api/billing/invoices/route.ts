@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const session = await getSession();
   if (!session) return jsonError("UNAUTHENTICATED", 401);
-  if (!session.companyId || !["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role)) {
+  if (!session.companyId || !["COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role)) {
     return jsonError("FORBIDDEN", 403);
   }
 
@@ -25,7 +25,7 @@ export async function GET() {
       companyId: session.companyId,
       userId: session.userId,
       active: true,
-      role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN"] }
+      role: { $in: ["COMPANY_ADMIN"] }
     }).lean();
     if (!membership) return jsonError("FORBIDDEN", 403);
   }

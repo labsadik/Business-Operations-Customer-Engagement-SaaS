@@ -88,7 +88,7 @@ export async function reserveMeetingUsage(input: {
       monthlyMeetingsUsed: { $lt: input.plan.monthlyMeetingLimit }
     },
     { $inc: { monthlyMeetingsUsed: 1 } },
-    { new: true, session: input.session }
+    { returnDocument: "after", session: input.session }
   );
 
   if (!subscription) throw new Error("MONTHLY_MEETING_LIMIT");
@@ -115,7 +115,7 @@ export async function releaseMeetingUsage(input: {
       usageReleasedAt: { $exists: false }
     },
     { $set: { usageReleasedAt: now } },
-    { new: true, ...(options ?? {}) }
+    { returnDocument: "after", ...(options ?? {}) }
   );
 
   if (!booking || !booking.usageReservationPeriodStart) return false;

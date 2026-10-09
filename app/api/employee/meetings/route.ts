@@ -34,9 +34,9 @@ export async function GET(request: Request) {
   try {
     const result = await requireCompanyMember([
       "EMPLOYEE",
-      "COMPANY_OWNER",
-      "COMPANY_ADMIN"
-    ]);
+      "COMPANY_ADMIN",
+    "PLATFORM_ADMIN"
+  ]);
     session = result.session;
   } catch (error) {
     const code = error instanceof Error ? error.message : "UNAUTHENTICATED";

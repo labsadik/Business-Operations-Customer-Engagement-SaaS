@@ -25,7 +25,7 @@ async function requireCompanySupportMember() {
 
   if (
     !session.companyId ||
-    !["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"].includes(session.role)
+    !["COMPANY_ADMIN", "EMPLOYEE"].includes(session.role)
   ) {
     throw new Error("FORBIDDEN");
   }

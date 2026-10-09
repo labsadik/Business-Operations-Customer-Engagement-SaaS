@@ -92,7 +92,7 @@ export async function PATCH(request: Request) {
     const updated = await PlatformSettings.findOneAndUpdate(
       { key: "default" },
       { $set: values, $setOnInsert: { key: "default" } },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     ).lean();
 
     return jsonOk({

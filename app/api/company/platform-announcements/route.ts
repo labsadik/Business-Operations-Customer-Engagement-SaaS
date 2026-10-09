@@ -14,7 +14,7 @@ export async function GET() {
     if (!session.companyId || !Types.ObjectId.isValid(session.companyId)) {
       return jsonError("COMPANY_NOT_CONFIGURED", 403);
     }
-    if (!["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE", "PLATFORM_ADMIN"].includes(session.role)) {
+    if (!["COMPANY_ADMIN", "EMPLOYEE", "PLATFORM_ADMIN"].includes(session.role)) {
       return jsonError("FORBIDDEN", 403);
     }
 

@@ -18,7 +18,7 @@ export async function POST(request: Request) {
 
     const session = await getSession();
     if (!session || !session.companyId) return jsonError("UNAUTHENTICATED", 401);
-    if (!["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role)) {
+    if (!["COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role)) {
       return jsonError("FORBIDDEN", 403);
     }
 
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
         },
         $setOnInsert: { companyId: session.companyId }
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: "after" }
     );
 
     await Workspace.updateOne(

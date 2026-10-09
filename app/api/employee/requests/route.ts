@@ -19,9 +19,9 @@ async function getSessionOrError() {
   try {
     return (await requireCompanyMember([
       "EMPLOYEE",
-      "COMPANY_OWNER",
-      "COMPANY_ADMIN"
-    ])).session;
+      "COMPANY_ADMIN",
+    "PLATFORM_ADMIN"
+  ])).session;
   } catch (error) {
     throw new Error(sessionError(error));
   }
@@ -47,7 +47,7 @@ async function historyResponse(
     return jsonError("INVALID_HISTORY_CURSOR", 400);
   }
 
-  const roleAllowsAll = ["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(
+  const roleAllowsAll = ["COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(
     session.role
   );
 
@@ -213,7 +213,6 @@ export async function GET(request: Request) {
     : 100;
 
   const roleAllowsAllActive = [
-    "COMPANY_OWNER",
     "COMPANY_ADMIN",
     "PLATFORM_ADMIN"
   ].includes(session.role);

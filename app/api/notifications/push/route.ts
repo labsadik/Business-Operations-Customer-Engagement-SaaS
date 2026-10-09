@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 async function authorizedUser() {
   const session = await getSession();
   if (!session) throw new Error("UNAUTHENTICATED");
-  if (!["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE", "PLATFORM_ADMIN"].includes(session.role)) {
+  if (!["COMPANY_ADMIN", "EMPLOYEE", "PLATFORM_ADMIN"].includes(session.role)) {
     throw new Error("FORBIDDEN");
   }
   if (!Types.ObjectId.isValid(session.userId)) throw new Error("UNAUTHENTICATED");

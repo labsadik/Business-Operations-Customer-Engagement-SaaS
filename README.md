@@ -175,3 +175,10 @@ Desktop alerts use the browser Notification API through a registered service wor
 To enable closed-tab/background push in each deployment, run `node scripts/generate-vapid-keys.mjs` and set `WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY`, and `WEB_PUSH_VAPID_SUBJECT` as server environment variables (for example, in the deployment environment settings), then redeploy. Keep the private key secret; never commit it or send it to the browser. Users who already enabled desktop alerts are auto-enrolled when the configured deployment loads. Without those server keys, the test notification and in-tab alerts still work, but closed-tab push cannot be sent. Push subscriptions are bound to the authenticated user, endpoint hosts are allowlisted, requests are same-origin protected, and push delivery failures never block booking/task creation.
 
 Availability results are advisory and cached briefly to reduce repeated Google Calendar reads. Booking submission still revalidates availability and capacity server-side. When the application is saturated, the availability endpoint can return HTTP 503 so clients retry later instead of expanding unbounded work.
+
+
+## Canonical access roles
+
+Conventus has exactly four canonical application roles: `PLATFORM_ADMIN`, `COMPANY_ADMIN`, `EMPLOYEE`, and `CUSTOMER`. Company and workspace APIs enforce authorization server-side and require an explicit role allowlist plus an active membership in the requested company/workspace. `COMPANY_OWNER` is only recognized as a legacy database value so it can be migrated to `COMPANY_ADMIN`; it is not an application permission.
+
+Before deploying this role hardening to an existing database, back up the database and run `npm run roles:migrate` with the intended `MONGODB_URI`. The migration reports any user or membership records with unsupported role values and fails closed if any remain. Do not run it against the wrong database.

@@ -102,7 +102,7 @@ async function createOrUpdateAccessInvoice({
       },
       ...(grantedByUserId ? { $set: { "companySnapshot.name": company.name } } : {})
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
   );
 }
 
@@ -186,7 +186,7 @@ export async function activatePaidPlan(paymentId: string) {
               failurePaymentId: ""
             }
           },
-          { new: true, session: tx }
+          { returnDocument: "after", session: tx }
         );
 
         if (!claimed) {
@@ -276,7 +276,7 @@ export async function activatePaidPlan(paymentId: string) {
             },
             $setOnInsert: { companyId: captured.companyId }
           },
-          { upsert: true, new: true, session: tx }
+          { upsert: true, returnDocument: "after", session: tx }
         );
 
         await Workspace.updateOne(
@@ -335,7 +335,7 @@ export async function activatePaidPlan(paymentId: string) {
             ...snapshots
           }
         },
-        { upsert: true, new: true, session: tx }
+        { upsert: true, returnDocument: "after", session: tx }
       );
 
       if (captured.activatedAt == null || captured.checkoutKey) {
@@ -413,7 +413,7 @@ export async function grantCompanyPlan(
       },
       $setOnInsert: { companyId }
     },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: "after" }
   ).lean();
 
   await Workspace.updateOne({ companyId }, { $set: { planId } });
@@ -534,7 +534,7 @@ export async function ensureInvoicesForCapturedPayments(companyId: string) {
           ...snapshots
         }
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     );
 
     createdOrUpdated += 1;

@@ -78,7 +78,7 @@ export async function PATCH(
         status: assignment.status
       },
       { $set: update },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     ).lean();
     if (!updatedAssignment) return jsonError("TASK_STATUS_CONFLICT", 409);
 

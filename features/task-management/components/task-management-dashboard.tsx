@@ -102,7 +102,7 @@ type TaskPageProps = {
   taskManagementEnabled: boolean;
 };
 
-const MANAGER_ROLES = ["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"];
+const MANAGER_ROLES = ["COMPANY_ADMIN", "PLATFORM_ADMIN"];
 const EMPLOYEE_DIRECTORY_REFRESH_MS = 5 * 60_000;
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {

@@ -305,11 +305,9 @@ function initials(name: string) {
 function roleName(role: string) {
   return role === "PLATFORM_ADMIN"
     ? "Platform Admin"
-    : role === "COMPANY_OWNER"
-      ? "Company Owner"
-      : role === "COMPANY_ADMIN"
-        ? "Company Admin"
-        : role === "EMPLOYEE"
+    : role === "COMPANY_ADMIN"
+      ? "Company Admin"
+      : role === "EMPLOYEE"
           ? "Employee"
           : role.replaceAll("_", " ");
 }
@@ -484,11 +482,10 @@ export default function WorkspaceDashboard({
   }, [router]);
 
   const canManage = Boolean(
-    data && ["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(data.currentRole)
+    data && ["COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(data.currentRole)
   );
   const canRespondToMeetings = Boolean(data?.currentRole && [
     "EMPLOYEE",
-    "COMPANY_OWNER",
     "COMPANY_ADMIN",
     "PLATFORM_ADMIN"
   ].includes(data.currentRole));
@@ -591,7 +588,7 @@ export default function WorkspaceDashboard({
       if (pendingResult.ok) setRequests(pendingResult.value);
       else if (!alreadyLoaded) setRequests([]);
 
-      const announcementManager = ["COMPANY_OWNER", "COMPANY_ADMIN"].includes(company.currentRole);
+      const announcementManager = ["COMPANY_ADMIN"].includes(company.currentRole);
       if (announcementResult.ok) {
         setAnnouncements(announcementManager ? announcementResult.value : []);
         setAnnouncementManagementError("");
@@ -1924,7 +1921,7 @@ export default function WorkspaceDashboard({
         onClose={closeFeedbackModal}
         canViewCustomerFeedback={Boolean(data.currentRole && data.company?.id)}
         canSubmit={data.currentRole !== "PLATFORM_ADMIN"}
-        canManageReviews={["COMPANY_OWNER", "COMPANY_ADMIN"].includes(data.currentRole)}
+        canManageReviews={["COMPANY_ADMIN"].includes(data.currentRole)}
         companySlug={data.company.slug}
       />
 

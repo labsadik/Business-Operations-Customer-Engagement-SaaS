@@ -93,7 +93,7 @@ export function platformAnnouncementVisibleInCompany(
 }
 
 export function canSeeCompanyPlatformFeedback(role: string) {
-  return role === "COMPANY_OWNER" || role === "COMPANY_ADMIN" || role === "EMPLOYEE";
+  return role === "COMPANY_ADMIN" || role === "EMPLOYEE";
 }
 
 export function isValidFeedbackStatusTransition(

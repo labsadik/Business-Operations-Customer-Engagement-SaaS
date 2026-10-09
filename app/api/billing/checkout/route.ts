@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     const session = await getSession();
     if (!session) return jsonError("UNAUTHENTICATED", 401);
     if (
-      !["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role) ||
+      !["COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role) ||
       !session.companyId
     ) {
       return jsonError("FORBIDDEN", 403);
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
         companyId,
         userId: session.userId,
         active: true,
-        role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN"] }
+        role: { $in: ["COMPANY_ADMIN"] }
       }).lean();
       if (!membership) return jsonError("FORBIDDEN", 403);
     }

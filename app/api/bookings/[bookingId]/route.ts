@@ -34,7 +34,7 @@ export async function GET(
   let activeCompanyMember = false;
 
   if (companyMatch && session.role !== "CUSTOMER") {
-    const isManager = ["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(
+    const isManager = ["COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(
       session.role
     );
 

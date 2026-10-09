@@ -18,9 +18,9 @@ export type TaskScope = {
 export async function requireTaskScope(): Promise<TaskScope> {
   await getMongo();
   const { session, membership } = await requireCompanyMember([
-    "COMPANY_OWNER",
     "COMPANY_ADMIN",
-    "EMPLOYEE"
+    "EMPLOYEE",
+    "PLATFORM_ADMIN"
   ]);
 
   const companyId = session.companyId;
@@ -69,7 +69,7 @@ export async function assertTaskFeatureAccess(scope: TaskScope) {
 export function canManageTask(scope: TaskScope, task: { createdByUserId: unknown }) {
   return (
     scope.isPlatformAdmin ||
-    scope.session.role === "COMPANY_OWNER" ||
+    scope.session.role === "COMPANY_ADMIN" ||
     scope.session.role === "COMPANY_ADMIN" ||
     String(task.createdByUserId) === scope.session.userId
   );
@@ -91,7 +91,7 @@ export async function assertAssignableEmployees(scope: TaskScope, userIds: strin
       workspaceId: new Types.ObjectId(scope.workspaceId),
       userId: { $in: objectIds },
       active: true,
-      role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] },
+      role: { $in: ["COMPANY_ADMIN", "EMPLOYEE"] },
       $or: [
         { employmentStatus: "ACTIVE" },
         { employmentStatus: { $exists: false } }

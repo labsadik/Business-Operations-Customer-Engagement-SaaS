@@ -102,7 +102,7 @@ async function acceptPendingEmployeeInvitation(
         active: true
       }
     },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: "after" }
   ).lean();
 
   const existingRules = await AvailabilityRule.countDocuments({
@@ -208,7 +208,7 @@ export async function GET(request: Request) {
             lastSuccessfulSyncAt: new Date()
           }
         },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: "after" }
       );
 
       await User.findByIdAndUpdate(
@@ -406,7 +406,7 @@ export async function GET(request: Request) {
             googleConnectionStatus: "DISCONNECTED"
           }
         },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: "after" }
       ).lean();
 
       const existingRules = await AvailabilityRule.countDocuments({
@@ -454,7 +454,7 @@ export async function GET(request: Request) {
         email,
         name: googleUser.name || email.split("@")[0],
         image: googleAvatarUrl(googleUser.picture),
-        role: "COMPANY_OWNER",
+        role: "COMPANY_ADMIN",
         googleSubject: googleUser.sub,
         googleEmail: email,
         lastLoginAt: new Date()
@@ -474,7 +474,7 @@ export async function GET(request: Request) {
     const activeMemberships = await Membership.find({
       userId: user._id,
       active: true,
-      role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] }
+      role: { $in: ["COMPANY_ADMIN", "EMPLOYEE"] }
     }).sort({ createdAt: -1 }).limit(2).lean();
 
     const scopedMembership = activeMemberships[0];
