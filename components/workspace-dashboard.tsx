@@ -9,7 +9,6 @@ import {
   Activity,
   ArrowUpRight,
   CalendarDays,
-  CheckCircle2,
   ChevronRight,
   Copy,
   CreditCard,
@@ -406,7 +405,6 @@ export default function WorkspaceDashboard({
   const [data, setData] = useState<CompanyData | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [requests, setRequests] = useState<RequestItem[]>([]);
-  const [meetingHistory, setMeetingHistory] = useState<MeetingHistoryItem[]>([]);
   const [modalRequests, setModalRequests] = useState<RequestItem[]>([]);
   const [modalMeetingHistory, setModalMeetingHistory] = useState<MeetingHistoryItem[]>([]);
   const [meetingHistoryTotalCount, setMeetingHistoryTotalCount] = useState(0);
@@ -533,11 +531,10 @@ export default function WorkspaceDashboard({
 
     try {
       // Start independent reads together: one optional endpoint must not blank the whole workspace.
-      const [companyResult, staffResult, pendingResult, historyResult, announcementResult] = await Promise.all([
+      const [companyResult, staffResult, pendingResult, announcementResult] = await Promise.all([
         settle(api<CompanyData | null>("/api/company")),
         settle(api<Employee[]>("/api/company/employees")),
         settle(api<RequestItem[]>("/api/employee/requests?limit=6")),
-        settle(api<MeetingHistoryItem[]>("/api/employee/meetings?limit=6")),
         settle(api<AnnouncementItem[]>("/api/company/announcement"))
       ]);
       if (!companyResult.ok) throw new Error("COMPANY_DATA_LOAD_FAILED");
@@ -548,7 +545,6 @@ export default function WorkspaceDashboard({
         setData(null);
         setEmployees([]);
         setRequests([]);
-        setMeetingHistory([]);
         setAnnouncements([]);
         setInitialLoadFailed(false);
         setError("");
@@ -562,8 +558,6 @@ export default function WorkspaceDashboard({
       else if (!alreadyLoaded) setEmployees([]);
       if (pendingResult.ok) setRequests(pendingResult.value);
       else if (!alreadyLoaded) setRequests([]);
-      if (historyResult.ok) setMeetingHistory(historyResult.value);
-      else if (!alreadyLoaded) setMeetingHistory([]);
 
       const announcementManager = ["COMPANY_OWNER", "COMPANY_ADMIN"].includes(company.currentRole);
       if (announcementResult.ok) {
@@ -574,7 +568,7 @@ export default function WorkspaceDashboard({
       }
 
       setInitialLoadFailed(false);
-      setError(!staffResult.ok || !pendingResult.ok || !historyResult.ok
+      setError(!staffResult.ok || !pendingResult.ok
         ? "DASHBOARD_REFRESH_FAILED"
         : "");
     } catch {
@@ -590,12 +584,8 @@ export default function WorkspaceDashboard({
     if (refreshingRef.current) return;
     refreshingRef.current = true;
     try {
-      const [pending, history] = await Promise.all([
-        api<RequestItem[]>("/api/employee/requests?limit=6"),
-        api<MeetingHistoryItem[]>("/api/employee/meetings?limit=6")
-      ]);
+      const pending = await api<RequestItem[]>("/api/employee/requests?limit=6");
       setRequests(pending);
-      setMeetingHistory(history);
     } catch {
       // Keep the last good dashboard state during transient polling failures.
     } finally {
