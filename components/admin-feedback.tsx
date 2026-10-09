@@ -1,5 +1,7 @@
 "use client";
 
+import { clientApi } from "@/lib/client-api";
+
 import { useCallback, useEffect, useState } from "react";
 import { CheckCircle2, MessageSquareText } from "lucide-react";
 
@@ -17,10 +19,7 @@ type FeedbackItem = {
 };
 
 async function request<T>(url: string, init?: RequestInit) {
-  const response = await fetch(url, { ...init, cache: "no-store", headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(String(body.error || "REQUEST_FAILED"));
-  return body.data as T;
+  return clientApi<T>(url, init);
 }
 
 export default function AdminFeedback() {
