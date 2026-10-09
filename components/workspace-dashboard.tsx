@@ -16,6 +16,7 @@ import {
   LogOut,
   Mail,
   Megaphone,
+  MessageSquareText,
   MoreHorizontal,
   Plus,
   RefreshCw,

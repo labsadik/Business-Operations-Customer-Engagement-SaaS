@@ -5,6 +5,7 @@ import UserAvatar from "@/components/user-avatar";
 import { useNavigationLabels } from "@/components/navigation-labels-provider";
 import { CompanyProfileLoading, WorkspaceLoadError } from "@/components/route-loading";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
+import WorkspaceUserProfile from "@/components/workspace-user-profile";
 import PublicPageShare from "@/components/public-page-share";
 import ConfirmDialog from "@/components/confirm-dialog";
 import { useEffect, useMemo, useState } from "react";
@@ -207,22 +208,27 @@ export default function CompanyProfile({
     <main className="min-h-screen bg-[#faf9f1] text-slate-950">
       <WorkspaceSidebar
         companyName={form.name}
-        userName={user.name}
-        userEmail={user.email}
-        currentRole={currentRole}
         canManage
         activeProfile
-        avatarFallback="/api/profile/avatar"
       />
       <div className="lg:pl-72">
       <div className="mx-auto max-w-[1400px] px-5 py-6 sm:px-6 lg:px-10 lg:py-8">
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
-        >
-          <ArrowLeft className="size-4" />
-          Back to dashboard
-        </Link>
+        <div className="flex items-center justify-between gap-3">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
+          >
+            <ArrowLeft className="size-4" />
+            Back to dashboard
+          </Link>
+          <WorkspaceUserProfile
+            name={user.name}
+            email={user.email}
+            image={user.image}
+            companyName={form.name}
+            currentRole={currentRole}
+          />
+        </div>
 
         <section className="mt-5 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
