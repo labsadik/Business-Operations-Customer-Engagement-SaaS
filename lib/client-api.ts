@@ -31,12 +31,12 @@ export async function clientFetch(url: string, init?: RequestInit): Promise<Resp
       response = await fetch(url, { ...init, cache: "no-store" });
     } catch (error) {
       if (!canRetry || attempt > 0 || init?.signal?.aborted) throw error;
-      await pause(150, init?.signal);
+      await pause(150, init?.signal ?? undefined);
       continue;
     }
 
     if (canRetry && attempt === 0 && RETRYABLE_SERVER_STATUSES.has(response.status) && !init?.signal?.aborted) {
-      await pause(150, init?.signal);
+      await pause(150, init?.signal ?? undefined);
       continue;
     }
     return response;
