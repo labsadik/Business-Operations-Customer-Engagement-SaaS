@@ -37,6 +37,7 @@ const paymentSchema = new Schema(
       monthlyMeetingLimit: { type: Number, min: 1 },
       maxMeetingDurationMinutes: { type: Number, min: 1 },
       maxConcurrentMeetings: { type: Number, min: 1 },
+      taskManagementEnabled: { type: Boolean, default: false },
       validityDays: { type: Number, min: 1 },
       freeFeatureDays: { type: Number, min: 0, default: null },
       requiresPayment: { type: Boolean }
