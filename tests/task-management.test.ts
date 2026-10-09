@@ -43,7 +43,7 @@ test("task input validation rejects malformed or unsafe assignment data", () => 
 test("assignee selection is bounded and requires at least one recipient", () => {
   assert.throws(() => validateAssigneeUserIds([]), /ASSIGNEE_REQUIRED/);
   assert.throws(() => validateAssigneeUserIds(Array.from({ length: 51 }, (_, i) =>
-    (BigInt("64b000000000000000000001") + BigInt(i)).toString(16).padStart(24, "0")
+    i.toString(16).padStart(24, "0")
   )), /ASSIGNEE_LIMIT_EXCEEDED/);
 });
 
