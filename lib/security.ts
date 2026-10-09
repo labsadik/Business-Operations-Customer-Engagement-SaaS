@@ -11,16 +11,21 @@ export function sha256(value: string) {
 export function assertSameOrigin(request: Request) {
   const expectedOrigin = new URL(request.url).origin;
   const origin = request.headers.get("origin");
-
-  if (origin) {
-    if (origin !== expectedOrigin) throw new Error("CSRF_ORIGIN_INVALID");
-    return;
-  }
-
   const referer = request.headers.get("referer");
-  if (referer && new URL(referer).origin !== expectedOrigin) {
+  const candidate = origin ?? referer;
+
+  // Browser cookie-authenticated writes must identify their initiating origin.
+  // Missing, malformed and cross-origin metadata all fail closed.
+  if (!candidate) throw new Error("CSRF_ORIGIN_INVALID");
+
+  let suppliedOrigin: string;
+  try {
+    suppliedOrigin = new URL(candidate).origin;
+  } catch {
     throw new Error("CSRF_ORIGIN_INVALID");
   }
+
+  if (suppliedOrigin !== expectedOrigin) throw new Error("CSRF_ORIGIN_INVALID");
 }
 
 function getEncryptionKey() {

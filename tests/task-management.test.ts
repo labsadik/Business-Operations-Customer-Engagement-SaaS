@@ -213,3 +213,19 @@ test("platform admin task usage is aggregated and displayed per company", () => 
   assert.ok(companyDetails.includes("{company.overdueTasks}"));
   assert.ok(platformOverview.includes("data.totalTasks"));
 });
+
+
+test("session and transport hardening reduce avoidable reads and fail closed on missing CSRF origin", () => {
+  const session = source("lib/session.ts");
+  const security = source("lib/security.ts");
+  const config = source("next.config.ts");
+
+  assert.ok(session.includes('select("_id userId role companyId workspaceId expiresAt lastSeenAt")'));
+  assert.ok(session.includes("lastSeenThreshold"));
+  assert.ok(session.includes("5 * 60 * 1000"));
+  assert.ok(security.includes('if (!candidate) throw new Error("CSRF_ORIGIN_INVALID")'));
+  assert.ok(security.includes("new URL(candidate).origin"));
+  assert.ok(config.includes("Strict-Transport-Security"));
+  assert.ok(config.includes("Cross-Origin-Opener-Policy"));
+  assert.ok(config.includes("X-Content-Type-Options"));
+});

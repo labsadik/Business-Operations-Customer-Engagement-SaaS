@@ -123,11 +123,11 @@ export async function getSession(): Promise<AuthSession | null> {
   const session = await Session.findOne({
     tokenHash: sha256(raw),
     expiresAt: { $gt: new Date() }
-  }).lean();
+  }).select("_id userId role companyId workspaceId expiresAt lastSeenAt").lean();
 
   if (!session) return null;
 
-  const user = await User.findById(session.userId).lean();
+  const user = await User.findById(session.userId).select("active role email name image").lean();
   if (!user || user.active === false) return null;
 
   const platformAdmin = user.role === "PLATFORM_ADMIN";
@@ -214,7 +214,7 @@ export async function getSession(): Promise<AuthSession | null> {
       userId: session.userId,
       active: true,
       role: session.role
-    }).lean();
+    }).select("_id workspaceId").lean();
 
     if (!membership || (session.workspaceId && String(membership.workspaceId) !== String(session.workspaceId))) {
       await Session.deleteOne({ _id: session._id });
@@ -222,8 +222,17 @@ export async function getSession(): Promise<AuthSession | null> {
     }
   }
 
+  // A five-minute heartbeat is enough for presence and audit recency. Avoid a
+  // database write on every API read during dashboard boot/polling.
+  const lastSeenThreshold = new Date(Date.now() - 5 * 60 * 1000);
   await Session.updateOne(
-    { _id: session._id },
+    {
+      _id: session._id,
+      $or: [
+        { lastSeenAt: { $lt: lastSeenThreshold } },
+        { lastSeenAt: { $exists: false } }
+      ]
+    },
     { $set: { lastSeenAt: new Date() } }
   );
 
