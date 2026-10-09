@@ -14,6 +14,8 @@ import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
 import { invoiceTaxConfig } from "@/lib/invoicing";
 import { listPublicPlans, getManagedPlan, createEntitlementSnapshot } from "@/lib/plan-catalog";
 import { GoogleAccount } from "@/models/google-account";
+import { Task } from "@/models/task";
+import { TaskAssignment } from "@/models/task-assignment";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -125,7 +127,7 @@ export async function GET() {
       companyId: company._id,
       active: true,
       role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] }
-    }).select("userId").lean(),
+    }).select("userId role employmentStatus").lean(),
     User.findById(company.ownerUserId).select("name email image").lean(),
     invoiceTaxConfig(),
     listPublicPlans()
@@ -135,6 +137,49 @@ export async function GET() {
     getCompanyEntitlements(String(company._id))
   );
   const currentCatalogPlan = await getManagedPlan(subscription.planId, { includeArchived: true });
+
+  const employees = activeMembers.filter((member) => member.role === "EMPLOYEE");
+  const employeeStatusCounts = {
+    total: employees.length,
+    active: employees.filter((member) => !member.employmentStatus || member.employmentStatus === "ACTIVE").length,
+    inactive: employees.filter((member) => member.employmentStatus === "INACTIVE").length,
+    onLeave: employees.filter((member) => member.employmentStatus === "ON_LEAVE").length
+  };
+
+  let taskUsage = {
+    enabled: Boolean(currentEntitlements.taskManagementEnabled),
+    total: 0,
+    active: 0,
+    inProgress: 0,
+    completed: 0,
+    overdue: 0,
+    assignments: 0
+  };
+  if (currentEntitlements.taskManagementEnabled && workspace) {
+    const taskScope = { companyId: company._id, workspaceId: workspace._id };
+    const [taskStatusCounts, overdue, assignments] = await Promise.all([
+      Task.aggregate<{ _id: string; count: number }>([
+        { $match: taskScope },
+        { $group: { _id: "$status", count: { $sum: 1 } } }
+      ]),
+      Task.countDocuments({
+        ...taskScope,
+        dueAt: { $lt: new Date() },
+        status: { $nin: ["COMPLETED", "CANCELLED"] }
+      }),
+      TaskAssignment.countDocuments(taskScope)
+    ]);
+    const counts = new Map(taskStatusCounts.map((item) => [item._id, item.count]));
+    taskUsage = {
+      enabled: true,
+      total: taskStatusCounts.reduce((sum, item) => sum + item.count, 0),
+      active: taskStatusCounts.filter((item) => !["COMPLETED", "CANCELLED"].includes(item._id)).reduce((sum, item) => sum + item.count, 0),
+      inProgress: counts.get("IN_PROGRESS") ?? 0,
+      completed: counts.get("COMPLETED") ?? 0,
+      overdue,
+      assignments
+    };
+  }
 
   const connectedAccounts = await GoogleAccount.find({
     userId: { $in: activeMembers.map((member) => member.userId) },
@@ -207,6 +252,8 @@ export async function GET() {
         }
       : null,
     memberCount,
+    employeeStatusCounts,
+    taskUsage,
     connectedMemberCount,
     canPublish: connectedMemberCount > 0,
     gstRatePercent: taxConfig.ratePercent,

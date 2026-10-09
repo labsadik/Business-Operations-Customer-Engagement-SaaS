@@ -1,6 +1,6 @@
 "use client";
 
-type MeetingSoundType = "incoming" | "accepted" | "retrying" | "expired";
+type MeetingSoundType = "incoming" | "accepted" | "declined" | "retrying" | "expired";
 
 type Note = {
   frequency: number;
@@ -62,6 +62,12 @@ function notesFor(type: MeetingSoundType): Note[] {
         { frequency: 659.25, duration: 0.13, gap: 0.025, wave: "triangle" },
         { frequency: 783.99, duration: 0.14, gap: 0.025, wave: "triangle" },
         { frequency: 1046.5, duration: 0.23, gap: 0.04, wave: "triangle" }
+      ];
+    case "declined":
+      return [
+        { frequency: 440, duration: 0.14, gap: 0.055, wave: "square", volume: 24 },
+        { frequency: 349.23, duration: 0.17, gap: 0.06, wave: "square", volume: 24 },
+        { frequency: 261.63, duration: 0.28, gap: 0.035, wave: "sawtooth", volume: 25 }
       ];
     case "retrying":
       return [
@@ -127,7 +133,9 @@ export async function playMeetingSound(type: MeetingSoundType) {
       ? 2500
       : type === "accepted"
         ? 900
-        : type === "retrying"
+        : type === "declined"
+          ? 1200
+          : type === "retrying"
           ? 1200
           : 1600;
 

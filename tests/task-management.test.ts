@@ -259,3 +259,19 @@ test("task creation, search and cancellation use modal dialogs and distinct task
   assert.match(dashboard, /setCancelConfirm\(\{ task, assignment \}\)/);
   assert.match(sounds, /"created" \| "updated" \| "completed" \| "cancelled"/);
 });
+
+
+test("workspace overview exposes employee states and tenant-scoped task usage only", () => {
+  const route = source("app/api/company/route.ts");
+  const dashboard = source("components/workspace-dashboard.tsx");
+  assert.match(route, /employeeStatusCounts/);
+  assert.match(route, /Task\.aggregate/);
+  assert.match(route, /TaskAssignment\.countDocuments\(taskScope\)/);
+  assert.match(route, /const taskScope = \{ companyId: company\._id, workspaceId: workspace\._id \}/);
+  assert.match(dashboard, /Employees on leave/);
+  assert.match(dashboard, /Employees inactive/);
+  assert.match(dashboard, /Plan renewal/);
+  assert.match(dashboard, /meetingDateFilter/);
+  assert.match(dashboard, /Meeting activity summary/);
+  assert.match(dashboard, /playMeetingSound\(action === "accept" \? "accepted" : "declined"\)/);
+});

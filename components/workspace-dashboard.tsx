@@ -112,6 +112,8 @@ type CompanyData = {
     periodEnd: string;
   } | null;
   memberCount: number;
+  employeeStatusCounts?: { total: number; active: number; inactive: number; onLeave: number };
+  taskUsage?: { enabled: boolean; total: number; active: number; inProgress: number; completed: number; overdue: number; assignments: number };
   connectedMemberCount: number;
   canPublish: boolean;
   gstRatePercent: number;
@@ -406,6 +408,7 @@ export default function WorkspaceDashboard({
   const [meetingsLoading, setMeetingsLoading] = useState(false);
   const [meetingView, setMeetingView] = useState<MeetingView>("new");
   const [meetingModalView, setMeetingModalView] = useState<MeetingModalView>("requests");
+  const [meetingDateFilter, setMeetingDateFilter] = useState("");
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
   const [invitations, setInvitations] = useState<InvitationItem[]>([]);
   const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
@@ -497,6 +500,23 @@ export default function WorkspaceDashboard({
     : meetingHistory.length > 0;
   const hasMoreMeetings =
     meetingView === "new" ? requests.length > 5 : meetingHistory.length > 5;
+  const filteredModalMeetingHistory = meetingDateFilter
+    ? modalMeetingHistory.filter((meeting) => {
+        const timezone = data?.workspace?.timezone || "UTC";
+        const parts = new Intl.DateTimeFormat("en-CA", {
+          timeZone: timezone,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit"
+        }).formatToParts(new Date(meeting.startAt));
+        const values = Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+        return values.year + "-" + values.month + "-" + values.day === meetingDateFilter;
+      })
+    : modalMeetingHistory;
+  const meetingRequestCount = modalRequests.filter((item) => ["REQUESTED", "RETRYING"].includes(item.status)).length;
+  const meetingProcessingCount = modalRequests.filter((item) => ["ASSIGNED", "CREATING_MEETING"].includes(item.status)).length;
+  const ongoingMeetingCount = modalRequests.filter((item) => ["CONFIRMED", "IN_PROGRESS"].includes(item.status)).length;
+  const happenedMeetingCount = modalMeetingHistory.filter((item) => ["COMPLETED", "READY", "LIVE"].includes(item.status)).length;
 
   const refreshAll = useCallback(async function refreshAll() {
     if (refreshingRef.current) return;
@@ -986,6 +1006,7 @@ export default function WorkspaceDashboard({
       await api(`/api/bookings/${encodeURIComponent(id)}/${action}`, {
         method: "POST"
       });
+      void playMeetingSound(action === "accept" ? "accepted" : "declined");
     } catch (err) {
       actionError = err as Error & { code?: string };
     }
@@ -1373,10 +1394,14 @@ export default function WorkspaceDashboard({
 
           <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {[
-              ["Plan", plan.name, Settings2],
-              ["Team", String(data.memberCount), UsersRound],
-              ["Monthly volume", `${data.subscription?.monthlyMeetingsUsed ?? 0} / ${plan.monthlyMeetingLimit}`, Activity],
-              ["Ready now", String(readyCount), Video]
+              ["Current plan", plan.name, Settings2],
+              ["Public page", data.company.publicBookingEnabled ? "Published" : "Unpublished", Globe2],
+              ["Employees active", String(data.employeeStatusCounts?.active ?? 0) + " / " + String(data.employeeStatusCounts?.total ?? 0), UsersRound],
+              ["Employees on leave", String(data.employeeStatusCounts?.onLeave ?? 0), UsersRound],
+              ["Employees inactive", String(data.employeeStatusCounts?.inactive ?? 0), UsersRound],
+              ["Task usage", data.taskUsage?.enabled ? String(data.taskUsage.total) : "Not included", Activity],
+              ["Meetings used", String(data.subscription?.monthlyMeetingsUsed ?? 0) + " / " + String(plan.monthlyMeetingLimit), Video],
+              ["Plan renewal", data.subscription?.periodEnd ? String(Math.max(0, Math.ceil((Date.parse(data.subscription.periodEnd) - nowMs) / 86400000))) + " day(s)" : "Not set", Settings2]
             ].map(([title, value, Icon]) => {
               const StatIcon = Icon as typeof Activity;
               return (
@@ -1434,7 +1459,7 @@ export default function WorkspaceDashboard({
             ) : meetingView === "new" ? (
               <div className="divide-y divide-slate-100">
                 {requests.slice(0, 5).map((item) => {
-                  const actionable = canRespondToMeetings && (item.status === "REQUESTED" || item.status === "RETRYING");
+                  const actionable = activeModal === "meetings" && canRespondToMeetings && (item.status === "REQUESTED" || item.status === "RETRYING");
                   const creating = item.status === "ASSIGNED" || item.status === "CREATING_MEETING";
                   const ready = item.meeting?.status === "READY" && Boolean(item.meeting.meetingUri);
                   const scheduled = item.status === "CONFIRMED" || item.status === "IN_PROGRESS";
@@ -1781,11 +1806,43 @@ export default function WorkspaceDashboard({
                 key={value}
                 type="button"
                 onClick={() => setMeetingModalView(value)}
+                aria-pressed={meetingModalView === value}
                 className={`rounded-lg px-4 py-2 text-xs font-semibold ${meetingModalView === value ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-800"}`}
               >
                 {label}
               </button>
             ))}
+          </div>
+
+          <section aria-label="Meeting activity summary" className="mb-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
+            {[
+              { label: "Requested", value: meetingRequestCount, detail: "Awaiting a team response", tone: "text-amber-700" },
+              { label: "Processing", value: meetingProcessingCount, detail: "Assignment / setup", tone: "text-blue-700" },
+              { label: "Ongoing", value: ongoingMeetingCount, detail: "Confirmed active meetings", tone: "text-indigo-700" },
+              { label: "Meetings happened", value: happenedMeetingCount, detail: "Currently loaded history", tone: "text-emerald-700" }
+            ].map((metric) => (
+              <article key={metric.label} className="rounded-2xl border border-slate-200 bg-white p-3.5">
+                <p className="text-[10px] font-semibold text-slate-500">{metric.label}</p>
+                <p className={`mt-1.5 text-2xl font-semibold tabular-nums ${metric.tone}`}>{metric.value}</p>
+                <p className="mt-1 text-[10px] leading-4 text-slate-400">{metric.detail}</p>
+              </article>
+            ))}
+          </section>
+          <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold text-slate-900">Calendar · filter by date</p>
+              <p className="mt-1 text-[11px] text-slate-500">Choose a date to inspect recorded meetings in your workspace timezone.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="block">
+                <span className="sr-only">Filter meeting history by date</span>
+                <input type="date" value={meetingDateFilter} onChange={(event) => { setMeetingDateFilter(event.target.value); setMeetingModalView("meeting-history"); }} className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+              </label>
+              {meetingDateFilter && <button type="button" onClick={() => setMeetingDateFilter("")} className="rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Clear date</button>}
+            </div>
+          </div>
+          <div className="mb-5 rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-xs text-blue-950">
+            Plan allowance: <strong>{data.subscription?.monthlyMeetingsUsed ?? 0} / {plan.monthlyMeetingLimit}</strong> meetings used · <strong>{Math.max(0, plan.monthlyMeetingLimit - (data.subscription?.monthlyMeetingsUsed ?? 0))}</strong> remaining · renewal {data.subscription?.periodEnd ? formatDate(data.subscription.periodEnd, data.workspace?.timezone) : "not set"}.
           </div>
 
           {meetingsLoading ? (
@@ -1839,6 +1896,12 @@ export default function WorkspaceDashboard({
                               {new Date(item.startAt).toLocaleString()} · {item.durationMinutes} min
                             </p>
                             <p className="mt-1 truncate text-[11px] text-slate-400">{item.customer?.email ?? "Email unavailable"}</p>
+                            {!ready && !["CONFIRMED", "IN_PROGRESS"].includes(item.status) && (
+                              <MeetingResponseCountdown
+                                expiresAt={item.expiresAt}
+                                label={creating ? "Preparing the meeting" : item.status === "RETRYING" ? "Finding an available team member" : "Response timer"}
+                              />
+                            )}
                             {creating && (
                               <p className="mt-2 text-[11px] font-medium text-blue-700">
                                 Google Calendar and Meet are being prepared. Actions are disabled until the server reports the final state.
@@ -1901,14 +1964,14 @@ export default function WorkspaceDashboard({
               </div>
             )
           ) : meetingModalView === "meeting-history" ? (
-            modalMeetingHistory.length === 0 ? (
+            filteredModalMeetingHistory.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-12 text-center">
-                <p className="text-sm font-semibold text-slate-700">No completed or cancelled meetings.</p>
-                <p className="mt-1 text-xs text-slate-500">A failed or declined request is not shown as a completed meeting.</p>
+                <p className="text-sm font-semibold text-slate-700">{meetingDateFilter ? "No meetings found on this date." : "No completed or cancelled meetings."}</p>
+                <p className="mt-1 text-xs text-slate-500">{meetingDateFilter ? "Choose another date or clear the date filter." : "A failed or declined request is not shown as a completed meeting."}</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {modalMeetingHistory.map((meeting) => {
+                {filteredModalMeetingHistory.map((meeting) => {
                   const timeZone = data.workspace?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
                   const scheduledBy = meeting.scheduledBy ?? meeting.customer;
                   return (
