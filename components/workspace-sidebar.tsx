@@ -35,6 +35,7 @@ type WorkspaceSidebarProps = {
   onOpenPanel?: (panel: Panel, section?: "announcements") => void;
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
+  onNavigateOverview?: () => void;
 };
 
 const primaryItems = [
@@ -50,7 +51,8 @@ export default function WorkspaceSidebar({
   activeProfile = false,
   onOpenPanel,
   collapsed = false,
-  onToggleCollapsed
+  onToggleCollapsed,
+  onNavigateOverview
 }: WorkspaceSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -110,7 +112,18 @@ export default function WorkspaceSidebar({
               const selected = active("dashboard");
               const Icon = item.icon;
               return (
-                <Link key={item.href} href={item.href as Route} className={buttonClass(selected)} title={labels.dashboard}>
+                <Link
+                  key={item.href}
+                  href={item.href as Route}
+                  onClick={(event) => {
+                    if (onNavigateOverview) {
+                      event.preventDefault();
+                      onNavigateOverview();
+                    }
+                  }}
+                  className={buttonClass(selected)}
+                  title={labels.dashboard}
+                >
                   <Icon className={`size-4 ${iconClass(selected)}`} />
                   <span className={collapsed ? "sr-only" : ""}>{labels.dashboard}</span>
                   {selected && !collapsed && <span className="ml-auto size-1.5 rounded-full bg-blue-600" />}
@@ -199,7 +212,16 @@ export default function WorkspaceSidebar({
 
       <nav aria-label="Mobile company workspace navigation" className="border-b border-slate-200/90 bg-white/95 backdrop-blur-lg lg:hidden">
         <div className="flex items-center gap-2 overflow-x-auto px-4 py-2.5">
-          <Link href="/dashboard" className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${isDashboard ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>
+          <Link
+            href="/dashboard"
+            onClick={(event) => {
+              if (onNavigateOverview) {
+                event.preventDefault();
+                onNavigateOverview();
+              }
+            }}
+            className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${isDashboard ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}
+          >
             {labels.dashboard}
           </Link>
           <button type="button" onClick={() => open("meetings")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("meetings") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.meetings}</button>

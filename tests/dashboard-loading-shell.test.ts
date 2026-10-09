@@ -13,6 +13,7 @@ test("dashboard and route loading share the same workspace shell", async () => {
 
   assert.match(dashboard, /WorkspaceLoading/);
   assert.match(dashboard, /WorkspaceLoadError/);
+  assert.match(dashboard, /onNavigateOverview=\{closeFeedbackModal\}/);
   assert.match(routeLoading, /SidebarSkeleton/);
   assert.match(routeLoading, /MobileWorkspaceNavSkeleton/);
   assert.match(routeLoading, /export function WorkspaceLoading/);

@@ -1227,6 +1227,7 @@ export default function WorkspaceDashboard({
         activePanel={activeModal}
         activeSettingsSection={settingsSection}
         onOpenPanel={(panel, section) => openModal(panel, section, true)}
+        onNavigateOverview={closeFeedbackModal}
       />
       <div className="lg:pl-72">
       <header className="sticky top-0 z-40 border-b border-slate-200/90 bg-[#faf9f1]/95 backdrop-blur-xl">
