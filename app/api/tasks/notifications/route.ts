@@ -19,13 +19,19 @@ export async function GET(request: Request) {
 
     // Recipient identity is always taken from the authenticated session. It is
     // never accepted from query parameters or the request body.
-    const items = await TaskNotification.find({
+    const recipientFilter = {
       companyId: new Types.ObjectId(scope.companyId),
       workspaceId: new Types.ObjectId(scope.workspaceId),
       recipientUserId: new Types.ObjectId(scope.session.userId)
-    }).sort({ createdAt: -1, _id: -1 }).limit(limit)
-      .select("_id taskId actorUserId type title message readAt createdAt")
-      .lean();
+    };
+    const [items, unreadCount] = await Promise.all([
+      TaskNotification.find(recipientFilter)
+        .sort({ createdAt: -1, _id: -1 })
+        .limit(limit)
+        .select("_id taskId actorUserId type title message readAt createdAt")
+        .lean(),
+      TaskNotification.countDocuments({ ...recipientFilter, readAt: null })
+    ]);
 
     const taskIds = [...new Set(items.map((item) => String(item.taskId)))];
     const tasks = taskIds.length
@@ -48,7 +54,7 @@ export async function GET(request: Request) {
         readAt: item.readAt ?? null,
         createdAt: item.createdAt
       })),
-      unreadCount: items.filter((item) => !item.readAt).length
+      unreadCount
     });
   } catch (error) {
     return taskErrorResponse(error, "TASK_NOTIFICATION_LIST_FAILED");
