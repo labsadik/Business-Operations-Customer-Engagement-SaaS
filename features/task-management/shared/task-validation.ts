@@ -1,4 +1,4 @@
-import { TASK_PRIORITIES, TASK_STATUSES, type TaskPriority, type TaskStatus } from "./constants";
+import { TASK_PRIORITIES, TASK_STATUSES, type TaskPriority, type TaskStatus } from "./constants.ts";
 
 const OBJECT_ID_PATTERN = /^[a-f\d]{24}$/i;
 
