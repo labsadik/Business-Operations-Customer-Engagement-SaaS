@@ -6,7 +6,9 @@ import { googleApi, refreshGoogleAccessToken } from "@/lib/google";
 
 const GOOGLE_CALENDAR_REQUEST_TIMEOUT_MS = 10000;
 const MAX_ACCESS_TOKEN_CACHE_ENTRIES = 500;
-const TOKEN_CACHE_FROM_REDIS_TTL_MS = 1000;
+// Redis token entries expire 60 seconds before the Google token itself, so a
+// 30-second warm cache avoids repeated Redis REST calls while keeping a safety margin.
+const TOKEN_CACHE_FROM_REDIS_TTL_MS = 30_000;
 
 // Each warm server instance limits simultaneous Google free/busy traffic.
 // A finite queue gives a hard bound during large workspace refreshes.

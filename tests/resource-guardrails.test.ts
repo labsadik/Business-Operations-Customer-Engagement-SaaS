@@ -103,3 +103,9 @@ test("task board avoids reloading the whole employee directory on every task pol
   assert.ok(employees.includes('.select("userId role jobTitle department employmentStatus")'));
   assert.ok(employees.includes('.select("_id name email image role")'));
 });
+
+test("Redis-cached Google tokens use a short local TTL below the token-expiry safety margin", () => {
+  const calendar = source("lib/google-calendar.ts");
+  assert.ok(calendar.includes("TOKEN_CACHE_FROM_REDIS_TTL_MS = 30_000"));
+  assert.ok(calendar.includes("Math.floor(refreshed.expires_in) - 60"));
+});
