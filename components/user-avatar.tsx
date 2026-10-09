@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { googleAvatarUrl } from "@/lib/avatar";
 
 export default function UserAvatar({
@@ -18,7 +19,13 @@ export default function UserAvatar({
   fallbackImage?: string | null;
 }) {
   const safeImage = googleAvatarUrl(image);
-  const imageSrc = safeImage || fallbackImage || "";
+  const [failedImageSrc, setFailedImageSrc] = useState<string | null>(null);
+  const imageSrc =
+    safeImage && failedImageSrc !== safeImage
+      ? safeImage
+      : fallbackImage && failedImageSrc !== fallbackImage
+        ? fallbackImage
+        : "";
 
   const initials = name
     .trim()
@@ -56,8 +63,8 @@ export default function UserAvatar({
           height={size}
           className="absolute inset-0 size-full object-cover"
           referrerPolicy="no-referrer"
-          onError={(event) => {
-            event.currentTarget.style.display = "none";
+          onError={() => {
+            setFailedImageSrc(imageSrc);
           }}
         />
       ) : null}
