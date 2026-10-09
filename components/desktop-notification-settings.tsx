@@ -89,7 +89,6 @@ export function sendDesktopNotification(
       badge: "/favicon.svg",
       tag: event.tag,
       data: { url: event.url },
-      renotify: false
     });
     notification.onclick = () => {
       window.focus();
