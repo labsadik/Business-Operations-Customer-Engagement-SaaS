@@ -96,6 +96,7 @@ type TaskPageProps = {
 };
 
 const MANAGER_ROLES = ["COMPANY_OWNER", "COMPANY_ADMIN", "PLATFORM_ADMIN"];
+const EMPLOYEE_DIRECTORY_REFRESH_MS = 5 * 60_000;
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
   return clientApi<T>(url, init);
@@ -274,6 +275,7 @@ export default function TaskManagementDashboard({
   }, [filteredTasks]);
 
   const loadInFlightRef = useRef<Promise<void> | null>(null);
+  const employeeDirectoryLoadedAtRef = useRef(0);
   const loadQueuedRef = useRef(false);
   const loadTaskRef = useRef<((showSpinner?: boolean) => Promise<void>) | null>(null);
 
@@ -294,17 +296,30 @@ export default function TaskManagementDashboard({
 
     const pending = (async () => {
       try {
+        const refreshEmployeeDirectory =
+          Date.now() - employeeDirectoryLoadedAtRef.current >= EMPLOYEE_DIRECTORY_REFRESH_MS;
+        const staffRequest = refreshEmployeeDirectory
+          ? api<Employee[]>("/api/company/employees")
+              .then((staff) => {
+                employeeDirectoryLoadedAtRef.current = Date.now();
+                return staff;
+              })
+              .catch(() => null)
+          : Promise.resolve(null);
+
         const [taskPage, staff] = await Promise.all([
           api<{ items: TaskItem[]; nextCursor: string | null }>("/api/tasks?limit=50"),
-          api<Employee[]>("/api/company/employees").catch(() => [] as Employee[])
+          staffRequest
         ]);
         setTasks(taskPage.items);
         setNextCursor(taskPage.nextCursor);
-        setEmployees(staff);
-        const assignableIds = new Set(staff.filter((member) => member.employmentStatus === "ACTIVE").map((member) => member.id));
-        setSelectedAssigneeIds((current) => current.length
-          ? current.filter((id) => assignableIds.has(id))
-          : assignableIds.has(userId) ? [userId] : []);
+        if (staff !== null) {
+          setEmployees(staff);
+          const assignableIds = new Set(staff.filter((member) => member.employmentStatus === "ACTIVE").map((member) => member.id));
+          setSelectedAssigneeIds((current) => current.length
+            ? current.filter((id) => assignableIds.has(id))
+            : assignableIds.has(userId) ? [userId] : []);
+        }
       } catch (loadError) {
         setError(errorMessage(loadError));
       } finally {

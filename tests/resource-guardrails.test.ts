@@ -93,3 +93,13 @@ test("desktop notifications continue to cover public meetings without the option
   assert.ok(center.includes("taskManagementEnabled"));
   assert.ok(!center.includes("if (!taskManagementEnabled) return;"));
 });
+
+test("task board avoids reloading the whole employee directory on every task poll", () => {
+  const dashboard = source("features/task-management/components/task-management-dashboard.tsx");
+  const employees = source("app/api/company/employees/route.ts");
+
+  assert.ok(dashboard.includes("EMPLOYEE_DIRECTORY_REFRESH_MS = 5 * 60_000"));
+  assert.ok(dashboard.includes("Date.now() - employeeDirectoryLoadedAtRef.current >= EMPLOYEE_DIRECTORY_REFRESH_MS"));
+  assert.ok(employees.includes('.select("userId role jobTitle department employmentStatus")'));
+  assert.ok(employees.includes('.select("_id name email image role")'));
+});

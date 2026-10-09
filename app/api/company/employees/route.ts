@@ -16,8 +16,12 @@ export async function GET() {
   try {
     const { session } = await requireCompanyMember(["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"]);
     await getMongo();
-    const members = await Membership.find({ companyId: session.companyId, active: true }).lean();
-    const users = await User.find({ _id: { $in: members.map((m) => m.userId) } }).lean();
+    const members = await Membership.find({ companyId: session.companyId, active: true })
+      .select("userId role jobTitle department employmentStatus")
+      .lean();
+    const users = await User.find({ _id: { $in: members.map((m) => m.userId) } })
+      .select("_id name email image role")
+      .lean();
     const connections = await GoogleAccount.find({
       userId: { $in: users.map((u) => u._id) },
       status: "CONNECTED"
