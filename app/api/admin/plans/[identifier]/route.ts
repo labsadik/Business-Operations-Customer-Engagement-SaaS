@@ -24,6 +24,7 @@ const CHECKOUT_CONFIG_KEYS = [
   "monthlyMeetingLimit",
   "maxMeetingDurationMinutes",
   "maxConcurrentMeetings",
+  "taskManagementEnabled",
   "validityDays",
   "freeFeatureDays",
   "requiresPayment",
@@ -103,6 +104,7 @@ export async function PATCH(
       monthlyMeetingLimit: body.monthlyMeetingLimit ?? current.monthlyMeetingLimit,
       maxMeetingDurationMinutes: body.maxMeetingDurationMinutes ?? current.maxMeetingDurationMinutes,
       maxConcurrentMeetings: body.maxConcurrentMeetings ?? current.maxConcurrentMeetings,
+      taskManagementEnabled: body.taskManagementEnabled === undefined ? current.taskManagementEnabled : body.taskManagementEnabled,
       validityDays: body.validityDays ?? current.validityDays,
       freeFeatureDays: body.freeFeatureDays === undefined ? current.freeFeatureDays : body.freeFeatureDays
     });
@@ -126,6 +128,7 @@ export async function PATCH(
       monthlyMeetingLimit: draft.monthlyMeetingLimit,
       maxMeetingDurationMinutes: draft.maxMeetingDurationMinutes,
       maxConcurrentMeetings: draft.maxConcurrentMeetings,
+      taskManagementEnabled: draft.taskManagementEnabled,
       validityDays: draft.validityDays,
       freeFeatureDays: draft.freeFeatureDays,
       requiresPayment: draft.requiresPayment
@@ -146,6 +149,7 @@ export async function PATCH(
       monthlyMeetingLimit: current.monthlyMeetingLimit,
       maxMeetingDurationMinutes: current.maxMeetingDurationMinutes,
       maxConcurrentMeetings: current.maxConcurrentMeetings,
+      taskManagementEnabled: current.taskManagementEnabled,
       validityDays: current.validityDays,
       freeFeatureDays: current.freeFeatureDays,
       requiresPayment: current.requiresPayment,
