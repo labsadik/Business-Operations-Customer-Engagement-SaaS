@@ -276,6 +276,7 @@ export default function TaskManagementDashboard({
 
   const loadInFlightRef = useRef<Promise<void> | null>(null);
   const loadQueuedRef = useRef(false);
+  const loadTaskRef = useRef<((showSpinner?: boolean) => Promise<void>) | null>(null);
 
   const load = useCallback(async function loadTasks(showSpinner = true) {
     // Collapse overlapping reads, but remember that a mutation/focus refresh arrived
@@ -319,10 +320,14 @@ export default function TaskManagementDashboard({
       if (loadInFlightRef.current === pending) loadInFlightRef.current = null;
       if (loadQueuedRef.current) {
         loadQueuedRef.current = false;
-        window.setTimeout(() => void load(false), 0);
+        window.setTimeout(() => void loadTaskRef.current?.(false), 0);
       }
     }
   }, [taskManagementEnabled, userId]);
+
+  useEffect(() => {
+    loadTaskRef.current = load;
+  }, [load]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
