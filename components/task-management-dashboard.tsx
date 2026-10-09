@@ -15,6 +15,7 @@ import {
   Search,
   Users,
   Filter,
+  Trash2,
   LayoutGrid,
   List,
   RotateCcw,
@@ -81,6 +82,7 @@ type TaskDetails = {
 type TaskViewMode = "BOARD" | "LIST";
 type TaskSortMode = "UPDATED" | "DUE_DATE" | "PRIORITY";
 type TaskOwnerFilter = "ALL" | "ASSIGNED_TO_ME" | "CREATED_BY_ME" | "OVERDUE";
+type TaskCleanupPeriod = "WEEKLY" | "MONTHLY" | "YEARLY";
 
 type TaskPageProps = {
   companyName: string;
@@ -168,6 +170,9 @@ export default function TaskManagementDashboard({
   const [sortMode, setSortMode] = useState<TaskSortMode>("UPDATED");
   const [viewMode, setViewMode] = useState<TaskViewMode>("BOARD");
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const [cleanupOpen, setCleanupOpen] = useState(false);
+  const [cleanupPeriod, setCleanupPeriod] = useState<TaskCleanupPeriod>("WEEKLY");
+  const [cleaningTasks, setCleaningTasks] = useState(false);
   const [details, setDetails] = useState<Record<string, TaskDetails>>({});
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -318,6 +323,34 @@ export default function TaskManagementDashboard({
       setDetails((current) => ({ ...current, [taskId]: detail }));
     } catch (loadError) {
       setError(errorMessage(loadError));
+    }
+  }
+
+  async function clearClosedTasks() {
+    if (!canManage || cleaningTasks) return;
+    setError("");
+    setNotice("");
+    setCleaningTasks(true);
+    try {
+      const result = await api<{ deletedCount: number; period: TaskCleanupPeriod; days: number }>("/api/tasks", {
+        method: "DELETE",
+        body: JSON.stringify({
+          period: cleanupPeriod,
+          confirm: "CLEAR_CLOSED_TASKS"
+        })
+      });
+      setCleanupOpen(false);
+      setExpandedTaskId(null);
+      setDetails({});
+      await load(false);
+      const periodLabel = cleanupPeriod === "WEEKLY" ? "last 7 days" : cleanupPeriod === "MONTHLY" ? "last 30 days" : "last 365 days";
+      setNotice(result.deletedCount
+        ? `Permanently cleared ${result.deletedCount} closed task(s) updated in the ${periodLabel}.`
+        : `No completed or cancelled tasks matched the ${periodLabel} cleanup window.`);
+    } catch (cleanupError) {
+      setError(errorMessage(cleanupError));
+    } finally {
+      setCleaningTasks(false);
     }
   }
 
@@ -568,6 +601,16 @@ export default function TaskManagementDashboard({
                   <Plus className="size-4" />
                   {showCreateForm ? "Hide create form" : "Create task"}
                 </button>
+                {canManage && (
+                  <button
+                    type="button"
+                    onClick={() => setCleanupOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-3.5 py-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-50"
+                  >
+                    <Trash2 className="size-4" aria-hidden="true" />
+                    Clear task history
+                  </button>
+                )}
                 <button
                   type="button"
                   aria-pressed={soundEnabled}
@@ -624,6 +667,36 @@ export default function TaskManagementDashboard({
             <div role="status" className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
               <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
               <p>{notice}</p>
+            </div>
+          )}
+
+          {cleanupOpen && canManage && taskManagementEnabled && (
+            <div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950/50 p-4 backdrop-blur-sm">
+              <section role="dialog" aria-modal="true" aria-labelledby="task-cleanup-title" className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-7">
+                <div className="flex items-start gap-3">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-rose-50 text-rose-700"><Trash2 className="size-5" aria-hidden="true" /></span>
+                  <div>
+                    <h2 id="task-cleanup-title" className="text-lg font-semibold text-slate-950">Clear closed task history</h2>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">Permanently remove completed or cancelled tasks updated in the selected period, along with their assignments, activity records, and notifications.</p>
+                  </div>
+                </div>
+                <label className="mt-5 block">
+                  <span className="mb-1.5 block text-xs font-semibold text-slate-700">Cleanup period</span>
+                  <select value={cleanupPeriod} onChange={(event) => setCleanupPeriod(event.target.value as TaskCleanupPeriod)} className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                    <option value="WEEKLY">Weekly · last 7 days</option>
+                    <option value="MONTHLY">Monthly · last 30 days</option>
+                    <option value="YEARLY">Yearly · last 365 days</option>
+                  </select>
+                </label>
+                <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-xs leading-5 text-amber-900">Active tasks are never cleared by this action. This deletion cannot be undone.</p>
+                <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <button type="button" disabled={cleaningTasks} onClick={() => setCleanupOpen(false)} className="rounded-xl border border-slate-200 px-4 py-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Cancel</button>
+                  <button type="button" disabled={cleaningTasks} onClick={() => void clearClosedTasks()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-700 px-4 py-3 text-xs font-semibold text-white hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-50">
+                    {cleaningTasks && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
+                    {cleaningTasks ? "Clearing history…" : "Permanently clear closed tasks"}
+                  </button>
+                </div>
+              </section>
             </div>
           )}
 

@@ -152,3 +152,23 @@ test("task management provides enterprise filters, list/board views, pagination 
   assert.ok(authorization.includes("active: true"));
   assert.ok(authorization.includes("assertAssignableEmployees"));
 });
+
+
+test("task cleanup is tenant-scoped, permission-checked, period-limited, and cascades related records", () => {
+  const route = source("app/api/tasks/route.ts");
+  const dashboard = source("components/task-management-dashboard.tsx");
+
+  assert.ok(route.includes('body?.confirm !== "CLEAR_CLOSED_TASKS"'));
+  assert.ok(route.includes("WEEKLY: 7, MONTHLY: 30, YEARLY: 365"));
+  assert.ok(route.includes('["COMPANY_OWNER", "COMPANY_ADMIN"]'));
+  assert.ok(route.includes('status: { $in: ["COMPLETED", "CANCELLED"] }'));
+  assert.ok(route.includes("updatedAt: { $gte: cutoff }"));
+  assert.ok(route.includes("TaskAssignment.deleteMany(childFilter)"));
+  assert.ok(route.includes("TaskActivity.deleteMany(childFilter)"));
+  assert.ok(route.includes("TaskNotification.deleteMany(childFilter)"));
+  assert.ok(dashboard.includes("Clear task history"));
+  assert.ok(dashboard.includes("Active tasks are never cleared"));
+  assert.ok(dashboard.includes("WEEKLY"));
+  assert.ok(dashboard.includes("MONTHLY"));
+  assert.ok(dashboard.includes("YEARLY"));
+});

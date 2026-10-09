@@ -4,6 +4,8 @@ import { assertSameOrigin } from "@/lib/security";
 import { jsonError, jsonOk } from "@/lib/http";
 import { Task } from "@/models/task";
 import { TaskAssignment } from "@/models/task-assignment";
+import { TaskActivity } from "@/models/task-activity";
+import { TaskNotification } from "@/models/task-notification";
 import { TASK_PRIORITIES, TASK_STATUSES, type TaskPriority } from "@/features/task-management/shared/constants";
 import { validateTaskCreateInput } from "@/features/task-management/shared/task-validation";
 import { assertAssignableEmployees, assertTaskFeatureAccess, requireTaskScope } from "@/features/task-management/server/task-authorization";
@@ -188,5 +190,78 @@ export async function POST(request: Request) {
     }, 201);
   } catch (error) {
     return taskErrorResponse(error, "TASK_CREATE_FAILED");
+  }
+}
+
+
+export async function DELETE(request: Request) {
+  try {
+    assertSameOrigin(request);
+    const scope = await requireTaskScope();
+    await assertTaskFeatureAccess(scope);
+    if (!scope.isPlatformAdmin && !["COMPANY_OWNER", "COMPANY_ADMIN"].includes(scope.session.role)) {
+      return jsonError("FORBIDDEN", 403);
+    }
+
+    const body = await request.json().catch(() => null) as {
+      period?: unknown;
+      confirm?: unknown;
+    } | null;
+    if (body?.confirm !== "CLEAR_CLOSED_TASKS") {
+      return jsonError("TASK_CLEAR_CONFIRMATION_REQUIRED", 400);
+    }
+
+    const periods = { WEEKLY: 7, MONTHLY: 30, YEARLY: 365 } as const;
+    if (typeof body.period !== "string" || !Object.hasOwn(periods, body.period)) {
+      return jsonError("TASK_CLEANUP_PERIOD_INVALID", 400);
+    }
+    const period = body.period as keyof typeof periods;
+    const cutoff = new Date(Date.now() - periods[period] * 24 * 60 * 60 * 1000);
+    const tenantScope = {
+      companyId: new Types.ObjectId(scope.companyId),
+      workspaceId: new Types.ObjectId(scope.workspaceId)
+    };
+    const closedTaskFilter = {
+      ...tenantScope,
+      status: { $in: ["COMPLETED", "CANCELLED"] },
+      updatedAt: { $gte: cutoff }
+    };
+
+    const candidates = await Task.find(closedTaskFilter).select("_id").lean();
+    if (!candidates.length) {
+      return jsonOk({ deletedCount: 0, period, days: periods[period] });
+    }
+
+    const candidateIds = candidates.map((task) => task._id);
+    const deleted = await Task.deleteMany({
+      ...closedTaskFilter,
+      _id: { $in: candidateIds }
+    });
+
+    // Delete dependent records only for tasks that really disappeared. This
+    // protects assignment/activity history if a task was reopened concurrently.
+    const stillPresent = await Task.find({
+      ...tenantScope,
+      _id: { $in: candidateIds }
+    }).select("_id").lean();
+    const stillPresentIds = new Set(stillPresent.map((task) => String(task._id)));
+    const deletedIds = candidateIds.filter((id) => !stillPresentIds.has(String(id)));
+
+    if (deletedIds.length) {
+      const childFilter = { ...tenantScope, taskId: { $in: deletedIds } };
+      await Promise.all([
+        TaskAssignment.deleteMany(childFilter),
+        TaskActivity.deleteMany(childFilter),
+        TaskNotification.deleteMany(childFilter)
+      ]);
+    }
+
+    return jsonOk({
+      deletedCount: deleted.deletedCount ?? deletedIds.length,
+      period,
+      days: periods[period]
+    });
+  } catch (error) {
+    return taskErrorResponse(error, "TASK_CLEAR_FAILED");
   }
 }
