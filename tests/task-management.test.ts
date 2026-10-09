@@ -163,9 +163,9 @@ test("task cleanup is tenant-scoped, permission-checked, period-limited, and cas
   assert.ok(route.includes('["COMPANY_OWNER", "COMPANY_ADMIN"]'));
   assert.ok(route.includes('status: { $in: ["COMPLETED", "CANCELLED"] }'));
   assert.ok(route.includes("updatedAt: { $gte: cutoff }"));
-  assert.ok(route.includes("TaskAssignment.deleteMany(childFilter)"));
-  assert.ok(route.includes("TaskActivity.deleteMany(childFilter)"));
-  assert.ok(route.includes("TaskNotification.deleteMany(childFilter)"));
+  assert.ok(route.includes("TaskAssignment.deleteMany(childFilter, { session: dbSession })"));
+  assert.ok(route.includes("TaskActivity.deleteMany(childFilter, { session: dbSession })"));
+  assert.ok(route.includes("TaskNotification.deleteMany(childFilter, { session: dbSession })"));
   assert.ok(dashboard.includes("Clear task history"));
   assert.ok(dashboard.includes("Active tasks are never cleared"));
   assert.ok(dashboard.includes("WEEKLY"));

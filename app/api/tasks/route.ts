@@ -227,40 +227,48 @@ export async function DELETE(request: Request) {
       updatedAt: { $gte: cutoff }
     };
 
-    const candidates = await Task.find(closedTaskFilter).select("_id").lean();
-    if (!candidates.length) {
-      return jsonOk({ deletedCount: 0, period, days: periods[period] });
+    const connection = await getMongo();
+    const dbSession = await connection.startSession();
+    let deletedCount = 0;
+    try {
+      await dbSession.withTransaction(async () => {
+        deletedCount = 0;
+        const candidates = await Task.find(closedTaskFilter)
+          .select("_id")
+          .session(dbSession)
+          .lean();
+        if (!candidates.length) return;
+
+        const candidateIds = candidates.map((task) => task._id);
+        const deleted = await Task.deleteMany({
+          ...closedTaskFilter,
+          _id: { $in: candidateIds }
+        }, { session: dbSession });
+
+        // Resolve ids inside the same transaction; concurrent task reopenings
+        // must not cause their assignment or audit history to be deleted.
+        const stillPresent = await Task.find({
+          ...tenantScope,
+          _id: { $in: candidateIds }
+        }).select("_id").session(dbSession).lean();
+        const stillPresentIds = new Set(stillPresent.map((task) => String(task._id)));
+        const deletedIds = candidateIds.filter((id) => !stillPresentIds.has(String(id)));
+
+        if (deletedIds.length) {
+          const childFilter = { ...tenantScope, taskId: { $in: deletedIds } };
+          await Promise.all([
+            TaskAssignment.deleteMany(childFilter, { session: dbSession }),
+            TaskActivity.deleteMany(childFilter, { session: dbSession }),
+            TaskNotification.deleteMany(childFilter, { session: dbSession })
+          ]);
+        }
+        deletedCount = deleted.deletedCount ?? deletedIds.length;
+      });
+
+      return jsonOk({ deletedCount, period, days: periods[period] });
+    } finally {
+      await dbSession.endSession();
     }
-
-    const candidateIds = candidates.map((task) => task._id);
-    const deleted = await Task.deleteMany({
-      ...closedTaskFilter,
-      _id: { $in: candidateIds }
-    });
-
-    // Delete dependent records only for tasks that really disappeared. This
-    // protects assignment/activity history if a task was reopened concurrently.
-    const stillPresent = await Task.find({
-      ...tenantScope,
-      _id: { $in: candidateIds }
-    }).select("_id").lean();
-    const stillPresentIds = new Set(stillPresent.map((task) => String(task._id)));
-    const deletedIds = candidateIds.filter((id) => !stillPresentIds.has(String(id)));
-
-    if (deletedIds.length) {
-      const childFilter = { ...tenantScope, taskId: { $in: deletedIds } };
-      await Promise.all([
-        TaskAssignment.deleteMany(childFilter),
-        TaskActivity.deleteMany(childFilter),
-        TaskNotification.deleteMany(childFilter)
-      ]);
-    }
-
-    return jsonOk({
-      deletedCount: deleted.deletedCount ?? deletedIds.length,
-      period,
-      days: periods[period]
-    });
   } catch (error) {
     return taskErrorResponse(error, "TASK_CLEAR_FAILED");
   }
