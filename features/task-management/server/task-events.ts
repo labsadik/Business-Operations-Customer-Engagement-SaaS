@@ -1,4 +1,6 @@
 import { Types } from "mongoose";
+import { after } from "next/server";
+import { sendWebPushNotifications } from "@/lib/web-push";
 import { TaskActivity } from "@/models/task-activity";
 import { TaskNotification } from "@/models/task-notification";
 import type { TaskNotificationType } from "../shared/constants";
@@ -53,5 +55,28 @@ export async function recordTaskEvent(input: {
       })), { ordered: true })
     : Promise.resolve([]);
 
-  await Promise.all([activityPromise, notificationPromise]);
+  const [, createdNotifications] = await Promise.all([activityPromise, notificationPromise]);
+  const pushEvents = createdNotifications
+    .filter((item) => item.type === "TASK_ASSIGNED")
+    .map((item) => ({
+      userId: String(item.recipientUserId),
+      payload: {
+        id: String(item._id),
+        type: "TASK_ASSIGNED" as const,
+        title: item.title || "New task assigned",
+        body: item.message || "A teammate assigned you a new task.",
+        url: "/dashboard/tasks",
+        tag: "conventus-task-" + String(item._id)
+      }
+    }));
+
+  if (pushEvents.length) {
+    after(async () => {
+      try {
+        await sendWebPushNotifications(pushEvents);
+      } catch {
+        // Push is best-effort and must not break task creation or assignment.
+      }
+    });
+  }
 }

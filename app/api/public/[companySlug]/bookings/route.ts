@@ -14,6 +14,9 @@ import { withRedisLock } from "@/lib/redis-lock";
 import { jsonError, jsonOk } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
 import { Types } from "mongoose";
+import { after } from "next/server";
+import { Membership } from "@/models/membership";
+import { isWebPushConfigured, sendWebPushNotifications } from "@/lib/web-push";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -198,6 +201,34 @@ export async function POST(
         expiresAt: booking.expiresAt
       };
     });
+
+    if (result.created && isWebPushConfigured()) {
+      after(async () => {
+        try {
+          const recipients = await Membership.find({
+            companyId: company._id,
+            active: true,
+            role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] }
+          })
+            .select("userId")
+            .limit(100)
+            .lean();
+          await sendWebPushNotifications(recipients.map((member) => ({
+            userId: String(member.userId),
+            payload: {
+              id: result.bookingId,
+              type: "MEETING_REQUEST" as const,
+              title: "New public meeting request",
+              body: "A customer has requested a meeting. Open your workspace to review it.",
+              url: "/dashboard?panel=meetings",
+              tag: "conventus-meeting-" + result.bookingId
+            }
+          })));
+        } catch {
+          // Notification delivery is best-effort; booking creation already succeeded.
+        }
+      });
+    }
 
     return jsonOk(
       {

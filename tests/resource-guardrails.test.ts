@@ -120,3 +120,30 @@ test("Redis-cached Google tokens use a short local TTL below the token-expiry sa
   assert.ok(calendar.includes("TOKEN_CACHE_FROM_REDIS_TTL_MS = 30_000"));
   assert.ok(calendar.includes("Math.floor(refreshed.expires_in) - 60"));
 });
+
+test("desktop notifications show a real service-worker popup and support authenticated Web Push delivery", () => {
+  const center = source("components/desktop-notification-settings.tsx");
+  const worker = source("public/sw.js");
+  const pushRoute = source("app/api/notifications/push/route.ts");
+  const sender = source("lib/web-push.ts");
+  const subscriptionModel = source("models/push-subscription.ts");
+  const taskEvents = source("features/task-management/server/task-events.ts");
+  const publicBookings = source("app/api/public/[companySlug]/bookings/route.ts");
+
+  assert.ok(center.includes('navigator.serviceWorker.register("/sw.js"'));
+  assert.ok(center.includes('showNotification("Conventus desktop alerts are on"'));
+  assert.ok(center.includes("ensureWebPushSubscription"));
+  assert.ok(center.includes('"/api/notifications/push"'));
+  assert.ok(worker.includes('self.addEventListener("push"'));
+  assert.ok(worker.includes("self.registration.showNotification"));
+  assert.ok(worker.includes('self.addEventListener("notificationclick"'));
+  assert.ok(pushRoute.includes("assertSameOrigin(request)"));
+  assert.ok(pushRoute.includes("authorizedUser()"));
+  assert.ok(pushRoute.includes("isAllowedPushEndpoint(body.endpoint)"));
+  assert.ok(subscriptionModel.includes("userId: 1, endpoint: 1"));
+  assert.ok(sender.includes('createCipheriv("aes-128-gcm"'));
+  assert.ok(sender.includes("Authorization: vapidAuthorization"));
+  assert.ok(sender.includes("AbortSignal.timeout(5000)"));
+  assert.ok(taskEvents.includes("sendWebPushNotifications(pushEvents)"));
+  assert.ok(publicBookings.includes("sendWebPushNotifications(recipients.map"));
+});
