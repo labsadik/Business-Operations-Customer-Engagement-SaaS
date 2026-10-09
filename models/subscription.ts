@@ -30,6 +30,7 @@ const subscriptionSchema = new Schema(
       monthlyMeetingLimit: { type: Number, required: true, min: 1 },
       maxMeetingDurationMinutes: { type: Number, required: true, min: 1 },
       maxConcurrentMeetings: { type: Number, required: true, min: 1 },
+      taskManagementEnabled: { type: Boolean, required: true, default: false },
       validityDays: { type: Number, required: true, min: 1 },
       freeFeatureDays: { type: Number, default: null, min: 0 },
       requiresPayment: { type: Boolean, required: true }
