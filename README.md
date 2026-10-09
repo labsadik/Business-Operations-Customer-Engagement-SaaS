@@ -34,89 +34,26 @@ Conventus is a multi-tenant scheduling SaaS for companies that want customers to
 
 ## Development
 
-1. Use [`.env.example.md`](./.env.example.md) as the environment setup reference.
-2. Create a real `.env.local` file in the repository root and copy the local-development example from that document.
-3. Configure the Google Cloud project and OAuth credentials.
-4. Install dependencies with `npm install`.
-5. Run `npm run dev`.
+1. Use [`.env.example.md`](./.env.example.md) as the local environment setup reference.
+2. Create a real `.env.local` file in the repository root and fill in development credentials.
+3. Install dependencies with `npm install`.
+4. Run `npm run dev` and open `http://localhost:3000`.
 
-The `.env.example.md` file is documentation only; Next.js does not load a Markdown file as an environment file. It explains the three Cloudflare runtime groups (**Runtime Variables**, **Google**, and **Runtime Secrets**) plus the separate Cloudflare Build Variables section.
+The `.env.example.md` file is documentation only; Next.js does not load Markdown files as environment files. Do not commit `.env.local` or real credentials.
 
 ## Checks
 
+- `npm run test`
 - `npm run typecheck`
 - `npm run lint`
 - `npm run build`
 - `npm run check`
-- `npm run build:cloudflare`
 
-## Cloudflare Workers deployment
+## Production runtime and scheduled maintenance
 
-Production is deployed as a Cloudflare Worker through the OpenNext Cloudflare adapter.
+This repository builds as a standard Next.js application for a Node.js-compatible hosting environment. Run `npm run build` to create the production build and `npm start` to serve it.
 
-The repository uses `wrangler.jsonc` for the Worker entry point, assets, the Worker self-reference binding, and the 1-minute Cron Trigger. The `WORKER_SELF_REFERENCE` service name must stay identical to the Worker `name` (currently `test0001`). `custom-worker.ts` keeps the generated OpenNext fetch handler and adds the scheduled handler needed to preserve the existing background sweep.
-
-For the current **demo** deployment, use [`.env.example.md`](./.env.example.md) as the canonical environment setup guide. It keeps the configuration separated into:
-
-### Runtime Variables
-
-These are configured at:
-
-**Workers & Pages → test0001 → Settings → Variables & Secrets**
-
-The demo Runtime Variables include the public application settings, Razorpay test key ID, logo URL, Axiom non-token settings, and the public analytics values.
-
-### Google
-
-Keep the Google OAuth settings together in the same Runtime Variables & Secrets area:
-
-```
-GOOGLE_CLIENT_ID=567862283904-n4lggvps6tkcton4bkt5ld9gokc60t80.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=<set-in-secret-store>
-GOOGLE_REDIRECT_URI=https://test0001.workforrcs.workers.dev/api/auth/google/callback
-```
-
-Use the Google client ID and redirect URI as Variables, and the Google client secret as a Secret.
-
-The same redirect URI must be registered in Google Cloud under **Authorized redirect URIs**.
-
-### Runtime Secrets
-
-Configure the MongoDB URI, Redis token, application secrets, Razorpay secrets, Axiom token, and `CRON_SECRET` in:
-
-**Workers & Pages → test0001 → Settings → Variables & Secrets → Runtime Secrets**
-
-### Build Variables
-
-Configure the public build-time values in the Cloudflare Workers Build configuration:
-
-```
-NEXT_PUBLIC_APP_URL=https://test0001.workforrcs.workers.dev
-NEXT_PUBLIC_APP_NAME=Conventus
-NEXT_PUBLIC_UMAMI_SCRIPT_URL=https://cloud.umami.is/script.js
-NEXT_PUBLIC_UMAMI_WEBSITE_ID=4be615cd-980e-45ae-b86a-028fff9c3db5
-NEXT_PUBLIC_MIXPANEL_TOKEN=7fcd5d6cf9ec66cb0c2799c398441ba0
-NEXT_PUBLIC_CLARITY_PROJECT_ID=ysi6yuamcp
-```
-
-For this demo setup, no Build Secrets are required.
-
-The full demo values, exact Runtime Variable/Google/Runtime Secret grouping, local `.env.local` example, and setup steps are documented in [`.env.example.md`](./.env.example.md).
-
-For Cloudflare Workers Builds, use these exact commands:
-
-- **Build command:** `npm run build:cloudflare`
-- **Deploy command:** `npm run deploy:cloudflare`
-
-The default `build` script intentionally remains `next build` because `opennextjs-cloudflare build` invokes the package `build` script internally. Pointing `build` back to OpenNext causes recursive builds and eventually the process is killed.
-
-For a local one-command deployment, use:
-
-```
-npm run deploy
-```
-
-The 1-minute Cron Trigger invokes the existing `/api/jobs/sweep` route through the Worker self-reference binding; the HTTP API contract is unchanged.
+The background booking sweep is exposed at `GET /api/jobs/sweep`. Configure an external scheduler to call this endpoint at the intended interval with the header `Authorization: Bearer <CRON_SECRET>`. In production, configure `CRON_SECRET` as a server-side secret. The repository does not provision a hosting provider or scheduler.
 
 ## Delivery phases
 
@@ -154,7 +91,7 @@ Platform legal/tax details are stored in the MongoDB `PlatformSettings` singleto
 
 The runtime environment only contains service/application credentials. The platform legal name, website, billing email, phone, tax ID, GSTIN, SAC code, registered address, and GST treatment are database data. The Conventus brand mark is bundled locally as /favicon.svg and is used by the favicon, landing page, admin console, public scheduling shell, dashboard billing UI, and invoices/PDFs.
 
-For local development use Razorpay Test Mode credentials. For Cloudflare production, configure the Live Mode credentials as Worker secrets/environment variables and configure the Razorpay webhook URL as:
+For local development use Razorpay Test Mode credentials. For a production deployment, configure the Live Mode credentials as server-side environment secrets and configure the Razorpay webhook URL as:
 
 `https://YOUR_DOMAIN/api/webhooks/razorpay`
 
@@ -190,6 +127,31 @@ The payment flow is:
 - The successful result page is `/billing/result` and is company-scoped; it shows Conventus merchant branding plus the paying company's name, short description, and logo.
 
 For the Razorpay account itself, the legal merchant/business identity, settlement account, checkout branding, and statement descriptor must also be configured in the Conventus-owned Razorpay account. Application code cannot change the Razorpay account holder or settlement account.
+## Task management module (feature-gated)
+
+Task Management is a separate feature module within the existing Next.js application. UI pages live under `app/dashboard/tasks` and `components/task-management`; route handlers live under `app/api/tasks`; business logic lives under `features/task-management/server`; MongoDB documents live under `models/task*`.
+
+The global platform-admin read-only view lives under `/api/admin/task-management/tasks`. Tenant task APIs always derive company/workspace scope from the authenticated session and active membership; they do not accept a client-supplied company ID to choose the tenant. Global cross-company reads are restricted to platform administrators.
+
+The `taskManagementEnabled` entitlement is configurable in the platform admin plan editor. It is captured in checkout and subscription entitlement snapshots. Plan edits intentionally do not rewrite existing subscription snapshots; the new configuration applies to new purchases/renewals. A company whose effective entitlement is disabled receives `403 FEATURE_NOT_IN_PLAN` from task APIs.
+
+### Task API route map
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| GET, POST | `/api/tasks` | List visible tasks; create a task with one or more assignees |
+| GET, PATCH | `/api/tasks/:taskId` | Read task details; update task metadata |
+| POST | `/api/tasks/:taskId/assignments` | Assign additional active employees |
+| DELETE | `/api/tasks/:taskId/assignments/:assignmentId` | Remove an unfinished assignment |
+| PATCH | `/api/tasks/:taskId/status` | Update the current user's assignment status (or a target assignment for managers) |
+| GET | `/api/tasks/:taskId/activity` | Read a tenant-scoped activity timeline |
+| GET | `/api/tasks/notifications` | Poll notifications for the current recipient only |
+| PATCH | `/api/tasks/notifications/:notificationId` | Mark the current user's notification as read |
+| GET | `/api/admin/task-management/tasks` | Platform-admin list across all companies |
+| GET | `/api/admin/task-management/tasks/:taskId` | Platform-admin cross-company task detail |
+
+Every task query and mutation is company/workspace-scoped, and assignees must have an active membership in the same workspace. Notification rows carry a recipient ID and the notification feed is filtered server-side so users cannot read other users' alerts. The notification endpoint is intended for an authenticated client poller; the browser must play sounds only for events returned to that signed-in recipient. Browser sound playback and Web Push for closed tabs are not implemented by this backend-only change.
+
 ## Security
 
 Do not commit real production secrets. Google refresh tokens, application secrets, Redis credentials, database credentials, billing secrets, and email provider keys must stay server-side.

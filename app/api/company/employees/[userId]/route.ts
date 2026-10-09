@@ -16,6 +16,68 @@ import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ userId: string }> }
+) {
+  try {
+    assertSameOrigin(request);
+    const { session } = await requireCompanyMember(["COMPANY_OWNER", "COMPANY_ADMIN"]);
+    await getMongo();
+    const { userId } = await params;
+    if (!Types.ObjectId.isValid(userId)) return jsonError("INVALID_EMPLOYEE_ID", 400);
+
+    const body = await request.json().catch(() => null) as Record<string, unknown> | null;
+    if (!body || Object.keys(body).some((key) => !["jobTitle", "department", "employmentStatus"].includes(key))) {
+      return jsonError("EMPLOYEE_PROFILE_INVALID", 400);
+    }
+
+    const update: Record<string, unknown> = {};
+    if (body.jobTitle !== undefined) {
+      if (typeof body.jobTitle !== "string" || body.jobTitle.trim().length > 120) {
+        return jsonError("EMPLOYEE_JOB_TITLE_INVALID", 400);
+      }
+      update.jobTitle = body.jobTitle.trim();
+    }
+    if (body.department !== undefined) {
+      if (typeof body.department !== "string" || body.department.trim().length > 100) {
+        return jsonError("EMPLOYEE_DEPARTMENT_INVALID", 400);
+      }
+      update.department = body.department.trim();
+    }
+    if (body.employmentStatus !== undefined) {
+      if (!["ACTIVE", "ON_LEAVE", "INACTIVE"].includes(String(body.employmentStatus))) {
+        return jsonError("EMPLOYEE_STATUS_INVALID", 400);
+      }
+      update.employmentStatus = body.employmentStatus;
+    }
+    if (Object.keys(update).length === 0) return jsonError("EMPLOYEE_PROFILE_EMPTY", 400);
+
+    const membership = await Membership.findOneAndUpdate(
+      {
+        companyId: session.companyId,
+        userId: new Types.ObjectId(userId),
+        active: true,
+        role: { $in: ["COMPANY_OWNER", "COMPANY_ADMIN", "EMPLOYEE"] }
+      },
+      { $set: update },
+      { new: true, runValidators: true }
+    ).select("userId jobTitle department employmentStatus").lean();
+
+    if (!membership) return jsonError("EMPLOYEE_NOT_FOUND", 404);
+    return jsonOk({
+      userId: String(membership.userId),
+      jobTitle: membership.jobTitle ?? "",
+      department: membership.department ?? "",
+      employmentStatus: membership.employmentStatus ?? "ACTIVE"
+    });
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "EMPLOYEE_PROFILE_UPDATE_FAILED";
+    const status = code === "UNAUTHENTICATED" ? 401 : code === "FORBIDDEN" || code === "CSRF_ORIGIN_INVALID" ? 403 : 400;
+    return jsonError(code, status);
+  }
+}
+
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ userId: string }> }

@@ -72,6 +72,9 @@ test("plan validation keeps tags as labels and derives payment requirement from 
   });
 
   assert.equal(plain.requiresPayment, true);
+  assert.equal(plain.taskManagementEnabled, false);
+  assert.equal(validatePlanDraft({ ...baseDraft, taskManagementEnabled: true }).taskManagementEnabled, true);
+  assert.throws(() => validatePlanDraft({ ...baseDraft, taskManagementEnabled: "true" }), /TASK_MANAGEMENT_ENABLED_INVALID/);
   assert.equal(tagged.requiresPayment, true);
   assert.equal(tagged.popular, true);
   assert.equal(tagged.recommended, true);

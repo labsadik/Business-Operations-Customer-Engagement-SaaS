@@ -55,6 +55,7 @@ export async function POST(request: Request) {
       monthlyMeetingLimit: body.monthlyMeetingLimit,
       maxMeetingDurationMinutes: body.maxMeetingDurationMinutes,
       maxConcurrentMeetings: body.maxConcurrentMeetings,
+      taskManagementEnabled: body.taskManagementEnabled ?? false,
       validityDays: body.validityDays,
       freeFeatureDays: body.freeFeatureDays ?? null
     });
@@ -82,6 +83,7 @@ export async function POST(request: Request) {
       monthlyMeetingLimit: draft.monthlyMeetingLimit,
       maxMeetingDurationMinutes: draft.maxMeetingDurationMinutes,
       maxConcurrentMeetings: draft.maxConcurrentMeetings,
+      taskManagementEnabled: draft.taskManagementEnabled,
       validityDays: draft.validityDays,
       freeFeatureDays: draft.freeFeatureDays,
       requiresPayment: draft.requiresPayment,
