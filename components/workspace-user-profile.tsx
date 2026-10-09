@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { clientApi, clientFetch } from "@/lib/client-api";
 import {
   Briefcase,
   Building2,
@@ -89,12 +90,7 @@ export default function WorkspaceUserProfile({
     if (!open) return;
     let cancelled = false;
     const controller = new AbortController();
-    fetch("/api/profile/member", { cache: "no-store", signal: controller.signal })
-      .then(async (response) => {
-        const body = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(String(body.error || "PROFILE_READ_FAILED"));
-        return body.data as ProfilePayload;
-      })
+    clientApi<ProfilePayload>("/api/profile/member", { signal: controller.signal })
       .then((profile) => {
         if (cancelled) return;
         setProfileCompany(profile.companyName || companyName);
@@ -124,19 +120,17 @@ export default function WorkspaceUserProfile({
     setError("");
     setNotice("");
     try {
-      const response = await fetch("/api/profile/member", {
+      const updated = await clientApi<ProfilePayload>("/api/profile/member", {
         method: "PATCH",
-        cache: "no-store",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ jobTitle, department })
+        body: JSON.stringify({ jobTitle, department, employmentStatus })
       });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(String(body.error || "PROFILE_UPDATE_FAILED"));
-      const updated = body.data as ProfilePayload;
       setJobTitle(updated.jobTitle || "");
       setDepartment(updated.department || "");
       setEmploymentStatus(updated.employmentStatus || employmentStatus);
-      setNotice("Your position and department have been saved.");
+      window.dispatchEvent(new CustomEvent("conventus:employment-status-updated", {
+        detail: { userId: undefined, employmentStatus: updated.employmentStatus || employmentStatus }
+      }));
+      setNotice("Your profile and work status have been saved.");
     } catch {
       setError("Your profile could not be saved. Your changes are still here; please retry.");
     } finally {
@@ -218,6 +212,20 @@ export default function WorkspaceUserProfile({
             </div>
 
             <form onSubmit={saveProfile} className="space-y-3 border-t border-slate-100 pt-4">
+              <label className="block text-[11px] font-semibold text-slate-700">
+                Work availability
+                <select
+                  value={employmentStatus}
+                  onChange={(event) => setEmploymentStatus(event.target.value)}
+                  disabled={!canEdit || loading || saving}
+                  className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50 disabled:text-slate-500"
+                >
+                  <option value="ACTIVE">Active — eligible for new tasks</option>
+                  {profileRole !== "PLATFORM_ADMIN" && <option value="ON_LEAVE">On leave — not eligible for new tasks</option>}
+                  <option value="INACTIVE">Inactive — not eligible for new tasks</option>
+                </select>
+                <span className="mt-1 block text-[10px] font-normal leading-4 text-slate-500">Your status is saved to your workspace membership.</span>
+              </label>
               <label className="block text-[11px] font-semibold text-slate-700">
                 Position / job title
                 <span className="relative mt-1.5 block">

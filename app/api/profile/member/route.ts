@@ -63,22 +63,48 @@ export async function PATCH(request: Request) {
     const body = await request.json().catch(() => null) as {
       jobTitle?: unknown;
       department?: unknown;
+      employmentStatus?: unknown;
     } | null;
-    if (typeof body?.jobTitle !== "string" || typeof body.department !== "string") {
-      return jsonError("PROFILE_FIELDS_REQUIRED", 400);
+    const allowedFields = ["jobTitle", "department", "employmentStatus"];
+    if (!body || Object.keys(body).some((key) => !allowedFields.includes(key))) {
+      return jsonError("PROFILE_FIELDS_INVALID", 400);
     }
 
-    const jobTitle = body.jobTitle.trim();
-    const department = body.department.trim();
-    if (jobTitle.length > 120) return jsonError("JOB_TITLE_TOO_LONG", 400);
-    if (department.length > 100) return jsonError("DEPARTMENT_TOO_LONG", 400);
+    const update: Record<string, unknown> = {};
+    if (body.jobTitle !== undefined) {
+      if (typeof body.jobTitle !== "string" || body.jobTitle.trim().length > 120) {
+        return jsonError("JOB_TITLE_INVALID", 400);
+      }
+      update.jobTitle = body.jobTitle.trim();
+    }
+    if (body.department !== undefined) {
+      if (typeof body.department !== "string" || body.department.trim().length > 100) {
+        return jsonError("DEPARTMENT_INVALID", 400);
+      }
+      update.department = body.department.trim();
+    }
+    if (body.employmentStatus !== undefined) {
+      if (!["ACTIVE", "ON_LEAVE", "INACTIVE"].includes(String(body.employmentStatus))) {
+        return jsonError("EMPLOYEE_STATUS_INVALID", 400);
+      }
+      update.employmentStatus = body.employmentStatus;
+    }
+    if (Object.keys(update).length === 0) return jsonError("PROFILE_UPDATE_EMPTY", 400);
 
     await getMongo();
 
     if (session.role === "PLATFORM_ADMIN") {
+      if (body.employmentStatus === "ON_LEAVE") {
+        return jsonError("EMPLOYEE_STATUS_INVALID", 400);
+      }
+      const userUpdate: Record<string, unknown> = {
+        ...(body.jobTitle !== undefined ? { jobTitle: update.jobTitle } : {}),
+        ...(body.department !== undefined ? { department: update.department } : {}),
+        ...(body.employmentStatus !== undefined ? { active: body.employmentStatus === "ACTIVE" } : {})
+      };
       const user = await User.findByIdAndUpdate(
         session.userId,
-        { $set: { jobTitle, department } },
+        { $set: userUpdate },
         { new: true, runValidators: true }
       ).select("jobTitle department active").lean();
       if (!user) return jsonError("USER_NOT_FOUND", 404);
@@ -98,7 +124,7 @@ export async function PATCH(request: Request) {
         active: true,
         role: session.role
       },
-      { $set: { jobTitle, department } },
+      { $set: update },
       { new: true, runValidators: true }
     ).select(PROFILE_FIELDS).lean();
 

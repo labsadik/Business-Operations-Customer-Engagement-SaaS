@@ -140,6 +140,18 @@ function priorityClasses(priority: TaskPriority) {
   }
 }
 
+function employmentStatusName(status?: string) {
+  if (status === "ON_LEAVE") return "On leave";
+  if (status === "INACTIVE") return "Inactive";
+  return "Active";
+}
+
+function employmentStatusClasses(status?: string) {
+  if (status === "ON_LEAVE") return "bg-amber-50 text-amber-800 ring-amber-200";
+  if (status === "INACTIVE") return "bg-rose-50 text-rose-700 ring-rose-200";
+  return "bg-emerald-50 text-emerald-700 ring-emerald-200";
+}
+
 function statusColumnClasses(status: TaskStatus) {
   switch (status) {
     case "IN_PROGRESS": return "bg-blue-50 text-blue-700 ring-blue-200";
@@ -195,6 +207,10 @@ export default function TaskManagementDashboard({
 
   const canManage = MANAGER_ROLES.includes(currentRole);
   const employeeById = useMemo(() => new Map(employees.map((employee) => [employee.id, employee])), [employees]);
+  const assignableEmployees = useMemo(
+    () => employees.filter((employee) => employee.employmentStatus === "ACTIVE"),
+    [employees]
+  );
   const filteredTasks = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
     const priorityRank: Record<TaskPriority, number> = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
@@ -270,7 +286,10 @@ export default function TaskManagementDashboard({
       setTasks(taskPage.items);
       setNextCursor(taskPage.nextCursor);
       setEmployees(staff);
-      setSelectedAssigneeIds((current) => current.length ? current.filter((id) => staff.some((member) => member.id === id)) : [userId]);
+      const assignableIds = new Set(staff.filter((member) => member.employmentStatus === "ACTIVE").map((member) => member.id));
+      setSelectedAssigneeIds((current) => current.length
+        ? current.filter((id) => assignableIds.has(id))
+        : assignableIds.has(userId) ? [userId] : []);
     } catch (loadError) {
       setError(errorMessage(loadError));
     } finally {
@@ -290,6 +309,21 @@ export default function TaskManagementDashboard({
     const timer = window.setInterval(() => setNowMs(Date.now()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    const syncOwnEmploymentStatus = (event: Event) => {
+      const detail = (event as CustomEvent<{ employmentStatus?: string }>).detail;
+      if (!detail?.employmentStatus) return;
+      setEmployees((current) => current.map((employee) =>
+        employee.id === userId ? { ...employee, employmentStatus: detail.employmentStatus } : employee
+      ));
+      if (detail.employmentStatus !== "ACTIVE") {
+        setSelectedAssigneeIds((current) => current.filter((id) => id !== userId));
+      }
+    };
+    window.addEventListener("conventus:employment-status-updated", syncOwnEmploymentStatus);
+    return () => window.removeEventListener("conventus:employment-status-updated", syncOwnEmploymentStatus);
+  }, [userId]);
 
   async function loadMoreTasks() {
     if (!nextCursor || loadingMore) return;
@@ -657,6 +691,39 @@ export default function TaskManagementDashboard({
             </div>
           </section>
 
+          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-blue-600">Team directory</p>
+                <h2 className="mt-1 text-lg font-semibold tracking-tight text-slate-950">Team availability</h2>
+                <p className="mt-1 text-xs leading-5 text-slate-500">Only active employees can receive new tasks. Members manage their own status from the profile menu.</p>
+              </div>
+              <div className="flex flex-wrap gap-2 text-[10px] font-semibold">
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1.5 text-emerald-800">{employees.filter((employee) => employee.employmentStatus === "ACTIVE").length} active</span>
+                <span className="rounded-full bg-amber-50 px-2.5 py-1.5 text-amber-800">{employees.filter((employee) => employee.employmentStatus === "ON_LEAVE").length} on leave</span>
+                <span className="rounded-full bg-rose-50 px-2.5 py-1.5 text-rose-800">{employees.filter((employee) => employee.employmentStatus === "INACTIVE").length} inactive</span>
+              </div>
+            </div>
+            {employees.length ? (
+              <div className="mt-4 grid max-h-[320px] gap-2 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
+                {employees.map((employee) => (
+                  <div key={employee.id} className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 px-3 py-3">
+                    <UserAvatar name={employee.name || employee.email} email={employee.email} image={employee.image} size={36} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-semibold text-slate-900">{employee.name || employee.email}{employee.id === userId ? " (you)" : ""}</p>
+                      <p className="truncate text-[10px] text-slate-500">{employee.role.replaceAll("_", " ").toLowerCase()}</p>
+                    </div>
+                    <span className={"shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ring-1 ring-inset " + employmentStatusClasses(employee.employmentStatus)}>
+                      {employmentStatusName(employee.employmentStatus)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-xs text-slate-500">Team availability will appear when members load.</p>
+            )}
+          </section>
+
           {error && (
             <div role="alert" className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
               <AlertCircle className="mt-0.5 size-4 shrink-0" />
@@ -773,7 +840,7 @@ export default function TaskManagementDashboard({
                     </legend>
                     {employees.length ? (
                       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                        {employees.filter((employee) => employee.employmentStatus !== "INACTIVE").map((employee) => (
+                        {assignableEmployees.map((employee) => (
                           <label key={employee.id} className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 px-3 py-2.5 hover:bg-slate-50">
                             <input
                               type="checkbox"
@@ -792,7 +859,9 @@ export default function TaskManagementDashboard({
                         ))}
                       </div>
                     ) : (
-                      <p className="rounded-xl bg-slate-50 px-3 py-3 text-xs text-slate-500">No active workspace members were found.</p>
+                      <p className="rounded-xl bg-slate-50 px-3 py-3 text-xs text-slate-500">
+                        {employees.length ? "No members are currently active and available for new task assignments." : "No active workspace members were found."}
+                      </p>
                     )}
                   </fieldset>
 

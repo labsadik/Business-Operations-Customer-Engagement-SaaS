@@ -172,3 +172,25 @@ test("task cleanup is tenant-scoped, permission-checked, period-limited, and cas
   assert.ok(dashboard.includes("MONTHLY"));
   assert.ok(dashboard.includes("YEARLY"));
 });
+
+
+test("members can save their own work availability and only active members can be newly assigned tasks", () => {
+  const profileRoute = source("app/api/profile/member/route.ts");
+  const profile = source("components/workspace-user-profile.tsx");
+  const dashboard = source("components/task-management-dashboard.tsx");
+  const auth = source("features/task-management/server/task-authorization.ts");
+  const employeeRoute = source("app/api/company/employees/route.ts");
+
+  assert.ok(profileRoute.includes('body.employmentStatus !== undefined'));
+  assert.ok(profileRoute.includes('["ACTIVE", "ON_LEAVE", "INACTIVE"]'));
+  assert.ok(profileRoute.includes("Membership.findOneAndUpdate"));
+  assert.ok(profile.includes("Work availability"));
+  assert.ok(profile.includes("On leave — not eligible for new tasks"));
+  assert.ok(profile.includes('method: "PATCH"'));
+  assert.ok(dashboard.includes("Team availability"));
+  assert.ok(dashboard.includes('employee.employmentStatus === "ACTIVE"'));
+  assert.ok(dashboard.includes("conventus:employment-status-updated"));
+  assert.ok(auth.includes('employmentStatus: "ACTIVE"'));
+  assert.ok(auth.includes('{ employmentStatus: { $exists: false } }'));
+  assert.ok(employeeRoute.includes('employmentStatus: membership?.employmentStatus ?? "ACTIVE"'));
+});
