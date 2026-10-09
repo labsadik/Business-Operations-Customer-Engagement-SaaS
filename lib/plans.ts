@@ -13,6 +13,7 @@ export type PlanEntitlements = {
   maxMeetingDurationMinutes: number;
   maxConcurrentMeetings: number;
   taskManagementEnabled: boolean;
+  taskManagementDailyLimit: number | null;
   validityDays: number;
   freeFeatureDays: number | null;
   requiresPayment: boolean;
