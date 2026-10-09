@@ -702,7 +702,7 @@ export default function TaskManagementDashboard({
                 <RefreshCw className={"size-4 " + (loading ? "animate-spin" : "")} />
                 <span className="hidden sm:inline">Refresh</span>
               </button>
-              <WorkspaceUserProfile name={userName || userEmail} email={userEmail} image={userImage} companyName={companyName} currentRole={currentRole} />
+              <WorkspaceUserProfile name={userName || userEmail} email={userEmail} image={userImage} currentRole={currentRole} />
             </div>
           </div>
         </header>

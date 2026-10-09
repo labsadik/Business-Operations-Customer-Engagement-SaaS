@@ -1365,7 +1365,7 @@ export default function WorkspaceDashboard({
                 Prepare public page
               </button>
             )}
-            <WorkspaceUserProfile name={user.name} email={user.email} image={user.image} companyName={data.company.name} currentRole={data.currentRole} />
+            <WorkspaceUserProfile name={user.name} email={user.email} image={user.image} currentRole={data.currentRole} />
             <form action="/api/auth/logout" method="post">
               <button
                 type="submit"

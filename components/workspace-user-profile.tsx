@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { clientApi, clientFetch } from "@/lib/client-api";
+import { clientApi } from "@/lib/client-api";
 import {
   Briefcase,
-  Building2,
   CalendarDays,
   ChevronDown,
   LoaderCircle,
@@ -14,20 +13,19 @@ import {
 } from "lucide-react";
 import UserAvatar from "@/components/user-avatar";
 
-type ProfileBillingPlan = {
-  name: string;
-  status: string;
-  periodStart: string | null;
-  periodEnd: string | null;
+type WorkAvailabilityRule = {
+  dayOfWeek: number;
+  startMinute: number;
+  endMinute: number;
+  timezone: string;
 };
 
 type ProfilePayload = {
-  companyName: string;
-  billingPlan?: ProfileBillingPlan | null;
   role: string;
   jobTitle: string;
   department: string;
   employmentStatus: "ACTIVE" | "INACTIVE" | "ON_LEAVE" | string;
+  workAvailability?: WorkAvailabilityRule[];
   canEdit: boolean;
 };
 
@@ -35,17 +33,10 @@ function roleLabel(role: string) {
   const roles: Record<string, string> = {
     PLATFORM_ADMIN: "Platform Admin",
     COMPANY_ADMIN: "Company Admin",
-    EMPLOYEE: "Employee"
+    EMPLOYEE: "Employee",
+    CUSTOMER: "Customer"
   };
-  return roles[role] ?? role.replaceAll("_", " ").toLowerCase().replace(/^./, (letter) => letter.toUpperCase());
-}
-
-function profileDate(value: string | null | undefined) {
-  if (!value) return "Not recorded";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? "Not recorded"
-    : new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(date);
+  return roles[role] ?? "Unknown role";
 }
 
 function employmentLabel(status: string) {
@@ -60,27 +51,78 @@ function employmentClasses(status: string) {
   return "bg-emerald-50 text-emerald-700 ring-emerald-200";
 }
 
+function formatTime(totalMinutes: number) {
+  const minuteOfDay = ((totalMinutes % 1440) + 1440) % 1440;
+  const hour = Math.floor(minuteOfDay / 60);
+  const minute = minuteOfDay % 60;
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 || 12;
+  return hour12 + ":" + String(minute).padStart(2, "0") + " " + suffix;
+}
+
+function formatDayRanges(dayValues: number[]) {
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const sorted = [...new Set(dayValues)].filter((day) => day >= 0 && day <= 6).sort((a, b) => a - b);
+  const ranges: Array<[number, number]> = [];
+
+  for (const day of sorted) {
+    const last = ranges[ranges.length - 1];
+    if (last && day === last[1] + 1) last[1] = day;
+    else ranges.push([day, day]);
+  }
+
+  return ranges.map(([first, last]) => first === last ? days[first] : days[first] + "–" + days[last]).join(", ");
+}
+
+function formatWorkAvailability(rules: WorkAvailabilityRule[]) {
+  const groups = new Map<string, { days: number[]; startMinute: number; endMinute: number; timezone: string }>();
+
+  for (const rule of rules) {
+    if (
+      !Number.isInteger(rule.dayOfWeek) || rule.dayOfWeek < 0 || rule.dayOfWeek > 6 ||
+      !Number.isFinite(rule.startMinute) || !Number.isFinite(rule.endMinute) ||
+      rule.startMinute < 0 || rule.endMinute <= rule.startMinute || rule.endMinute > 1440
+    ) continue;
+
+    const timezone = rule.timezone || "";
+    const key = [rule.startMinute, rule.endMinute, timezone].join("|");
+    const group = groups.get(key) ?? {
+      days: [],
+      startMinute: rule.startMinute,
+      endMinute: rule.endMinute,
+      timezone
+    };
+    if (!group.days.includes(rule.dayOfWeek)) group.days.push(rule.dayOfWeek);
+    groups.set(key, group);
+  }
+
+  return [...groups.values()]
+    .sort((a, b) => Math.min(...a.days) - Math.min(...b.days) || a.startMinute - b.startMinute)
+    .map((group) => {
+      const days = formatDayRanges(group.days);
+      const hours = formatTime(group.startMinute) + "–" + formatTime(group.endMinute);
+      return days + " · " + hours + (group.timezone ? " · " + group.timezone : "");
+    });
+}
+
 export default function WorkspaceUserProfile({
   name,
   email,
   image,
-  companyName,
   currentRole
 }: {
   name: string;
   email: string;
   image?: string | null;
-  companyName: string;
   currentRole: string;
 }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
-  const [profileCompany, setProfileCompany] = useState(companyName);
   const [profileRole, setProfileRole] = useState(currentRole);
-  const [billingPlan, setBillingPlan] = useState<ProfileBillingPlan | null>(null);
   const [jobTitle, setJobTitle] = useState("");
   const [department, setDepartment] = useState("");
   const [employmentStatus, setEmploymentStatus] = useState("ACTIVE");
+  const [workAvailability, setWorkAvailability] = useState<WorkAvailabilityRule[]>([]);
   const [canEdit, setCanEdit] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -107,15 +149,15 @@ export default function WorkspaceUserProfile({
     if (!open) return;
     let cancelled = false;
     const controller = new AbortController();
+    setLoading(true);
     clientApi<ProfilePayload>("/api/profile/member", { signal: controller.signal })
       .then((profile) => {
         if (cancelled) return;
-        setProfileCompany(profile.companyName || companyName);
         setProfileRole(profile.role || currentRole);
-        setBillingPlan(profile.billingPlan ?? null);
         setJobTitle(profile.jobTitle || "");
         setDepartment(profile.department || "");
         setEmploymentStatus(profile.employmentStatus || "ACTIVE");
+        setWorkAvailability(profile.workAvailability ?? []);
         setCanEdit(Boolean(profile.canEdit));
       })
       .catch((loadError: unknown) => {
@@ -129,7 +171,7 @@ export default function WorkspaceUserProfile({
       cancelled = true;
       controller.abort();
     };
-  }, [open, companyName, currentRole]);
+  }, [open, currentRole]);
 
   async function saveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -154,15 +196,15 @@ export default function WorkspaceUserProfile({
           detail: { employmentStatus: updated.employmentStatus || employmentStatus }
         }));
       }
-      setNotice(profileRole === "PLATFORM_ADMIN"
-        ? "Your position and department have been saved."
-        : "Your profile and work status have been saved.");
+      setNotice("Profile details saved.");
     } catch {
       setError("Your profile could not be saved. Your changes are still here; please retry.");
     } finally {
       setSaving(false);
     }
   }
+
+  const availabilityLines = formatWorkAvailability(workAvailability);
 
   return (
     <div ref={rootRef} className="relative min-w-0">
@@ -212,14 +254,7 @@ export default function WorkspaceUserProfile({
           {error && <p role="alert" className="border-b border-rose-100 bg-rose-50 px-4 py-2.5 text-[11px] text-rose-800">{error}</p>}
           {notice && <p role="status" className="border-b border-emerald-100 bg-emerald-50 px-4 py-2.5 text-[11px] text-emerald-800">{notice}</p>}
 
-          <div className="space-y-3 p-4">
-            <div className="flex items-start gap-3">
-              <Building2 className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden="true" />
-              <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Company</p>
-                <p className="mt-1 break-words text-xs font-semibold text-slate-800">{profileCompany || companyName}</p>
-              </div>
-            </div>
+          <div className="space-y-4 p-4">
             <div className="flex items-start gap-3">
               <ShieldCheck className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden="true" />
               <div className="min-w-0">
@@ -227,36 +262,18 @@ export default function WorkspaceUserProfile({
                 <p className="mt-1 text-xs font-semibold text-slate-800">{roleLabel(profileRole || currentRole)}</p>
               </div>
             </div>
-            {billingPlan && (
-              <div className="flex items-start gap-3">
-                <CalendarDays className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden="true" />
-                <div className="min-w-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Plan period</p>
-                  <p className="mt-1 break-words text-xs font-semibold text-slate-800">{billingPlan.name}</p>
-                  <p className="mt-1 text-[11px] leading-5 text-slate-500">
-                    {profileDate(billingPlan.periodStart)} – {profileDate(billingPlan.periodEnd)}
-                  </p>
-                  <p className={"mt-1 text-[10px] font-semibold " + (billingPlan.status === "ACTIVE" ? "text-emerald-700" : "text-slate-500")}>
-                    {billingPlan.status === "ACTIVE" ? "Active subscription" : "Period ended"}
-                  </p>
-                </div>
-              </div>
-            )}
+
             <div className="flex items-start gap-3">
               <span className="mt-1.5 size-2 shrink-0 rounded-full bg-current" aria-hidden="true" />
-              <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Employment status</p>
-                <span className={"mt-1 inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold ring-1 ring-inset " + employmentClasses(employmentStatus)}>
-                  {employmentLabel(employmentStatus)}
-                </span>
-              </div>
-            </div>
-
-            <form onSubmit={saveProfile} className="space-y-3 border-t border-slate-100 pt-4">
-              {profileRole !== "PLATFORM_ADMIN" && (
-                <label className="block text-[11px] font-semibold text-slate-700">
-                  Work availability
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Employee status</p>
+                {profileRole === "PLATFORM_ADMIN" ? (
+                  <span className={"mt-1 inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold ring-1 ring-inset " + employmentClasses(employmentStatus)}>
+                    {employmentLabel(employmentStatus)}
+                  </span>
+                ) : (
                   <select
+                    aria-label="Employee status"
                     value={employmentStatus}
                     onChange={(event) => setEmploymentStatus(event.target.value)}
                     disabled={!canEdit || loading || saving}
@@ -266,9 +283,31 @@ export default function WorkspaceUserProfile({
                     <option value="ON_LEAVE">On leave — not eligible for new tasks</option>
                     <option value="INACTIVE">Inactive — not eligible for new tasks</option>
                   </select>
-                  <span className="mt-1 block text-[10px] font-normal leading-4 text-slate-500">Your status is saved to your workspace membership.</span>
-                </label>
-              )}
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <CalendarDays className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden="true" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">Work availability</p>
+                {loading ? (
+                  <p className="mt-1 text-xs text-slate-500">Loading schedule…</p>
+                ) : profileRole === "PLATFORM_ADMIN" && workAvailability.length === 0 ? (
+                  <p className="mt-1 text-xs text-slate-500">Not applicable to the platform account</p>
+                ) : availabilityLines.length ? (
+                  <div className="mt-1 space-y-1.5">
+                    {availabilityLines.map((line) => (
+                      <p key={line} className="break-words text-xs font-medium leading-5 text-slate-800">{line}</p>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-1 text-xs text-slate-500">No working hours configured</p>
+                )}
+              </div>
+            </div>
+
+            <form onSubmit={saveProfile} className="space-y-3 border-t border-slate-100 pt-4">
               <label className="block text-[11px] font-semibold text-slate-700">
                 Position / job title
                 <span className="relative mt-1.5 block">
@@ -278,7 +317,7 @@ export default function WorkspaceUserProfile({
                     onChange={(event) => setJobTitle(event.target.value)}
                     maxLength={120}
                     disabled={!canEdit || loading || saving}
-                    placeholder="e.g. UX Designer, CTO, CEO"
+                    placeholder="e.g. Product Designer"
                     className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50 disabled:text-slate-500"
                   />
                 </span>
@@ -290,7 +329,7 @@ export default function WorkspaceUserProfile({
                   onChange={(event) => setDepartment(event.target.value)}
                   maxLength={100}
                   disabled={!canEdit || loading || saving}
-                  placeholder="e.g. Design, Engineering, Finance"
+                  placeholder="e.g. Engineering"
                   className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50 disabled:text-slate-500"
                 />
               </label>

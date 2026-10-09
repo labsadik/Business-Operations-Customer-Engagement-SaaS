@@ -137,7 +137,7 @@ export default function AdminShell({
               <span className="hidden rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-[10px] font-semibold text-blue-700 sm:inline-flex">
                 Admin access enabled
               </span>
-              <WorkspaceUserProfile name={user.name} email={user.email} image={user.image} companyName="Conventus Platform" currentRole="PLATFORM_ADMIN" />
+              <WorkspaceUserProfile name={user.name} email={user.email} image={user.image} currentRole="PLATFORM_ADMIN" />
             </div>
           </div>
           <div className="border-b border-slate-200/80 bg-white lg:hidden">

@@ -1,33 +1,16 @@
 import { getMongo } from "@/lib/mongodb";
 import { getSession } from "@/lib/session";
-import { Company } from "@/models/company";
 import { Membership } from "@/models/membership";
 import { User } from "@/models/user";
+import { AvailabilityRule } from "@/models/availability-rule";
 import { assertSameOrigin } from "@/lib/security";
 import { jsonError, jsonOk } from "@/lib/http";
-import { getCompanySubscription } from "@/lib/plans-server";
-import { getManagedPlan } from "@/lib/plan-catalog";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const PROFILE_FIELDS = "jobTitle department employmentStatus role";
-
-async function getProfileBillingPlan(companyId?: string) {
-  if (!companyId) return null;
-  const subscription = await getCompanySubscription(companyId);
-  if (!subscription) return null;
-  const plan = await getManagedPlan(subscription.planId, { includeArchived: true });
-  const periodStart = subscription.currentPeriodStart ?? null;
-  const periodEnd = subscription.currentPeriodEnd ?? null;
-  const active = subscription.status === "ACTIVE" && Boolean(periodEnd && periodEnd.getTime() > Date.now());
-  return {
-    name: plan?.name ?? subscription.planId,
-    status: active ? "ACTIVE" : "ENDED",
-    periodStart: periodStart?.toISOString() ?? null,
-    periodEnd: periodEnd?.toISOString() ?? null
-  };
-}
+const AVAILABILITY_FIELDS = "-_id dayOfWeek startMinute endMinute timezone";
 
 export async function GET() {
   const session = await getSession();
@@ -36,42 +19,48 @@ export async function GET() {
   await getMongo();
 
   if (session.role === "PLATFORM_ADMIN") {
-    const [user, company] = await Promise.all([
-      User.findById(session.userId).select("jobTitle department active").lean(),
-      session.companyId ? Company.findById(session.companyId).select("name").lean() : null
-    ]);
+    const user = await User.findById(session.userId).select("jobTitle department active").lean();
     if (!user) return jsonError("USER_NOT_FOUND", 404);
-    const billingPlan = await getProfileBillingPlan(session.companyId);
+    const workAvailability = session.companyId
+      ? await AvailabilityRule.find({
+          companyId: session.companyId,
+          employeeId: session.userId,
+          active: true
+        }).select(AVAILABILITY_FIELDS).sort({ dayOfWeek: 1, startMinute: 1 }).limit(42).lean()
+      : [];
     return jsonOk({
-      companyName: company?.name ?? "Conventus Platform",
-      billingPlan,
       role: session.role,
       jobTitle: user.jobTitle ?? "",
       department: user.department ?? "",
       employmentStatus: user.active === false ? "INACTIVE" : "ACTIVE",
+      workAvailability,
       canEdit: true
     });
   }
 
   if (!session.companyId) return jsonError("COMPANY_NOT_CONFIGURED", 400);
-  const membership = await Membership.findOne({
-    companyId: session.companyId,
-    userId: session.userId,
-    ...(session.workspaceId ? { workspaceId: session.workspaceId } : {}),
-    active: true,
-    role: session.role
-  }).select(PROFILE_FIELDS).lean();
+  const [membership, workAvailability] = await Promise.all([
+    Membership.findOne({
+      companyId: session.companyId,
+      userId: session.userId,
+      workspaceId: session.workspaceId,
+      active: true,
+      role: session.role
+    }).select(PROFILE_FIELDS).lean(),
+    AvailabilityRule.find({
+      companyId: session.companyId,
+      employeeId: session.userId,
+      active: true
+    }).select(AVAILABILITY_FIELDS).sort({ dayOfWeek: 1, startMinute: 1 }).limit(42).lean()
+  ]);
 
   if (!membership) return jsonError("FORBIDDEN", 403);
-  const company = await Company.findById(session.companyId).select("name").lean();
-  const billingPlan = session.role === "COMPANY_ADMIN" ? await getProfileBillingPlan(session.companyId) : null;
   return jsonOk({
-    companyName: company?.name ?? "Company",
-    billingPlan,
     role: session.role,
     jobTitle: membership.jobTitle ?? "",
     department: membership.department ?? "",
     employmentStatus: membership.employmentStatus ?? "ACTIVE",
+    workAvailability,
     canEdit: true
   });
 }
@@ -121,8 +110,7 @@ export async function PATCH(request: Request) {
       }
       const userUpdate: Record<string, unknown> = {
         ...(body.jobTitle !== undefined ? { jobTitle: update.jobTitle } : {}),
-        ...(body.department !== undefined ? { department: update.department } : {}),
-        ...(body.employmentStatus !== undefined ? { active: body.employmentStatus === "ACTIVE" } : {})
+        ...(body.department !== undefined ? { department: update.department } : {})
       };
       const user = await User.findByIdAndUpdate(
         session.userId,
@@ -137,12 +125,12 @@ export async function PATCH(request: Request) {
       });
     }
 
-    if (!session.companyId) return jsonError("COMPANY_NOT_CONFIGURED", 400);
+    if (!session.companyId || !session.workspaceId) return jsonError("COMPANY_NOT_CONFIGURED", 400);
     const membership = await Membership.findOneAndUpdate(
       {
         companyId: session.companyId,
+        workspaceId: session.workspaceId,
         userId: session.userId,
-        ...(session.workspaceId ? { workspaceId: session.workspaceId } : {}),
         active: true,
         role: session.role
       },

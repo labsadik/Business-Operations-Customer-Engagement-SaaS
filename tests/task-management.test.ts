@@ -116,7 +116,7 @@ test("task dashboard includes searchable Jira-style columns, persistent confirma
   assert.match(sidebar, /Expand sidebar/);
 });
 
-test("user profile dropdown shows role, company, position, department and status with a scoped persistence route", () => {
+test("user profile dropdown shows only identity, role, employee status, work schedule, position and department", () => {
   const taskDashboard = source("features/task-management/components/task-management-dashboard.tsx");
   const profile = source("components/workspace-user-profile.tsx");
   const profileRoute = source("app/api/profile/member/route.ts");
@@ -128,11 +128,15 @@ test("user profile dropdown shows role, company, position, department and status
   assert.match(companyDashboard, /<WorkspaceUserProfile/);
   assert.match(adminShell, /<WorkspaceUserProfile/);
   assert.match(profile, /Open your profile/);
-  assert.match(profile, /Company/);
+  assert.doesNotMatch(profile, /Plan period|billingPlan|profileCompany|Company name/);
   assert.match(profile, /Account role/);
   assert.match(profile, /Position \/ job title/);
   assert.match(profile, /Department/);
-  assert.match(profile, /Employment status/);
+  assert.match(profile, /Employee status/);
+  assert.match(profile, /Work availability/);
+  assert.match(profileRoute, /AvailabilityRule\.find/);
+  assert.match(profileRoute, /active: true/);
+  assert.match(profileRoute, /dayOfWeek startMinute endMinute timezone/);
   assert.match(profile, /On leave/);
   assert.match(profile, /Save profile/);
   assert.match(profileRoute, /assertSameOrigin\(request\)/);

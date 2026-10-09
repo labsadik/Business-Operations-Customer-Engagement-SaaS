@@ -197,7 +197,7 @@ test("desktop push delivery is removed and in-app task notifications remain tena
 });
 
 
-test("invoice service periods are hydrated for list, details, PDF, and company admin profiles", () => {
+test("invoice service periods hydrate invoice views and the profile dropdown remains focused on user details", () => {
   const invoicing = source("lib/invoicing.ts");
   const billing = source("lib/billing.ts");
   const invoiceList = source("app/api/billing/invoices/route.ts");
@@ -212,7 +212,8 @@ test("invoice service periods are hydrated for list, details, PDF, and company a
   assert.ok(invoiceList.includes("billingPeriodStart: billingPeriod.billingPeriodStart"));
   assert.ok(invoicePage.includes("billingPeriodEnd: billingPeriod.billingPeriodEnd"));
   assert.ok(invoicePdf.includes("dateLabel(billingPeriod.billingPeriodStart)"));
-  assert.ok(profileRoute.includes("getProfileBillingPlan"));
-  assert.ok(profileUi.includes("Plan period"));
+  assert.ok(profileRoute.includes("AvailabilityRule.find"));
+  assert.ok(profileUi.includes("Work availability"));
+  assert.doesNotMatch(profileUi, /Plan period|billingPlan|profileCompany/);
   assert.ok(dashboard.includes("Plan period:"));
 });
