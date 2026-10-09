@@ -24,10 +24,15 @@ export async function POST(
     assertSameOrigin(request);
     const scope = await requireTaskScope();
     const entitlements = await assertTaskFeatureAccess(scope);
-    const dailyLimit =
-      "taskManagementDailyLimit" in entitlements
-        ? entitlements.taskManagementDailyLimit
-        : null;
+    const dailyLimit: number | null = scope.isPlatformAdmin
+      ? null
+      : "taskManagementDailyLimit" in entitlements
+        ? typeof entitlements.taskManagementDailyLimit === "number"
+          ? entitlements.taskManagementDailyLimit
+          : entitlements.taskManagementDailyLimit === null
+            ? null
+            : 10
+        : 10;
     await getMongo();
 
     const { taskId } = await params;
