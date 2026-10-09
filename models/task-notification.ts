@@ -23,7 +23,7 @@ const taskNotificationSchema = new Schema(
     title: { type: String, required: true, trim: true, maxlength: 160 },
     message: { type: String, required: true, trim: true, maxlength: 400 },
     eventKey: { type: String, required: true, maxlength: 240 },
-    readAt: { type: Date, default: null, index: true }
+    readAt: { type: Date, default: null }
   },
   { timestamps: true }
 );
