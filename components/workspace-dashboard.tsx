@@ -9,6 +9,7 @@ import {
   Activity,
   ArrowUpRight,
   CalendarDays,
+  CheckCircle2,
   ChevronRight,
   Copy,
   CreditCard,
@@ -156,6 +157,7 @@ type MeetingHistoryItem = {
   durationMinutes: number;
   status: string;
   calendarSyncStatus?: string;
+  meetingUri: string | null;
   employee: { name: string; email: string; image: string | null } | null;
   customer: { name: string; email: string; image: string | null } | null;
   scheduledBy: { name: string; email: string; image: string | null } | null;
@@ -445,6 +447,12 @@ export default function WorkspaceDashboard({
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const refreshingRef = useRef(false);
+  const refreshQueuedRef = useRef(false);
+  const liveRefreshingRef = useRef(false);
+  const meetingLoadVersionRef = useRef(0);
+  const activeModalRef = useRef(activeModal);
+  const meetingModalViewRef = useRef(meetingModalView);
+  const meetingDateFilterRef = useRef(meetingDateFilter);
   const dataLoadedRef = useRef(false);
   const initializedRequestsRef = useRef(false);
   const seenRequestIdsRef = useRef(new Set<string>());
@@ -522,7 +530,11 @@ export default function WorkspaceDashboard({
     : meetingActivitySummary?.happenedCount ?? modalMeetingHistory.filter((item) => ["COMPLETED", "READY", "LIVE"].includes(item.status)).length;
 
   const refreshAll = useCallback(async function refreshAll() {
-    if (refreshingRef.current) return;
+    if (refreshingRef.current) {
+      // Preserve refresh requests triggered by a mutation while a previous read is in flight.
+      refreshQueuedRef.current = true;
+      return;
+    }
     refreshingRef.current = true;
 
     const settle = <T,>(request: Promise<T>) => request
@@ -577,29 +589,69 @@ export default function WorkspaceDashboard({
     } finally {
       setLoading(false);
       refreshingRef.current = false;
+      if (refreshQueuedRef.current) {
+        refreshQueuedRef.current = false;
+        window.setTimeout(() => void refreshAll(), 0);
+      }
     }
   }, []);
 
   const refreshLive = useCallback(async function refreshLive() {
-    if (refreshingRef.current) return;
-    refreshingRef.current = true;
+    if (liveRefreshingRef.current) return;
+    liveRefreshingRef.current = true;
+
     try {
-      const pending = await api<RequestItem[]>("/api/employee/requests?limit=6");
-      setRequests(pending);
+      const panel = activeModalRef.current;
+      const view = meetingModalViewRef.current;
+      const dateFilter = meetingDateFilterRef.current;
+      const requestLimit = panel === "meetings" ? 100 : 6;
+      const historyUrl = "/api/employee/meetings?paginated=true&limit=50" +
+        (dateFilter ? "&date=" + encodeURIComponent(dateFilter) : "");
+      const pendingRequest = api<RequestItem[]>("/api/employee/requests?limit=" + requestLimit);
+      const summaryRequest = panel === "meetings"
+        ? api<MeetingActivitySummary>("/api/employee/meetings/summary")
+        : Promise.resolve(null);
+      const historyRequest = panel === "meetings" && view === "meeting-history"
+        ? api<{ items: MeetingHistoryItem[]; nextCursor: string | null; totalCount?: number }>(historyUrl)
+        : Promise.resolve(null);
+
+      const [pendingResult, summaryResult, historyResult] = await Promise.allSettled([
+        pendingRequest,
+        summaryRequest,
+        historyRequest
+      ] as const);
+
+      if (pendingResult.status === "fulfilled") {
+        setRequests(pendingResult.value.slice(0, 6));
+        if (panel === "meetings" && activeModalRef.current === "meetings") {
+          setModalRequests(pendingResult.value);
+        }
+      }
+
+      if (summaryResult.status === "fulfilled" && summaryResult.value && activeModalRef.current === "meetings") {
+        setMeetingActivitySummary(summaryResult.value);
+      }
+
+      if (historyResult.status === "fulfilled" && historyResult.value && activeModalRef.current === "meetings") {
+        setModalMeetingHistory(historyResult.value.items);
+        setMeetingHistoryTotalCount(historyResult.value.totalCount ?? historyResult.value.items.length);
+      }
     } catch {
-      // Keep the last good dashboard state during transient polling failures.
+      // Preserve the last good state during transient polling failures.
     } finally {
-      refreshingRef.current = false;
+      liveRefreshingRef.current = false;
     }
   }, []);
 
-  async function loadAllMeetings(dateFilter = meetingDateFilter) {
+  const loadAllMeetings = useCallback(async function loadAllMeetings(dateFilter = meetingDateFilter) {
+    const requestVersion = ++meetingLoadVersionRef.current;
     setMeetingsLoading(true);
     setMeetingsError("");
+
     try {
       const historyUrl = "/api/employee/meetings?paginated=true&limit=50" +
         (dateFilter ? "&date=" + encodeURIComponent(dateFilter) : "");
-      const [allRequests, allHistory, historyPage, activitySummary] = await Promise.all([
+      const [requestsResult, meetingHistoryResult, requestHistoryResult, summaryResult] = await Promise.allSettled([
         api<RequestItem[]>("/api/employee/requests?limit=100"),
         api<{ items: MeetingHistoryItem[]; nextCursor: string | null; totalCount?: number }>(historyUrl),
         api<{ items: RequestHistoryItem[]; nextCursor: string | null }>(
@@ -607,18 +659,33 @@ export default function WorkspaceDashboard({
         ),
         api<MeetingActivitySummary>("/api/employee/meetings/summary")
       ]);
-      setModalRequests(allRequests);
-      setModalMeetingHistory(allHistory.items);
-      setMeetingHistoryTotalCount(allHistory.totalCount ?? allHistory.items.length);
-      setModalRequestHistory(historyPage.items);
-      setRequestHistoryCursor(historyPage.nextCursor);
-      setMeetingActivitySummary(activitySummary);
+
+      if (requestVersion !== meetingLoadVersionRef.current) return;
+
+      let hasPartialFailure = false;
+      if (requestsResult.status === "fulfilled") setModalRequests(requestsResult.value);
+      else hasPartialFailure = true;
+
+      if (meetingHistoryResult.status === "fulfilled") {
+        setModalMeetingHistory(meetingHistoryResult.value.items);
+        setMeetingHistoryTotalCount(meetingHistoryResult.value.totalCount ?? meetingHistoryResult.value.items.length);
+      } else hasPartialFailure = true;
+
+      if (requestHistoryResult.status === "fulfilled") {
+        setModalRequestHistory(requestHistoryResult.value.items);
+        setRequestHistoryCursor(requestHistoryResult.value.nextCursor);
+      } else hasPartialFailure = true;
+
+      if (summaryResult.status === "fulfilled") setMeetingActivitySummary(summaryResult.value);
+      else hasPartialFailure = true;
+
+      setMeetingsError(hasPartialFailure ? "MEETING_LIST_PARTIAL" : "");
     } catch {
-      setMeetingsError("MEETING_LIST_FAILED");
+      if (requestVersion === meetingLoadVersionRef.current) setMeetingsError("MEETING_LIST_FAILED");
     } finally {
-      setMeetingsLoading(false);
+      if (requestVersion === meetingLoadVersionRef.current) setMeetingsLoading(false);
     }
-  }
+  }, [meetingDateFilter]);
 
   async function loadOlderRequestHistory() {
     if (!requestHistoryCursor || requestHistoryLoadingMore) return;
@@ -678,6 +745,12 @@ export default function WorkspaceDashboard({
       setBillingLoading(false);
     }
   }, [canManage]);
+
+  useEffect(() => {
+    activeModalRef.current = activeModal;
+    meetingModalViewRef.current = meetingModalView;
+    meetingDateFilterRef.current = meetingDateFilter;
+  }, [activeModal, meetingModalView, meetingDateFilter]);
 
   useEffect(() => {
     const syncNow = () => setNowMs(Date.now());
@@ -745,6 +818,12 @@ export default function WorkspaceDashboard({
       window.removeEventListener("popstate", syncPanelFromUrl);
     };
   }, []);
+
+  useEffect(() => {
+    if (activeModal !== "meetings") return;
+    const timer = window.setTimeout(() => void loadAllMeetings(), 0);
+    return () => window.clearTimeout(timer);
+  }, [activeModal, loadAllMeetings]);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -1094,7 +1173,6 @@ export default function WorkspaceDashboard({
     if (section) params.set("section", section);
     router.push(`/dashboard?${params.toString()}`);
     if (name === "feedback" && fromUserGesture) void playFeedbackSoundIfEnabled();
-    if (name === "meetings") void loadAllMeetings();
   }
 
   if (loading) return <WorkspaceLoading />;
@@ -1187,7 +1265,7 @@ export default function WorkspaceDashboard({
           ? confirmation.action === "accept" ? "Accept meeting request?" : "Decline meeting request?"
           : confirmation?.kind === "publish-page"
             ? confirmation.published ? "Unpublish public booking page?" : "Publish public booking page?"
-            : "End meeting?";
+            : "Complete this meeting?";
 
   const confirmationDescription =
     confirmation?.kind === "remove-employee"
@@ -1204,7 +1282,7 @@ export default function WorkspaceDashboard({
             ? confirmation.published
               ? "Unpublishing will prevent visitors from opening the public booking page. Existing customer requests are not deleted."
               : "Publishing will make the public booking page accessible. Visitors must still sign in with Google before seeing availability or submitting a request."
-            : "End this meeting now? Access will close and the booking cannot be reused.";
+            : "Complete this meeting now? This will mark the booking as completed and close the active meeting. The booking cannot be reused.";
 
   const confirmationLabel =
     confirmation?.kind === "remove-employee"
@@ -1215,7 +1293,7 @@ export default function WorkspaceDashboard({
           ? confirmation.action === "accept" ? "Accept request" : "Decline request"
           : confirmation?.kind === "publish-page"
             ? confirmation.published ? "Unpublish page" : "Publish page"
-            : "End meeting";
+            : "Complete meeting";
 
   const confirmationTone =
     confirmation?.kind === "respond-request" && confirmation.action === "accept"
@@ -1653,7 +1731,7 @@ export default function WorkspaceDashboard({
         <div className="p-5 sm:p-6">
           {meetingsError && (
             <div className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3" role="alert">
-              <p className="text-xs text-rose-800">Meetings could not be loaded. Your current dashboard state is unchanged.</p>
+              <p className="text-xs text-rose-800">Some meeting details could not be refreshed. Available data remains visible; retry to load missing details.</p>
               <button
                 type="button"
                 onClick={() => void loadAllMeetings()}
@@ -1705,9 +1783,9 @@ export default function WorkspaceDashboard({
             <div className="flex items-center gap-2">
               <label className="block">
                 <span className="sr-only">Filter meeting history by date</span>
-                <input type="date" value={meetingDateFilter} onChange={(event) => { const nextDate = event.target.value; setMeetingDateFilter(nextDate); setMeetingModalView("meeting-history"); void loadAllMeetings(nextDate); }} className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+                <input type="date" value={meetingDateFilter} onChange={(event) => { setMeetingDateFilter(event.target.value); setMeetingModalView("meeting-history"); }} className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
               </label>
-              {meetingDateFilter && <button type="button" onClick={() => { setMeetingDateFilter(""); void loadAllMeetings(""); }} className="rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Clear date</button>}
+              {meetingDateFilter && <button type="button" onClick={() => setMeetingDateFilter("")} className="rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Clear date</button>}
             </div>
           </div>
           <div className="mb-5 rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-xs text-blue-950">
@@ -1730,11 +1808,15 @@ export default function WorkspaceDashboard({
               <div className="space-y-3">
                 {modalRequests.map((item) => {
                   const actionable = canRespondToMeetings && (item.status === "REQUESTED" || item.status === "RETRYING");
+                  const meetingStatus = item.meeting?.status ?? "";
                   const creating =
                     item.status === "ASSIGNED" ||
                     item.status === "CREATING_MEETING" ||
-                    item.meeting?.status === "CREATING";
-                  const ready = item.meeting?.status === "READY" && Boolean(item.meeting.meetingUri);
+                    meetingStatus === "CREATING";
+                  const activeMeeting =
+                    ["READY", "LIVE"].includes(meetingStatus) &&
+                    ["CONFIRMED", "IN_PROGRESS"].includes(item.status);
+                  const joinable = activeMeeting && Boolean(item.meeting?.meetingUri);
 
                   return (
                     <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -1750,7 +1832,7 @@ export default function WorkspaceDashboard({
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="truncate text-sm font-semibold">{item.customer?.name ?? "Customer"}</p>
                               <span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ${
-                                ready
+                                joinable
                                   ? "bg-emerald-50 text-emerald-700"
                                   : creating
                                     ? "bg-blue-50 text-blue-700"
@@ -1758,14 +1840,14 @@ export default function WorkspaceDashboard({
                                       ? "bg-amber-50 text-amber-700"
                                       : "bg-slate-100 text-slate-600"
                               }`}>
-                                {ready ? "Confirmed" : creating ? "Setting up meeting" : item.status.replaceAll("_", " ")}
+                                {joinable ? (meetingStatus === "LIVE" ? "In progress" : "Confirmed") : creating ? "Setting up meeting" : item.status.replaceAll("_", " ")}
                               </span>
                             </div>
                             <p className="mt-1 text-xs text-slate-500">
                               {new Date(item.startAt).toLocaleString()} · {item.durationMinutes} min
                             </p>
                             <p className="mt-1 truncate text-[11px] text-slate-400">{item.customer?.email ?? "Email unavailable"}</p>
-                            {!ready && !["CONFIRMED", "IN_PROGRESS"].includes(item.status) && (
+                            {!activeMeeting && !["CONFIRMED", "IN_PROGRESS"].includes(item.status) && (
                               <MeetingResponseCountdown
                                 expiresAt={item.expiresAt}
                                 label={creating ? "Preparing the meeting" : item.status === "RETRYING" ? "Finding an available team member" : "Response timer"}
@@ -1780,16 +1862,27 @@ export default function WorkspaceDashboard({
                         </div>
 
                         <div className="flex flex-wrap gap-2">
-                          {ready && item.meeting?.meetingUri && (
+                          {joinable && item.meeting?.meetingUri && (
                             <a
                               href={item.meeting.meetingUri}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
                             >
-                              <Video className="size-4" />
-                              Join
+                              <Video className="size-4" aria-hidden="true" />
+                              {meetingStatus === "LIVE" ? "Rejoin meeting" : "Join meeting"}
                             </a>
+                          )}
+                          {canRespondToMeetings && activeMeeting && (
+                            <button
+                              type="button"
+                              disabled={endingRequestId === item.id}
+                              onClick={() => setConfirmation({ kind: "end-meeting", id: item.id })}
+                              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <CheckCircle2 className="size-4" aria-hidden="true" />
+                              {endingRequestId === item.id ? "Completing..." : "Complete meeting"}
+                            </button>
                           )}
                           {actionable && !creating && (
                             <>
@@ -1843,6 +1936,7 @@ export default function WorkspaceDashboard({
                 {filteredModalMeetingHistory.map((meeting) => {
                   const timeZone = data.workspace?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
                   const scheduledBy = meeting.scheduledBy ?? meeting.customer;
+                  const activeMeeting = ["READY", "LIVE"].includes(meeting.status);
                   return (
                     <div key={meeting.id} className="rounded-2xl border border-slate-200 bg-white p-4">
                       <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-center">
@@ -1864,9 +1958,35 @@ export default function WorkspaceDashboard({
                             {formatTime(meeting.startAt, timeZone)} – {formatTime(meeting.endAt, timeZone)} · {meeting.durationMinutes} min
                           </p>
                         </div>
-                        <div className="text-right">
-                          <p className="text-xs font-semibold text-slate-700">{meeting.employee?.name ?? "Team member"}</p>
-                          <p className="mt-1 text-[10px] text-slate-400">{meeting.status.replaceAll("_", " ")}</p>
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          <div className="text-right">
+                            <p className="text-xs font-semibold text-slate-700">{meeting.employee?.name ?? "Team member"}</p>
+                            <p className="mt-1 text-[10px] text-slate-400">{meeting.status.replaceAll("_", " ")}</p>
+                          </div>
+                          {canRespondToMeetings && activeMeeting && (
+                            <>
+                              {meeting.meetingUri && (
+                                <a
+                                  href={meeting.meetingUri}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3.5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                                >
+                                  <Video className="size-4" aria-hidden="true" />
+                                  {meeting.status === "LIVE" ? "Rejoin meeting" : "Join meeting"}
+                                </a>
+                              )}
+                              <button
+                                type="button"
+                                disabled={endingRequestId === meeting.bookingRequestId}
+                                onClick={() => setConfirmation({ kind: "end-meeting", id: meeting.bookingRequestId })}
+                                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <CheckCircle2 className="size-4" aria-hidden="true" />
+                                {endingRequestId === meeting.bookingRequestId ? "Completing..." : "Complete meeting"}
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>

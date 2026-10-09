@@ -275,11 +275,16 @@ export default function TaskManagementDashboard({
   }, [filteredTasks]);
 
   const loadInFlightRef = useRef<Promise<void> | null>(null);
+  const loadQueuedRef = useRef(false);
+  const loadTaskRef = useRef<((showSpinner?: boolean) => Promise<void>) | null>(null);
 
   const load = useCallback(async function loadTasks(showSpinner = true) {
-    // Collapse overlapping initial, retry, and post-mutation refreshes into one
-    // operation so they cannot race each other or toggle the page spinner twice.
-    if (loadInFlightRef.current) return loadInFlightRef.current;
+    // Collapse overlapping reads, but remember that a mutation/focus refresh arrived
+    // during the request so a stale response cannot be the final rendered state.
+    if (loadInFlightRef.current) {
+      loadQueuedRef.current = true;
+      return loadInFlightRef.current;
+    }
     if (!taskManagementEnabled) {
       setLoading(false);
       return;
@@ -313,8 +318,16 @@ export default function TaskManagementDashboard({
       await pending;
     } finally {
       if (loadInFlightRef.current === pending) loadInFlightRef.current = null;
+      if (loadQueuedRef.current) {
+        loadQueuedRef.current = false;
+        window.setTimeout(() => void loadTaskRef.current?.(false), 0);
+      }
     }
   }, [taskManagementEnabled, userId]);
+
+  useEffect(() => {
+    loadTaskRef.current = load;
+  }, [load]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -328,6 +341,22 @@ export default function TaskManagementDashboard({
     const timer = window.setInterval(() => setNowMs(Date.now()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    // Keep cross-user task edits/status changes current without unmounting the page
+    // or flashing the initial loading shell every polling cycle.
+    const refreshVisibleTasks = () => {
+      if (document.visibilityState === "visible") void load(false);
+    };
+    const poll = window.setInterval(refreshVisibleTasks, 15_000);
+    document.addEventListener("visibilitychange", refreshVisibleTasks);
+    window.addEventListener("focus", refreshVisibleTasks);
+    return () => {
+      window.clearInterval(poll);
+      document.removeEventListener("visibilitychange", refreshVisibleTasks);
+      window.removeEventListener("focus", refreshVisibleTasks);
+    };
+  }, [load]);
 
   useEffect(() => {
     if (!showCreateForm && !searchOpen && !cleanupOpen && !cancelConfirm) return;
