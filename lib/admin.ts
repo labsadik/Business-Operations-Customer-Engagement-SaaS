@@ -8,6 +8,8 @@ import { Subscription } from "@/models/subscription";
 import { Payment } from "@/models/payment";
 import { Meeting } from "@/models/meeting";
 import { BookingRequest } from "@/models/booking-request";
+import { Task } from "@/models/task";
+import { TaskAssignment } from "@/models/task-assignment";
 import { Invoice } from "@/models/invoice";
 import { GoogleAccount } from "@/models/google-account";
 import type { PlanEntitlements } from "@/lib/plans";
@@ -35,6 +37,11 @@ export type AdminCompanyListItem = {
   meetingUsers: number;
   totalMeetings: number;
   completedMeetings: number;
+  totalTasks: number;
+  activeTasks: number;
+  completedTasks: number;
+  overdueTasks: number;
+  totalTaskAssignments: number;
   totalPayments: number;
   paymentCount: number;
   lastPaymentAt: Date | null;
@@ -145,7 +152,7 @@ async function buildCompanyRows(
   const ids = companies.map((item) => item._id);
   if (!ids.length) return [];
 
-  const [owners, subscriptions, memberAgg, paymentAgg, meetingAgg, requestAgg] = await Promise.all([
+  const [owners, subscriptions, memberAgg, paymentAgg, meetingAgg, requestAgg, taskAgg, taskAssignmentAgg] = await Promise.all([
     User.find({ _id: { $in: companies.map((item) => item.ownerUserId) } }).select("name email").lean(),
     Subscription.find({ companyId: { $in: ids } }).lean(),
     Membership.aggregate<{ _id: Types.ObjectId; employees: number }>([
@@ -173,6 +180,30 @@ async function buildCompanyRows(
       { $match: { companyId: { $in: ids } } },
       { $group: { _id: "$companyId", customers: { $addToSet: "$customerId" } } },
       { $project: { _id: 1, meetingUsers: { $size: "$customers" } } }
+    ]),
+    Task.aggregate<{
+      _id: Types.ObjectId;
+      totalTasks: number;
+      activeTasks: number;
+      completedTasks: number;
+      overdueTasks: number;
+    }>([
+      { $match: { companyId: { $in: ids } } },
+      { $group: {
+        _id: "$companyId",
+        totalTasks: { $sum: 1 },
+        activeTasks: { $sum: { $cond: [{ $in: ["$status", ["TODO", "IN_PROGRESS", "BLOCKED", "IN_REVIEW"]] }, 1, 0] } },
+        completedTasks: { $sum: { $cond: [{ $eq: ["$status", "COMPLETED"] }, 1, 0] } },
+        overdueTasks: { $sum: { $cond: [{ $and: [
+          { $ne: ["$dueAt", null] },
+          { $lt: ["$dueAt", new Date()] },
+          { $not: [{ $in: ["$status", ["COMPLETED", "CANCELLED"]] }] }
+        ] }, 1, 0] } }
+      } }
+    ]),
+    TaskAssignment.aggregate<{ _id: Types.ObjectId; totalTaskAssignments: number }>([
+      { $match: { companyId: { $in: ids } } },
+      { $group: { _id: "$companyId", totalTaskAssignments: { $sum: 1 } } }
     ])
   ]);
 
@@ -188,6 +219,8 @@ async function buildCompanyRows(
   const planNameMap = new Map(planDocs.map((item) => [String(item.identifier), item.name]));
   const planLimitMap = new Map(planDocs.map((item) => [String(item.identifier), Number(item.monthlyMeetingLimit ?? 0)]));
   const requestMap = new Map(requestAgg.map((item) => [String(item._id), item.meetingUsers]));
+  const taskMap = new Map(taskAgg.map((item) => [String(item._id), item]));
+  const taskAssignmentMap = new Map(taskAssignmentAgg.map((item) => [String(item._id), item.totalTaskAssignments]));
 
   return companies.map((company) => {
     const id = String(company._id);
@@ -218,6 +251,11 @@ async function buildCompanyRows(
       meetingUsers: requestMap.get(id) ?? 0,
       totalMeetings: meetingMap.get(id)?.totalMeetings ?? 0,
       completedMeetings: meetingMap.get(id)?.completedMeetings ?? 0,
+      totalTasks: taskMap.get(id)?.totalTasks ?? 0,
+      activeTasks: taskMap.get(id)?.activeTasks ?? 0,
+      completedTasks: taskMap.get(id)?.completedTasks ?? 0,
+      overdueTasks: taskMap.get(id)?.overdueTasks ?? 0,
+      totalTaskAssignments: taskAssignmentMap.get(id) ?? 0,
       totalPayments: toMoneyMinor(paymentMap.get(id)?.totalPayments),
       paymentCount: paymentMap.get(id)?.paymentCount ?? 0,
       lastPaymentAt: paymentMap.get(id)?.lastPaymentAt ?? null
@@ -237,6 +275,9 @@ export async function getAdminOverview() {
     meetingUserIds,
     totalMeetings,
     completedMeetings,
+    totalTasks,
+    activeTasks,
+    overdueTasks,
     activeMeetings,
     paymentAggregate,
     paymentCount,
@@ -250,6 +291,9 @@ export async function getAdminOverview() {
     BookingRequest.distinct("customerId"),
     Meeting.countDocuments(),
     Meeting.countDocuments({ status: "COMPLETED" }),
+    Task.countDocuments(),
+    Task.countDocuments({ status: { $in: ["TODO", "IN_PROGRESS", "BLOCKED", "IN_REVIEW"] } }),
+    Task.countDocuments({ dueAt: { $lt: now }, status: { $nin: ["COMPLETED", "CANCELLED"] } }),
     Meeting.countDocuments({ status: { $in: ["CREATING", "READY", "LIVE"] } }),
     Payment.aggregate<{ _id: null; total: number }>([
       { $match: { status: "CAPTURED" } },
@@ -274,6 +318,9 @@ export async function getAdminOverview() {
     totalMeetingUsers: meetingUserIds.length,
     totalMeetings,
     completedMeetings,
+    totalTasks,
+    activeTasks,
+    overdueTasks,
     activeMeetings,
     totalPayments: paymentCount,
     totalRevenue: paymentAggregate[0]?.total ?? 0,

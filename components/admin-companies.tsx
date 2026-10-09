@@ -53,10 +53,10 @@ export default function AdminCompanies({ companies }: { companies: AdminCompanyL
           <p className="mt-1 text-[11px] text-slate-500">Latest 100 companies are loaded for fast administration.</p>
         </div>
         <div className="hidden overflow-x-auto lg:block">
-          <table className="min-w-[1100px] w-full text-left">
+          <table className="min-w-[1240px] w-full text-left">
             <thead className="bg-slate-50">
               <tr className="border-b border-slate-200">
-                {["Company", "Plan", "Employees", "Meetings", "Meeting users", "Payments", "Renewal", ""].map((item) => (
+                {["Company", "Plan", "Employees", "Meetings", "Meeting users", "Tasks", "Payments", "Renewal", ""].map((item) => (
                   <th key={item} className="px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">{item}</th>
                 ))}
               </tr>
@@ -80,6 +80,7 @@ export default function AdminCompanies({ companies }: { companies: AdminCompanyL
                   <td className="px-4 py-4 text-sm font-semibold">{company.employees}</td>
                   <td className="px-4 py-4"><p className="text-sm font-semibold">{company.totalMeetings}</p><p className="text-[10px] text-slate-400">{company.completedMeetings} completed</p></td>
                   <td className="px-4 py-4 text-sm font-semibold">{company.meetingUsers}</td>
+                  <td className="px-4 py-4"><p className="text-sm font-semibold">{company.totalTasks}</p><p className="text-[10px] text-slate-400">{company.activeTasks} active · {company.completedTasks} done</p></td>
                   <td className="px-4 py-4"><p className="text-sm font-semibold">{money(company.totalPayments)}</p><p className="text-[10px] text-slate-400">{company.paymentCount} captured</p></td>
                   <td className="px-4 py-4"><p className="text-xs font-semibold">{dateLabel(company.periodEnd)}</p><p className="mt-1 text-[10px] text-slate-400">{company.publicBookingEnabled ? "Public live" : "Draft"}</p></td>
                   <td className="px-4 py-4 text-right"><Link href={`/admin/companies/${company.id}` as Route} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Open <ArrowUpRight className="size-3.5" /></Link></td>
@@ -100,9 +101,10 @@ export default function AdminCompanies({ companies }: { companies: AdminCompanyL
                     <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-700">{company.planName}</span>
                   </div>
                   <p className="mt-1 truncate text-[11px] text-slate-500">{company.email || company.slug}</p>
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
                     <span><b>{company.employees}</b> employees</span>
                     <span><b>{company.totalMeetings}</b> meetings</span>
+                    <span><b>{company.totalTasks}</b> tasks · {company.activeTasks} active</span>
                     <span><b>{money(company.totalPayments)}</b> paid</span>
                   </div>
                 </div>

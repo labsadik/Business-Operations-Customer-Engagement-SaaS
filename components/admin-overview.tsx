@@ -5,6 +5,7 @@ import {
   BadgeIndianRupee,
   Building2,
   CalendarCheck2,
+  ClipboardList,
   CreditCard,
   UsersRound
 } from "lucide-react";
@@ -25,6 +26,9 @@ export default function AdminOverview({
     totalMeetingUsers: number;
     totalMeetings: number;
     completedMeetings: number;
+    totalTasks: number;
+    activeTasks: number;
+    overdueTasks: number;
     activeMeetings: number;
     totalPayments: number;
     totalRevenue: number;
@@ -37,6 +41,7 @@ export default function AdminOverview({
     { label: "Active subscriptions", value: data.activeSubscriptions, icon: CreditCard, detail: `${data.planMix.free ?? 0} Free · ${data.planMix.starter ?? 0} Starter · ${data.planMix.elite ?? 0} Elite · ${data.planMix.pro ?? 0} Pro · ${data.planMix.plus ?? 0} Plus` },
     { label: "Meeting users", value: data.totalMeetingUsers, icon: UsersRound, detail: "Unique public customers who submitted booking requests" },
     { label: "Meetings happened", value: data.completedMeetings, icon: CalendarCheck2, detail: `${data.totalMeetings} total meetings recorded` },
+    { label: "Total tasks", value: data.totalTasks, icon: ClipboardList, detail: `${data.activeTasks} active · ${data.overdueTasks} overdue across all companies` },
     { label: "Live / active meetings", value: data.activeMeetings, icon: Activity, detail: `${data.activeCompanies} public booking pages live` }
   ];
 

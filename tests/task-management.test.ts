@@ -196,3 +196,20 @@ test("members can save their own work availability and only active members can b
   assert.ok(auth.includes('{ employmentStatus: { $exists: false } }'));
   assert.ok(employeeRoute.includes('employmentStatus: membership?.employmentStatus ?? "ACTIVE"'));
 });
+
+
+test("platform admin task usage is aggregated and displayed per company", () => {
+  const adminData = source("lib/admin.ts");
+  const companyDirectory = source("components/admin-companies.tsx");
+  const companyDetails = source("components/admin-company-details.tsx");
+  const platformOverview = source("components/admin-overview.tsx");
+
+  assert.ok(adminData.includes("Task.aggregate"));
+  assert.ok(adminData.includes("companyId: { $in: ids }"));
+  assert.ok(adminData.includes("totalTaskAssignments"));
+  assert.ok(companyDirectory.includes("{company.totalTasks}"));
+  assert.ok(companyDirectory.includes("{company.activeTasks}"));
+  assert.ok(companyDetails.includes("Company task usage"));
+  assert.ok(companyDetails.includes("{company.overdueTasks}"));
+  assert.ok(platformOverview.includes("data.totalTasks"));
+});

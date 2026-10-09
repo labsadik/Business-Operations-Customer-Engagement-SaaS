@@ -6,6 +6,7 @@ import {
   Building2,
   CalendarClock,
   CheckCircle2,
+  ClipboardList,
   CreditCard,
   Globe2,
   Mail,
@@ -81,6 +82,31 @@ export default function AdminCompanyDetailsView({ company }: { company: AdminCom
             </article>
           );
         })}
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Task management</p>
+            <h2 className="mt-2 text-base font-semibold">Company task usage</h2>
+            <p className="mt-1 text-xs text-slate-500">{company.totalTaskAssignments} assignments recorded for this tenant.</p>
+          </div>
+          <ClipboardList className="size-5 text-blue-600" aria-hidden="true" />
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            ["Total tasks", company.totalTasks, "All company tasks"],
+            ["Active", company.activeTasks, "Todo, in progress, blocked or review"],
+            ["Completed", company.completedTasks, "Finished tasks"],
+            ["Overdue", company.overdueTasks, "Past-due tasks not closed"]
+          ].map(([label, value, detail]) => (
+            <article key={label as string} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">{label as string}</p>
+              <p className="mt-2 text-2xl font-semibold tracking-tight">{value as number}</p>
+              <p className="mt-1 text-[10px] leading-4 text-slate-500">{detail as string}</p>
+            </article>
+          ))}
+        </div>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[1.15fr_.85fr]">
