@@ -43,7 +43,7 @@ export default async function TaskManagementPage() {
   return (
     <TaskManagementDashboard
       companyName={company.name}
-      userName={session.name}
+      userName={session.name?.trim() || session.email}
       userEmail={session.email}
       userImage={session.image}
       userId={session.userId}
