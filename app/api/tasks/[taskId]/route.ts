@@ -113,14 +113,16 @@ export async function PATCH(
     ).lean();
     if (!updated) return jsonError("TASK_NOT_FOUND", 404);
 
-    const assigneeIds = existing.assigneeUserIds.map(String).filter((id) => id !== scope.session.userId);
+    const assigneeIds: string[] = (existing.assigneeUserIds as unknown[])
+      .map((id: unknown) => String(id))
+      .filter((id: string) => id !== scope.session.userId);
     await recordTaskEvent({
       scope,
       taskId,
       eventType: "TASK_UPDATED",
       actorUserId: scope.session.userId,
       details: { changedFields: Object.keys(update) },
-      notifications: assigneeIds.map((userId) => ({
+      notifications: assigneeIds.map((userId: string) => ({
         recipientUserId: userId,
         type: "TASK_UPDATED" as const,
         title: "Task updated",
