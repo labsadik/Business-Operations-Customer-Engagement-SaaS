@@ -37,22 +37,24 @@ export async function PATCH(
     const manager = canManageTask(scope, task);
     if (status === "CANCELLED" && !manager) return jsonError("FORBIDDEN", 403);
 
-    let assignment;
-    if (manager && typeof body?.assignmentId === "string" && Types.ObjectId.isValid(body.assignmentId)) {
-      assignment = await TaskAssignment.findOne({
-        _id: new Types.ObjectId(body.assignmentId),
-        taskId: task._id,
-        companyId: task.companyId,
-        workspaceId: task.workspaceId
-      }).lean();
-    } else {
-      assignment = await TaskAssignment.findOne({
-        taskId: task._id,
-        companyId: task.companyId,
-        workspaceId: task.workspaceId,
-        assigneeUserId: new Types.ObjectId(scope.session.userId)
-      }).lean();
+    if (manager && body?.assignmentId !== undefined &&
+      (typeof body.assignmentId !== "string" || !Types.ObjectId.isValid(body.assignmentId))) {
+      return jsonError("INVALID_ASSIGNMENT_ID", 400);
     }
+
+    const assignment = manager && typeof body?.assignmentId === "string"
+      ? await TaskAssignment.findOne({
+          _id: new Types.ObjectId(body.assignmentId),
+          taskId: task._id,
+          companyId: task.companyId,
+          workspaceId: task.workspaceId
+        }).lean()
+      : await TaskAssignment.findOne({
+          taskId: task._id,
+          companyId: task.companyId,
+          workspaceId: task.workspaceId,
+          assigneeUserId: new Types.ObjectId(scope.session.userId)
+        }).lean();
     if (!assignment) return jsonError("ASSIGNMENT_NOT_FOUND", 404);
     if (!manager && String(assignment.assigneeUserId) !== scope.session.userId) return jsonError("FORBIDDEN", 403);
     if (assignment.status === status) {
@@ -66,7 +68,7 @@ export async function PATCH(
       statusChangedAt: now,
       completedAt: status === "COMPLETED" ? now : null
     };
-    if (status === "IN_PROGRESS" && !assignment.startedAt) update.startedAt = now;
+    if (["IN_PROGRESS", "COMPLETED"].includes(status) && !assignment.startedAt) update.startedAt = now;
     const updatedAssignment = await TaskAssignment.findOneAndUpdate(
       {
         _id: assignment._id,
