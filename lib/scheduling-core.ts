@@ -4,7 +4,7 @@ import {
   zonedDateTimeToUtc
 } from "./timezone.ts";
 
-export const SCHEDULING_SLOT_STEP_MINUTES = 5;
+export const SCHEDULING_SLOT_STEP_MINUTES = 30;
 
 export type ScheduleRule = {
   dayOfWeek: number;

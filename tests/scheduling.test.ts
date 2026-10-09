@@ -10,7 +10,8 @@ import {
 } from "../lib/plans.ts";
 import {
   buildScheduleSlots,
-  filterAvailableScheduleSlots
+  filterAvailableScheduleSlots,
+  SCHEDULING_SLOT_STEP_MINUTES
 } from "../lib/scheduling-core.ts";
 import { zonedDateTimeToUtc } from "../lib/timezone.ts";
 
@@ -115,7 +116,7 @@ test("custom weekend and evening schedules generate only configured slots", () =
     rules,
     60
   );
-  assert.equal(sundaySlots.length, 37);
+  assert.equal(sundaySlots.length, 7);
   assert.equal(sundaySlots[0].startAt.toISOString(), "2026-10-04T12:30:00.000Z");
   assert.equal(sundaySlots.at(-1)?.endAt.toISOString(), "2026-10-04T16:30:00.000Z");
 
@@ -125,7 +126,7 @@ test("custom weekend and evening schedules generate only configured slots", () =
     rules,
     60
   );
-  assert.equal(saturdaySlots.length, 13);
+  assert.equal(saturdaySlots.length, 3);
   assert.equal(saturdaySlots.at(-1)?.endAt.toISOString(), "2026-10-03T06:30:00.000Z");
 });
 
@@ -202,7 +203,7 @@ test("meeting buffers prevent unsafe back-to-back employee scheduling", () => {
 
   assert.equal(schedule[0].startAt.toISOString(), "2026-10-04T03:40:00.000Z");
   assert.equal(schedule[0].endAt.toISOString(), "2026-10-04T04:40:00.000Z");
-  assert.equal(schedule.at(-1)?.endAt.toISOString(), "2026-10-04T06:20:00.000Z");
+  assert.equal(schedule.at(-1)?.endAt.toISOString(), "2026-10-04T06:10:00.000Z");
 });
 
 test("date/time conversion rejects non-existent DST local times and preserves valid local instants", () => {
@@ -229,7 +230,7 @@ test("isolated company schedules cannot leak into each other", () => {
   const a = buildScheduleSlots("2026-10-03", timezone, companyA, 60);
   const b = buildScheduleSlots("2026-10-03", timezone, companyB, 60);
 
-  assert.equal(a.length, 13);
+  assert.equal(a.length, 3);
   assert.equal(b.length, 0);
 });
 
@@ -405,4 +406,13 @@ test("terminal booking states cannot be re-accepted or re-declined", () => {
       "ELIGIBLE"
     );
   }
+});
+
+
+test("public booking slots use a hidden 30-minute server-side interval", () => {
+  const publicBooking = readFileSync(resolve(process.cwd(), "components/public-booking.tsx"), "utf8");
+  assert.equal(SCHEDULING_SLOT_STEP_MINUTES, 30);
+  assert.doesNotMatch(publicBooking, /Choose the length for this request/);
+  assert.doesNotMatch(publicBooking, /\{minutesOption\} min/);
+  assert.doesNotMatch(publicBooking, /\{duration\} minutes/);
 });

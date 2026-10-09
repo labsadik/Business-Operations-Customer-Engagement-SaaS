@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Clock3,
   Loader2,
   LogIn,
   ShieldCheck,
@@ -119,7 +118,11 @@ export default function PublicBooking({
   const [duration, setDuration] = useState(type?.durationOptionsMinutes[0] ?? 0);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [selected, setSelected] = useState<Slot | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(
+    access === "customer" &&
+    Boolean(types[0]?.id) &&
+    (types[0]?.durationOptionsMinutes.length ?? 0) > 0
+  );
   const [bookingId, setBookingId] = useState("");
   const [status, setStatus] = useState("");
   const [meetingUri, setMeetingUri] = useState("");
@@ -557,7 +560,7 @@ export default function PublicBooking({
                   <span>Meeting</span>
                   <span>•</span>
                   <span className="text-blue-600">03</span>
-                  <span>Duration</span>
+                  <span>Confirm</span>
                 </div>
                 <p className="mt-3 text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Create meeting</p>
                 <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">
@@ -688,46 +691,7 @@ export default function PublicBooking({
               </div>
             )}
 
-            <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold text-slate-700">Duration</p>
-                  <p className="mt-1 text-[11px] text-slate-400">
-                    Choose the length for this request.
-                  </p>
-                </div>
-                <Clock3 className="size-4 text-blue-600" />
-              </div>
-              {(type?.durationOptionsMinutes ?? []).length === 0 ? (
-                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[11px] leading-5 text-amber-800">
-                  No supported durations are currently configured for this meeting type.
-                </div>
-              ) : (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {(type?.durationOptionsMinutes ?? []).map((minutesOption) => (
-                  <button
-                    key={minutesOption}
-                    type="button"
-                    aria-pressed={duration === minutesOption}
-                    onClick={() => {
-                      cancelAvailability();
-                      availabilityPollingDisabledRef.current = false;
-                      setDuration(minutesOption);
-                      setSelected(null);
-                    }}
-                    className={[
-                      "rounded-xl border px-3.5 py-2 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2",
-                      duration === minutesOption
-                        ? "border-blue-600 bg-blue-600 text-white"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
-                    ].join(" ")}
-                  >
-                    {minutesOption} min
-                  </button>
-                  ))}
-                </div>
-              )}
-            </div>
+
 
           </aside>
 
@@ -840,9 +804,7 @@ export default function PublicBooking({
                     <span className="block text-sm font-semibold text-slate-950">
                       {formatTime(slot.startAt, timezone)}
                     </span>
-                    <span className="mt-1 block text-[11px] text-slate-400">
-                      {duration} minutes
-                    </span>
+
                   </button>
                 ))}
               </div>
@@ -889,7 +851,7 @@ export default function PublicBooking({
                   {selectedDateLabel}
                 </p>
                 <p className="mt-1 text-sm text-white/60">
-                  {selectedTime} · {duration} minutes
+                  {selectedTime}
                 </p>
               </div>
 
@@ -980,7 +942,7 @@ export default function PublicBooking({
             <div className="space-y-4 px-6 py-6 sm:px-7">
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs font-semibold text-slate-700">{selectedDateLabel}</p>
-                <p className="mt-1 text-sm text-slate-600">{selectedTime} · {duration} minutes</p>
+                <p className="mt-1 text-sm text-slate-600">{selectedTime}</p>
               </div>
 
               {pending && (
