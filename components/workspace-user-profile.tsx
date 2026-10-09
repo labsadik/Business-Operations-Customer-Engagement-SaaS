@@ -89,9 +89,6 @@ export default function WorkspaceUserProfile({
     if (!open) return;
     let cancelled = false;
     const controller = new AbortController();
-    setLoading(true);
-    setError("");
-    setNotice("");
     fetch("/api/profile/member", { cache: "no-store", signal: controller.signal })
       .then(async (response) => {
         const body = await response.json().catch(() => ({}));
@@ -151,7 +148,15 @@ export default function WorkspaceUserProfile({
     <div ref={rootRef} className="relative min-w-0">
       <button
         type="button"
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => {
+          const nextOpen = !open;
+          if (nextOpen) {
+            setLoading(true);
+            setError("");
+            setNotice("");
+          }
+          setOpen(nextOpen);
+        }}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label="Open your profile"
