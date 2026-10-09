@@ -44,7 +44,7 @@ export async function getMongo() {
       minPoolSize: 0,
       // Always encrypt app-to-database traffic in production. MongoDB Atlas
       // enables TLS by default too; this makes the application's requirement explicit.
-      tls: process.env.NODE_ENV === "production",
+      ...(process.env.NODE_ENV === "production" ? { tls: true } : {}),
       waitQueueTimeoutMS: 5000,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 10000

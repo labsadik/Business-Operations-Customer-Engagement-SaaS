@@ -245,6 +245,6 @@ test("shared client API deduplicates mount reads and rejects invalid success pay
 
 test("production MongoDB connections explicitly require transport TLS", () => {
   const mongo = source("lib/mongodb.ts");
-  assert.ok(mongo.includes('tls: process.env.NODE_ENV === "production"'));
+  assert.match(mongo, /process\.env\.NODE_ENV === "production" \? \{ tls: true \}/);
   assert.ok(mongo.includes("serverSelectionTimeoutMS: 5000"));
 });
