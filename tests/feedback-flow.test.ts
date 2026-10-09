@@ -56,7 +56,8 @@ test("cross-company customer feedback cannot be selected by a different company"
   assert.match(bookingLookup, /customerId: session\.userId/);
 
   const companyRoute = source("app/api/company/feedback/route.ts");
-  assert.match(companyRoute, /Feedback\.find\(\{[\s\S]*source: "CUSTOMER_BOOKING",[\s\S]*companyId: session\.companyId/);
+  assert.match(companyRoute, /source: \{ \$in: \["CUSTOMER_BOOKING", "PUBLIC_EMBED"\] \}/);
+  assert.match(companyRoute, /companyId: session\.companyId/);
 });
 
 test("public feedback is explicit, modal-based, and signed-out users keep their company page return path", () => {
@@ -127,15 +128,15 @@ test("feedback action sounds are automatic and unlocked after the first ordinary
   const dashboard = source("components/workspace-dashboard.tsx");
   const globalUnlock = source("components/sound-autoplay.tsx");
 
-  assert.match(sound, /export async function playFeedbackSound/);
-  assert.match(sound, /0\\.36/);
+  assert.ok(sound.includes("export async function playFeedbackSound"));
+  assert.ok(sound.includes("0.36"));
   assert.doesNotMatch(sound, /localStorage|isFeedbackSoundEnabled/);
-  assert.match(publicEntry, /playFeedbackSound\\(\\)/);
-  assert.match(dashboard, /playFeedbackSound\\(\\)/);
-  assert.match(globalUnlock, /pointerdown/);
-  assert.match(globalUnlock, /unlockTaskSound\\(\\)/);
-  assert.match(globalUnlock, /unlockMeetingSound\\(\\)/);
-  assert.match(globalUnlock, /unlockFeedbackSound\\(\\)/);
+  assert.ok(publicEntry.includes("playFeedbackSound()"));
+  assert.ok(dashboard.includes("playFeedbackSound()"));
+  assert.ok(globalUnlock.includes("pointerdown"));
+  assert.ok(globalUnlock.includes("unlockTaskSound()"));
+  assert.ok(globalUnlock.includes("unlockMeetingSound()"));
+  assert.ok(globalUnlock.includes("unlockFeedbackSound()"));
   assert.doesNotMatch(publicEntry, /Sound off|toggleSound/);
 });
 
@@ -189,7 +190,7 @@ test("company feedback reads are tenant-scoped for every active company role", (
   assert.match(route, /active: true/);
   assert.match(route, /role: session\.role/);
   assert.match(route, /companyId: session\.companyId/);
-  assert.match(route, /source: "CUSTOMER_BOOKING"/);
+  assert.match(route, /source: \{ \$in: \["CUSTOMER_BOOKING", "PUBLIC_EMBED"\] \}/);
   assert.match(route, /source: "COMPANY_PLATFORM"/);
   assert.match(dashboard, /canViewCustomerFeedback=\{Boolean\(data\.currentRole && data\.company\?\.id\)\}/);
 });

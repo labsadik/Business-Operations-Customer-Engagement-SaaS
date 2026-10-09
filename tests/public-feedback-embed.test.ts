@@ -33,12 +33,12 @@ test("anonymous feedback requires name, email, phone, rating and review text wit
   const validation = source("features/public-feedback/server/validation.ts");
   const widget = source("features/public-feedback/components/public-feedback-embed.tsx");
 
-  assert.match(validation, /FEEDBACK_NAME_REQUIRED/);
+  assert.match(validation, /requiredText\(body\.name, "FEEDBACK_NAME", 100\)/);
   assert.match(validation, /FEEDBACK_EMAIL_INVALID/);
   assert.match(validation, /FEEDBACK_PHONE_INVALID/);
   assert.match(validation, /FEEDBACK_RATING_INVALID/);
-  assert.match(validation, /FEEDBACK_DESCRIPTION_REQUIRED/);
-  assert.match(validation, /FEEDBACK_DESCRIPTION_TOO_LONG/);
+  assert.match(validation, /requiredText\(body\.description, "FEEDBACK_DESCRIPTION", 1000\)/);
+  assert.match(validation, /cleaned\.length > maxLength/);
   assert.match(widget, /type="email"/);
   assert.match(widget, /type="tel"/);
   assert.match(widget, /Submit review/);
