@@ -24,7 +24,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ comp
         position: context.settings.position,
         collectName: context.settings.collectName,
         collectEmail: context.settings.collectEmail,
-        collectPhone: context.settings.collectPhone
+        collectPhone: context.settings.collectPhone,
+        offlineMode: Boolean(context.settings.offlineMode)
       },
       cooldownSeconds: context.entitlements.liveChatMessageCooldownSeconds,
       retentionDays: context.entitlements.liveChatRetentionDays
