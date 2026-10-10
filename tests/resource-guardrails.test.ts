@@ -459,3 +459,31 @@ test("invoice UI and one-page PDF resolve the full plan-specific feature entitle
   assert.ok(pdf.includes('"Cloud Vault: " + (planSnapshot.vaultEnabled ? "Included" : "Not included")'));
   assert.equal((pdf.match(/pdfDoc\.addPage\(/g) ?? []).length, 1, "invoice PDF stays one page");
 });
+
+
+test("company dashboard navigation stays consistent, collapsible, branded, and entitlement-aware on every page", () => {
+  const sidebar = source("components/workspace-sidebar.tsx");
+  const sidebarState = source("components/use-workspace-sidebar-state.ts");
+  const workspace = source("components/workspace-dashboard.tsx");
+  const tasks = source("features/task-management/components/task-management-dashboard.tsx");
+  const taskPage = source("app/dashboard/tasks/page.tsx");
+  const vault = source("components/company-vault.tsx");
+  const vaultPage = source("app/dashboard/vault/page.tsx");
+  const profile = source("components/company-profile.tsx");
+
+  assert.ok(sidebar.includes("{companyName || \"Company workspace\"}"));
+  assert.ok(sidebar.includes("Powered by Conventus"));
+  assert.ok(sidebar.includes("Task Management"));
+  assert.ok(sidebar.includes("Cloud Vault"));
+  assert.ok(sidebar.includes("aria-label={collapsed ? \"Expand sidebar\" : \"Collapse sidebar\"}"));
+  assert.ok(sidebar.includes("aria-expanded={mobileMenuOpen}"));
+  assert.doesNotMatch(sidebar, /api\/auth\/logout|Sign out|LogOut/);
+  assert.ok(sidebarState.includes("conventus:workspace-sidebar-collapsed"));
+  assert.ok(workspace.includes("useWorkspaceSidebarState"));
+  assert.ok(workspace.includes('sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"'));
+  assert.ok(tasks.includes("vaultEnabled={vaultEnabled}"));
+  assert.ok(taskPage.includes("vaultEnabled={Boolean(plan.vaultEnabled)}"));
+  assert.ok(vault.includes("taskManagementEnabled={taskManagementEnabled}"));
+  assert.ok(vaultPage.includes("taskManagementEnabled={Boolean(entitlements.taskManagementEnabled)}"));
+  assert.ok(profile.includes("taskManagementEnabled={taskManagementEnabled}"));
+});
