@@ -5,7 +5,7 @@
   "crons": [
     {
       "path": "/api/jobs/vault-upload-cleanup",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 3 * * *"
     }
   ]
 }
