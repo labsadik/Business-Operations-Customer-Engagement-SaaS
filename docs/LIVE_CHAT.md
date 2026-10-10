@@ -27,6 +27,7 @@ Example (use the exact generated snippet; the example company slug is illustrati
 
 - The embed is an async lightweight loader which creates a same-origin iframe, keeping CSS and JavaScript isolated from the customer's site.
 - The widget and inbox use visibility-aware short polling (about 2.5–3 seconds while visible), rather than a persistent WebSocket connection. This is compatible with standard Next.js/serverless hosting and avoids keeping one server process alive per visitor. It is near-real-time, not a guaranteed sub-second push channel.
+- Public widget settings are fetched directly from MongoDB with `Cache-Control: no-store`: every 3 seconds while the chat is open and every 10 seconds while minimized. Hidden tabs pause network checks, so color, title, theme, position and offline-mode changes appear on the next visible refresh without a cache purge.
 - Customer-to-server message cooldown is atomically enforced against MongoDB. UI countdowns are only presentation; bypassing the widget does not bypass the server rule.
 - Monthly chat and unique-customer counters are stored separately from transcripts, so automatic history deletion does not reset plan usage limits. Only count aggregates are retained for three additional months; the month-salted visitor deduplication key expires at the end of that calendar month.
 - Conversation, message and contact records carry an expiry date. A daily scheduler removes expired conversation/message documents in bounded batches; MongoDB TTL indexes are a secondary cleanup safeguard and run asynchronously.

@@ -457,7 +457,7 @@ export default function LiveChatDashboard({
       </section>
     </div> : <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
       {settings && <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <div className="mb-6"><div className="flex items-center gap-2"><Palette className="size-4 text-blue-600" /><h2 className="text-base font-semibold text-slate-950">Widget appearance</h2></div><p className="mt-1 text-xs leading-5 text-slate-500">Changes are scoped to this company and applied to new widget loads.</p></div>
+        <div className="mb-6"><div className="flex items-center gap-2"><Palette className="size-4 text-blue-600" /><h2 className="text-base font-semibold text-slate-950">Widget appearance</h2></div><p className="mt-1 text-xs leading-5 text-slate-500">Changes save directly to this company’s settings. The embedded widget refreshes uncached settings every 3 seconds while open and every 10 seconds while minimized (and pauses network checks in hidden tabs).</p></div>
         <div className="space-y-5">
           <SettingToggle label="Enable public website widget" description="The embedded chat becomes available after you save allowed website domains." checked={settings.publicWidgetEnabled} onChange={(value) => setSettings({ ...settings, publicWidgetEnabled: value })} />
           <div className="grid gap-4 sm:grid-cols-2">

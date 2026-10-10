@@ -145,7 +145,7 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
     const refreshWhenVisible = () => {
       if (!document.hidden) void refreshConfig().catch(() => undefined);
     };
-    const timer = window.setInterval(refreshWhenVisible, opened ? 10000 : 30000);
+    const timer = window.setInterval(refreshWhenVisible, opened ? 3000 : 10000);
     document.addEventListener("visibilitychange", refreshWhenVisible);
     return () => {
       window.clearInterval(timer);
