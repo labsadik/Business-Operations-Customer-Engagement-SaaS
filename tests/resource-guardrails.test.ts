@@ -365,7 +365,7 @@ test("vault compression is lossless, optional, and usage is counted by stored by
   assert.ok(complete.includes("storageSizeBytes: claimedUpload.sizeBytes"));
   assert.ok(complete.includes("contentEncoding: claimedUpload.contentEncoding ?? \"identity\""));
   assert.ok(fileRoute.includes('new DecompressionStream("gzip")'));
-  assert.ok(storage.includes('$ifNull: ["$storageSizeBytes", "$sizeBytes"]'));
+  assert.ok(storage.includes("file.storageSizeBytes ?? file.sizeBytes"));
   assert.ok(adminUsage.includes('$ifNull: ["$storageSizeBytes", "$sizeBytes"]'));
   assert.ok(ui.includes('new CompressionStream("gzip")'));
   assert.ok(ui.includes('compressed.size + 128 < file.size'));
