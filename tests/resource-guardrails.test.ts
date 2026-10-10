@@ -254,7 +254,7 @@ test("company vault APIs stay tenant-scoped and Bunny secrets remain server-only
   assert.doesNotMatch(browser, /BUNNY_STORAGE_PASSWORD|AccessKey/);
   assert.ok(downloads.includes('"Content-Disposition": downloadDisposition(file.originalName, inline)'));
   assert.ok(downloads.includes('"X-Content-Type-Options": "nosniff"'));
-  assert.ok(downloads.includes('"Cache-Control": "private, no-store"'));
+  assert.ok(downloads.includes('"Cache-Control": "private, no-store, max-age=0"'));
   assert.match(folderModel, /companyId:[\s\S]*?immutable: true/);
   assert.match(folderModel, /workspaceId:[\s\S]*?immutable: true/);
   assert.match(fileModel, /companyId:[\s\S]*?immutable: true/);
