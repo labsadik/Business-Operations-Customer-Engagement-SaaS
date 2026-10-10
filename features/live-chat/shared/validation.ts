@@ -13,6 +13,12 @@ export type LiveChatSettingsDraft = {
   collectPhone: boolean;
   offlineMode: boolean;
   allowedDomains: string[];
+  launcherSize: number;
+  launcherIconSize: number;
+  launcherShape: "CIRCLE" | "ROUNDED";
+  panelRadius: number;
+  headerStyle: "SOLID" | "GRADIENT" | "MINIMAL";
+  designTemplate: "CLASSIC" | "MODERN" | "MINIMAL" | "FRIENDLY" | "CUSTOM";
 };
 
 export function normalizeDomain(value: string): string | null {
@@ -66,9 +72,31 @@ export function validateLiveChatSettingsDraft(input: Record<string, unknown>): L
   const primaryColor = typeof input.primaryColor === "string" ? input.primaryColor.trim() : "";
   const theme = input.theme === "DARK" ? "DARK" : input.theme === "LIGHT" ? "LIGHT" : null;
   const position = input.position === "LEFT" ? "LEFT" : input.position === "RIGHT" ? "RIGHT" : null;
-  if (title.length < 1 || title.length > 80 || welcomeMessage.length > 300 || !HEX_COLOR.test(primaryColor) || !theme || !position) {
+
+  const numeric = (key: string, fallback: number, min: number, max: number) => {
+    const value = input[key] === undefined ? fallback : input[key];
+    if (typeof value !== "number" || !Number.isInteger(value) || value < min || value > max) {
+      throw new Error("LIVE_CHAT_SETTINGS_INVALID");
+    }
+    return value;
+  };
+  const launcherShape = input.launcherShape === undefined ? "CIRCLE" :
+    input.launcherShape === "CIRCLE" || input.launcherShape === "ROUNDED" ? input.launcherShape : null;
+  const headerStyle = input.headerStyle === undefined ? "SOLID" :
+    input.headerStyle === "SOLID" || input.headerStyle === "GRADIENT" || input.headerStyle === "MINIMAL" ? input.headerStyle : null;
+  const designTemplate = input.designTemplate === undefined ? "CLASSIC" :
+    input.designTemplate === "CLASSIC" || input.designTemplate === "MODERN" || input.designTemplate === "MINIMAL" ||
+    input.designTemplate === "FRIENDLY" || input.designTemplate === "CUSTOM" ? input.designTemplate : null;
+
+  if (title.length < 1 || title.length > 80 || welcomeMessage.length > 300 || !HEX_COLOR.test(primaryColor) || !theme || !position ||
+      !launcherShape || !headerStyle || !designTemplate) {
     throw new Error("LIVE_CHAT_SETTINGS_INVALID");
   }
+  const launcherSize = numeric("launcherSize", 60, 52, 80);
+  const launcherIconSize = numeric("launcherIconSize", 28, 16, 40);
+  const panelRadius = numeric("panelRadius", 18, 8, 28);
+  if (launcherIconSize > Math.floor(launcherSize * 0.6)) throw new Error("LIVE_CHAT_SETTINGS_INVALID");
+
   return {
     publicWidgetEnabled: bool("publicWidgetEnabled", false),
     title,
@@ -80,7 +108,13 @@ export function validateLiveChatSettingsDraft(input: Record<string, unknown>): L
     collectEmail: bool("collectEmail", false),
     collectPhone: bool("collectPhone", false),
     offlineMode: bool("offlineMode", false),
-    allowedDomains: normalizeDomainList(input.allowedDomains)
+    allowedDomains: normalizeDomainList(input.allowedDomains),
+    launcherSize,
+    launcherIconSize,
+    launcherShape,
+    panelRadius,
+    headerStyle,
+    designTemplate
   };
 }
 
