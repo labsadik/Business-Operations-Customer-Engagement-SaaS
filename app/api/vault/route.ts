@@ -3,7 +3,6 @@ import { getMongo } from "@/lib/mongodb";
 import { jsonOk } from "@/lib/http";
 import { VaultFolder } from "@/models/vault-folder";
 import { VaultFile } from "@/models/vault-file";
-import { VaultUsage } from "@/models/vault-usage";
 import {
   getTenantFolder,
   ensureVaultUsage,

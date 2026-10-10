@@ -295,7 +295,7 @@ export async function reserveVaultBytes(
   return updated;
 }
 
-export async function releaseVaultBytes(scope: Pick<VaultScope, "companyId" | "workspaceId" | "vaultQuotaBytes">, bytes: number) {
+export async function releaseVaultBytes(scope: Pick<VaultScope, "companyId">, bytes: number) {
   if (bytes <= 0) return;
   const companyId = new Types.ObjectId(scope.companyId);
   await VaultUsage.updateOne(

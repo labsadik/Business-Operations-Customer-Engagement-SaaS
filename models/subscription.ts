@@ -37,6 +37,10 @@ const subscriptionSchema = new Schema(
         min: 1,
         max: 1000000
       },
+      vaultEnabled: { type: Boolean, default: false },
+      vaultQuotaBytes: { type: Number, default: 5368709120, min: 1048576, max: Number.MAX_SAFE_INTEGER },
+      vaultMaxFileBytes: { type: Number, default: 104857600, min: 1048576, max: 262144000 },
+      vaultMaxItems: { type: Number, default: 1000, min: 1, max: 10000000 },
       validityDays: { type: Number, required: true, min: 1 },
       freeFeatureDays: { type: Number, default: null, min: 0 },
       requiresPayment: { type: Boolean, required: true }

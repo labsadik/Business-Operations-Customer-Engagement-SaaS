@@ -4,6 +4,7 @@ import { assertSameOrigin } from "@/lib/security";
 import { jsonOk } from "@/lib/http";
 import { VaultFolder } from "@/models/vault-folder";
 import {
+  bunnyDelete,
   cleanupExpiredVaultUploads,
   companyVaultRoot,
   getTenantFolder,
@@ -66,8 +67,7 @@ export async function POST(request: Request) {
 
     // Bunny Storage has no directory objects: the folder is represented by
     // metadata only, preventing marker files from appearing in the user's drive.
-    await import("@/features/company-vault/server/vault-storage")
-      .then(({ bunnyDelete }) => bunnyDelete(storageRoot + "/.conventus-vault").catch(() => undefined));
+    await bunnyDelete(storageRoot + "/.conventus-vault").catch(() => undefined);
 
     return jsonOk({
       id: String(folder._id),
