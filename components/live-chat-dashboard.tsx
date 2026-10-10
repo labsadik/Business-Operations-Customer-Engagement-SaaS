@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   MessageCircle, Settings2, Download, Trash2, Send, RefreshCw, Copy, CheckCircle2,
   Check, LoaderCircle, Palette, ShieldCheck, UsersRound, MessageSquareText,
@@ -149,6 +149,7 @@ export default function LiveChatDashboard({
   const [copied, setCopied] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const messagesPaneRef = useRef<HTMLDivElement | null>(null);
 
   const selected = useMemo(() => items.find((item) => item.id === selectedId) ?? null, [items, selectedId]);
   const visibleItems = useMemo(() => {
@@ -226,6 +227,11 @@ export default function LiveChatDashboard({
       document.removeEventListener("visibilitychange", poll);
     };
   }, [loadInbox, loadMessages, selectedId, tab]);
+
+  useEffect(() => {
+    if (!messagesPaneRef.current) return;
+    messagesPaneRef.current.scrollTo({ top: messagesPaneRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, selectedId]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -392,8 +398,8 @@ export default function LiveChatDashboard({
         collapsed={sidebarCollapsed}
         onToggleCollapsed={toggleSidebar}
       />
-      <main className={`relative min-h-screen bg-slate-50 transition-all duration-300 ${sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"}`}>
-        <div className="space-y-5">
+      <main className={`relative ${tab === "inbox" ? "h-dvh overflow-hidden" : "min-h-screen"} bg-slate-50 transition-all duration-300 ${sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"}`}>
+        <div className={tab === "inbox" ? "flex h-full min-h-0 flex-col gap-4 p-3 sm:p-5" : "space-y-5 p-3 sm:p-5"}>
     <div className="flex flex-col justify-between gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:p-6">
       <div><div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-700"><MessageCircle className="size-3.5" /> Website messaging</div><h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Live Chat</h1><p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">Manage website conversations, customize the visitor widget, and control retention.</p></div>
       <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-1">
@@ -404,7 +410,7 @@ export default function LiveChatDashboard({
 
     {(error || notice) && <div role={error ? "alert" : "status"} className={`flex items-start gap-2 rounded-2xl border px-4 py-3 text-sm ${error ? "border-rose-200 bg-rose-50 text-rose-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>{error ? <AlertCircle className="mt-0.5 size-4 shrink-0" /> : <Check className="mt-0.5 size-4 shrink-0" />}<span className="min-w-0 flex-1 break-words">{(error || notice).replaceAll("_", " ").toLowerCase()}</span>{error && <button onClick={() => setError("")} className="text-xs font-semibold underline">Dismiss</button>}</div>}
 
-    {usage && <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    {usage && <div className={tab === "inbox" ? "hidden" : "grid gap-3 sm:grid-cols-2 xl:grid-cols-4"}>
       {[
         { label: "Chats this month", value: `${usage.monthlyChats.toLocaleString("en-IN")} / ${usage.monthlyChatLimit.toLocaleString("en-IN")}`, icon: MessageCircle },
         { label: "Unique customers", value: `${usage.uniqueCustomers.toLocaleString("en-IN")} / ${usage.customerLimit.toLocaleString("en-IN")}`, icon: UsersRound },
@@ -413,8 +419,8 @@ export default function LiveChatDashboard({
       ].map((card) => <div key={card.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-center justify-between gap-2"><span className="text-xs font-medium text-slate-500">{card.label}</span><card.icon className="size-4 text-slate-400" /></div><p className="mt-2 text-xl font-semibold tracking-tight text-slate-950">{card.value}</p></div>)}
     </div>}
 
-    {tab === "inbox" ? <div className="grid min-h-[580px] gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
-      <section className={`overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm ${selectedId ? "hidden lg:block" : ""}`}>
+    {tab === "inbox" ? <div className="grid min-h-0 flex-1 gap-4 overflow-hidden lg:grid-cols-[340px_minmax(0,1fr)]">
+      <section className={`flex min-h-0 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm ${selectedId ? "hidden lg:flex" : ""}`}>
         <div className="space-y-3 border-b border-slate-100 px-4 py-4">
           <div className="flex items-center justify-between gap-2"><div><h2 className="text-sm font-semibold text-slate-900">Conversations</h2><p className="mt-1 text-xs text-slate-500">Recent visitor activity</p></div><button onClick={() => void loadInbox()} disabled={refreshing} aria-label="Refresh conversations" className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 disabled:opacity-50"><RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} /></button></div>
           <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Conversation status">
@@ -422,7 +428,7 @@ export default function LiveChatDashboard({
           </div>
           <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-slate-400 focus-within:border-blue-400"><SearchIcon className="size-4 shrink-0" /><input value={conversationSearch} onChange={(event) => setConversationSearch(event.target.value)} placeholder="Search name, email, location, message" className="min-w-0 w-full bg-transparent text-xs text-slate-800 outline-none placeholder:text-slate-400" /></label>
         </div>
-        <div className="max-h-[660px] divide-y divide-slate-100 overflow-y-auto">
+        <div className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto overscroll-contain">
           {visibleItems.map((item) => <button key={item.id} onClick={() => setSelectedId(item.id)} className={`block w-full px-4 py-4 text-left transition ${selectedId === item.id ? "bg-blue-50/70" : "hover:bg-slate-50"}`}>
             <div className="flex items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-full bg-blue-50 text-sm font-semibold text-blue-700">{item.customerName.slice(0,1).toUpperCase() || "A"}</span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><span className="truncate text-sm font-semibold text-slate-900">{item.customerName || "Anonymous customer"}</span><span className="flex shrink-0 items-center gap-1.5"><span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${item.status === "CLOSED" ? "bg-slate-100 text-slate-500" : item.assignedAgentId ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{item.status === "CLOSED" ? "Closed" : item.assignedAgentId ? "Open" : "Unassigned"}</span><span className="text-[10px] text-slate-400">{new Date(item.lastMessageAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span></span></span><span className="mt-1 block truncate text-xs text-slate-500">{item.customerEmail || item.customerPhone || "Anonymous visitor"}</span><span className="mt-2 flex items-center gap-1.5 text-[10px] text-slate-500"><span>{countryFlag(item.geoCountry)}</span><span className="truncate">{item.geoCity || countryName(item.geoCountry) || "Unknown location"}</span><span>·</span><MessageCircle className="size-3" /> {item.messageCount}{item.unreadAgentCount > 0 && <span className="ml-auto grid min-w-5 place-items-center rounded-full bg-blue-600 px-1.5 py-0.5 font-bold text-white">{item.unreadAgentCount}</span>}</span><span className="mt-1 block truncate text-xs text-slate-500">{item.lastMessagePreview || "No messages yet"}</span></span></div>
           </button>)}
@@ -430,7 +436,7 @@ export default function LiveChatDashboard({
         </div>
       </section>
 
-      <section className={`flex min-h-[580px] min-w-0 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm ${!selectedId ? "hidden lg:flex" : ""}`}>
+      <section className={`flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm ${!selectedId ? "hidden lg:flex" : ""}`}>
         {selected ? <>
           <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-4 sm:px-5"><button onClick={() => setSelectedId("")} className="rounded-lg border border-slate-200 p-2 text-slate-600 lg:hidden" aria-label="Back to conversations"><ChevronLeft className="size-4" /></button><span className="grid size-10 shrink-0 place-items-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">{selected.customerName.slice(0,1).toUpperCase() || "A"}</span><div className="min-w-0 flex-1"><h2 className="truncate text-sm font-semibold text-slate-900">{selected.customerName}</h2><p className="truncate text-xs text-slate-500">{selected.customerEmail || selected.customerPhone || "Anonymous customer"}{selected.geoCity || selected.geoCountry ? " · " + countryFlag(selected.geoCountry) + " " + [selected.geoCity, countryName(selected.geoCountry)].filter(Boolean).join(", ") : ""}</p></div><div className="flex items-center gap-1.5">
             <button onClick={() => setUserDetailsOpen(true)} title="Visitor details" aria-label="Visitor details" className="rounded-xl border border-slate-200 p-2.5 text-slate-600 hover:bg-slate-50"><Info className="size-4" /></button>
@@ -438,7 +444,7 @@ export default function LiveChatDashboard({
             {usage?.pdfExportEnabled && <button onClick={() => void exportConversation(selected)} title="Export formatted PDF" aria-label="Export chat as PDF" className="rounded-xl border border-slate-200 p-2.5 text-slate-600 hover:bg-slate-50"><Download className="size-4" /></button>}
             {usage?.deleteEnabled && <button onClick={() => void deleteConversation(selected)} title="Permanently delete chat" aria-label="Delete chat" className="rounded-xl border border-rose-200 p-2.5 text-rose-600 hover:bg-rose-50"><Trash2 className="size-4" /></button>}
           </div></div>
-          <div className="flex-1 space-y-3 overflow-y-auto bg-[#fbfbfd] px-4 py-5 sm:px-6">
+          <div ref={messagesPaneRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-[#fbfbfd] px-4 py-5 sm:px-6">
             <p className="mx-auto mb-4 w-fit rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[10px] text-slate-500">Conversation started {formatDate(selected.createdAt)}</p>
             {messages.map((message) => <div key={message.id} className={`flex items-end gap-2 ${message.senderType === "AGENT" ? "justify-end" : "justify-start"}`}>
               {message.senderType === "CUSTOMER" && <span className="grid size-7 shrink-0 place-items-center rounded-full bg-slate-200 text-[10px] font-semibold text-slate-700">{selected.customerName.slice(0, 1).toUpperCase() || "V"}</span>}
