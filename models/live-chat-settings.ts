@@ -13,7 +13,13 @@ const liveChatSettingsSchema = new Schema({
   collectEmail: { type: Boolean, default: false },
   collectPhone: { type: Boolean, default: false },
   offlineMode: { type: Boolean, default: false },
-  allowedDomains: { type: [String], default: [] }
+  allowedDomains: { type: [String], default: [] },
+  launcherSize: { type: Number, min: 52, max: 80, default: 60 },
+  launcherIconSize: { type: Number, min: 16, max: 40, default: 28 },
+  launcherShape: { type: String, enum: ["CIRCLE", "ROUNDED"], default: "CIRCLE" },
+  panelRadius: { type: Number, min: 8, max: 28, default: 18 },
+  headerStyle: { type: String, enum: ["SOLID", "GRADIENT", "MINIMAL"], default: "SOLID" },
+  designTemplate: { type: String, enum: ["CLASSIC", "MODERN", "MINIMAL", "FRIENDLY", "CUSTOM"], default: "CLASSIC" }
 }, { timestamps: true });
 
 liveChatSettingsSchema.index({ companyId: 1, workspaceId: 1 }, { unique: true });
