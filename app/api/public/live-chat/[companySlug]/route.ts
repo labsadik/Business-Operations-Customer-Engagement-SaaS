@@ -25,7 +25,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ comp
         collectName: context.settings.collectName,
         collectEmail: context.settings.collectEmail,
         collectPhone: context.settings.collectPhone,
-        offlineMode: Boolean(context.settings.offlineMode)
+        offlineMode: Boolean(context.settings.offlineMode),
+        launcherSize: context.settings.launcherSize ?? 60,
+        launcherIconSize: context.settings.launcherIconSize ?? 28,
+        launcherShape: context.settings.launcherShape ?? "CIRCLE",
+        panelRadius: context.settings.panelRadius ?? 18,
+        headerStyle: context.settings.headerStyle ?? "SOLID",
+        designTemplate: context.settings.designTemplate ?? "CLASSIC"
       },
       cooldownSeconds: context.entitlements.liveChatMessageCooldownSeconds,
       retentionDays: context.entitlements.liveChatRetentionDays
