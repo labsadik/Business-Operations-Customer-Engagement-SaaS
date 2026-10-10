@@ -1014,6 +1014,7 @@ function Field({
   disabled,
   type = "text",
   min,
+  max,
   step,
   placeholder
 }: {
@@ -1023,6 +1024,7 @@ function Field({
   disabled?: boolean;
   type?: string;
   min?: string;
+  max?: string;
   step?: string;
   placeholder?: string;
 }) {
@@ -1033,6 +1035,7 @@ function Field({
         type={type}
         value={value}
         min={min}
+        max={max}
         step={step}
         placeholder={placeholder}
         disabled={disabled}

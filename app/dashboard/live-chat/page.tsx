@@ -19,16 +19,14 @@ export default async function LiveChatPage() {
     redirect("/dashboard");
   }
   await getMongo();
-  if (session.role !== "PLATFORM_ADMIN") {
-    const membership = await Membership.findOne({
-      companyId: session.companyId,
-      workspaceId: session.workspaceId,
-      userId: session.userId,
-      active: true,
-      role: session.role
-    }).select("_id").lean();
-    if (!membership) redirect("/login?error=workspace_access_revoked");
-  }
+  const membership = await Membership.findOne({
+    companyId: session.companyId,
+    workspaceId: session.workspaceId,
+    userId: session.userId,
+    active: true,
+    role: session.role
+  }).select("_id").lean();
+  if (!membership) redirect("/login?error=workspace_access_revoked");
   const company = await Company.findById(session.companyId).select("_id").lean();
   if (!company) redirect("/dashboard");
   const entitlements = await getCompanyEntitlements(String(company._id));

@@ -31,7 +31,7 @@ export async function GET() {
       { $sort: { chatCount: -1, _id: 1 } },
       { $limit: 300 }
     ]);
-    const companyIds = [...new Set(usageRows.map((row) => String(row.companyId)))];
+    const companyIds = [...new Set(usageRows.map((row) => String(row._id)))];
     const companies = await Company.find({ _id: { $in: companyIds.map((id) => new Types.ObjectId(id)) } })
       .select("_id name slug")
       .lean();
@@ -42,7 +42,7 @@ export async function GET() {
     ]);
     const openChatMap = new Map(openRows.map((row) => [String(row._id), row.openChats]));
     const rows = await Promise.all(usageRows.map(async (row) => {
-      const companyId = String(row.companyId);
+      const companyId = String(row._id);
       const company = companyMap.get(companyId);
       if (!company) return null;
       const [subscription, entitlements] = await Promise.all([
