@@ -318,7 +318,7 @@ export async function GET(
       issuedAt: invoice.issuedAt,
       billingPeriodStart: invoice.billingPeriodStart,
       billingPeriodEnd: invoice.billingPeriodEnd,
-      validityDays: planSnapshot.validityDays ?? plan?.validityDays ?? 30
+      validityDays: planSnapshot.validityDays ?? 30
     });
 
     const company = {
