@@ -173,7 +173,7 @@ export default function LiveChatDashboard({
       setItems(data.items);
       setUsage(data.usage);
       setError("");
-      setSelectedId((current) => current && data.items.some((item) => item.id === current) ? current : data.items.find((item) => item.status === "OPEN")?.id ?? data.items[0]?.id ?? "");
+      setSelectedId((current) => current && data.items.some((item) => item.id === current) ? current : "");
     } catch (cause) {
       setError((cause as Error & { code?: string }).code ?? (cause as Error).message);
     } finally {
