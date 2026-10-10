@@ -15,6 +15,14 @@ Example (use the exact generated snippet; the example company slug is illustrati
 <script src="https://YOUR-CONVENTUS-HOST/live-chat.js" data-company="your-company-slug" data-position="right" async></script>
 ```
 
+## Visitor details, agent identity, and offline mode
+
+- The agent inbox groups chats into Open, Unassigned, and Closed views. Search covers visitor contact fields, location and the latest message preview. The visitor details panel shows the stored country/city/region, IP display value, parsed browser/OS/device, sanitized initial page URL, message count, start time and elapsed duration.
+- Geography is derived from trusted hosting request headers when available (Cloudflare `cf-ipcountry`, `cf-ipcity`, `cf-region`; Vercel geo headers are also accepted). On hosts that do not provide geolocation headers, those fields remain unavailable. Browser/device labels are parsed from User-Agent and are approximate, not verified device identity.
+- The displayed IP address is sensitive personal data. Disclose collection in your website privacy notice, limit inbox access to authorized company members, and choose retention/backup policies that meet your legal obligations. The same configured chat-retention window applies to the conversation record.
+- Company admins can enable **Offline mode** in Settings. The widget displays an offline status but still permits a visitor to leave a message for the inbox; it does not imply that a human agent is currently connected.
+- Agent messages retain the authenticated user ID. The public widget looks up that user's display name and profile image for replies; an avatar may be absent if the user has no profile image.
+
 ## Runtime and operational notes
 
 - The embed is an async lightweight loader which creates a same-origin iframe, keeping CSS and JavaScript isolated from the customer's site.
