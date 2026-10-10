@@ -24,7 +24,7 @@ const liveChatConversationSchema = new Schema({
   messageCount: { type: Number, default: 0, min: 0 },
   lastMessageAt: { type: Date, required: true, default: Date.now, index: true },
   nextCustomerMessageAt: { type: Date, default: null },
-  expiresAt: { type: Date, required: true, index: true }
+  expiresAt: { type: Date, required: true }
 }, { timestamps: true });
 
 liveChatConversationSchema.index({ companyId: 1, workspaceId: 1, lastMessageAt: -1, _id: -1 });
