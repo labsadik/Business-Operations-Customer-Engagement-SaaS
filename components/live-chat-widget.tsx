@@ -14,7 +14,7 @@ type WidgetSettings = {
   collectPhone: boolean;
 };
 type WidgetConfig = { company: { name: string; slug: string }; accessToken: string; settings: WidgetSettings; cooldownSeconds: number; retentionDays: number };
-type Message = { id: string; senderType: "CUSTOMER" | "AGENT"; body: string; createdAt: string };
+type Message = { id: string; senderType: "CUSTOMER" | "AGENT"; body: string; createdAt: string; senderName?: string; senderAvatar?: string };
 type ApiEnvelope<T> = { ok: boolean; data?: T; error?: string; details?: { retryAt?: string } };
 
 const STORAGE_PREFIX = "conventus:live-chat:v1:";
@@ -49,6 +49,7 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
   const [config, setConfig] = useState<WidgetConfig | null>(null);
   const [accessToken, setAccessToken] = useState("");
   const [verifiedSiteOrigin, setVerifiedSiteOrigin] = useState("");
+  const [verifiedSiteUrl, setVerifiedSiteUrl] = useState("");
   const [configError, setConfigError] = useState("");
   const [opened, setOpened] = useState(false);
   const [visitorId, setVisitorId] = useState("");
@@ -65,6 +66,7 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
   const [nextAllowedAt, setNextAllowedAt] = useState<Date | null>(null);
   const [clock, setClock] = useState(0);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const lastMessageAtRef = useRef(0);
   const companyKey = useMemo(() => STORAGE_PREFIX + companySlug, [companySlug]);
   const theme = config?.settings.theme === "DARK";
 
@@ -80,15 +82,26 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
     };
     const initialize = (event: MessageEvent) => {
       if (event.source !== window.parent) return;
-      const data = event.data as { type?: unknown; siteOrigin?: unknown } | null;
+      const data = event.data as { type?: unknown; siteOrigin?: unknown; siteUrl?: unknown } | null;
       if (!data || data.type !== "conventus-live-chat-init" || typeof data.siteOrigin !== "string") return;
       if (event.origin !== data.siteOrigin) return;
       let parsed: URL;
       try { parsed = new URL(event.origin); } catch { return; }
       if (!["http:", "https:"].includes(parsed.protocol)) return;
+      let siteUrl = event.origin;
+      if (typeof data.siteUrl === "string") {
+        try {
+          const parsedSiteUrl = new URL(data.siteUrl);
+          if (parsedSiteUrl.origin !== event.origin || !["http:", "https:"].includes(parsedSiteUrl.protocol)) return;
+          parsedSiteUrl.search = "";
+          parsedSiteUrl.hash = "";
+          siteUrl = parsedSiteUrl.toString();
+        } catch { return; }
+      }
       initialized = true;
       window.clearInterval(retryTimer);
       setVerifiedSiteOrigin(event.origin);
+      setVerifiedSiteUrl(siteUrl);
     };
     window.addEventListener("message", initialize);
     sendReady();
@@ -111,13 +124,13 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
   }, [config?.settings.position, verifiedSiteOrigin]);
 
   const refreshConfig = useCallback(async () => {
-    if (!verifiedSiteOrigin) return null;
-    const data = await api<WidgetConfig>(`/api/public/live-chat/${encodeURIComponent(companySlug)}?site=${encodeURIComponent(verifiedSiteOrigin)}`);
+    if (!verifiedSiteOrigin || !visitorId) return null;
+    const data = await api<WidgetConfig>(`/api/public/live-chat/${encodeURIComponent(companySlug)}?site=${encodeURIComponent(verifiedSiteOrigin)}&visitorId=${encodeURIComponent(visitorId)}`);
     setConfig(data);
     setAccessToken(data.accessToken);
     setConfigError("");
     return data;
-  }, [companySlug, verifiedSiteOrigin]);
+  }, [companySlug, verifiedSiteOrigin, visitorId]);
 
   useEffect(() => {
     let active = true;
@@ -129,15 +142,15 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
 
   useEffect(() => {
     const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") void refreshConfig().catch(() => undefined);
+      if (!document.hidden) void refreshConfig().catch(() => undefined);
     };
-    const timer = window.setInterval(refreshWhenVisible, 4 * 60 * 1000);
+    const timer = window.setInterval(refreshWhenVisible, opened ? 10000 : 30000);
     document.addEventListener("visibilitychange", refreshWhenVisible);
     return () => {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
-  }, [refreshConfig]);
+  }, [refreshConfig, opened]);
 
   useEffect(() => {
     try {
@@ -184,7 +197,7 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
     try {
       const data = await api<{ conversation: { id: string; nextCustomerMessageAt?: string | null; expiresAt: string }; existing?: boolean }>(
         `/api/public/live-chat/${encodeURIComponent(companySlug)}/conversations`,
-        { method: "POST", body: JSON.stringify({ visitorId, siteOrigin: verifiedSiteOrigin, contact: { name, email, phone } }) }, accessToken
+        { method: "POST", body: JSON.stringify({ visitorId, siteOrigin: verifiedSiteOrigin, referrer: verifiedSiteUrl, contact: { name, email, phone } }) }, accessToken
       );
       setConversationId(data.conversation.id);
       try { localStorage.setItem(companyKey + ":conversation", data.conversation.id); } catch { /* ephemeral mode */ }
@@ -222,10 +235,11 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
     if (!opened || !conversationId || !config) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadMessages();
+    const pollInterval = Date.now() - lastMessageAtRef.current < 5 * 60 * 1000 ? 3000 : 12000;
     const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") void loadMessages(true);
-    }, 2500);
-    const onVisibility = () => { if (document.visibilityState === "visible") void loadMessages(true); };
+      if (!document.hidden) void loadMessages(true);
+    }, pollInterval);
+    const onVisibility = () => { if (!document.hidden) void loadMessages(true); };
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       window.clearInterval(timer);
@@ -235,6 +249,8 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    const latest = messages[messages.length - 1];
+    if (latest) lastMessageAtRef.current = Date.parse(latest.createdAt) || Date.now();
   }, [messages]);
 
   const sendMessage = async () => {
@@ -323,7 +339,16 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
           <header className="flex shrink-0 items-start gap-3 px-4 py-4 text-white" style={{ backgroundColor: config.settings.primaryColor }}>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold">{config.settings.title}</p>
-              <p className="mt-1 text-[11px] text-white/85">{config.company.name} · Usually replies promptly</p>
+              {messages.some((message) => message.senderType === "AGENT") ? (() => {
+                const agent = messages.find((message) => message.senderType === "AGENT" && message.senderName);
+                const agentName = agent?.senderName || "our support team";
+                return <div className="mt-1 flex items-center gap-1.5 text-[11px] text-white/90">
+                  {agent?.senderAvatar ? <img src={agent.senderAvatar} alt="" referrerPolicy="no-referrer" className="size-4 rounded-full border border-white/40 object-cover" /> : null}
+                  <span className="truncate">Chatting with {agentName}</span>
+                  <span className="relative ml-0.5 inline-flex size-2 rounded-full bg-emerald-300"><span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-300 opacity-60" /></span>
+                  <span className="text-[10px]">Online</span>
+                </div>;
+              })() : <p className="mt-1 text-[11px] text-white/85">{config.company.name} · Usually replies promptly</p>}
             </div>
             <button type="button" onClick={() => setOpened(false)} aria-label="Minimize chat" className="rounded-lg p-1.5 hover:bg-white/15"><X className="size-4" /></button>
           </header>
@@ -350,8 +375,13 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
                 {loadingMessages && messages.length === 0 && <div className="flex items-center gap-2 py-5 text-xs text-slate-500"><LoaderCircle className="size-4 animate-spin" /> Loading messages…</div>}
                 {messages.map((message) => {
                   const mine = message.senderType === "CUSTOMER";
-                  return <div key={message.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                  const agentName = message.senderName?.trim() || "Support";
+                  return <div key={message.id} className={`flex items-end gap-2 ${mine ? "justify-end" : "justify-start"}`}>
+                    {!mine && <div className="mb-1 grid size-7 shrink-0 place-items-center overflow-hidden rounded-full bg-slate-200 text-[10px] font-semibold text-slate-700">
+                      {message.senderAvatar ? <img src={message.senderAvatar} alt="" referrerPolicy="no-referrer" className="size-full object-cover" /> : agentName.slice(0, 1).toUpperCase()}
+                    </div>}
                     <div className={`max-w-[85%] rounded-2xl px-3 py-2.5 ${mine ? "rounded-br-md text-white" : theme ? "rounded-bl-md bg-slate-800" : "rounded-bl-md bg-slate-100 text-slate-900"}`} style={mine ? { backgroundColor: config.settings.primaryColor } : undefined}>
+                      {!mine && <p className="mb-1 text-[10px] font-semibold opacity-70">{agentName.split(/\\s+/)[0]}</p>}
                       <p className="whitespace-pre-wrap break-words text-[13px] leading-5">{message.body}</p>
                       <time className={`mt-1 block text-right text-[9px] ${mine ? "text-white/75" : theme ? "text-slate-400" : "text-slate-500"}`}>{new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>
                     </div>
