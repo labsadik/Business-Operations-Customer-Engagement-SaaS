@@ -63,7 +63,7 @@ export default function CustomPdfViewer({ src, fileName }: CustomPdfViewerProps)
     const loadDocument = async () => {
       try {
         // Keep PDF.js out of the server render and load it only when a PDF is opened.
-        const pdfjs = await import("pdfjs-dist/build/pdf.mjs");
+        const pdfjs = await import("pdfjs-dist");
         if (!active) return;
         pdfjs.GlobalWorkerOptions.workerSrc = PDF_WORKER_SRC;
         const task = pdfjs.getDocument({
@@ -134,6 +134,7 @@ export default function CustomPdfViewer({ src, fileName }: CustomPdfViewerProps)
         canvas.style.width = Math.ceil(viewport.width) + "px";
         canvas.style.height = Math.ceil(viewport.height) + "px";
         renderTask = page.render({
+          canvas,
           canvasContext: context,
           viewport,
           transform: safePixelRatio === 1 ? undefined : [safePixelRatio, 0, 0, safePixelRatio, 0, 0],
