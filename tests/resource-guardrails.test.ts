@@ -383,7 +383,8 @@ test("vault uploads stream chunks and never report 100 percent before Bunny fina
 
   assert.ok(chunks.includes("bunnyPutStream("));
   assert.ok(chunks.includes("streamRequestBody(request.body, expectedSize)"));
-  assert.doesNotMatch(chunks, /request\\.arrayBuffer\\(\\)|Buffer\\.from\\(await request\\.arrayBuffer\\(\\)\\)/);
+  assert.ok(!chunks.includes("request.arrayBuffer()"));
+  assert.ok(!chunks.includes("Buffer.from(await request.arrayBuffer())"));
   assert.ok(storage.includes("export async function* streamRequestBody("));
   assert.ok(storage.includes("Math.min(6, chunkCount)"));
   assert.ok(storage.includes("batchLimit?: number"));
