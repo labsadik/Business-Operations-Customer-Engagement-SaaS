@@ -49,7 +49,6 @@ export async function POST(
 ) {
   let claimedUpload: UploadRecord | null = null;
   let finalStorageKey = "";
-  let finalStored = false;
   let fileSaved = false;
   let completedFile: CompletedFile | null = null;
 
@@ -138,7 +137,6 @@ export async function POST(
       claimedUpload.sizeBytes,
       claimedUpload.mimeType
     );
-    finalStored = true;
     await file.save();
     fileSaved = true;
     completedFile = {
@@ -176,7 +174,8 @@ export async function POST(
       return jsonOk(completedFile, 201);
     }
 
-    if (finalStored && finalStorageKey) {
+    // Delete even a partially written object if Bunny rejected the streaming PUT.
+    if (finalStorageKey) {
       await bunnyDelete(finalStorageKey).catch(() => undefined);
     }
     if (claimedUpload) {

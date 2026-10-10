@@ -286,6 +286,7 @@ test("vault limits follow company plan entitlement, avoid Bunny folder marker wr
   assert.ok(plans.includes("vaultQuotaBytes"));
   assert.doesNotMatch(createFolder, /bunnyEnsureMarker|\.conventus-folder/);
   assert.ok(complete.includes("streamVaultParts("));
+  assert.ok(complete.includes("if (finalStorageKey)"));
   assert.doesNotMatch(complete, /Buffer\.concat|bunnyReadBuffer/);
   assert.doesNotMatch(profile, /body:\s*JSON\.stringify\(\{[\s\S]*slug:\s*form\.slug/);
   assert.doesNotMatch(vaultUi, /window\.(?:prompt|confirm|alert)\s*\(/);

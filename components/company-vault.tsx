@@ -586,7 +586,7 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
                 <div className="grid min-h-[45vh] place-items-center">
                   <div className="max-w-md text-center">
                     <FileText className="mx-auto size-10 text-slate-400" />
-                    <p className="mt-3 text-sm font-semibold text-slate-800">Preview isn't available for this file type yet</p>
+                    <p className="mt-3 text-sm font-semibold text-slate-800">Preview is not available for this file type yet</p>
                     <p className="mt-1 text-xs leading-5 text-slate-500">The original file is still stored privately. Download it to open it in Word, Excel, PowerPoint, or the appropriate local app.</p>
                   </div>
                 </div>
