@@ -423,7 +423,9 @@ test("vault listing and usage reads are bounded for very large tenants", () => {
   assert.ok(listing.includes("nextFileCursor"));
   assert.ok(files.includes("originalName: 1, _id: 1"));
   assert.ok(folders.includes("nameKey: 1, _id: 1"));
-  assert.doesNotMatch(usage, /\\.aggregate\\(|\\$lookup|pendingRows/);
+  assert.equal(usage.includes(".aggregate("), false);
+  assert.equal(usage.includes("$lookup"), false);
+  assert.equal(usage.includes("pendingRows"), false);
   assert.ok(usage.includes("usage.counterVersion !== 2"));
   assert.ok(download.includes('"Cache-Control": "private, no-store, max-age=0"'));
   assert.ok(download.includes('"Cross-Origin-Resource-Policy": "same-origin"'));
