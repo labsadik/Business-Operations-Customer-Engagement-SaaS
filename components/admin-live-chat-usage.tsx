@@ -27,7 +27,11 @@ export default function AdminLiveChatUsage() {
     } catch (cause) { setError((cause as Error).message); }
     finally { setLoading(false); }
   }, []);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    // Load the platform aggregate once this screen mounts.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
+  }, [load]);
   return <div className="space-y-6">
     <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-700">Platform monitoring</p><h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Live Chat usage</h1><p className="mt-1 text-sm text-slate-500">Company-level volume and plan limits. Customer message content and personal contact details are not exposed here.</p></div><button onClick={() => void load()} disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-50"><RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} /> Refresh</button></div>
     {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error.replaceAll("_"," ").toLowerCase()}</div>}

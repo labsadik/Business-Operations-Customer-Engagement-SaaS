@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   MessageCircle, Settings2, Download, Trash2, Send, RefreshCw, Copy, CheckCircle2,
@@ -139,7 +140,10 @@ export default function LiveChatDashboard({ canManageSettings = true }: { canMan
   }, []);
 
   useEffect(() => {
+    // Initial authenticated reads synchronize this view with the API after mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadInbox();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadSettings();
     const timer = window.setInterval(() => {
       if (document.visibilityState === "visible") {
@@ -161,8 +165,12 @@ export default function LiveChatDashboard({ canManageSettings = true }: { canMan
   }, [loadInbox, loadSettings, loadMessages, selectedId, tab]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMessages([]);
-    if (selectedId && tab === "inbox") void loadMessages(selectedId);
+    if (selectedId && tab === "inbox") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      void loadMessages(selectedId);
+    }
   }, [selectedId, tab, loadMessages]);
 
   const saveSettings = async () => {
@@ -258,7 +266,7 @@ export default function LiveChatDashboard({ canManageSettings = true }: { canMan
 
   if (loading) return <div className="grid min-h-[420px] place-items-center rounded-3xl border border-slate-200 bg-white"><LoaderCircle className="size-6 animate-spin text-blue-600" /></div>;
   if ((error === "LIVE_CHAT_NOT_INCLUDED" || error === "FORBIDDEN") && !usage) {
-    return <div className="rounded-3xl border border-amber-200 bg-white p-8"><AlertCircle className="size-6 text-amber-600" /><h2 className="mt-3 text-lg font-semibold text-slate-900">Live Chat is not available</h2><p className="mt-1 max-w-xl text-sm leading-6 text-slate-600">Your current plan may not include Live Chat, or your account cannot access this workspace. A platform administrator can enable the feature in Admin → Plans.</p><a href="/dashboard" className="mt-4 inline-flex rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white">Back to workspace</a></div>;
+    return <div className="rounded-3xl border border-amber-200 bg-white p-8"><AlertCircle className="size-6 text-amber-600" /><h2 className="mt-3 text-lg font-semibold text-slate-900">Live Chat is not available</h2><p className="mt-1 max-w-xl text-sm leading-6 text-slate-600">Your current plan may not include Live Chat, or your account cannot access this workspace. A platform administrator can enable the feature in Admin → Plans.</p><Link href="/dashboard" className="mt-4 inline-flex rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white">Back to workspace</Link></div>;
   }
 
   return <div className="space-y-5">

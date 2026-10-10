@@ -63,7 +63,7 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [error, setError] = useState("");
   const [nextAllowedAt, setNextAllowedAt] = useState<Date | null>(null);
-  const [clock, setClock] = useState(Date.now());
+  const [clock, setClock] = useState(0);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const companyKey = useMemo(() => STORAGE_PREFIX + companySlug, [companySlug]);
   const theme = config?.settings.theme === "DARK";
@@ -105,6 +105,8 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
 
   useEffect(() => {
     let active = true;
+    // Fetch public widget configuration after the verified parent-origin handshake.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refreshConfig().catch((cause) => { if (active) setConfigError((cause as Error).message); });
     return () => { active = false; };
   }, [refreshConfig]);
@@ -128,10 +130,16 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
         storedVisitor = randomVisitorId();
         localStorage.setItem(companyKey + ":visitor", storedVisitor);
       }
+      // Hydrate visitor identity from browser storage after mount.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setVisitorId(storedVisitor);
       const storedConversation = localStorage.getItem(companyKey + ":conversation") ?? "";
-      if (/^[a-f\d]{24}$/i.test(storedConversation)) setConversationId(storedConversation);
+      if (/^[a-f0-9]{24}$/i.test(storedConversation)) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setConversationId(storedConversation);
+      }
     } catch {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setVisitorId(randomVisitorId());
     }
   }, [companyKey]);
@@ -149,7 +157,7 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
     return () => window.clearInterval(timer);
   }, [nextAllowedAt]);
 
-  const cooldownSecondsLeft = nextAllowedAt
+  const cooldownSecondsLeft = nextAllowedAt && clock > 0
     ? Math.max(0, Math.ceil((nextAllowedAt.getTime() - clock) / 1000))
     : 0;
 
@@ -192,10 +200,11 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
     } finally {
       if (!quiet) setLoadingMessages(false);
     }
-  }, [companySlug, companyKey, config, conversationId, verifiedSiteOrigin, visitorId, accessToken, refreshConfig]);
+  }, [companySlug, companyKey, config, conversationId, verifiedSiteOrigin, visitorId, accessToken]);
 
   useEffect(() => {
     if (!opened || !conversationId || !config) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadMessages();
     const timer = window.setInterval(() => {
       if (document.visibilityState === "visible") void loadMessages(true);
