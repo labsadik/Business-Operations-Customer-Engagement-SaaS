@@ -28,7 +28,7 @@ async function publicConversation(request: Request, companySlug: string, convers
     visitorKeyHash: visitorHash(String(companyId), visitorId),
     status: "OPEN",
     expiresAt: { $gt: new Date() }
-  }).lean();
+  }).select("_id companyId workspaceId nextCustomerMessageAt expiresAt status visitorKeyHash").lean();
   if (!conversation) throw new Error("LIVE_CHAT_CONVERSATION_NOT_FOUND");
   return { claims, companyId, workspaceId, conversation };
 }
