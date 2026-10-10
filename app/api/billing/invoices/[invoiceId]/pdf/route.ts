@@ -4,7 +4,7 @@ import { Types } from "mongoose";
 import { getMongo } from "@/lib/mongodb";
 import { getSession } from "@/lib/session";
 import { Invoice } from "@/models/invoice";
-import { getPlan } from "@/lib/plans";
+import { resolveInvoicePlanSnapshot } from "@/lib/invoice-plan-snapshot";
 import { calculateInvoiceTax, resolveInvoiceBillingPeriod, type InvoiceTaxSnapshot } from "@/lib/invoicing";
 import { platformLegalProfile } from "@/lib/platform";
 import { getSafeWebsiteUrl } from "@/lib/public-origin";
@@ -29,6 +29,19 @@ const WHITE = rgb(1, 1, 1);
 
 function money(minor: number, currency: string) {
   return (currency || "INR").toUpperCase() + " " + (Math.max(0, minor) / 100).toFixed(2);
+}
+
+function formatBytes(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB", "PB"];
+  let amount = value;
+  let index = 0;
+  while (amount >= 1024 && index < units.length - 1) {
+    amount /= 1024;
+    index += 1;
+  }
+  const formatted = amount >= 100 || index === 0 ? amount.toFixed(0) : amount >= 10 ? amount.toFixed(1) : amount.toFixed(2);
+  return formatted + " " + units[index];
 }
 
 function dateLabel(value: Date | string | null | undefined) {
@@ -292,18 +305,12 @@ export async function GET(
       address: invoice.merchantSnapshot?.address || legacyMerchant.address
     };
 
-    const plan = getPlan(invoice.planId);
-    const planSnapshot = invoice.planSnapshot || (plan
-      ? {
-          name: plan.name,
-          priceInr: plan.priceInr,
-          maxEmployees: plan.maxEmployees,
-          monthlyMeetingLimit: plan.monthlyMeetingLimit,
-          maxMeetingDurationMinutes: plan.maxMeetingDurationMinutes,
-          maxConcurrentMeetings: plan.maxConcurrentMeetings,
-          validityDays: plan.validityDays ?? 30
-        }
-      : null);
+    const planSnapshot = await resolveInvoicePlanSnapshot({
+      companyId: invoice.companyId,
+      paymentId: invoice.paymentId,
+      planId: invoice.planId,
+      planSnapshot: invoice.planSnapshot
+    });
 
     if (!planSnapshot) return jsonError("PLAN_NOT_FOUND", 409);
 
@@ -616,14 +623,24 @@ export async function GET(
     const entitlementItems = [
       "Plan: " + planSnapshot.name,
       "Plan list price: " + money(Math.round(planSnapshot.priceInr * 100), invoice.currency),
-      planSnapshot.maxEmployees + " employees",
-      planSnapshot.monthlyMeetingLimit + " meetings / month",
-      planSnapshot.maxMeetingDurationMinutes + " min max duration",
-      planSnapshot.maxConcurrentMeetings + " concurrent meetings",
-      (planSnapshot.validityDays ?? 30) + " days validity",
-      ...(planSnapshot.freeFeatureDays
-        ? [planSnapshot.freeFeatureDays + " active feature days"]
-        : [])
+      "Workspaces: " + planSnapshot.maxWorkspaces,
+      "Companies: " + planSnapshot.maxCompanies,
+      "Employees: " + planSnapshot.maxEmployees,
+      "Meetings / month: " + planSnapshot.monthlyMeetingLimit,
+      "Max duration: " + planSnapshot.maxMeetingDurationMinutes + " min",
+      "Concurrent meetings: " + planSnapshot.maxConcurrentMeetings,
+      "Validity: " + (planSnapshot.validityDays ?? 30) + " days",
+      "Task management: " + (planSnapshot.taskManagementEnabled ? "Included" : "Not included"),
+      "Task daily limit: " + (!planSnapshot.taskManagementEnabled
+        ? "Not applicable"
+        : planSnapshot.taskManagementDailyLimit == null
+          ? "No daily cap"
+          : planSnapshot.taskManagementDailyLimit + " tasks / day"),
+      "Cloud Vault: " + (planSnapshot.vaultEnabled ? "Included" : "Not included"),
+      "Vault storage: " + (planSnapshot.vaultEnabled ? formatBytes(planSnapshot.vaultQuotaBytes) : "Not included"),
+      "Max vault file: " + (planSnapshot.vaultEnabled ? formatBytes(planSnapshot.vaultMaxFileBytes) : "Not included"),
+      "Vault item limit: " + (planSnapshot.vaultEnabled ? planSnapshot.vaultMaxItems.toLocaleString("en-IN") : "Not included"),
+      "Free feature window: " + (planSnapshot.freeFeatureDays ? planSnapshot.freeFeatureDays + " days" : "Not included")
     ];
 
     entitlementItems.forEach((item, index) => {
