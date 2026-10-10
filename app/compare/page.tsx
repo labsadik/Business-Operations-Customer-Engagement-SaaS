@@ -377,7 +377,7 @@ export default function ComparePage() {
                   <Layers3 className="size-3.5" /> The Conventus approach
                 </span>
                 <h3 className="mt-4 text-xl font-semibold tracking-tight text-slate-950">One connected workspace</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">Start with a Free tier, then choose a plan based on your company's actual team size and usage needs.</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">Start with a Free tier, then choose a plan based on your company&apos;s actual team size and usage needs.</p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
                   {[
                     { title: "One workspace", text: "Booking, accepted meetings, tasks, and Vault files", icon: Workflow },
