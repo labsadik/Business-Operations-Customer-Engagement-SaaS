@@ -183,8 +183,13 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
 
   useEffect(() => {
     if (!nextAllowedAt) return;
-    const timer = window.setInterval(() => setClock(Date.now()), 250);
-    return () => window.clearInterval(timer);
+    const tick = () => { if (!document.hidden) setClock(Date.now()); };
+    const timer = window.setInterval(tick, 1000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", tick);
+    };
   }, [nextAllowedAt]);
 
   const cooldownSecondsLeft = nextAllowedAt && clock > 0
@@ -217,6 +222,8 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
     try {
       const url = `/api/public/live-chat/${encodeURIComponent(companySlug)}/conversations/${encodeURIComponent(conversationId)}/messages?visitorId=${encodeURIComponent(visitorId)}&site=${encodeURIComponent(verifiedSiteOrigin)}`;
       const data = await api<{ messages: Message[]; conversation: { nextCustomerMessageAt?: string | null } }>(url, undefined, accessToken);
+      const latest = data.messages[data.messages.length - 1];
+      lastMessageAtRef.current = latest ? (Date.parse(latest.createdAt) || Date.now()) : 0;
       setMessages(data.messages);
       setNextAllowedAt(data.conversation.nextCustomerMessageAt ? new Date(data.conversation.nextCustomerMessageAt) : null);
       setError("");
@@ -234,17 +241,32 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
 
   useEffect(() => {
     if (!opened || !conversationId || !config) return;
+    let disposed = false;
+    let timer: number | undefined;
+    const schedule = () => {
+      if (disposed) return;
+      const recentlyActive = Date.now() - lastMessageAtRef.current < 5 * 60 * 1000;
+      timer = window.setTimeout(async () => {
+        if (document.hidden) {
+          schedule();
+          return;
+        }
+        await loadMessages(true);
+        schedule();
+      }, recentlyActive ? 3000 : 12000);
+    };
+    const refreshWhenVisible = () => {
+      if (document.hidden) return;
+      if (timer !== undefined) window.clearTimeout(timer);
+      void loadMessages(true).finally(schedule);
+    };
+    document.addEventListener("visibilitychange", refreshWhenVisible);
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadMessages();
-    const pollInterval = Date.now() - lastMessageAtRef.current < 5 * 60 * 1000 ? 3000 : 12000;
-    const timer = window.setInterval(() => {
-      if (!document.hidden) void loadMessages(true);
-    }, pollInterval);
-    const onVisibility = () => { if (!document.hidden) void loadMessages(true); };
-    document.addEventListener("visibilitychange", onVisibility);
+    void loadMessages().finally(schedule);
     return () => {
-      window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", onVisibility);
+      disposed = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
   }, [opened, conversationId, config, loadMessages]);
 
