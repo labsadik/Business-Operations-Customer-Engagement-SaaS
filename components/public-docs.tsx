@@ -262,7 +262,7 @@ export default function PublicDocs() {
                 { title: "Review plan entitlements", text: "Check which features are enabled and review quotas before rolling them out to the team." },
                 { title: "Configure each feature", text: "Set booking hours, task ownership practices, vault folders, and allowed Live Chat website domains as applicable." }
               ]} />
-              <Callout kind="note" title="Feature access is plan-aware.">If a feature is missing from the workspace, first check the assigned plan and the member's company/workspace access rather than assuming the page is broken.</Callout>
+              <Callout kind="note" title="Feature access is plan-aware.">If a feature is missing from the workspace, first check the assigned plan and the member&apos;s company/workspace access rather than assuming the page is broken.</Callout>
             </section>
 
             <section className="border-b border-slate-200 py-4 pb-10" aria-labelledby="scheduling-heading">
@@ -292,7 +292,7 @@ export default function PublicDocs() {
               <StepList steps={[
                 { title: "Create a clearly scoped task", text: "Write a specific title and description, then choose the responsible team member." },
                 { title: "Set urgency and a due date", text: "Use Low, Medium, High or Urgent priority consistently and set realistic deadlines." },
-                { title: "Review workload and plan limits", text: "Use team status to support assignments and check the current plan's task quota when managing capacity." }
+                { title: "Review workload and plan limits", text: "Use team status to support assignments and check the current plan&apos;s task quota when managing capacity." }
               ]} />
               <DocHeading id="tasks-employees" level="h3">For employees</DocHeading>
               <p className="mt-2 text-sm leading-7 text-slate-700">Start from your assigned queue, keep task states up to date as work progresses from To Do to In Progress to Done, and create follow-up actions after customer meetings when that workflow is available.</p>
@@ -316,14 +316,14 @@ export default function PublicDocs() {
               <p className="mt-2 text-sm leading-7 text-slate-700">Upload files using the available upload flow, put each item in the agreed folder, preview supported documents in the browser and use the vault as the shared location for client deliverables.</p>
               <DocHeading id="vault-customers" level="h3">For customers and collaborators</DocHeading>
               <p className="mt-2 text-sm leading-7 text-slate-700">The vault is an internal workspace feature, not a public file-sharing link by default. Share a document with customers only through a company-approved channel and confirm that the intended recipients are authorized.</p>
-              <Callout kind="security" title="Treat access as part of document handling.">Before uploading sensitive files, confirm who can access the workspace and follow your organization's retention and privacy requirements.</Callout>
+              <Callout kind="security" title="Treat access as part of document handling.">Before uploading sensitive files, confirm who can access the workspace and follow your organization&apos;s retention and privacy requirements.</Callout>
             </section>
 
             <section className="border-b border-slate-200 py-4 pb-10" aria-labelledby="live-chat-heading">
               <DocHeading id="live-chat">4. Public Live Chat & Customer Support</DocHeading>
               <p className="mt-4 text-sm leading-7 text-slate-700">Live Chat combines an embeddable website widget with the agent inbox at <Link href="/dashboard/live-chat" className="font-semibold text-blue-700 underline decoration-blue-200 underline-offset-4">/dashboard/live-chat</Link>. Visitors can start a conversation without creating a Conventus account; agents respond from the company workspace.</p>
               <DocHeading id="chat-why" level="h3">Why use it?</DocHeading>
-              <p className="mt-2 text-sm leading-7 text-slate-700">A branded launcher gives visitors a direct support path while keeping incoming chats alongside the team's other work. The widget uses visibility-aware polling, so it can pause unnecessary checks when a browser tab is hidden. Messages are near-real-time rather than guaranteed instant push delivery.</p>
+              <p className="mt-2 text-sm leading-7 text-slate-700">A branded launcher gives visitors a direct support path while keeping incoming chats alongside the team&apos;s other work. The widget uses visibility-aware polling, so it can pause unnecessary checks when a browser tab is hidden. Messages are near-real-time rather than guaranteed instant push delivery.</p>
               <DocHeading id="chat-admin" level="h3">For companies and admins: install and customize</DocHeading>
               <StepList steps={[
                 { title: "Enable Live Chat for your plan", text: "A platform administrator controls plan entitlements. Confirm Live Chat is enabled for the company's assigned plan." },
@@ -337,7 +337,7 @@ export default function PublicDocs() {
               </div>
               <p className="text-xs leading-5 text-slate-500">Replace the host and slug with the exact snippet generated in your Live Chat settings. The example is illustrative.</p>
               <DocHeading id="chat-agents" level="h3">For employees and support agents</DocHeading>
-              <p className="mt-2 text-sm leading-7 text-slate-700">Open the Live Chat inbox, select a conversation, review available visitor and contact details, reply to the customer, and close conversations when they are resolved. Which details are available depends on the visitor's browser, hosting provider headers and configured contact collection.</p>
+              <p className="mt-2 text-sm leading-7 text-slate-700">Open the Live Chat inbox, select a conversation, review available visitor and contact details, reply to the customer, and close conversations when they are resolved. Which details are available depends on the visitor&apos;s browser, hosting provider headers and configured contact collection.</p>
               <DocHeading id="chat-visitors" level="h3">For website visitors</DocHeading>
               <p className="mt-2 text-sm leading-7 text-slate-700">The visitor sees a floating launcher that opens a responsive chat panel. Depending on company settings, the visitor may be asked for a name, email address or phone number; anonymous chat is possible when those fields are not required.</p>
               <Callout kind="security" title="Domain allowlisting matters.">Only embed the widget on a hostname configured in the company settings. Include a privacy notice that explains chat processing and any visitor metadata collection that your deployment enables.</Callout>
@@ -345,7 +345,7 @@ export default function PublicDocs() {
 
             <section className="border-b border-slate-200 py-4 pb-10" aria-labelledby="data-isolation-heading">
               <DocHeading id="data-isolation">Security & multi-tenancy: data isolation</DocHeading>
-              <p className="mt-4 text-sm leading-7 text-slate-700">Conventus features are designed around a company and workspace boundary. Authenticated API routes validate the member session, workspace membership and applicable permissions; Live Chat's public APIs additionally validate the configured website origin and signed widget access tokens.</p>
+              <p className="mt-4 text-sm leading-7 text-slate-700">Conventus features are designed around a company and workspace boundary. Authenticated API routes validate the member session, workspace membership and applicable permissions; Live Chat&apos;s public APIs additionally validate the configured website origin and signed widget access tokens.</p>
               <div className="my-5 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-200 bg-white p-4"><LockKeyhole className="size-5 text-blue-700" /><p className="mt-3 text-sm font-semibold">Scoped reads and writes</p><p className="mt-1 text-xs leading-5 text-slate-600">Queries should be constrained to the authorized company/workspace and resource, not a client-supplied identifier alone.</p></div>
                 <div className="rounded-2xl border border-slate-200 bg-white p-4"><ShieldCheck className="size-5 text-emerald-700" /><p className="mt-3 text-sm font-semibold">Public surface protections</p><p className="mt-1 text-xs leading-5 text-slate-600">Embed allowlists, token checks, request validation and server-enforced quotas help protect the public widget.</p></div>
