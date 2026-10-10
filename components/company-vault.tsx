@@ -134,6 +134,14 @@ function fileTypeLabel(file: Pick<FileItem, "name" | "mimeType">) {
   return extension && extension.length <= 8 ? extension.toUpperCase() : "File";
 }
 
+function fileAccentClass(file: Pick<FileItem, "name" | "mimeType">) {
+  const type = fileTypeLabel(file);
+  if (type === "PDF") return "border-rose-100 bg-rose-50 text-rose-700";
+  if (type === "Spreadsheet") return "border-emerald-100 bg-emerald-50 text-emerald-700";
+  if (type === "Image" || type === "Video") return "border-violet-100 bg-violet-50 text-violet-700";
+  return "border-blue-100 bg-blue-50 text-blue-700";
+}
+
 function imageThumbnailSupported(mimeType: string) {
   return /^image\/(jpeg|png|gif|webp|avif)$/.test(mimeType);
 }
@@ -171,11 +179,11 @@ async function prepareLosslessUpload(file: File): Promise<PreparedUpload> {
   return { blob: file, contentEncoding: "identity" };
 }
 
-export default function CompanyVault({ companyName, currentRole, taskManagementEnabled }: { companyName: string; currentRole: string; taskManagementEnabled: boolean }) {
+export default function CompanyVault({ companyName, currentRole, taskManagementEnabled, initialSnapshot }: { companyName: string; currentRole: string; taskManagementEnabled: boolean; initialSnapshot: VaultSnapshot }) {
   const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useWorkspaceSidebarState();
-  const [folderId, setFolderId] = useState<string | null>(null);
-  const [snapshot, setSnapshot] = useState<VaultSnapshot | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [folderId, setFolderId] = useState<string | null>(initialSnapshot.currentFolder?.id ?? null);
+  const [snapshot, setSnapshot] = useState<VaultSnapshot | null>(initialSnapshot);
+  const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -187,12 +195,17 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
   const [confirmation, setConfirmation] = useState<ConfirmationTarget | null>(null);
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [contentFilter, setContentFilter] = useState<"all" | "files" | "folders">("all");
-  const [typeFilter, setTypeFilter] = useState<"all" | "documents" | "images" | "videos">("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "documents" | "spreadsheets" | "images" | "videos">("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [newMenuOpen, setNewMenuOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const newMenuRef = useRef<HTMLDivElement>(null);
+  const lastLoadedRequestRef = useRef({ folderId: initialSnapshot.currentFolder?.id ?? null, reloadVersion: 0 });
 
   useEffect(() => {
+    if (lastLoadedRequestRef.current.folderId === folderId &&
+        lastLoadedRequestRef.current.reloadVersion === reloadVersion) return;
+    lastLoadedRequestRef.current = { folderId, reloadVersion };
     let active = true;
     const load = async () => {
       const url = folderId ? "/api/vault?folderId=" + encodeURIComponent(folderId) : "/api/vault";
@@ -211,6 +224,27 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
     void load();
     return () => { active = false; };
   }, [folderId, reloadVersion]);
+
+  useEffect(() => {
+    if (!newMenuOpen) return;
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (!newMenuRef.current?.contains(event.target as Node)) setNewMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    return () => document.removeEventListener("pointerdown", closeOnOutsidePointer);
+  }, [newMenuOpen]);
+
+  useEffect(() => {
+    if (!newMenuOpen && !folderDialog && !previewFile) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (previewFile) setPreviewFile(null);
+      else if (folderDialog && !busy) setFolderDialog(null);
+      else setNewMenuOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [newMenuOpen, folderDialog, previewFile, busy]);
 
   const refresh = () => {
     setLoading(true);
@@ -434,15 +468,16 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
   const canManage = currentRole === "COMPANY_ADMIN" || currentRole === "PLATFORM_ADMIN";
   const searchTerm = searchQuery.trim().toLowerCase();
   const visibleFolders = (snapshot?.folders ?? []).filter((folder) =>
-    contentFilter !== "files" && folder.name.toLowerCase().includes(searchTerm)
+    folder.name.toLowerCase().includes(searchTerm)
   );
   const visibleFiles = (snapshot?.files ?? []).filter((file) => {
-    if (contentFilter === "folders") return false;
     const matchesName = file.name.toLowerCase().includes(searchTerm);
+    const label = fileTypeLabel(file);
     const matchesType = typeFilter === "all" ||
-      (typeFilter === "images" && file.mimeType.startsWith("image/")) ||
-      (typeFilter === "videos" && file.mimeType.startsWith("video/")) ||
-      (typeFilter === "documents" && !file.mimeType.startsWith("image/") && !file.mimeType.startsWith("video/"));
+      (typeFilter === "images" && label === "Image") ||
+      (typeFilter === "videos" && label === "Video") ||
+      (typeFilter === "spreadsheets" && label === "Spreadsheet") ||
+      (typeFilter === "documents" && !["Image", "Video", "Spreadsheet"].includes(label));
     return matchesName && matchesType;
   });
   const visibleCount = visibleFolders.length + visibleFiles.length;
@@ -465,8 +500,25 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
         onToggleCollapsed={toggleSidebar}
       />
 
-      <main className={`min-h-screen bg-[#f6f8fb] text-slate-900 ${sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"}`}>
-        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+      <main
+        className={`relative min-h-screen bg-slate-50 text-slate-900 ${sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"}`}
+        onDragOver={(event) => {
+          if (!busy && !uploadBlocked && Array.from(event.dataTransfer.types).includes("Files")) {
+            event.preventDefault();
+            setDragging(true);
+          }
+        }}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false);
+        }}
+        onDrop={(event) => {
+          if (!Array.from(event.dataTransfer.types).includes("Files")) return;
+          event.preventDefault();
+          setDragging(false);
+          if (!busy && !uploadBlocked) void startUploads(Array.from(event.dataTransfer.files));
+        }}
+      >
+        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white">
           <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-4 py-3.5 sm:px-7 lg:px-10">
             <div className="min-w-0">
               <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
@@ -512,24 +564,28 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <button
-                type="button"
-                disabled={busy || loading}
-                onClick={createFolder}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <FolderPlus className="size-4" />
-                New folder
-              </button>
-              <button
-                type="button"
-                disabled={busy || loading || uploadBlocked}
-                onClick={() => inputRef.current?.click()}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-xs font-semibold text-white shadow-sm shadow-blue-600/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {busy ? <LoaderCircle className="size-4 animate-spin" /> : <Upload className="size-4" />}
-                Upload files
-              </button>
+              <div className="relative" ref={newMenuRef}>
+                <button
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded={newMenuOpen}
+                  onClick={() => setNewMenuOpen((open) => !open)}
+                  disabled={busy || loading}
+                  className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span className="text-lg leading-none">+</span> New
+                </button>
+                {newMenuOpen && (
+                  <div role="menu" aria-label="Create or upload" className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl shadow-slate-900/10">
+                    <button role="menuitem" type="button" onClick={() => { setNewMenuOpen(false); createFolder(); }} className="flex w-full items-center gap-3 px-3 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50 focus-visible:bg-slate-50">
+                      <FolderPlus className="size-4 text-amber-600" /> New folder
+                    </button>
+                    <button role="menuitem" type="button" disabled={uploadBlocked} onClick={() => { setNewMenuOpen(false); inputRef.current?.click(); }} className="flex w-full items-center gap-3 px-3 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50 focus-visible:bg-slate-50 disabled:opacity-50">
+                      <Upload className="size-4 text-blue-600" /> Upload files
+                    </button>
+                  </div>
+                )}
+              </div>
               <input ref={inputRef} type="file" multiple className="hidden" onChange={uploadFiles} aria-label="Choose files to upload" />
             </div>
           </section>
@@ -545,7 +601,7 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
             </div>
           )}
 
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <section aria-label="Vault storage limits" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <article className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-medium text-slate-500">Storage used</p>
@@ -555,7 +611,7 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
                 <>
                   <p className="mt-4 text-2xl font-semibold tracking-tight text-slate-950">{formatBytes(snapshot.usage.usedBytes)}</p>
                   <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                    <div className={"h-full rounded-full transition-all duration-500 " + (usedPercent >= 90 ? "bg-amber-500" : "bg-blue-600")} style={{ width: usedPercent + "%" }} />
+                    <div className={"h-full rounded-full transition-all duration-500 " + (usedPercent >= 95 ? "bg-rose-500" : usedPercent >= 80 ? "bg-amber-500" : "bg-blue-600")} style={{ width: usedPercent + "%" }} />
                   </div>
                   <p className="mt-2 text-[11px] text-slate-500">{Math.round(usedPercent)}% of {formatBytes(snapshot.usage.quotaBytes)}</p>
                 </>
@@ -599,57 +655,6 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
             </article>
           </section>
 
-          <section className="relative overflow-hidden rounded-[28px] bg-slate-950 p-5 text-white shadow-xl shadow-slate-900/5 sm:p-7 lg:p-8">
-            <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-24 size-72 rounded-full bg-blue-500/20 blur-3xl" />
-            <div aria-hidden="true" className="pointer-events-none absolute bottom-[-100px] right-[28%] size-64 rounded-full bg-indigo-500/10 blur-3xl" />
-            <div className="relative grid gap-7 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-center">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.17em] text-blue-100">
-                  <CloudUpload className="size-3.5" />
-                  Secure file workspace
-                </div>
-                <h2 className="mt-4 max-w-xl text-2xl font-semibold tracking-tight sm:text-3xl">Keep your team’s work organized.</h2>
-                <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">
-                  Add files to the folder you’re viewing, or drop them into the upload area. Uploads are sent in small chunks and confirmed by storage before completion.
-                </p>
-                <div className="mt-5 flex flex-wrap gap-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-2 text-[11px] font-medium text-slate-200"><LockKeyhole className="size-3.5 text-emerald-300" /> Access-checked</span>
-                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-2 text-[11px] font-medium text-slate-200"><ShieldCheck className="size-3.5 text-blue-300" /> Company-scoped</span>
-                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-2 text-[11px] font-medium text-slate-200"><Clock3 className="size-3.5 text-violet-300" /> Confirmed progress</span>
-                </div>
-              </div>
-              <div
-                onDragOver={(event) => { event.preventDefault(); if (!busy && !uploadBlocked) setDragging(true); }}
-                onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false); }}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  setDragging(false);
-                  if (!busy && !uploadBlocked) void startUploads(Array.from(event.dataTransfer.files));
-                }}
-                className={"rounded-2xl border border-dashed p-5 text-center transition sm:p-6 " + (dragging ? "border-blue-300 bg-blue-500/15" : uploadBlocked ? "border-white/10 bg-white/5 opacity-70" : "border-white/20 bg-white/[0.06] hover:border-white/35 hover:bg-white/[0.09]")}
-              >
-                <div className={"mx-auto grid size-12 place-items-center rounded-2xl " + (dragging ? "bg-blue-400/20 text-blue-100" : "bg-white/10 text-slate-200")}>
-                  <CloudUpload className="size-6" />
-                </div>
-                <p className="mt-3 text-sm font-semibold">{uploadBlocked ? "Storage limit reached" : dragging ? "Drop to start uploading" : "Drag files here to upload"}</p>
-                <p className="mx-auto mt-1 max-w-xs text-[11px] leading-5 text-slate-400">
-                  {snapshot
-                    ? formatBytes(snapshot.usage.maxFileBytes) + " max per file · " + Math.max(0, snapshot.usage.maxItems - snapshot.usage.usedItems).toLocaleString("en-IN") + " item slots left"
-                    : "Choose files from your device"}
-                </p>
-                <button
-                  type="button"
-                  disabled={busy || loading || uploadBlocked}
-                  onClick={() => inputRef.current?.click()}
-                  className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-semibold text-slate-950 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <Upload className="size-3.5" />
-                  Browse files
-                </button>
-              </div>
-            </div>
-          </section>
-
           {progress && (
             <section className="rounded-2xl border border-blue-200 bg-blue-50/80 p-4 shadow-sm sm:p-5" aria-live="polite">
               <div className="flex items-start justify-between gap-4">
@@ -684,7 +689,7 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
                         <p className="mt-0.5 text-xs text-slate-500">Browse the contents of your current folder</p>
                       </div>
                     </div>
-                    <nav aria-label="Folder breadcrumbs" className="mt-4 flex flex-wrap items-center gap-1.5 text-xs">
+                    <nav aria-label="Folder breadcrumbs" className="mt-4 flex max-w-full flex-nowrap items-center gap-1.5 overflow-x-auto whitespace-nowrap text-xs [scrollbar-width:none]">
                       <button type="button" onClick={() => navigateToFolder(null)} className="rounded-lg px-2 py-1.5 font-semibold text-blue-700 transition hover:bg-blue-50">Vault home</button>
                       {(snapshot?.breadcrumbs ?? []).map((item, index) => (
                         <span key={item.id} className="inline-flex min-w-0 items-center gap-1.5">
@@ -717,50 +722,37 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
                   </div>
                 </div>
 
-                <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                <div className="mt-5 grid gap-4">
                   <label className="relative block min-w-0">
                     <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                     <input
                       type="search"
                       value={searchQuery}
                       onChange={(event) => setSearchQuery(event.target.value)}
-                      placeholder="Search loaded items by name…"
+                      placeholder="Search files and folders…"
                       aria-label="Search loaded vault items by name"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-10 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
+                      className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-10 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10"
                     />
                     {searchQuery && (
-                      <button type="button" aria-label="Clear search" onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-slate-400 hover:bg-slate-200 hover:text-slate-700">
+                      <button type="button" aria-label="Clear search" onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700">
                         <X className="size-3.5" />
                       </button>
                     )}
                   </label>
-                  <div className="flex flex-wrap items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter files by type">
                     {([
-                      ["all", "Everything"],
-                      ["files", "Files"],
-                      ["folders", "Folders"]
+                      ["all", "All"],
+                      ["documents", "Documents"],
+                      ["spreadsheets", "Spreadsheets"],
+                      ["images", "Images"],
+                      ["videos", "Videos"]
                     ] as const).map(([value, label]) => (
-                      <button key={value} type="button" aria-pressed={contentFilter === value} onClick={() => setContentFilter(value)} className={"rounded-xl px-3 py-2.5 text-xs font-semibold transition " + (contentFilter === value ? "bg-slate-900 text-white shadow-sm" : "border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-800")}>
+                      <button key={value} type="button" aria-pressed={typeFilter === value} onClick={() => setTypeFilter(value)} className={"rounded-full border px-3.5 py-2 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 " + (typeFilter === value ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700")}>
                         {label}
                       </button>
                     ))}
                   </div>
                 </div>
-                {contentFilter !== "folders" && (
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <span className="mr-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">File type</span>
-                    {([
-                      ["all", "All types"],
-                      ["documents", "Documents"],
-                      ["images", "Images"],
-                      ["videos", "Videos"]
-                    ] as const).map(([value, label]) => (
-                      <button key={value} type="button" aria-pressed={typeFilter === value} onClick={() => setTypeFilter(value)} className={"rounded-full px-3 py-1.5 text-[11px] font-medium transition " + (typeFilter === value ? "border border-blue-200 bg-blue-50 text-blue-800" : "border border-transparent bg-slate-50 text-slate-500 hover:border-slate-200 hover:bg-white")}>
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
 
               <div className="px-4 py-4 sm:px-6 sm:py-5">
@@ -793,7 +785,7 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
                       <button type="button" onClick={refresh} className="mt-4 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800">Try again</button>
                     </div>
                   </div>
-                ) : visibleCount === 0 && (searchTerm || contentFilter !== "all" || typeFilter !== "all") ? (
+                ) : visibleCount === 0 && (searchTerm || typeFilter !== "all") ? (
                   <div className="grid min-h-64 place-items-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
                     <div>
                       <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-white text-slate-400 shadow-sm"><SearchX className="size-6" /></span>
@@ -816,10 +808,11 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
                   </div>
                 ) : viewMode === "grid" ? (
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {visibleFolders.length > 0 && <h3 className="col-span-full border-b border-slate-100 pb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Folders</h3>}
                     {visibleFolders.map((folder) => (
                       <article key={folder.id} className="group overflow-hidden rounded-2xl border border-slate-200 bg-white transition duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg hover:shadow-slate-900/5">
                         <button type="button" onClick={() => navigateToFolder(folder.id)} className="block w-full p-3 text-left" aria-label={"Open folder " + folder.name}>
-                          <div className="relative grid h-28 place-items-center overflow-hidden rounded-xl border border-amber-100 bg-gradient-to-br from-amber-50 to-orange-50">
+                          <div className="relative grid h-28 place-items-center overflow-hidden rounded-xl border border-amber-100 bg-amber-50">
                             <div aria-hidden="true" className="absolute -right-4 -top-8 size-28 rounded-full bg-white/60 blur-xl" />
                             <Folder className="relative size-12 fill-amber-400/20 text-amber-600 stroke-[1.4] transition duration-200 group-hover:scale-105" />
                             <span className="absolute bottom-2 left-2 rounded-md border border-amber-200/70 bg-white/80 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-amber-800">Folder</span>
@@ -836,6 +829,7 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
                         </div>
                       </article>
                     ))}
+                    {visibleFiles.length > 0 && <h3 className="col-span-full border-b border-slate-100 pb-2 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Files</h3>}
                     {visibleFiles.map((file) => {
                       const Icon = fileIcon(file.mimeType);
                       const label = fileTypeLabel(file);
@@ -845,7 +839,7 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
                       return (
                         <article key={file.id} className="group overflow-hidden rounded-2xl border border-slate-200 bg-white transition duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg hover:shadow-slate-900/5">
                           <button type="button" draggable={false} onDragStart={(event) => event.preventDefault()} onContextMenu={(event) => event.preventDefault()} onClick={() => setPreviewFile(file)} className="block w-full select-none p-3 text-left" title={"Preview " + file.name}>
-                            <div className="relative grid h-28 place-items-center overflow-hidden rounded-xl border border-slate-100 bg-gradient-to-br from-slate-50 to-slate-100">
+                            <div className="relative grid h-28 place-items-center overflow-hidden rounded-xl border border-slate-100 bg-slate-50">
                               {isImage ? (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img src={previewUrl} alt="" draggable={false} referrerPolicy="no-referrer" loading="lazy" decoding="async" onDragStart={(event) => event.preventDefault()} onContextMenu={(event) => event.preventDefault()} className="pointer-events-none size-full select-none object-cover transition duration-300 group-hover:scale-[1.03]" />
@@ -874,7 +868,7 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
                                   <Icon className="size-8 stroke-[1.5]" />
                                 </div>
                               )}
-                              {isVideo && <div className="pointer-events-none absolute inset-0 grid place-items-center"><span className="grid size-9 place-items-center rounded-full bg-slate-950/65 text-white"><FileVideo className="size-4" /></span></div>}
+                              {isVideo && <div className="pointer-events-none absolute inset-0 grid place-items-center"><span className="grid size-9 place-items-center rounded-full bg-white/90 text-slate-700"><FileVideo className="size-4" /></span></div>}
                               <span className="absolute left-2 top-2 rounded-md border border-white/80 bg-white/90 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-600 shadow-sm">{label}</span>
                             </div>
                             <div className="mt-3 flex items-start justify-between gap-2">
@@ -887,7 +881,8 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
                           <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/60 px-3 py-2">
                             <span className="inline-flex max-w-[70%] items-center gap-1.5 truncate text-[10px] font-medium text-slate-500"><LockKeyhole className="size-3 shrink-0 text-emerald-600" /> Private file</span>
                             <div className="flex gap-1">
-                              <a href={"/api/vault/files/" + encodeURIComponent(file.id)} title="Download file" aria-label={"Download " + file.name} className="grid size-8 place-items-center rounded-lg text-slate-400 transition hover:bg-blue-50 hover:text-blue-700"><ArrowDownToLine className="size-3.5" /></a>
+                              <button type="button" disabled={busy} onClick={() => setPreviewFile(file)} title="Preview file" aria-label={"Preview " + file.name} className="grid size-8 place-items-center rounded-lg text-slate-400 transition hover:bg-violet-50 hover:text-violet-700 disabled:opacity-40"><Eye className="size-3.5" /></button>
+                               <a href={"/api/vault/files/" + encodeURIComponent(file.id)} title="Download file" aria-label={"Download " + file.name} className="grid size-8 place-items-center rounded-lg text-slate-400 transition hover:bg-blue-50 hover:text-blue-700"><ArrowDownToLine className="size-3.5" /></a>
                               <button type="button" disabled={busy} onClick={() => deleteFile(file)} title="Delete file" aria-label={"Delete " + file.name} className="grid size-8 place-items-center rounded-lg text-slate-400 transition hover:bg-rose-50 hover:text-rose-700 disabled:opacity-40"><Trash2 className="size-3.5" /></button>
                             </div>
                           </div>
@@ -897,36 +892,41 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
                   </div>
                 ) : (
                   <div className="overflow-hidden rounded-2xl border border-slate-200">
-                    <div className="hidden grid-cols-[minmax(0,1fr)_110px_145px_92px] gap-4 border-b border-slate-200 bg-slate-50 px-4 py-3 text-[10px] font-bold uppercase tracking-[0.13em] text-slate-400 sm:grid">
-                      <span>Name</span><span>Kind</span><span>Modified</span><span className="text-right">Actions</span>
+                    <div className="hidden grid-cols-[minmax(0,1fr)_120px_100px_140px_104px] gap-4 border-b border-slate-200 bg-slate-50 px-4 py-3 text-[10px] font-bold uppercase tracking-[0.13em] text-slate-500 lg:grid">
+                      <span>Name</span><span>Type</span><span>File size</span><span>Last modified</span><span className="text-right">Actions</span>
                     </div>
                     <div className="divide-y divide-slate-100">
+                      {visibleFolders.length > 0 && <div className="bg-slate-50/80 px-4 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Folders</div>}
                       {visibleFolders.map((folder) => (
-                        <div key={folder.id} className="grid grid-cols-1 gap-2 px-3 py-3 transition hover:bg-slate-50 sm:grid-cols-[minmax(0,1fr)_110px_145px_92px] sm:items-center sm:gap-4 sm:px-4">
+                        <div key={folder.id} className="grid grid-cols-1 gap-2 px-3 py-3 transition hover:bg-slate-50 lg:grid-cols-[minmax(0,1fr)_120px_100px_140px_104px] lg:items-center lg:gap-4 lg:px-4">
                           <button type="button" onClick={() => navigateToFolder(folder.id)} className="flex min-w-0 items-center gap-3 text-left">
                             <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-600"><Folder className="size-5" /></span>
                             <span className="min-w-0"><span className="block truncate text-sm font-semibold text-slate-800">{folder.name}</span><span className="mt-1 block text-[10px] text-slate-400">Folder</span></span>
                           </button>
                           <span className="hidden text-xs text-slate-500 sm:block">Folder</span>
-                          <span className="hidden text-xs text-slate-500 sm:block">{new Date(folder.updatedAt).toLocaleDateString()}</span>
+                          <span className="hidden text-xs text-slate-400 lg:block">—</span>
+                          <span className="hidden text-xs text-slate-500 lg:block">{new Date(folder.updatedAt).toLocaleDateString()}</span>
                           <div className="flex justify-end gap-1">
                             <button type="button" disabled={busy} onClick={() => renameFolder(folder)} title="Rename folder" aria-label={"Rename " + folder.name} className="grid size-8 place-items-center rounded-lg text-slate-400 transition hover:bg-white hover:text-slate-800 disabled:opacity-40"><Pencil className="size-3.5" /></button>
                             <button type="button" disabled={busy} onClick={() => deleteFolder(folder)} title="Delete folder and contents" aria-label={"Delete " + folder.name} className="grid size-8 place-items-center rounded-lg text-slate-400 transition hover:bg-rose-50 hover:text-rose-700 disabled:opacity-40"><Trash2 className="size-3.5" /></button>
                           </div>
                         </div>
                       ))}
+                      {visibleFiles.length > 0 && <div className="bg-slate-50/80 px-4 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Files</div>}
                       {visibleFiles.map((file) => {
                         const Icon = fileIcon(file.mimeType);
                         const label = fileTypeLabel(file);
                         return (
-                          <div key={file.id} className="grid grid-cols-1 gap-2 px-3 py-3 transition hover:bg-slate-50 sm:grid-cols-[minmax(0,1fr)_110px_145px_92px] sm:items-center sm:gap-4 sm:px-4">
+                          <div key={file.id} className="grid grid-cols-1 gap-2 px-3 py-3 transition hover:bg-slate-50 lg:grid-cols-[minmax(0,1fr)_120px_100px_140px_104px] lg:items-center lg:gap-4 lg:px-4">
                             <button type="button" onClick={() => setPreviewFile(file)} className="flex min-w-0 items-center gap-3 text-left">
-                              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-700"><Icon className="size-5" /></span>
-                              <span className="min-w-0"><span className="block truncate text-sm font-semibold text-slate-800">{file.name}</span><span className="mt-1 block truncate text-[10px] text-slate-400">{formatBytes(file.sizeBytes)} · {file.mimeType || "Unknown type"}</span></span>
+                              <span className={"grid size-10 shrink-0 place-items-center rounded-xl border " + fileAccentClass(file)}><Icon className="size-5" /></span>
+                              <span className="min-w-0"><span className="block truncate text-sm font-semibold text-slate-800">{file.name}</span><span className="mt-1 block truncate text-[10px] text-slate-400 lg:hidden">{formatBytes(file.sizeBytes)} · {label}</span></span>
                             </button>
-                            <span className="hidden text-xs text-slate-500 sm:block">{label}</span>
-                            <span className="hidden text-xs text-slate-500 sm:block">{new Date(file.updatedAt).toLocaleDateString()}</span>
+                            <span className="hidden text-xs text-slate-500 lg:block">{label}</span>
+                            <span className="hidden text-xs text-slate-600 lg:block">{formatBytes(file.sizeBytes)}</span>
+                            <span className="hidden text-xs text-slate-500 lg:block">{new Date(file.updatedAt).toLocaleDateString()}</span>
                             <div className="flex justify-end gap-1">
+                              <button type="button" disabled={busy} onClick={() => setPreviewFile(file)} title="Preview file" aria-label={"Preview " + file.name} className="grid size-8 place-items-center rounded-lg text-slate-400 transition hover:bg-violet-50 hover:text-violet-700 disabled:opacity-40"><Eye className="size-3.5" /></button>
                               <a href={"/api/vault/files/" + encodeURIComponent(file.id)} title="Download file" aria-label={"Download " + file.name} className="grid size-8 place-items-center rounded-lg text-slate-400 transition hover:bg-blue-50 hover:text-blue-700"><ArrowDownToLine className="size-3.5" /></a>
                               <button type="button" disabled={busy} onClick={() => deleteFile(file)} title="Delete file" aria-label={"Delete " + file.name} className="grid size-8 place-items-center rounded-lg text-slate-400 transition hover:bg-rose-50 hover:text-rose-700 disabled:opacity-40"><Trash2 className="size-3.5" /></button>
                             </div>
@@ -970,7 +970,7 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
                       <p className="pb-1 text-[11px] font-medium text-slate-500">of {formatBytes(snapshot.usage.quotaBytes)}</p>
                     </div>
                     <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                      <div className={"h-full rounded-full transition-all duration-500 " + (usedPercent >= 90 ? "bg-amber-500" : "bg-blue-600")} style={{ width: usedPercent + "%" }} />
+                      <div className={"h-full rounded-full transition-all duration-500 " + (usedPercent >= 95 ? "bg-rose-500" : usedPercent >= 80 ? "bg-amber-500" : "bg-blue-600")} style={{ width: usedPercent + "%" }} />
                     </div>
                     <div className="mt-2 flex items-center justify-between text-[11px]">
                       <span className="text-slate-500">{Math.round(usedPercent)}% used</span>
@@ -1029,6 +1029,15 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
             </aside>
           </section>
         </div>
+        {dragging && (
+          <div aria-live="polite" className="pointer-events-none absolute inset-0 z-40 grid place-items-center bg-white/90 p-6">
+            <div className="flex max-w-lg flex-col items-center rounded-2xl border-2 border-dashed border-blue-400 bg-blue-50/90 px-8 py-12 text-center shadow-sm">
+              <span className="grid size-14 place-items-center rounded-2xl bg-white text-blue-700"><CloudUpload className="size-7" /></span>
+              <p className="mt-4 text-lg font-semibold text-slate-950">Drop files to upload</p>
+              <p className="mt-1 text-sm text-slate-600">Files will be added to {snapshot?.currentFolder?.name ?? "Vault"} using your company’s private storage.</p>
+            </div>
+          </div>
+        )}
       </main>
 
       <ConfirmDialog
@@ -1045,8 +1054,8 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
       />
 
       {folderDialog && (
-        <div className="fixed inset-0 z-[90] grid place-items-center bg-slate-950/60 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="vault-folder-dialog-title" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setFolderDialog(null); }}>
-          <form onSubmit={(event) => void saveFolderDialog(event)} className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-950/20">
+        <div className="fixed inset-0 z-[90] grid place-items-center bg-slate-900/25 p-4" role="dialog" aria-modal="true" aria-labelledby="vault-folder-dialog-title" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setFolderDialog(null); }}>
+          <form onSubmit={(event) => void saveFolderDialog(event)} className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10">
             <div className="border-b border-slate-100 bg-slate-50/80 px-5 py-5">
               <div className="flex items-start justify-between gap-3">
                 <span className="grid size-10 place-items-center rounded-xl bg-blue-50 text-blue-700"><FolderPlus className="size-5" /></span>
@@ -1075,11 +1084,11 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
       )}
 
       {previewFile && (
-        <div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950/75 p-3 backdrop-blur-md sm:p-6" role="dialog" aria-modal="true" aria-labelledby="vault-preview-title" onContextMenu={(event) => event.preventDefault()} onDragStart={(event) => event.preventDefault()} onMouseDown={(event) => { if (event.target === event.currentTarget) setPreviewFile(null); }}>
-          <section className="flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-[26px] border border-white/15 bg-white shadow-2xl shadow-black/30">
+        <div className="fixed inset-0 z-[80] grid place-items-center bg-slate-900/30 p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="vault-preview-title" onContextMenu={(event) => event.preventDefault()} onDragStart={(event) => event.preventDefault()} onMouseDown={(event) => { if (event.target === event.currentTarget) setPreviewFile(null); }}>
+          <section className="flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-[26px] border border-white/15 bg-white shadow-xl shadow-slate-900/10">
             <header className="flex items-center justify-between gap-4 border-b border-slate-200 px-4 py-4 sm:px-6">
               <div className="flex min-w-0 items-center gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-700">{(() => { const PreviewIcon = fileIcon(previewFile.mimeType); return <PreviewIcon className="size-5" />; })()}</span>
+                <span className={"grid size-10 shrink-0 place-items-center rounded-xl border " + fileAccentClass(previewFile)}>{(() => { const PreviewIcon = fileIcon(previewFile.mimeType); return <PreviewIcon className="size-5" />; })()}</span>
                 <div className="min-w-0">
                   <h2 id="vault-preview-title" className="truncate text-sm font-semibold text-slate-950" title={previewFile.name}>{previewFile.name}</h2>
                   <p className="mt-1 truncate text-[11px] text-slate-500">{fileTypeLabel(previewFile)} · {formatBytes(previewFile.sizeBytes)} · Access checked by your company session</p>
