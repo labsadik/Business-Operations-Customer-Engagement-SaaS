@@ -113,3 +113,36 @@ test("chat export, workspace settings, and platform usage routes are available w
   assert.match(adminPage, /AdminLiveChatUsage/);
   assert.match(config, /source: "\/embed\/live-chat\/:companySlug"/);
 });
+
+
+test("enterprise Live Chat exposes visitor telemetry, agent identity, status filters, and a persistent workspace sidebar", () => {
+  const conversation = source("models/live-chat-conversation.ts");
+  const messageApi = source("app/api/public/live-chat/[companySlug]/conversations/[conversationId]/messages/route.ts");
+  const agentApi = source("app/api/live-chat/conversations/[conversationId]/messages/route.ts");
+  const createApi = source("app/api/public/live-chat/[companySlug]/conversations/route.ts");
+  const dashboard = source("components/live-chat-dashboard.tsx");
+  const widget = source("components/live-chat-widget.tsx");
+  const settings = source("models/live-chat-settings.ts");
+  const settingsApi = source("app/api/public/live-chat/[companySlug]/route.ts");
+  const monthlyCustomer = source("models/live-chat-monthly-customer.ts");
+
+  for (const field of ["geoCountry", "geoCity", "geoRegion", "ipDisplay", "browser", "os", "deviceType", "referrer", "assignedAgentId"]) {
+    assert.match(conversation, new RegExp(field));
+  }
+  assert.match(createApi, /cf-ipcountry/);
+  assert.match(createApi, /Visitor #/);
+  assert.match(messageApi, /senderAvatar/);
+  assert.match(messageApi, /senderName/);
+  assert.match(agentApi, /senderUserId/);
+  assert.match(dashboard, /useWorkspaceSidebarState/);
+  assert.match(dashboard, /WorkspaceSidebar/);
+  assert.match(dashboard, /UNASSIGNED/);
+  assert.match(dashboard, /userDetailsOpen/);
+  assert.match(dashboard, /optimistic/);
+  assert.match(widget, /senderAvatar/);
+  assert.match(widget, /Chatting with/);
+  assert.match(widget, /document\.hidden/);
+  assert.match(settings, /offlineMode/);
+  assert.match(settingsApi, /no-store/);
+  assert.doesNotMatch(monthlyCustomer, /expiresAt: \{ type: Date, required: true, index: true \}/);
+});
