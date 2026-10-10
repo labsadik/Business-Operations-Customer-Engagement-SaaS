@@ -337,3 +337,37 @@ test("company profile and drive thumbnails use live usage and labeled, private p
   assert.ok(fileRoute.includes("Accept-Ranges"));
   assert.ok(fileRoute.includes("deleteVaultFileAndRelease"));
 });
+
+
+test("vault errors do not expose MongoDB or provider internals to users", () => {
+  const storage = source("features/company-vault/server/vault-storage.ts");
+  assert.ok(storage.includes("Internal MongoDB/provider errors belong in server logs"));
+  assert.ok(storage.includes('console.error("Company vault operation failed"'));
+  assert.doesNotMatch(storage, /return jsonError\\(code \\|\\| fallback, status\\)/);
+});
+
+
+test("vault compression is lossless, optional, and usage is counted by stored bytes", () => {
+  const fileModel = source("models/vault-file.ts");
+  const uploadModel = source("models/vault-upload.ts");
+  const uploadRoute = source("app/api/vault/uploads/route.ts");
+  const complete = source("app/api/vault/uploads/[uploadId]/complete/route.ts");
+  const fileRoute = source("app/api/vault/files/[fileId]/route.ts");
+  const storage = source("features/company-vault/server/vault-storage.ts");
+  const adminUsage = source("app/api/admin/vault-usage/route.ts");
+  const ui = source("components/company-vault.tsx");
+
+  assert.ok(fileModel.includes("storageSizeBytes"));
+  assert.ok(fileModel.includes('enum: ["identity", "gzip"]'));
+  assert.ok(uploadModel.includes("originalSizeBytes"));
+  assert.ok(uploadRoute.includes("originalSizeBytes > scope.vaultMaxFileBytes"));
+  assert.ok(uploadRoute.includes("contentEncoding"));
+  assert.ok(complete.includes("storageSizeBytes: claimedUpload.sizeBytes"));
+  assert.ok(complete.includes("contentEncoding: claimedUpload.contentEncoding ?? \"identity\""));
+  assert.ok(fileRoute.includes('new DecompressionStream("gzip")'));
+  assert.ok(storage.includes('$ifNull: ["$storageSizeBytes", "$sizeBytes"]'));
+  assert.ok(adminUsage.includes('$ifNull: ["$storageSizeBytes", "$sizeBytes"]'));
+  assert.ok(ui.includes('new CompressionStream("gzip")'));
+  assert.ok(ui.includes('compressed.size + 128 < file.size'));
+  assert.ok(ui.includes('return { blob: file, contentEncoding: "identity" }'));
+});

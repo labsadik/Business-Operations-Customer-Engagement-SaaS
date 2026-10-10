@@ -25,7 +25,7 @@ export async function GET() {
       Subscription.find({ companyId: { $in: companyIds } }).select("companyId planId status currentPeriodEnd").lean(),
       VaultFile.aggregate<{ _id: unknown; count: number; sizeBytes: number }>([
         { $match: { companyId: { $in: companyIds } } },
-        { $group: { _id: "$companyId", count: { $sum: 1 }, sizeBytes: { $sum: "$sizeBytes" } } }
+        { $group: { _id: "$companyId", count: { $sum: 1 }, sizeBytes: { $sum: { $ifNull: ["$storageSizeBytes", "$sizeBytes"] } } } }
       ]),
       VaultUpload.aggregate<{ _id: unknown; count: number; sizeBytes: number }>([
         {

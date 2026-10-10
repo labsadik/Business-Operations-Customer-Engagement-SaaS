@@ -274,13 +274,13 @@ export async function ensureVaultUsage(
     // persisted file/upload metadata as authoritative and collapse old counters
     // only after the company-wide row has been created.
     const [files, activeUploads] = await Promise.all([
-      VaultFile.find({ companyId }).select("_id uploadId sizeBytes").lean(),
+      VaultFile.find({ companyId }).select("_id uploadId sizeBytes storageSizeBytes").lean(),
       VaultUpload.find({
         companyId,
         status: { $in: ["OPEN", "COMPLETING"] }
       }).select("_id sizeBytes").lean()
     ]);
-    const fileBytes = files.reduce((sum, file) => sum + file.sizeBytes, 0);
+    const fileBytes = files.reduce((sum, file) => sum + (file.storageSizeBytes ?? file.sizeBytes), 0);
     const filesByUpload = new Set(files.map((file) => String(file.uploadId)));
     const pendingUploads = activeUploads.filter((upload) => !filesByUpload.has(String(upload._id)));
     const pendingBytes = pendingUploads.reduce((sum, upload) => sum + upload.sizeBytes, 0);
@@ -307,46 +307,32 @@ export async function ensureVaultUsage(
 
   if (!usage) throw new Error("VAULT_USAGE_UNAVAILABLE");
 
-  // One-time repair for counters predating reliable delete accounting. The
-  // transaction conflicts with simultaneous quota reservations instead of
-  // overwriting their increments.
+  // Repair legacy counters without requiring MongoDB replica-set transactions.
+  // A guarded atomic update makes concurrent repairs idempotent and prevents a
+  // second repair from overwriting an already-upgraded counter after reservations.
   if (usage.counterVersion !== 2) {
     await cleanupExpiredVaultUploads(scope);
-    const db = await getMongo();
-    const session = await db.startSession();
-    try {
-      await session.withTransaction(async () => {
-        const latest = await VaultUsage.findOne(filter).session(session).lean();
-        if (!latest || latest.counterVersion === 2) return;
-        const files = await VaultFile.find({ companyId })
-          .select("_id uploadId sizeBytes")
-          .session(session)
-          .lean();
-        const activeUploads = await VaultUpload.find({
-          companyId,
-          status: { $in: ["OPEN", "COMPLETING"] },
-          expiresAt: { $gt: new Date() }
-        }).select("_id sizeBytes").session(session).lean();
-        const filesByUpload = new Set(files.map((file) => String(file.uploadId)));
-        const pendingUploads = activeUploads.filter((upload) => !filesByUpload.has(String(upload._id)));
-        const usedBytes = files.reduce((sum, file) => sum + file.sizeBytes, 0) +
-          pendingUploads.reduce((sum, upload) => sum + upload.sizeBytes, 0);
-        await VaultUsage.updateOne(
-          filter,
-          {
-            $set: {
-              usedBytes,
-              usedItems: files.length + pendingUploads.length,
-              quotaBytes: scope.vaultQuotaBytes,
-              counterVersion: 2
-            }
-          },
-          { session }
-        );
-      });
-    } finally {
-      await session.endSession();
-    }
+    const [files, activeUploads] = await Promise.all([
+      VaultFile.find({ companyId }).select("uploadId sizeBytes storageSizeBytes").lean(),
+      VaultUpload.find({
+        companyId,
+        status: { $in: ["OPEN", "COMPLETING"] },
+        expiresAt: { $gt: new Date() }
+      }).select("_id sizeBytes").lean()
+    ]);
+    const filesByUpload = new Set(files.map((file) => String(file.uploadId)));
+    const pendingUploads = activeUploads.filter((upload) => !filesByUpload.has(String(upload._id)));
+    const usedBytes = files.reduce((sum, file) => sum + (file.storageSizeBytes ?? file.sizeBytes), 0) +
+      pendingUploads.reduce((sum, upload) => sum + upload.sizeBytes, 0);
+    await VaultUsage.updateOne(
+      { ...filter, counterVersion: { $ne: 2 } },
+      { $set: {
+        usedBytes,
+        usedItems: files.length + pendingUploads.length,
+        quotaBytes: scope.vaultQuotaBytes,
+        counterVersion: 2
+      } }
+    );
     usage = await VaultUsage.findOne(filter).lean();
   }
 
@@ -411,37 +397,31 @@ export async function releaseVaultBytes(scope: Pick<VaultScope, "companyId">, by
 
 export async function deleteVaultFileAndRelease(
   scope: Pick<VaultScope, "companyId" | "workspaceId">,
-  file: { _id: Types.ObjectId; sizeBytes: number }
+  file: { _id: Types.ObjectId; sizeBytes: number; storageSizeBytes?: number }
 ) {
   const companyId = new Types.ObjectId(scope.companyId);
   const workspaceId = new Types.ObjectId(scope.workspaceId);
-  const db = await getMongo();
-  const session = await db.startSession();
-  let deletedCount = 0;
+  // This conditional single-document delete makes retries idempotent. Usage
+  // counters are released only by the request that actually removed the file.
+  const deleted = await VaultFile.deleteOne({ _id: file._id, companyId, workspaceId });
+  if (!deleted.deletedCount) return false;
+
   try {
-    await session.withTransaction(async () => {
-      const deleted = await VaultFile.deleteOne({
-        _id: file._id,
-        companyId,
-        workspaceId
-      }, { session });
-      if (!deleted.deletedCount) return;
-      deletedCount = deleted.deletedCount;
-      await VaultUsage.updateOne(
-        { companyId, workspaceId: companyId },
-        [{
-          $set: {
-            usedBytes: { $max: [0, { $subtract: [{ $ifNull: ["$usedBytes", 0] }, file.sizeBytes] }] },
-            usedItems: { $max: [0, { $subtract: [{ $ifNull: ["$usedItems", 0] }, 1] }] }
-          }
-        }],
-        { session }
-      );
+    await releaseVaultBytes(scope, file.storageSizeBytes ?? file.sizeBytes);
+  } catch (error) {
+    // The metadata deletion has succeeded; mark the counter stale so the next
+    // vault request can reconcile it rather than returning a false delete failure.
+    await VaultUsage.updateOne(
+      { companyId, workspaceId: companyId },
+      { $set: { counterVersion: 1 } }
+    ).catch(() => undefined);
+    console.error("Vault file deleted but usage counter needs reconciliation", {
+      companyId: String(companyId),
+      fileId: String(file._id),
+      error: error instanceof Error ? error.message : "USAGE_RELEASE_FAILED"
     });
-  } finally {
-    await session.endSession();
   }
-  return deletedCount > 0;
+  return true;
 }
 
 export async function getVaultUsageSnapshot(
@@ -451,7 +431,7 @@ export async function getVaultUsageSnapshot(
   const [fileRows, pendingRows] = await Promise.all([
     VaultFile.aggregate<{ count: number; sizeBytes: number }>([
       { $match: { companyId } },
-      { $group: { _id: null, count: { $sum: 1 }, sizeBytes: { $sum: "$sizeBytes" } } }
+      { $group: { _id: null, count: { $sum: 1 }, sizeBytes: { $sum: { $ifNull: ["$storageSizeBytes", "$sizeBytes"] } } } }
     ]),
     VaultUpload.aggregate<{ count: number; sizeBytes: number }>([
       {
@@ -524,7 +504,7 @@ export async function cleanupExpiredVaultUploads(scope: Pick<VaultScope, "compan
 }
 
 export function vaultErrorResponse(error: unknown, fallback = "VAULT_REQUEST_FAILED") {
-  const code = error instanceof Error ? error.message : fallback;
+  const rawCode = error instanceof Error ? error.message : fallback;
   const statusByCode: Record<string, number> = {
     UNAUTHENTICATED: 401,
     FORBIDDEN: 403,
@@ -558,10 +538,22 @@ export function vaultErrorResponse(error: unknown, fallback = "VAULT_REQUEST_FAI
     BUNNY_OBJECT_NOT_FOUND: 502,
     VAULT_USAGE_UNAVAILABLE: 503
   };
-  let status = statusByCode[code] ??
-    (code.endsWith("_INVALID") || code.endsWith("_REQUIRED") || code.endsWith("_TOO_LONG") ? 400 : 500);
-  if (code.startsWith("BUNNY_")) status = statusByCode[code] ?? 502;
-  return jsonError(code || fallback, status);
+  const code = statusByCode[rawCode] !== undefined ||
+    /^(?:INVALID_[A-Z0-9_]+|[A-Z0-9]+(?:_[A-Z0-9]+)*_(?:INVALID|REQUIRED|TOO_LONG|ALREADY_EXISTS|NOT_FOUND))$/.test(rawCode)
+      ? rawCode
+      : fallback;
+  let status = statusByCode[rawCode] ??
+    (rawCode.endsWith("_INVALID") || rawCode.endsWith("_REQUIRED") || rawCode.endsWith("_TOO_LONG") ? 400 : 500);
+  if (rawCode.startsWith("BUNNY_")) status = statusByCode[rawCode] ?? 502;
+  if (status >= 500) {
+    console.error("Company vault operation failed", {
+      code: rawCode,
+      responseCode: code,
+      detail: error instanceof Error ? error.message : "UNKNOWN_ERROR"
+    });
+  }
+  // Internal MongoDB/provider errors belong in server logs, never in a user response.
+  return jsonError(status >= 500 ? (statusByCode[rawCode] !== undefined ? rawCode : fallback) : code || fallback, status);
 }
 
 export async function getTenantFolder(

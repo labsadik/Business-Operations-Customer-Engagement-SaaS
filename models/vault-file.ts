@@ -10,7 +10,10 @@ const vaultFileSchema = new Schema(
     originalName: { type: String, required: true, trim: true, maxlength: 240 },
     storageKey: { type: String, required: true, unique: true, immutable: true },
     mimeType: { type: String, required: true, default: "application/octet-stream", maxlength: 160 },
-    sizeBytes: { type: Number, required: true, min: 0 }
+    sizeBytes: { type: Number, required: true, min: 0 },
+    // Logical/original file size and bytes stored in Bunny may differ after lossless compression.
+    storageSizeBytes: { type: Number, min: 0 },
+    contentEncoding: { type: String, enum: ["identity", "gzip"], default: "identity" }
   },
   { timestamps: true }
 );

@@ -9,6 +9,8 @@ const vaultUploadSchema = new Schema(
     originalName: { type: String, required: true, trim: true, maxlength: 240 },
     mimeType: { type: String, required: true, default: "application/octet-stream", maxlength: 160 },
     sizeBytes: { type: Number, required: true, min: 1 },
+    originalSizeBytes: { type: Number, min: 1 },
+    contentEncoding: { type: String, enum: ["identity", "gzip"], default: "identity" },
     chunkSizeBytes: { type: Number, required: true, min: 1 },
     expectedChunks: { type: Number, required: true, min: 1 },
     receivedChunks: { type: [Number], default: [] },

@@ -34,7 +34,18 @@ export async function POST(request: Request) {
         typeof body.size !== "number" || !Number.isSafeInteger(body.size) || body.size < 1) {
       throw new Error("INVALID_UPLOAD_INPUT");
     }
-    if (body.size > scope.vaultMaxFileBytes) throw new Error("VAULT_FILE_TOO_LARGE");
+    const originalSizeBytes = body.originalSize === undefined ? body.size : body.originalSize;
+    const contentEncoding = body.contentEncoding === undefined ? "identity" : body.contentEncoding;
+    if (!Number.isSafeInteger(originalSizeBytes) || originalSizeBytes < 1 ||
+        !["identity", "gzip"].includes(contentEncoding) ||
+        (contentEncoding === "identity" && originalSizeBytes !== body.size) ||
+        (contentEncoding === "gzip" && body.size >= originalSizeBytes)) {
+      throw new Error("INVALID_UPLOAD_INPUT");
+    }
+    // The plan cap applies to the original file even if its compressed payload is smaller.
+    if (originalSizeBytes > scope.vaultMaxFileBytes || body.size > scope.vaultMaxFileBytes) {
+      throw new Error("VAULT_FILE_TOO_LARGE");
+    }
     if (body.name.length > 500 || !body.name.trim()) throw new Error("INVALID_UPLOAD_INPUT");
 
     const originalName = safeVaultFilename(body.name);
@@ -57,6 +68,8 @@ export async function POST(request: Request) {
       originalName,
       mimeType,
       sizeBytes: body.size,
+      originalSizeBytes,
+      contentEncoding,
       chunkSizeBytes: VAULT_CHUNK_SIZE_BYTES,
       expectedChunks,
       receivedChunks: [],
