@@ -52,20 +52,28 @@ export async function GET(request: Request) {
     const companyId = new Types.ObjectId(scope.companyId);
     const workspaceId = new Types.ObjectId(scope.workspaceId);
 
-    const folderFilter: Record<string, unknown> = { companyId, workspaceId, parentFolderId };
-    if (folderCursor) {
-      folderFilter.$or = [
-        { nameKey: { $gt: folderCursor.name } },
-        { nameKey: folderCursor.name, _id: { $gt: new Types.ObjectId(folderCursor.id) } }
-      ];
-    }
-    const fileFilter: Record<string, unknown> = { companyId, workspaceId, folderId: parentFolderId };
-    if (fileCursor) {
-      fileFilter.$or = [
-        { originalName: { $gt: fileCursor.name } },
-        { originalName: fileCursor.name, _id: { $gt: new Types.ObjectId(fileCursor.id) } }
-      ];
-    }
+    const folderFilter = {
+      companyId,
+      workspaceId,
+      parentFolderId,
+      ...(folderCursor ? {
+        $or: [
+          { nameKey: { $gt: folderCursor.name } },
+          { nameKey: folderCursor.name, _id: { $gt: new Types.ObjectId(folderCursor.id) } }
+        ]
+      } : {})
+    };
+    const fileFilter = {
+      companyId,
+      workspaceId,
+      folderId: parentFolderId,
+      ...(fileCursor ? {
+        $or: [
+          { originalName: { $gt: fileCursor.name } },
+          { originalName: fileCursor.name, _id: { $gt: new Types.ObjectId(fileCursor.id) } }
+        ]
+      } : {})
+    };
 
     // Cursor-paginate each collection independently. A browser never pulls an
     // unbounded folder/file list into one API response for large tenants.
