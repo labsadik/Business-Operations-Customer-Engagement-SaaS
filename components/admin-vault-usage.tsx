@@ -86,7 +86,7 @@ export default function AdminVaultUsage() {
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-600">Storage governance</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Company vault usage</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">Inspect each company’s assigned plan quota, actual bytes, stored items, active uploads, and entitlement status. Quotas and item limits are configured in Plans.</p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">Inspect each company’s plan quota, actual bytes, stored items, active uploads, and entitlement status. Limits are configured in Plans.</p>
         </div>
         <button type="button" onClick={() => void load(true)} disabled={loading || refreshing} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
           <RefreshCw className={"size-4 " + (refreshing ? "animate-spin" : "")} /> Refresh
@@ -99,8 +99,8 @@ export default function AdminVaultUsage() {
         {[
           { label: "Companies", value: (data?.totals.companies ?? 0).toLocaleString("en-IN") },
           { label: "Vaults enabled", value: (data?.totals.enabledCompanies ?? 0).toLocaleString("en-IN") },
-          { label: "Bytes used across companies", value: formatBytes(data?.totals.usedBytes ?? 0) },
-          { label: "Currently stored files", value: (data?.totals.fileCount ?? 0).toLocaleString("en-IN") }
+          { label: "Company storage used", value: formatBytes(data?.totals.usedBytes ?? 0) },
+          { label: "Stored files", value: (data?.totals.fileCount ?? 0).toLocaleString("en-IN") }
         ].map((item) => (
           <div key={item.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">{item.label}</p>
@@ -113,7 +113,7 @@ export default function AdminVaultUsage() {
         <div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <div>
             <h2 className="text-base font-semibold text-slate-950">Company-by-company breakdown</h2>
-            <p className="mt-1 text-xs text-slate-500">Quota reflects the current plan configuration; stored bytes include committed and reserved uploads.</p>
+            <p className="mt-1 text-xs text-slate-500">Usage includes completed files and active-upload reservations.</p>
           </div>
           <label className="flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2.5 sm:w-80">
             <Search className="size-4 text-slate-400" />
@@ -164,15 +164,15 @@ export default function AdminVaultUsage() {
                       <p className="mt-1 text-sm font-semibold text-slate-800">{item.usedItems.toLocaleString("en-IN")} / {item.vaultEnabled ? item.maxItems.toLocaleString("en-IN") : "—"}</p>
                     </div>
                     <div className="rounded-xl bg-slate-50 p-3">
-                      <p className="text-[10px] uppercase tracking-[0.1em] text-slate-400">Max file</p>
+                      <p className="text-[10px] uppercase tracking-[0.1em] text-slate-400">Max file size</p>
                       <p className="mt-1 text-sm font-semibold text-slate-800">{item.vaultEnabled ? formatBytes(item.maxFileBytes) : "—"}</p>
                     </div>
                     <div className="rounded-xl bg-slate-50 p-3">
-                      <p className="text-[10px] uppercase tracking-[0.1em] text-slate-400">File count</p>
+                      <p className="text-[10px] uppercase tracking-[0.1em] text-slate-400">Stored files</p>
                       <p className="mt-1 text-sm font-semibold text-slate-800">{item.fileCount.toLocaleString("en-IN")}</p>
                     </div>
                     <div className="rounded-xl bg-slate-50 p-3">
-                      <p className="text-[10px] uppercase tracking-[0.1em] text-slate-400">Pending uploads</p>
+                      <p className="text-[10px] uppercase tracking-[0.1em] text-slate-400">Active uploads</p>
                       <p className="mt-1 text-sm font-semibold text-slate-800">{item.pendingUploadCount.toLocaleString("en-IN")}</p>
                       {item.pendingUploadBytes > 0 && <p className="mt-1 text-[10px] text-slate-500">{formatBytes(item.pendingUploadBytes)} reserved</p>}
                     </div>

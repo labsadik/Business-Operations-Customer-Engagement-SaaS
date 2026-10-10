@@ -20,43 +20,49 @@ export async function GET() {
       Company.find({}).select("_id name slug").sort({ name: 1, _id: 1 }).limit(5000).lean(),
       listPlansForAdmin()
     ]);
-    const ids = companies.map((company) => company._id);
-    const [subscriptions, usageRows, files, pendingUploads] = await Promise.all([
-      Subscription.find({ companyId: { $in: ids } }).select("companyId planId status currentPeriodEnd").lean(),
-      VaultUsage.find({ companyId: { $in: ids } }).select("companyId usedBytes quotaBytes usedItems").lean(),
+    const companyIds = companies.map((company) => company._id);
+    const [subscriptions, usageRows, fileStatsRows, pendingRows] = await Promise.all([
+      Subscription.find({ companyId: { $in: companyIds } }).select("companyId planId status currentPeriodEnd").lean(),
+      VaultUsage.find({ companyId: { $in: companyIds } }).select("companyId usedBytes quotaBytes usedItems").lean(),
       VaultFile.aggregate<{ _id: unknown; count: number; sizeBytes: number }>([
-        { $match: { companyId: { $in: ids } } },
+        { $match: { companyId: { $in: companyIds } } },
         { $group: { _id: "$companyId", count: { $sum: 1 }, sizeBytes: { $sum: "$sizeBytes" } } }
       ]),
       VaultUpload.aggregate<{ _id: unknown; count: number; sizeBytes: number }>([
-        { $match: { companyId: { $in: ids }, status: { $in: ["OPEN", "COMPLETING"] } } },
+        { $match: { companyId: { $in: companyIds }, status: { $in: ["OPEN", "COMPLETING"] } } },
         { $group: { _id: "$companyId", count: { $sum: 1 }, sizeBytes: { $sum: "$sizeBytes" } } }
       ])
     ]);
 
-    const planMap = new Map(plans.map((plan) => [plan.id, plan]));
-    const subscriptionMap = new Map(subscriptions.map((item) => [String(item.companyId), item]));
-    const usageMap = new Map(usageRows.map((item) => [String(item.companyId), item]));
-    const fileMap = new Map(files.map((item) => [String(item._id), item]));
-    const pendingMap = new Map(pendingUploads.map((item) => [String(item._id), item]));
+    const plansById = new Map(plans.map((plan) => [plan.id, plan]));
+    const subscriptionsByCompany = new Map(subscriptions.map((row) => [String(row.companyId), row]));
+    const usageByCompany = new Map(usageRows.map((row) => [String(row.companyId), row]));
+    const filesByCompany = new Map(fileStatsRows.map((row) => [String(row._id), row]));
+    const pendingByCompany = new Map(pendingRows.map((row) => [String(row._id), row]));
+    const now = Date.now();
 
     const items = companies.map((company) => {
       const companyId = String(company._id);
-      const subscription = subscriptionMap.get(companyId);
-      const plan = planMap.get(subscription?.planId ?? "free") ?? null;
-      const usage = usageMap.get(companyId);
-      const fileStats = fileMap.get(companyId);
-      const pendingStats = pendingMap.get(companyId);
+      const subscription = subscriptionsByCompany.get(companyId);
+      const activePlanId = subscription?.status === "ACTIVE" &&
+        subscription.currentPeriodEnd.getTime() > now
+        ? subscription.planId
+        : "free";
+      const plan = plansById.get(activePlanId) ?? plansById.get("free") ?? null;
+      const usage = usageByCompany.get(companyId);
+      const fileStats = filesByCompany.get(companyId);
+      const pendingStats = pendingByCompany.get(companyId);
       const usedBytes = usage?.usedBytes ?? ((fileStats?.sizeBytes ?? 0) + (pendingStats?.sizeBytes ?? 0));
       const usedItems = usage?.usedItems ?? ((fileStats?.count ?? 0) + (pendingStats?.count ?? 0));
       const quotaBytes = plan?.vaultEnabled ? plan.vaultQuotaBytes : 0;
       const maxFileBytes = plan?.vaultEnabled ? plan.vaultMaxFileBytes : 0;
       const maxItems = plan?.vaultEnabled ? plan.vaultMaxItems : 0;
+
       return {
         companyId,
         companyName: company.name,
         companySlug: company.slug,
-        planId: plan?.id ?? subscription?.planId ?? "unknown",
+        planId: plan?.id ?? activePlanId,
         planName: plan?.name ?? "Unknown plan",
         vaultEnabled: Boolean(plan?.vaultEnabled),
         usedBytes,
