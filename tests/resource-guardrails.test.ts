@@ -510,7 +510,9 @@ test("enterprise workspace sidebar groups navigation, aligns the toggle, and ret
   assert.ok(sidebar.includes("onOpenPanel"));
   assert.ok(sidebar.includes("router.push(`/dashboard?${query.toString()}`)"));
   assert.ok(sidebar.includes("onNavigateOverview"));
-  assert.doesNotMatch(sidebar, /api\\/auth\\/logout|Sign out|LogOut/);
+  assert.ok(!sidebar.includes("/api/auth/logout"));
+  assert.ok(!sidebar.includes("Sign out"));
+  assert.ok(!sidebar.includes("LogOut"));
 
   assert.ok(skeleton.includes('min-h-[68px] items-center justify-between gap-2.5'));
   assert.ok(skeleton.includes('className="size-8 shrink-0 rounded-lg"'));
