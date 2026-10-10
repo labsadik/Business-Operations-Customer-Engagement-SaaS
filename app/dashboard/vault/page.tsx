@@ -40,5 +40,11 @@ export default async function CompanyVaultPage() {
   const entitlements = await getCompanyEntitlements(String(company._id));
   if (!entitlements.vaultEnabled) redirect("/dashboard");
 
-  return <CompanyVault companyName={company.name} currentRole={session.role} />;
+  return (
+    <CompanyVault
+      companyName={company.name}
+      currentRole={session.role}
+      taskManagementEnabled={Boolean(entitlements.taskManagementEnabled)}
+    />
+  );
 }
