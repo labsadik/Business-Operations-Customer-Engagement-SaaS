@@ -29,6 +29,7 @@ export async function GET(
   { params }: { params: Promise<{ fileId: string }> }
 ) {
   try {
+    if (request.headers.get("sec-fetch-site") === "cross-site") throw new Error("FORBIDDEN");
     const scope = await requireVaultScope();
     await getMongo();
     const { fileId } = await params;
@@ -61,8 +62,13 @@ export async function GET(
       "Content-Length": compressed ? String(file.sizeBytes) : remote.headers.get("content-length") ?? String(file.sizeBytes),
       "Content-Disposition": downloadDisposition(file.originalName, inline),
       "X-Content-Type-Options": "nosniff",
+      "X-Download-Options": "noopen",
+      "X-Permitted-Cross-Domain-Policies": "none",
+      "Cross-Origin-Opener-Policy": "same-origin",
       "Content-Security-Policy": "sandbox",
-      "Cache-Control": "private, no-store",
+      "Cache-Control": "private, no-store, max-age=0",
+      "Pragma": "no-cache",
+      "Vary": "Cookie, Sec-Fetch-Dest, Range",
       "Cross-Origin-Resource-Policy": "same-origin",
       "Referrer-Policy": "no-referrer",
       "X-Frame-Options": "SAMEORIGIN",

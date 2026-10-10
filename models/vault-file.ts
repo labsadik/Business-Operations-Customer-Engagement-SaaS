@@ -13,11 +13,13 @@ const vaultFileSchema = new Schema(
     sizeBytes: { type: Number, required: true, min: 0 },
     // Logical/original file size and bytes stored in Bunny may differ after lossless compression.
     storageSizeBytes: { type: Number, min: 0 },
-    contentEncoding: { type: String, enum: ["identity", "gzip"], default: "identity" }
+    contentEncoding: { type: String, enum: ["identity", "gzip"], default: "identity" },
+    encryptionVersion: { type: String, enum: ["none", "aes-256-gcm-chunks-v1"], default: "none" }
   },
   { timestamps: true }
 );
 
 vaultFileSchema.index({ companyId: 1, workspaceId: 1, folderId: 1, createdAt: -1, _id: -1 });
+vaultFileSchema.index({ companyId: 1, workspaceId: 1, folderId: 1, originalName: 1, _id: 1 });
 
 export const VaultFile = models.VaultFile ?? model("VaultFile", vaultFileSchema);

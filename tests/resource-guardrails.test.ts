@@ -254,7 +254,7 @@ test("company vault APIs stay tenant-scoped and Bunny secrets remain server-only
   assert.doesNotMatch(browser, /BUNNY_STORAGE_PASSWORD|AccessKey/);
   assert.ok(downloads.includes('"Content-Disposition": downloadDisposition(file.originalName, inline)'));
   assert.ok(downloads.includes('"X-Content-Type-Options": "nosniff"'));
-  assert.ok(downloads.includes('"Cache-Control": "private, no-store"'));
+  assert.ok(downloads.includes('"Cache-Control": "private, no-store, max-age=0"'));
   assert.match(folderModel, /companyId:[\s\S]*?immutable: true/);
   assert.match(folderModel, /workspaceId:[\s\S]*?immutable: true/);
   assert.match(fileModel, /companyId:[\s\S]*?immutable: true/);
@@ -365,7 +365,7 @@ test("vault compression is lossless, optional, and usage is counted by stored by
   assert.ok(complete.includes("storageSizeBytes: claimedUpload.sizeBytes"));
   assert.ok(complete.includes("contentEncoding: claimedUpload.contentEncoding ?? \"identity\""));
   assert.ok(fileRoute.includes('new DecompressionStream("gzip")'));
-  assert.ok(storage.includes('$ifNull: ["$storageSizeBytes", "$sizeBytes"]'));
+  assert.ok(storage.includes("file.storageSizeBytes ?? file.sizeBytes"));
   assert.ok(adminUsage.includes('$ifNull: ["$storageSizeBytes", "$sizeBytes"]'));
   assert.ok(ui.includes('new CompressionStream("gzip")'));
   assert.ok(ui.includes('compressed.size + 128 < file.size'));
@@ -403,4 +403,31 @@ test("vault uploads stream chunks and never report 100 percent before Bunny fina
   assert.ok(cleanupJob.includes("cleanupExpiredVaultUploads(undefined, CLEANUP_BATCH_LIMIT)"));
   assert.ok(cleanupJob.includes('request.headers.get("authorization") === `Bearer ${secret}`'));
   assert.ok(vercel.includes('"schedule": "0 3 * * *"'));
+});
+
+
+test("vault listing and usage reads are bounded for very large tenants", () => {
+  const listing = source("app/api/vault/route.ts");
+  const storage = source("features/company-vault/server/vault-storage.ts");
+  const files = source("models/vault-file.ts");
+  const folders = source("models/vault-folder.ts");
+  const usage = storage.slice(
+    storage.indexOf("export async function getVaultUsageSnapshot("),
+    storage.indexOf("export function uploadChunkKey(")
+  );
+  const download = source("app/api/vault/files/[fileId]/route.ts");
+
+  assert.ok(listing.includes("const PAGE_SIZE = 100"));
+  assert.ok(listing.includes(".limit(PAGE_SIZE + 1)"));
+  assert.ok(listing.includes("nextFolderCursor"));
+  assert.ok(listing.includes("nextFileCursor"));
+  assert.ok(files.includes("originalName: 1, _id: 1"));
+  assert.ok(folders.includes("nameKey: 1, _id: 1"));
+  assert.equal(usage.includes(".aggregate("), false);
+  assert.equal(usage.includes("$lookup"), false);
+  assert.equal(usage.includes("pendingRows"), false);
+  assert.ok(usage.includes("usage.counterVersion !== 2"));
+  assert.ok(download.includes('"Cache-Control": "private, no-store, max-age=0"'));
+  assert.ok(download.includes('"Cross-Origin-Resource-Policy": "same-origin"'));
+  assert.ok(download.includes('request.headers.get("sec-fetch-site") === "cross-site"'));
 });
