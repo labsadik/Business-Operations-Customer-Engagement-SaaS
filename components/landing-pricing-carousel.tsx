@@ -34,6 +34,18 @@ type PublicPlan = {
   requiresPayment: boolean;
 };
 
+function storageLimitLabel(bytes: number) {
+  const units = [
+    { size: 1024 ** 4, label: "TB" },
+    { size: 1024 ** 3, label: "GB" },
+    { size: 1024 ** 2, label: "MiB" },
+    { size: 1024, label: "KiB" }
+  ];
+  const unit = units.find((candidate) => bytes >= candidate.size) ?? { size: 1, label: "B" };
+  const value = bytes / unit.size;
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(value) + " " + unit.label;
+}
+
 function money(value: number) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -227,7 +239,7 @@ export default function LandingPricingCarousel({ plans }: { plans: PublicPlan[] 
                   <span>
                     Cloud vault
                     {plan.vaultEnabled
-                      ? " (" + (plan.vaultQuotaBytes % (1024 ** 4) === 0 ? plan.vaultQuotaBytes / (1024 ** 4) + " TB" : (plan.vaultQuotaBytes / (1024 ** 3)) + " GB") + ")"
+                      ? " (" + storageLimitLabel(plan.vaultQuotaBytes) + "; " + storageLimitLabel(plan.vaultMaxFileBytes) + "/file; " + plan.vaultMaxItems.toLocaleString("en-IN") + " files)"
                       : " (not included)"}
                   </span>
                   <span className="sr-only">{plan.vaultEnabled ? "Included" : "Not included"}</span>

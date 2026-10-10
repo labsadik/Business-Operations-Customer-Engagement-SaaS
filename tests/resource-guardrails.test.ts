@@ -265,6 +265,7 @@ test("company vault APIs stay tenant-scoped and Bunny secrets remain server-only
 });
 
 
+
 test("vault limits follow company plan entitlement, avoid Bunny folder marker writes, and stream completed files", () => {
   const storage = source("features/company-vault/server/vault-storage.ts");
   const createFolder = source("app/api/vault/folders/route.ts");
@@ -273,6 +274,7 @@ test("vault limits follow company plan entitlement, avoid Bunny folder marker wr
   const planSchema = source("models/plan.ts");
   const profile = source("components/company-profile.tsx");
   const vaultUi = source("components/company-vault.tsx");
+  const sidebar = source("components/workspace-sidebar.tsx");
 
   assert.ok(storage.includes("getCompanyEntitlements"));
   assert.ok(storage.includes("VAULT_FEATURE_NOT_INCLUDED"));
@@ -282,11 +284,12 @@ test("vault limits follow company plan entitlement, avoid Bunny folder marker wr
   assert.ok(storage.includes("bunnyPutStream"));
   assert.ok(planSchema.includes("vaultEnabled"));
   assert.ok(plans.includes("vaultQuotaBytes"));
-  assert.doesNotMatch(createFolder, /bunnyEnsureMarker|\\.conventus-folder/);
+  assert.doesNotMatch(createFolder, /bunnyEnsureMarker|\.conventus-folder/);
   assert.ok(complete.includes("streamVaultParts("));
-  assert.doesNotMatch(complete, /Buffer\\.concat|bunnyReadBuffer/);
-  assert.doesNotMatch(profile, /body:\\s*JSON\\.stringify\\(\\{[\\s\\S]*slug:\\s*form\\.slug/);
-  assert.doesNotMatch(vaultUi, /window\\.(?:prompt|confirm|alert)\\s*\\(/);
-  assert.ok(vaultUi.includes("role=\\\"progressbar\\\""));
+  assert.doesNotMatch(complete, /Buffer\.concat|bunnyReadBuffer/);
+  assert.doesNotMatch(profile, /body:\s*JSON\.stringify\(\{[\s\S]*slug:\s*form\.slug/);
+  assert.doesNotMatch(vaultUi, /window\.(?:prompt|confirm|alert)\s*\(/);
+  assert.ok(vaultUi.includes('role="progressbar"'));
   assert.ok(vaultUi.includes("onDrop="));
+  assert.ok(sidebar.includes("{vaultEnabled && ("));
 });

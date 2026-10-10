@@ -1,35 +1,30 @@
 # Company Vault
 
-Conventus Company Vault gives each company an isolated document area. MongoDB stores folder metadata, file metadata, upload sessions, quota reservations, and usage. File bytes live in Bunny.net Storage and are accessed only through authenticated Conventus server routes.
+Conventus Company Vault gives each company an isolated document area. MongoDB stores folder metadata, file metadata, upload sessions, quota reservations, and usage. File bytes live in Bunny.net Storage and are accessed through authenticated Conventus server routes.
 
 ## Plan entitlements and exact limits
 
-The **Plans** admin editor controls the **Cloud vault** entitlement. It is disabled by default on every plan. When enabled, the admin assigns the company's storage quota (GB or TB), maximum size per file, and maximum stored item count. The server resolves these settings from the company's active plan; a company without the entitlement receives a 403 and cannot list, upload, download, rename, or delete vault data through the API.
+The Plans admin editor controls the Cloud vault entitlement. It is disabled by default on every plan. When enabled, an administrator assigns the company's storage quota (GB or TB), maximum size per file, and maximum uploaded-file count. Server routes resolve these limits from the current company plan; companies without the entitlement are denied vault API access.
 
-GB/TB values are converted to bytes using powers of 1024 (1 GB = 1,073,741,824 bytes; 1 TB = 1,099,511,627,776 bytes). Values displayed in the plan editor and public plan cards use those same byte values. Admin plan edits apply to live entitlement resolution; existing usage above a lowered quota remains visible to the administrator, but new uploads are refused until usage fits the cap. The global hard maximum per file is 250 MiB to protect production workloads. The default plan-editor per-file cap is 100 MiB. Each batch is limited to 25 files; the plan can also set a lower lifetime stored-item limit.
+Storage units use powers of 1024: 1 GB = 1,073,741,824 bytes and 1 TB = 1,099,511,627,776 bytes. Admin and pricing views format the stored byte value instead of creating a second quota. Plan edits are applied by the server on the next request. If a limit is reduced below current usage, stored items remain available for review/download according to entitlement access, but further uploads are blocked until usage fits the new limit. The per-file hard cap is 250 MiB, regardless of the plan; plan UI defaults to 100 MiB. Upload batches are limited to 25 files.
 
-## Configure Bunny Storage
+## Bunny configuration and access
 
-Set these variables in the server environment (for example, Vercel Project Settings or the local .env.local file):
+Set BUNNY_STORAGE_ZONE, BUNNY_STORAGE_PASSWORD, and optionally BUNNY_STORAGE_ENDPOINT in the server environment. Never put a Bunny credential in browser code or a NEXT_PUBLIC_ variable. BUNNY_VAULT_QUOTA_BYTES and BUNNY_VAULT_MAX_FILE_BYTES are compatibility defaults; enabled plan settings are authoritative.
 
-- **BUNNY_STORAGE_ZONE**: the Bunny Storage Zone name.
-- **BUNNY_STORAGE_PASSWORD**: the Storage Zone password. Never use a storage credential in browser code or a NEXT_PUBLIC_ variable.
-- **BUNNY_STORAGE_ENDPOINT**: optional HTTPS regional endpoint, default https://storage.bunnycdn.com.
-- **BUNNY_VAULT_QUOTA_BYTES** and **BUNNY_VAULT_MAX_FILE_BYTES**: compatibility/default values for legacy or default initialization only; an enabled plan's quota and file limit are authoritative.
+Use a dedicated Storage Zone that is not connected to a public Pull Zone. Downloads are streamed through authenticated application routes, with private caching and content-security headers. The Storage Zone password never leaves the server.
 
-Use a dedicated Storage Zone for private vault data and **do not connect it to a publicly reachable Pull Zone**. All downloads are proxied by the authenticated API, which never exposes the Storage Zone password.
+## Storage layout and performance
 
-## Storage layout and resource safety
+Every company uses a stable prefix based on its immutable MongoDB company ID; company name and public slug do not determine the storage key. Folders and subfolders are MongoDB metadata only; creating them does not write placeholder/marker files to Bunny. Folder deletion also removes legacy marker objects from earlier builds.
 
-Every company uses a stable root named company- followed by its immutable MongoDB company ID. The public company name and public slug are not authorization inputs and changing either never changes the storage root. Folder trees are metadata-only: a new folder does not write a .conventus-folder or .conventus-vault marker object to Bunny. Folder delete requests remove old marker objects left by previous builds.
+Uploads are chunked into sequential 3 MiB requests. MongoDB atomically reserves bytes and an uploaded-file slot before allowing a new upload. On completion, the server streams staged Bunny objects into the final Bunny object rather than concatenating the complete file into RAM. The UI caps each batch at 25 files; the server separately enforces the plan file size, company byte quota, item cap, and 250 MiB hard cap. Abandoned uploads expire after six hours and are cleaned when the company next accesses vault APIs.
 
-Uploads use 3 MiB chunks, sequentially; byte and item slots are atomically reserved in MongoDB before chunk upload starts. The completed file is streamed from Bunny staging objects into its final Bunny object, so the app does not read or concatenate the entire file in RAM. Staging keys are private server-side implementation details. Abandoned upload sessions expire after six hours; cleanup is retried when a company accesses the vault API.
+Images except SVG, common video formats, PDFs, and safe plain-text/CSV/JSON have authenticated inline previews. Office files are available as secure downloads and are not uploaded to a public third-party viewer. Office-document conversion previews would require a separate sandboxed conversion service.
 
-Images (except SVG), common videos, PDFs, and safe plain-text/CSV/JSON content have in-app previews through the authenticated file route. Word, Excel, PowerPoint, and other formats remain downloadable but are not passed to a third-party preview service. There is no public download URL or public Pull Zone requirement.
+## Tenant isolation and admin visibility
 
-## Tenant, usage, and administration
-
-- Server routes derive company and workspace identity from the authenticated session and active membership; clients cannot supply another company ID.
-- File/folder queries are scoped by company and workspace. Quota and item reservations are company-wide, so workspaces under one company cannot multiply its storage allowance.
-- The /admin/vault-usage view reports usage, assigned quota, stored items, active uploads, plan entitlement, and file counts per company.
-- File downloads include private cache, nosniff, and same-origin resource headers. Bunny credentials remain server-only.
+- Every vault route derives company/workspace identity from the authenticated server session and membership; client-supplied company IDs are not used.
+- File/folder queries are tenant-scoped. Quota and item reservations are company-wide, so a second workspace cannot multiply the company's allowance.
+- The /admin/vault-usage view displays each company's plan, enabled state, bytes used versus quota, stored item count versus cap, configured max file size, and active uploads.
+- The admin endpoint is platform-admin-only and reports usage per company, not per public slug.

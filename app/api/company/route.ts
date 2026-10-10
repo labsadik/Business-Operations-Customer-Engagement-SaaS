@@ -280,6 +280,10 @@ export async function GET() {
       maxConcurrentMeetings: plan.maxConcurrentMeetings,
       taskManagementEnabled: Boolean(plan.taskManagementEnabled),
       taskManagementDailyLimit: plan.taskManagementDailyLimit,
+      vaultEnabled: Boolean(plan.vaultEnabled),
+      vaultQuotaBytes: plan.vaultQuotaBytes,
+      vaultMaxFileBytes: plan.vaultMaxFileBytes,
+      vaultMaxItems: plan.vaultMaxItems,
       validityDays: plan.validityDays,
       freeFeatureDays: plan.freeFeatureDays,
       requiresPayment: plan.requiresPayment

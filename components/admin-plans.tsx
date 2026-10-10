@@ -115,9 +115,15 @@ const emptyDraft: Draft = {
 };
 
 function storageLimitLabel(bytes: number) {
-  if (bytes % (1024 ** 4) === 0) return (bytes / (1024 ** 4)) + " TB";
-  const gb = bytes / (1024 ** 3);
-  return (Number.isInteger(gb) ? String(gb) : gb.toFixed(2).replace(/0+$/, "").replace(/\\.$/, "")) + " GB";
+  const units = [
+    { size: 1024 ** 4, label: "TB" },
+    { size: 1024 ** 3, label: "GB" },
+    { size: 1024 ** 2, label: "MiB" },
+    { size: 1024, label: "KiB" }
+  ];
+  const unit = units.find((candidate) => bytes >= candidate.size) ?? { size: 1, label: "B" };
+  const value = bytes / unit.size;
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(value) + " " + unit.label;
 }
 
 function money(value: number) {
@@ -657,7 +663,7 @@ export default function AdminPlans() {
                     <p className="text-[10px] uppercase tracking-[0.11em] text-slate-400">Cloud vault</p>
                     <p className="mt-1 text-xs font-semibold text-slate-800">
                       {item.vaultEnabled
-                        ? "Included · " + storageLimitLabel(item.vaultQuotaBytes) + " · " + storageLimitLabel(item.vaultMaxFileBytes) + " max/file · " + item.vaultMaxItems.toLocaleString("en-IN") + " items"
+                        ? "Included · " + storageLimitLabel(item.vaultQuotaBytes) + " · " + storageLimitLabel(item.vaultMaxFileBytes) + "/file · " + item.vaultMaxItems.toLocaleString("en-IN") + " files"
                         : "Not included"}
                     </p>
                   </div>
