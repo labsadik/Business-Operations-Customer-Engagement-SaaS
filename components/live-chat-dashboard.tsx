@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   MessageCircle, Settings2, Download, Trash2, Send, RefreshCw, Copy, CheckCircle2,
   Check, LoaderCircle, Palette, ShieldCheck, UsersRound, MessageSquareText,
-  Clock3, AlertCircle, Code2
+  Clock3, AlertCircle, Code2, X
 } from "lucide-react";
 
 type ApiEnvelope<T> = { ok: boolean; data?: T; error?: string; details?: unknown };
@@ -98,6 +98,7 @@ export default function LiveChatDashboard({ canManageSettings = true }: { canMan
   const [notice, setNotice] = useState("");
   const [copied, setCopied] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const selected = useMemo(() => items.find((item) => item.id === selectedId) ?? null, [items, selectedId]);
 
@@ -340,6 +341,55 @@ export default function LiveChatDashboard({ canManageSettings = true }: { canMan
         <div className="mt-6 flex flex-col-reverse gap-2 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between"><span className="text-[11px] leading-5 text-slate-500">Server-enforced: {usage?.cooldownSeconds ?? 15}s cooldown · {usage?.retentionDays ?? 30}-day data retention</span><button onClick={() => void saveSettings()} disabled={!canManageSettings || savingSettings} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">{savingSettings ? <LoaderCircle className="size-4 animate-spin" /> : <Check className="size-4" />} Save settings</button></div>
       </section>}
       <aside className="space-y-4">
+        {settings && <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2"><MessageCircle className="size-4 text-blue-600" /><h2 className="text-sm font-semibold text-slate-900">Live preview</h2></div>
+              <p className="mt-1 text-xs leading-5 text-slate-500">See the widget update as you edit its settings. This preview does not save or publish changes.</p>
+            </div>
+            <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ${settings.publicWidgetEnabled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{settings.publicWidgetEnabled ? "Enabled" : "Disabled"}</span>
+          </div>
+          <div className="relative mt-4 h-[420px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 p-4">
+            <div className="pointer-events-none select-none">
+              <div className="flex items-center justify-between rounded-xl bg-white px-3 py-2.5 shadow-sm">
+                <div className="flex items-center gap-2"><span className="grid size-7 place-items-center rounded-lg text-xs font-bold text-white" style={{ backgroundColor: settings.primaryColor }}>Y</span><span className="text-xs font-semibold text-slate-800">Your website</span></div>
+                <div className="flex gap-1"><span className="h-1.5 w-5 rounded-full bg-slate-200" /><span className="h-1.5 w-5 rounded-full bg-slate-200" /><span className="h-1.5 w-5 rounded-full bg-slate-200" /></div>
+              </div>
+              <div className="px-1 pt-6">
+                <div className="h-2.5 w-2/3 rounded-full bg-slate-300" />
+                <div className="mt-3 h-2 w-full rounded-full bg-slate-200" />
+                <div className="mt-2 h-2 w-4/5 rounded-full bg-slate-200" />
+                <div className="mt-5 grid grid-cols-2 gap-2"><div className="h-16 rounded-xl border border-slate-200 bg-white/90" /><div className="h-16 rounded-xl border border-slate-200 bg-white/90" /></div>
+                <div className="mt-3 h-20 rounded-xl border border-slate-200 bg-white/80" />
+              </div>
+            </div>
+            {!previewOpen ? (
+              <div className={`absolute bottom-3 z-10 ${settings.position === "LEFT" ? "left-3" : "right-3"}`}>
+                <button type="button" aria-label="Open live chat preview" onClick={() => setPreviewOpen(true)} className="grid size-14 place-items-center rounded-full text-white shadow-xl ring-4 ring-white/70 transition hover:scale-105" style={{ backgroundColor: settings.primaryColor }}>
+                  <MessageCircle className="size-6" />
+                </button>
+              </div>
+            ) : (
+              <section aria-label="Live chat widget preview" className={`absolute bottom-3 z-10 flex h-[350px] w-[300px] max-w-[calc(100%-24px)] flex-col overflow-hidden rounded-2xl border shadow-2xl ${settings.position === "LEFT" ? "left-3" : "right-3"} ${settings.theme === "DARK" ? "border-slate-700 bg-slate-950 text-slate-100" : "border-slate-200 bg-white text-slate-950"}`}>
+                <header className="flex shrink-0 items-start gap-2 px-3 py-3 text-white" style={{ backgroundColor: settings.primaryColor }}>
+                  <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">{settings.title || "Chat with us"}</p><p className="mt-1 text-[10px] text-white/80">Your company · Usually replies promptly</p></div>
+                  <button type="button" aria-label="Close chat preview" onClick={() => setPreviewOpen(false)} className="rounded-md p-1 hover:bg-white/15"><X className="size-4" /></button>
+                </header>
+                <div className="min-h-0 flex-1 overflow-hidden p-3">
+                  <div className={`rounded-xl p-3 text-xs leading-5 ${settings.theme === "DARK" ? "bg-slate-900 text-slate-200" : "bg-slate-50 text-slate-600"}`}>{settings.welcomeMessage || "Hello! How can we help?"}</div>
+                  <div className="mt-3 space-y-2">
+                    {settings.collectName && <div className={`rounded-lg border px-3 py-2 text-[10px] ${settings.theme === "DARK" ? "border-slate-700 text-slate-500" : "border-slate-200 text-slate-400"}`}>Name</div>}
+                    {settings.collectEmail && <div className={`rounded-lg border px-3 py-2 text-[10px] ${settings.theme === "DARK" ? "border-slate-700 text-slate-500" : "border-slate-200 text-slate-400"}`}>Email address</div>}
+                    {settings.collectPhone && <div className={`rounded-lg border px-3 py-2 text-[10px] ${settings.theme === "DARK" ? "border-slate-700 text-slate-500" : "border-slate-200 text-slate-400"}`}>Phone number</div>}
+                  </div>
+                  <div className="mt-3 flex justify-end"><span className="rounded-lg px-3 py-2 text-[10px] font-semibold text-white" style={{ backgroundColor: settings.primaryColor }}>Start chatting</span></div>
+                </div>
+                <footer className={`flex shrink-0 justify-center border-t px-2 py-2 text-[9px] ${settings.theme === "DARK" ? "border-slate-800 text-slate-500" : "border-slate-100 text-slate-400"}`}>Powered by Conventus</footer>
+              </section>
+            )}
+          </div>
+          <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-slate-500"><span>{settings.position === "LEFT" ? "Launcher: bottom left" : "Launcher: bottom right"}</span><button type="button" onClick={() => setPreviewOpen((value) => !value)} className="font-semibold text-blue-700 hover:text-blue-800">{previewOpen ? "Show launcher" : "Open preview"}</button></div>
+        </section>}
         <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center gap-2"><Code2 className="size-4 text-blue-600" /><h2 className="text-sm font-semibold text-slate-900">Website embed code</h2></div><p className="mt-2 text-xs leading-5 text-slate-500">Add this single script to your website before the closing body tag. It loads a small isolated iframe and only polls while the widget is visible.</p><pre className="mt-4 overflow-x-auto rounded-xl bg-slate-950 p-3 text-[11px] leading-5 text-blue-100">{embedCode || "Save settings to generate embed code."}</pre><button onClick={() => void copyEmbed()} disabled={!embedCode} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">{copied ? <Check className="size-4 text-emerald-600" /> : <Copy className="size-4" />}{copied ? "Copied" : "Copy embed code"}</button></section>
         <section className="rounded-3xl border border-blue-100 bg-blue-50/60 p-5"><div className="flex items-center gap-2"><ShieldCheck className="size-4 text-blue-700" /><h2 className="text-sm font-semibold text-slate-900">Security & performance</h2></div><div className="mt-3 space-y-3 text-xs leading-5 text-slate-600"><p><strong className="text-slate-800">Spam protection stays on.</strong> The server atomically enforces message cooldowns, validates text, and limits rapid conversation creation.</p><p><strong className="text-slate-800">Tenant isolated.</strong> Every inbox/message query is scoped to your company and workspace. Agent roles and feature entitlements are checked on the server.</p><p><strong className="text-slate-800">Auto deletion.</strong> Chat messages expire individually; the daily retention job removes expired conversations in batches.</p><p><strong className="text-slate-800">Plan limits.</strong> {usage?.monthlyChats ?? 0} / {usage?.monthlyChatLimit ?? 0} monthly chats and {usage?.uniqueCustomers ?? 0} / {usage?.customerLimit ?? 0} unique visitors used.</p></div></section>
       </aside>
