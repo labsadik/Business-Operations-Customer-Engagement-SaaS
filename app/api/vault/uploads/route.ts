@@ -4,11 +4,10 @@ import { assertSameOrigin } from "@/lib/security";
 import { jsonOk } from "@/lib/http";
 import { VaultUpload } from "@/models/vault-upload";
 import {
-  bunnyEnsureMarker,
+  bunnyDelete,
   companyVaultRoot,
   getTenantFolder,
   getUploadExpiry,
-  getVaultMaxFileBytes,
   reserveVaultBytes,
   releaseVaultBytes,
   requireVaultScope,
@@ -35,7 +34,7 @@ export async function POST(request: Request) {
         typeof body.size !== "number" || !Number.isSafeInteger(body.size) || body.size < 1) {
       throw new Error("INVALID_UPLOAD_INPUT");
     }
-    if (body.size > getVaultMaxFileBytes()) throw new Error("VAULT_FILE_TOO_LARGE");
+    if (body.size > scope.vaultMaxFileBytes) throw new Error("VAULT_FILE_TOO_LARGE");
     if (body.name.length > 500 || !body.name.trim()) throw new Error("INVALID_UPLOAD_INPUT");
 
     const originalName = safeVaultFilename(body.name);
@@ -45,7 +44,8 @@ export async function POST(request: Request) {
     const folder = rawFolderId ? await getTenantFolder(scope, String(rawFolderId)) : null;
     const storageBaseKey = folder ? folder.storageKey : root;
 
-    await bunnyEnsureMarker(root + "/.conventus-vault", "Conventus private company vault marker.");
+    // Remove legacy marker objects from older deployments; new uploads need none.
+    await bunnyDelete(root + "/.conventus-vault").catch(() => undefined);
     const expectedChunks = Math.ceil(body.size / VAULT_CHUNK_SIZE_BYTES);
     await reserveVaultBytes(scope, body.size);
 
@@ -80,8 +80,11 @@ export async function POST(request: Request) {
       expiresAt: upload.expiresAt,
       usage: await ensureVaultUsage(scope).then((item) => ({
         usedBytes: item.usedBytes,
-        quotaBytes: item.quotaBytes,
-        availableBytes: Math.max(0, item.quotaBytes - item.usedBytes)
+        quotaBytes: scope.vaultQuotaBytes,
+        availableBytes: Math.max(0, scope.vaultQuotaBytes - item.usedBytes),
+        usedItems: item.usedItems,
+        maxItems: scope.vaultMaxItems,
+        maxFileBytes: scope.vaultMaxFileBytes
       }))
     }, 201);
   } catch (error) {

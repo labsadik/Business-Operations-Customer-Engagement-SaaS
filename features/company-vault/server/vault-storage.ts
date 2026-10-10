@@ -9,6 +9,7 @@ import { VaultUsage } from "@/models/vault-usage";
 import { VaultUpload } from "@/models/vault-upload";
 import { VaultFile } from "@/models/vault-file";
 import { jsonError } from "@/lib/http";
+import { getCompanyEntitlements } from "@/lib/plans-server";
 
 export const VAULT_CHUNK_SIZE_BYTES = 3 * 1024 * 1024;
 const DEFAULT_QUOTA_BYTES = 5 * 1024 * 1024 * 1024;
@@ -23,6 +24,10 @@ export type VaultScope = {
   companyName: string;
   companySlug: string;
   isPlatformAdmin: boolean;
+  vaultEnabled: boolean;
+  vaultQuotaBytes: number;
+  vaultMaxFileBytes: number;
+  vaultMaxItems: number;
 };
 
 type BunnyConfig = { zone: string; password: string; endpoint: string };
@@ -62,19 +67,27 @@ export async function requireVaultScope(): Promise<VaultScope> {
   ]);
   if (!company || !workspace) throw new Error("WORKSPACE_NOT_FOUND");
 
+  const entitlements = await getCompanyEntitlements(String(companyId));
+  if (!entitlements.vaultEnabled) throw new Error("VAULT_FEATURE_NOT_INCLUDED");
+
   return {
     session,
     companyId: String(companyId),
     workspaceId: String(workspaceId),
     companyName: company.name,
     companySlug: company.slug,
-    isPlatformAdmin: session.role === "PLATFORM_ADMIN"
+    isPlatformAdmin: session.role === "PLATFORM_ADMIN",
+    vaultEnabled: Boolean(entitlements.vaultEnabled),
+    vaultQuotaBytes: entitlements.vaultQuotaBytes ?? getVaultDefaultQuotaBytes(),
+    vaultMaxFileBytes: Math.min(entitlements.vaultMaxFileBytes ?? getVaultMaxFileBytes(), HARD_MAX_FILE_BYTES),
+    vaultMaxItems: entitlements.vaultMaxItems ?? 1000
   };
 }
 
-export function companyVaultRoot(scope: Pick<VaultScope, "companyId" | "companySlug">) {
-  const slug = scope.companySlug.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "company";
-  return slug + "-" + scope.companyId;
+export function companyVaultRoot(scope: Pick<VaultScope, "companyId">) {
+  // Stable company ID only: renaming a company or changing its public slug cannot
+  // orphan stored bytes or change which tenant owns them.
+  return "company-" + scope.companyId;
 }
 
 export function vaultFolderSegment(name: string, folderId: string) {
@@ -167,63 +180,121 @@ export async function bunnyReadBuffer(path: string) {
   return Buffer.from(await response.arrayBuffer());
 }
 
-export async function bunnyEnsureMarker(path: string, text: string) {
-  let response = await bunnyRequest("GET", path);
-  if (response.ok) {
-    await response.arrayBuffer();
-    return;
-  }
-  if (response.status !== 404) throwBunnyError(response);
-  await bunnyPut(path, text, "text/plain; charset=utf-8");
+export async function bunnyPutStream(
+  path: string,
+  body: AsyncIterable<Uint8Array>,
+  sizeBytes: number,
+  contentType = "application/octet-stream"
+) {
+  const config = bunnyConfig();
+  const headers: Record<string, string> = {
+    AccessKey: config.password,
+    "Content-Type": contentType,
+    "Content-Length": String(sizeBytes)
+  };
+  const response = await fetch(bunnyObjectUrl(path, config), {
+    method: "PUT",
+    headers,
+    body: body as unknown as BodyInit,
+    cache: "no-store",
+    duplex: "half"
+  } as RequestInit & { duplex: "half" });
+  if (!response.ok) throwBunnyError(response);
 }
 
-export async function ensureVaultUsage(scope: Pick<VaultScope, "companyId" | "workspaceId">) {
-  const filter = {
-    companyId: new Types.ObjectId(scope.companyId),
-    workspaceId: new Types.ObjectId(scope.workspaceId)
-  };
+export async function* streamVaultParts(storageRoot: string, uploadId: string, expectedChunks: number): AsyncGenerator<Uint8Array> {
+  for (let index = 0; index < expectedChunks; index += 1) {
+    const response = await bunnyDownload(uploadChunkKey(storageRoot, uploadId, index));
+    if (!response.body) throw new Error("BUNNY_OBJECT_NOT_FOUND");
+    const reader = response.body.getReader();
+    try {
+      while (true) {
+        const item = await reader.read();
+        if (item.done) break;
+        if (item.value?.byteLength) yield item.value;
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  }
+}
+
+export async function ensureVaultUsage(
+  scope: Pick<VaultScope, "companyId" | "workspaceId" | "vaultQuotaBytes">
+) {
+  const companyId = new Types.ObjectId(scope.companyId);
+  const filter = { companyId };
+  let usage;
   try {
-    const usage = await VaultUsage.findOneAndUpdate(
+    usage = await VaultUsage.findOneAndUpdate(
       filter,
-      { $setOnInsert: { usedBytes: 0, quotaBytes: getVaultDefaultQuotaBytes() } },
+      {
+        $set: { quotaBytes: scope.vaultQuotaBytes },
+        $setOnInsert: {
+          workspaceId: new Types.ObjectId(scope.workspaceId),
+          usedBytes: 0,
+          usedItems: 0
+        }
+      },
       { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     ).lean();
-    if (usage) return usage;
   } catch (error) {
     if (!(error && typeof error === "object" && "code" in error && error.code === 11000)) throw error;
+    usage = await VaultUsage.findOne(filter).lean();
   }
-  const usage = await VaultUsage.findOne(filter).lean();
+  if (!usage) throw new Error("VAULT_USAGE_UNAVAILABLE");
+
+  // Backfill item usage for records created before item quotas existed.
+  if (!Number.isSafeInteger(usage.usedItems)) {
+    const [fileCount, openUploadCount] = await Promise.all([
+      VaultFile.countDocuments({ companyId }),
+      VaultUpload.countDocuments({ companyId, status: { $in: ["OPEN", "COMPLETING"] } })
+    ]);
+    await VaultUsage.updateOne(filter, { $set: { usedItems: fileCount + openUploadCount } });
+    usage = await VaultUsage.findOne(filter).lean();
+  }
   if (!usage) throw new Error("VAULT_USAGE_UNAVAILABLE");
   return usage;
 }
 
-export async function reserveVaultBytes(scope: Pick<VaultScope, "companyId" | "workspaceId">, bytes: number) {
+export async function reserveVaultBytes(
+  scope: Pick<VaultScope, "companyId" | "workspaceId" | "vaultQuotaBytes" | "vaultMaxItems">,
+  bytes: number
+) {
   const companyId = new Types.ObjectId(scope.companyId);
-  const workspaceId = new Types.ObjectId(scope.workspaceId);
   await ensureVaultUsage(scope);
   const updated = await VaultUsage.findOneAndUpdate(
     {
       companyId,
-      workspaceId,
       $expr: {
-        $lte: [
-          { $add: [{ $ifNull: ["$usedBytes", 0] }, bytes] },
-          "$quotaBytes"
+        $and: [
+          { $lte: [{ $add: [{ $ifNull: ["$usedBytes", 0] }, bytes] }, "$quotaBytes"] },
+          { $lt: [{ $ifNull: ["$usedItems", 0] }, scope.vaultMaxItems] }
         ]
       }
     },
-    { $inc: { usedBytes: bytes } },
+    { $inc: { usedBytes: bytes, usedItems: 1 } },
     { returnDocument: "after" }
   ).lean();
-  if (!updated) throw new Error("VAULT_STORAGE_LIMIT_REACHED");
+  if (!updated) {
+    const usage = await VaultUsage.findOne({ companyId }).select("usedBytes quotaBytes usedItems").lean();
+    if (usage && (usage.usedItems ?? 0) >= scope.vaultMaxItems) throw new Error("VAULT_ITEM_LIMIT_REACHED");
+    throw new Error("VAULT_STORAGE_LIMIT_REACHED");
+  }
   return updated;
 }
 
-export async function releaseVaultBytes(scope: Pick<VaultScope, "companyId" | "workspaceId">, bytes: number) {
+export async function releaseVaultBytes(scope: Pick<VaultScope, "companyId" | "workspaceId" | "vaultQuotaBytes">, bytes: number) {
   if (bytes <= 0) return;
+  const companyId = new Types.ObjectId(scope.companyId);
   await VaultUsage.updateOne(
-    { companyId: new Types.ObjectId(scope.companyId), workspaceId: new Types.ObjectId(scope.workspaceId) },
-    { $inc: { usedBytes: -bytes } }
+    { companyId },
+    [{
+      $set: {
+        usedBytes: { $max: [0, { $subtract: [{ $ifNull: ["$usedBytes", 0] }, bytes] }] },
+        usedItems: { $max: [0, { $subtract: [{ $ifNull: ["$usedItems", 0] }, 1] }] }
+      }
+    }]
   );
 }
 
@@ -286,6 +357,8 @@ export function vaultErrorResponse(error: unknown, fallback = "VAULT_REQUEST_FAI
     UPLOAD_CHUNKS_INCOMPLETE: 409,
     UPLOAD_ALREADY_COMPLETING: 409,
     VAULT_STORAGE_LIMIT_REACHED: 413,
+    VAULT_ITEM_LIMIT_REACHED: 413,
+    VAULT_FEATURE_NOT_INCLUDED: 403,
     VAULT_FILE_TOO_LARGE: 413,
     BUNNY_STORAGE_NOT_CONFIGURED: 503,
     BUNNY_STORAGE_CONFIGURATION_INVALID: 503,
