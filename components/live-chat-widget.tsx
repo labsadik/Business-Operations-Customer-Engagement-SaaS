@@ -239,8 +239,15 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
     }
   }, [companySlug, companyKey, config, conversationId, verifiedSiteOrigin, visitorId, accessToken]);
 
+  const loadMessagesRef = useRef(loadMessages);
+  const configLoaded = Boolean(config);
+
   useEffect(() => {
-    if (!opened || !conversationId || !config) return;
+    loadMessagesRef.current = loadMessages;
+  }, [loadMessages]);
+
+  useEffect(() => {
+    if (!opened || !conversationId || !configLoaded) return;
     let disposed = false;
     let timer: number | undefined;
     const schedule = () => {
@@ -258,17 +265,17 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
     const refreshWhenVisible = () => {
       if (document.hidden) return;
       if (timer !== undefined) window.clearTimeout(timer);
-      void loadMessages(true).finally(schedule);
+      void loadMessagesRef.current(true).finally(schedule);
     };
     document.addEventListener("visibilitychange", refreshWhenVisible);
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadMessages().finally(schedule);
+    void loadMessagesRef.current().finally(schedule);
     return () => {
       disposed = true;
       if (timer !== undefined) window.clearTimeout(timer);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
-  }, [opened, conversationId, config, loadMessages]);
+  }, [opened, conversationId, configLoaded]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
