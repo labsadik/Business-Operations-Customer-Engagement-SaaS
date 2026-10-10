@@ -69,18 +69,34 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
   const theme = config?.settings.theme === "DARK";
 
   useEffect(() => {
+    if (window.parent === window) return;
+    let initialized = false;
+    const sendReady = () => {
+      if (!initialized) {
+        // The ready ping contains no visitor or customer data. The parent
+        // responds with the verified page origin after checking this iframe.
+        window.parent.postMessage({ type: "conventus-live-chat-ready" }, "*");
+      }
+    };
     const initialize = (event: MessageEvent) => {
-      if (event.source !== window.parent || window.parent === window) return;
+      if (event.source !== window.parent) return;
       const data = event.data as { type?: unknown; siteOrigin?: unknown } | null;
       if (!data || data.type !== "conventus-live-chat-init" || typeof data.siteOrigin !== "string") return;
       if (event.origin !== data.siteOrigin) return;
       let parsed: URL;
       try { parsed = new URL(event.origin); } catch { return; }
       if (!["http:", "https:"].includes(parsed.protocol)) return;
+      initialized = true;
+      window.clearInterval(retryTimer);
       setVerifiedSiteOrigin(event.origin);
     };
     window.addEventListener("message", initialize);
-    return () => window.removeEventListener("message", initialize);
+    sendReady();
+    const retryTimer = window.setInterval(sendReady, 500);
+    return () => {
+      window.clearInterval(retryTimer);
+      window.removeEventListener("message", initialize);
+    };
   }, []);
 
   const notifyParent = useCallback((isOpen: boolean) => {
@@ -249,8 +265,52 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
   const panelClass = theme ? "border-slate-700 bg-slate-950 text-slate-100" : "border-slate-200 bg-white text-slate-950";
   const fieldClass = theme ? "border-slate-700 bg-slate-900 text-slate-100 placeholder:text-slate-500" : "border-slate-200 bg-white text-slate-900 placeholder:text-slate-400";
 
-  if (configError) return <div className="grid h-full place-items-center bg-white p-4 text-center text-xs text-slate-500">Live Chat is unavailable for this website.</div>;
-  if (!config) return <div className="grid h-full place-items-center bg-white"><LoaderCircle className="size-5 animate-spin text-blue-600" /></div>;
+  if (!config) {
+    if (!opened) {
+      return (
+        <div className="flex h-full items-end justify-end bg-transparent">
+          <button
+            type="button"
+            onClick={() => setOpened(true)}
+            aria-label="Open live chat"
+            className="grid size-[68px] place-items-center rounded-full text-white shadow-xl ring-4 ring-white/70 transition hover:scale-105"
+            style={{ backgroundColor: "#2563eb" }}
+          >
+            <MessageCircle className="size-7" />
+          </button>
+        </div>
+      );
+    }
+    return (
+      <section className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-950 shadow-2xl" aria-label="Live customer chat status">
+        <header className="flex shrink-0 items-start gap-3 bg-blue-600 px-4 py-4 text-white">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold">Live Chat</p>
+            <p className="mt-1 text-[11px] text-white/85">Powered by Conventus</p>
+          </div>
+          <button type="button" onClick={() => setOpened(false)} aria-label="Minimize chat" className="rounded-lg p-1.5 hover:bg-white/15">
+            <X className="size-4" />
+          </button>
+        </header>
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-6 text-center text-sm text-slate-600">
+          {configError ? (
+            <>
+              <MessageCircle className="size-7 text-slate-400" />
+              <p>Live Chat is unavailable for this website. Check that the widget is enabled and this website&apos;s domain is allowed.</p>
+            </>
+          ) : (
+            <>
+              <LoaderCircle className="size-5 animate-spin text-blue-600" />
+              <p>Connecting to Live Chat…</p>
+            </>
+          )}
+        </div>
+        <footer className="flex shrink-0 items-center justify-center border-t border-slate-100 px-2 py-2 text-[10px] text-slate-400">
+          Powered by Conventus
+        </footer>
+      </section>
+    );
+  }
 
   return (
     <div className={opened ? "flex h-full min-h-0 flex-col" : "flex h-full items-end justify-end bg-transparent"}>
