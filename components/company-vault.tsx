@@ -1111,6 +1111,7 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
               ) : /^application\/pdf$/i.test(previewFile.mimeType) || previewFile.name.toLowerCase().endsWith(".pdf") ? (
                 <div className="h-[76vh] w-full overflow-hidden rounded-xl border border-slate-200 bg-white sm:h-[78vh]">
                   <CustomPdfViewer
+                    key={previewFile.id}
                     src={"/api/vault/files/" + encodeURIComponent(previewFile.id) + "?inline=1"}
                     fileName={previewFile.name}
                   />
