@@ -6,11 +6,14 @@ import { VaultUpload } from "@/models/vault-upload";
 import {
   bunnyDelete,
   bunnyPutStream,
+  encryptVaultChunkBody,
   getUploadExpiry,
   requireVaultScope,
   streamRequestBody,
   uploadChunkKey,
-  vaultErrorResponse
+  vaultErrorResponse,
+  VAULT_CHUNK_ENCRYPTION_VERSION,
+  VAULT_ENCRYPTION_OVERHEAD_BYTES
 } from "@/features/company-vault/server/vault-storage";
 
 export const runtime = "nodejs";
@@ -56,13 +59,26 @@ export async function PUT(
     }
 
     const chunkKey = uploadChunkKey(upload.storageRoot, uploadId, index);
+    const encrypted = upload.encryptionVersion === VAULT_CHUNK_ENCRYPTION_VERSION;
+    const storedChunkSize = expectedSize + (encrypted ? VAULT_ENCRYPTION_OVERHEAD_BYTES : 0);
     try {
-      // Stream the request directly to Bunny. Never materialize a whole 3 MiB
-      // chunk in a Node Buffer for every concurrent upload request.
+      // Stream directly to Bunny with backpressure. When enabled, each staged
+      // chunk is independently AES-256-GCM authenticated and encrypted before
+      // it leaves the application server.
+      const chunkBody = encrypted
+        ? encryptVaultChunkBody(
+            request.body,
+            expectedSize,
+            uploadId,
+            String(upload.companyId),
+            String(upload.workspaceId),
+            index
+          )
+        : streamRequestBody(request.body, expectedSize);
       await bunnyPutStream(
         chunkKey,
-        streamRequestBody(request.body, expectedSize),
-        expectedSize,
+        chunkBody,
+        storedChunkSize,
         "application/octet-stream"
       );
     } catch (error) {
