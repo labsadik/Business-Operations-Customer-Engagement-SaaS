@@ -144,14 +144,13 @@ export async function getAdminVaultUsage(companyIds?: string[]): Promise<AdminVa
     const companyId = String(company._id);
     const subscription = subscriptionsByCompany.get(companyId);
     const subscriptionEnd = subscription?.currentPeriodEnd?.getTime() ?? 0;
-    const subscriptionActive = Boolean(
-      subscription &&
-      subscription.status === "ACTIVE" &&
-      subscriptionEnd > now
-    );
+    // Vault access follows the company's current subscription period, as does
+    // getCompanyEntitlements. A cancelled or past-due subscription can retain
+    // its already-granted plan until the period ends.
+    const subscriptionActive = Boolean(subscription && subscriptionEnd > now);
     const status: AdminVaultUsageItem["subscriptionStatus"] = !subscription
       ? "NONE"
-      : subscription.status === "ACTIVE" && !subscriptionActive
+      : !subscriptionActive
         ? "EXPIRED"
         : subscription.status;
     const activePlanId = subscriptionActive ? subscription?.planId ?? "free" : "free";
