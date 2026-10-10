@@ -30,6 +30,15 @@ export async function GET() {
       ]),
       VaultUpload.aggregate<{ _id: unknown; count: number; sizeBytes: number }>([
         { $match: { companyId: { $in: companyIds }, status: { $in: ["OPEN", "COMPLETING"] } } },
+        {
+          $lookup: {
+            from: VaultFile.collection.name,
+            localField: "_id",
+            foreignField: "uploadId",
+            as: "committedFiles"
+          }
+        },
+        { $match: { $expr: { $eq: [{ $size: "$committedFiles" }, 0] } } },
         { $group: { _id: "$companyId", count: { $sum: 1 }, sizeBytes: { $sum: "$sizeBytes" } } }
       ])
     ]);

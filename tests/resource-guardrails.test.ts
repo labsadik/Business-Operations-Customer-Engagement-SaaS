@@ -293,3 +293,16 @@ test("vault limits follow company plan entitlement, avoid Bunny folder marker wr
   assert.ok(vaultUi.includes("onDrop="));
   assert.ok(sidebar.includes("{vaultEnabled && ("));
 });
+
+
+test("vault quota counter remains compatible with workspace-era records", () => {
+  const usageModel = source("models/vault-usage.ts");
+  const storage = source("features/company-vault/server/vault-storage.ts");
+  const adminUsage = source("app/api/admin/vault-usage/route.ts");
+
+  assert.ok(usageModel.includes("vaultUsageSchema.index({ companyId: 1, workspaceId: 1 }, { unique: true })"));
+  assert.ok(storage.includes("const usageWorkspaceId = companyId"));
+  assert.ok(storage.includes("VaultUsage.deleteMany({ companyId, workspaceId: { $ne: usageWorkspaceId } })"));
+  assert.ok(adminUsage.includes('String(row.workspaceId) === String(row.companyId)'));
+  assert.ok(adminUsage.includes("committedFiles"));
+});
