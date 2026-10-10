@@ -10,7 +10,6 @@ import {
   bunnyPutStream,
   streamVaultParts,
   getUploadExpiry,
-  getVaultStoredPayloadSize,
   removeUploadChunks,
   requireVaultScope,
   safeVaultFilename,
@@ -30,9 +29,7 @@ type UploadRecord = {
   mimeType: string;
   sizeBytes: number;
   originalSizeBytes?: number;
-  reservedBytes?: number;
   contentEncoding?: "identity" | "gzip";
-  encryptionVersion?: "none" | "aes-256-gcm-chunks-v1";
   chunkSizeBytes: number;
   expectedChunks: number;
   receivedChunks: number[];
