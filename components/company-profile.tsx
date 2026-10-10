@@ -5,6 +5,7 @@ import UserAvatar from "@/components/user-avatar";
 import { useNavigationLabels } from "@/components/navigation-labels-provider";
 import { CompanyProfileLoading, WorkspaceLoadError } from "@/components/route-loading";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
+import { useWorkspaceSidebarState } from "@/components/use-workspace-sidebar-state";
 import WorkspaceUserProfile from "@/components/workspace-user-profile";
 import PublicPageShare from "@/components/public-page-share";
 import ConfirmDialog from "@/components/confirm-dialog";
@@ -59,7 +60,7 @@ type VaultUsageData = {
 
 type CompanyResponse = {
   company: ProfileData;
-  currentPlan?: { vaultEnabled?: boolean };
+  currentPlan?: { taskManagementEnabled?: boolean; vaultEnabled?: boolean };
   vaultUsage?: VaultUsageData;
   memberCount: number;
   canPublish: boolean;
@@ -92,6 +93,7 @@ export default function CompanyProfile({
 }) {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [memberCount, setMemberCount] = useState(0);
+  const [taskManagementEnabled, setTaskManagementEnabled] = useState(false);
   const [vaultEnabled, setVaultEnabled] = useState(false);
   const [vaultUsage, setVaultUsage] = useState<VaultUsageData | null>(null);
   const [canPublish, setCanPublish] = useState(false);
@@ -105,6 +107,7 @@ export default function CompanyProfile({
   const [publishing, setPublishing] = useState(false);
   const [publishConfirmationOpen, setPublishConfirmationOpen] = useState(false);
   const { labels } = useNavigationLabels();
+  const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useWorkspaceSidebarState();
 
   const loadInFlightRef = useRef<Promise<void> | null>(null);
 
@@ -121,6 +124,7 @@ export default function CompanyProfile({
         setProfile(data.company);
         setForm(data.company);
         setMemberCount(data.memberCount);
+        setTaskManagementEnabled(Boolean(data.currentPlan?.taskManagementEnabled));
         setVaultEnabled(Boolean(data.currentPlan?.vaultEnabled));
         setVaultUsage(data.vaultUsage ?? null);
         setCanPublish(data.canPublish);
@@ -239,11 +243,14 @@ export default function CompanyProfile({
     <main className="min-h-screen bg-[#faf9f1] text-slate-950">
       <WorkspaceSidebar
         companyName={form.name}
+        taskManagementEnabled={taskManagementEnabled}
         vaultEnabled={vaultEnabled}
         canManage
         activeProfile
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={toggleSidebar}
       />
-      <div className="lg:pl-72">
+      <div className={sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"}>
       <div className="mx-auto max-w-[1400px] px-5 py-6 sm:px-6 lg:px-10 lg:py-8">
         <div className="flex items-center justify-between gap-3">
           <Link

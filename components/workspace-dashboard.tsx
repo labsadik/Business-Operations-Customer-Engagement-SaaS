@@ -36,6 +36,7 @@ import MeetingResponseCountdown from "@/components/meeting-response-countdown";
 import RazorpayPlanButton from "@/components/razorpay-plan-button";
 import { playMeetingSound } from "@/lib/client-meeting-sound";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
+import { useWorkspaceSidebarState } from "@/components/use-workspace-sidebar-state";
 import WorkspaceUserProfile from "@/components/workspace-user-profile";
 import { WorkspaceLoadError, WorkspaceLoading } from "@/components/route-loading";
 import { useNavigationLabels } from "@/components/navigation-labels-provider";
@@ -423,6 +424,7 @@ export default function WorkspaceDashboard({
 }: {
   user: { id: string; name: string; email: string; image?: string };
 }) {
+  const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useWorkspaceSidebarState();
   const [data, setData] = useState<CompanyData | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [requests, setRequests] = useState<RequestItem[]>([]);
@@ -1317,12 +1319,14 @@ export default function WorkspaceDashboard({
         vaultEnabled={Boolean(data.currentPlan.vaultEnabled)}
         canManage={canManage}
         adminManaged={adminManaged}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={toggleSidebar}
         activePanel={activeModal}
         activeSettingsSection={settingsSection}
         onOpenPanel={(panel, section) => openModal(panel, section, true)}
         onNavigateOverview={closeFeedbackModal}
       />
-      <div className="lg:pl-72">
+      <div className={sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"}>
       <header className="sticky top-0 z-40 border-b border-slate-200/90 bg-[#faf9f1]/95 backdrop-blur-xl">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
           <div className="min-w-0">

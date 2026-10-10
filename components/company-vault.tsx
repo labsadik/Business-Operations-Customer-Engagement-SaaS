@@ -35,6 +35,7 @@ import {
   Shield
 } from "lucide-react";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
+import { useWorkspaceSidebarState } from "@/components/use-workspace-sidebar-state";
 import ConfirmDialog from "@/components/confirm-dialog";
 
 type FolderItem = { id: string; name: string; createdAt: string; updatedAt: string };
@@ -170,7 +171,8 @@ async function prepareLosslessUpload(file: File): Promise<PreparedUpload> {
   return { blob: file, contentEncoding: "identity" };
 }
 
-export default function CompanyVault({ companyName, currentRole }: { companyName: string; currentRole: string }) {
+export default function CompanyVault({ companyName, currentRole, taskManagementEnabled }: { companyName: string; currentRole: string; taskManagementEnabled: boolean }) {
+  const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useWorkspaceSidebarState();
   const [folderId, setFolderId] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<VaultSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
@@ -455,12 +457,15 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
     <>
       <WorkspaceSidebar
         companyName={companyName}
+        taskManagementEnabled={taskManagementEnabled}
         vaultEnabled
         canManage={canManage}
         adminManaged={currentRole === "PLATFORM_ADMIN"}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={toggleSidebar}
       />
 
-      <main className="min-h-screen bg-[#f6f8fb] text-slate-900 lg:pl-72">
+      <main className={`min-h-screen bg-[#f6f8fb] text-slate-900 ${sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"}`}>
         <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
           <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-4 py-3.5 sm:px-7 lg:px-10">
             <div className="min-w-0">
