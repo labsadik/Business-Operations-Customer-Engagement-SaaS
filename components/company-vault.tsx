@@ -529,6 +529,31 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
               <p className="mt-1 truncate text-sm font-semibold text-slate-900">{companyName}</p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
+                          <div className="flex shrink-0 items-center gap-2">
+              <div className="relative" ref={newMenuRef}>
+                <button
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded={newMenuOpen}
+                  onClick={() => setNewMenuOpen((open) => !open)}
+                  disabled={busy || loading}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span className="text-base leading-none">+</span> New
+                </button>
+                {newMenuOpen && (
+                  <div role="menu" aria-label="Create or upload" className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl shadow-slate-900/10">
+                    <button role="menuitem" type="button" onClick={() => { setNewMenuOpen(false); createFolder(); }} className="flex w-full items-center gap-3 px-3 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50 focus-visible:bg-slate-50">
+                      <FolderPlus className="size-4 text-amber-600" /> New folder
+                    </button>
+                    <button role="menuitem" type="button" disabled={uploadBlocked} onClick={() => { setNewMenuOpen(false); inputRef.current?.click(); }} className="flex w-full items-center gap-3 px-3 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50 focus-visible:bg-slate-50 disabled:opacity-50">
+                      <Upload className="size-4 text-blue-600" /> Upload files
+                    </button>
+                  </div>
+                )}
+              </div>
+              <input ref={inputRef} type="file" multiple className="hidden" onChange={uploadFiles} aria-label="Choose files to upload" />
+            </div>
               <span className="hidden items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-semibold text-emerald-800 sm:inline-flex">
                 <LockKeyhole className="size-3.5" />
                 Private workspace
@@ -563,31 +588,7 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
                 One organized place for your team’s documents and media. Browse folders, preview supported files, and upload directly to your company’s private storage.
               </p>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <div className="relative" ref={newMenuRef}>
-                <button
-                  type="button"
-                  aria-haspopup="menu"
-                  aria-expanded={newMenuOpen}
-                  onClick={() => setNewMenuOpen((open) => !open)}
-                  disabled={busy || loading}
-                  className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <span className="text-lg leading-none">+</span> New
-                </button>
-                {newMenuOpen && (
-                  <div role="menu" aria-label="Create or upload" className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl shadow-slate-900/10">
-                    <button role="menuitem" type="button" onClick={() => { setNewMenuOpen(false); createFolder(); }} className="flex w-full items-center gap-3 px-3 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50 focus-visible:bg-slate-50">
-                      <FolderPlus className="size-4 text-amber-600" /> New folder
-                    </button>
-                    <button role="menuitem" type="button" disabled={uploadBlocked} onClick={() => { setNewMenuOpen(false); inputRef.current?.click(); }} className="flex w-full items-center gap-3 px-3 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-50 focus-visible:bg-slate-50 disabled:opacity-50">
-                      <Upload className="size-4 text-blue-600" /> Upload files
-                    </button>
-                  </div>
-                )}
-              </div>
-              <input ref={inputRef} type="file" multiple className="hidden" onChange={uploadFiles} aria-label="Choose files to upload" />
-            </div>
+
           </section>
 
           {error && (
@@ -689,7 +690,7 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
                         <p className="mt-0.5 text-xs text-slate-500">Browse the contents of your current folder</p>
                       </div>
                     </div>
-                    <nav aria-label="Folder breadcrumbs" className="mt-4 flex max-w-full flex-nowrap items-center gap-1.5 overflow-x-auto whitespace-nowrap text-xs [scrollbar-width:none]">
+                    <nav aria-label="Folder breadcrumbs" className="mt-4 flex max-w-full flex-nowrap items-center gap-1.5 overflow-x-auto whitespace-nowrap text-xs [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       <button type="button" onClick={() => navigateToFolder(null)} className="rounded-lg px-2 py-1.5 font-semibold text-blue-700 transition hover:bg-blue-50">Vault home</button>
                       {(snapshot?.breadcrumbs ?? []).map((item, index) => (
                         <span key={item.id} className="inline-flex min-w-0 items-center gap-1.5">
@@ -782,7 +783,7 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
                       <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-white text-slate-400 shadow-sm"><HardDrive className="size-6" /></span>
                       <p className="mt-3 text-sm font-semibold text-slate-900">Your vault couldn’t be loaded</p>
                       <p className="mt-1 text-xs leading-5 text-slate-500">Check your connection and try refreshing the folder.</p>
-                      <button type="button" onClick={refresh} className="mt-4 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-slate-800">Try again</button>
+                      <button type="button" onClick={refresh} className="mt-4 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-blue-700">Try again</button>
                     </div>
                   </div>
                 ) : visibleCount === 0 && (searchTerm || typeFilter !== "all") ? (
@@ -813,7 +814,6 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
                       <article key={folder.id} className="group overflow-hidden rounded-2xl border border-slate-200 bg-white transition duration-200 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg hover:shadow-slate-900/5">
                         <button type="button" onClick={() => navigateToFolder(folder.id)} className="block w-full p-3 text-left" aria-label={"Open folder " + folder.name}>
                           <div className="relative grid h-28 place-items-center overflow-hidden rounded-xl border border-amber-100 bg-amber-50">
-                            <div aria-hidden="true" className="absolute -right-4 -top-8 size-28 rounded-full bg-white/60 blur-xl" />
                             <Folder className="relative size-12 fill-amber-400/20 text-amber-600 stroke-[1.4] transition duration-200 group-hover:scale-105" />
                             <span className="absolute bottom-2 left-2 rounded-md border border-amber-200/70 bg-white/80 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-amber-800">Folder</span>
                           </div>
@@ -864,7 +864,7 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
                                   className="pointer-events-none size-full select-none object-cover"
                                 />
                               ) : (
-                                <div className="grid size-16 place-items-center rounded-2xl border border-white bg-white/90 text-blue-700 shadow-sm transition duration-200 group-hover:scale-105">
+                                <div className={"grid size-16 place-items-center rounded-2xl border shadow-sm transition duration-200 group-hover:scale-105 " + fileAccentClass(file)}>
                                   <Icon className="size-8 stroke-[1.5]" />
                                 </div>
                               )}
@@ -903,7 +903,7 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
                             <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-600"><Folder className="size-5" /></span>
                             <span className="min-w-0"><span className="block truncate text-sm font-semibold text-slate-800">{folder.name}</span><span className="mt-1 block text-[10px] text-slate-400">Folder</span></span>
                           </button>
-                          <span className="hidden text-xs text-slate-500 sm:block">Folder</span>
+                          <span className="hidden text-xs text-slate-500 lg:block">Folder</span>
                           <span className="hidden text-xs text-slate-400 lg:block">—</span>
                           <span className="hidden text-xs text-slate-500 lg:block">{new Date(folder.updatedAt).toLocaleDateString()}</span>
                           <div className="flex justify-end gap-1">
@@ -1106,7 +1106,7 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={"/api/vault/files/" + encodeURIComponent(previewFile.id) + "?inline=1"} alt={previewFile.name} draggable={false} referrerPolicy="no-referrer" onDragStart={(event) => event.preventDefault()} onContextMenu={(event) => event.preventDefault()} className="mx-auto max-h-[76vh] max-w-full rounded-xl object-contain shadow-sm" />
               ) : previewFile.mimeType.startsWith("video/") && /^(video\/(mp4|webm|ogg))$/.test(previewFile.mimeType) ? (
-                <video controls controlsList="nodownload noremoteplayback" disablePictureInPicture disableRemotePlayback draggable={false} onDragStart={(event) => event.preventDefault()} onContextMenu={(event) => event.preventDefault()} preload="metadata" src={"/api/vault/files/" + encodeURIComponent(previewFile.id) + "?inline=1"} className="mx-auto max-h-[76vh] max-w-full rounded-xl bg-black shadow-lg" />
+                <video controls controlsList="nodownload noremoteplayback" disablePictureInPicture disableRemotePlayback draggable={false} onDragStart={(event) => event.preventDefault()} onContextMenu={(event) => event.preventDefault()} preload="metadata" src={"/api/vault/files/" + encodeURIComponent(previewFile.id) + "?inline=1"} className="mx-auto max-h-[76vh] max-w-full rounded-xl bg-slate-200 shadow-sm" />
               ) : /^(application\/pdf|text\/(plain|csv)|application\/json)$/.test(previewFile.mimeType) ? (
                 <iframe title={"Preview " + previewFile.name} sandbox="" referrerPolicy="no-referrer" src={"/api/vault/files/" + encodeURIComponent(previewFile.id) + "?inline=1"} className="h-[76vh] w-full rounded-xl border border-slate-200 bg-white shadow-sm" />
               ) : (
