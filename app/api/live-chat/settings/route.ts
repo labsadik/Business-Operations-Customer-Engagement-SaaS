@@ -25,7 +25,13 @@ export async function GET(request: Request) {
         collectEmail: Boolean(settings?.collectEmail),
         collectPhone: Boolean(settings?.collectPhone),
         offlineMode: Boolean(settings?.offlineMode),
-        allowedDomains: settings?.allowedDomains ?? []
+        allowedDomains: settings?.allowedDomains ?? [],
+        launcherSize: settings?.launcherSize ?? 60,
+        launcherIconSize: settings?.launcherIconSize ?? 28,
+        launcherShape: settings?.launcherShape ?? "CIRCLE",
+        panelRadius: settings?.panelRadius ?? 18,
+        headerStyle: settings?.headerStyle ?? "SOLID",
+        designTemplate: settings?.designTemplate ?? "CLASSIC"
       },
       companyWebsiteUrl: scope.company.websiteUrl ?? "",
       embedCode,
@@ -68,7 +74,13 @@ export async function PATCH(request: Request) {
         collectEmail: updated?.collectEmail ?? false,
         collectPhone: updated?.collectPhone ?? false,
         offlineMode: updated?.offlineMode ?? false,
-        allowedDomains: updated?.allowedDomains ?? []
+        allowedDomains: updated?.allowedDomains ?? [],
+        launcherSize: updated?.launcherSize ?? 60,
+        launcherIconSize: updated?.launcherIconSize ?? 28,
+        launcherShape: updated?.launcherShape ?? "CIRCLE",
+        panelRadius: updated?.panelRadius ?? 18,
+        headerStyle: updated?.headerStyle ?? "SOLID",
+        designTemplate: updated?.designTemplate ?? "CLASSIC"
       }
     });
   } catch (error) {

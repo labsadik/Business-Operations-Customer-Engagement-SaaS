@@ -59,12 +59,43 @@ type ChatSettings = {
   collectPhone: boolean;
   offlineMode: boolean;
   allowedDomains: string[];
+  launcherSize: number;
+  launcherIconSize: number;
+  launcherShape: "CIRCLE" | "ROUNDED";
+  panelRadius: number;
+  headerStyle: "SOLID" | "GRADIENT" | "MINIMAL";
+  designTemplate: "CLASSIC" | "MODERN" | "MINIMAL" | "FRIENDLY" | "CUSTOM";
 };
 type SettingsPayload = {
   settings: ChatSettings;
   companyWebsiteUrl: string;
   embedCode: string;
   limits: { retentionDays: number; messageCooldownSeconds: number; monthlyChatLimit: number; customerLimit: number };
+};
+
+type AppearanceSettings = Pick<ChatSettings,
+  "launcherSize" | "launcherIconSize" | "launcherShape" | "panelRadius" | "headerStyle" | "designTemplate"
+>;
+
+const DEFAULT_APPEARANCE: Pick<ChatSettings,
+  "primaryColor" | "theme" | "position" | "launcherSize" | "launcherIconSize" | "launcherShape" | "panelRadius" | "headerStyle" | "designTemplate"
+> = {
+  primaryColor: "#2563eb",
+  theme: "LIGHT",
+  position: "RIGHT",
+  launcherSize: 60,
+  launcherIconSize: 28,
+  launcherShape: "CIRCLE",
+  panelRadius: 18,
+  headerStyle: "SOLID",
+  designTemplate: "CLASSIC"
+};
+
+const DESIGN_PRESETS: Record<Exclude<ChatSettings["designTemplate"], "CUSTOM">, AppearanceSettings> = {
+  CLASSIC: { launcherSize: 60, launcherIconSize: 28, launcherShape: "CIRCLE", panelRadius: 18, headerStyle: "SOLID", designTemplate: "CLASSIC" },
+  MODERN: { launcherSize: 64, launcherIconSize: 28, launcherShape: "ROUNDED", panelRadius: 24, headerStyle: "GRADIENT", designTemplate: "MODERN" },
+  MINIMAL: { launcherSize: 56, launcherIconSize: 24, launcherShape: "ROUNDED", panelRadius: 12, headerStyle: "MINIMAL", designTemplate: "MINIMAL" },
+  FRIENDLY: { launcherSize: 68, launcherIconSize: 30, launcherShape: "CIRCLE", panelRadius: 24, headerStyle: "GRADIENT", designTemplate: "FRIENDLY" }
 };
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
@@ -149,7 +180,61 @@ export default function LiveChatDashboard({
   const [copied, setCopied] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewViewport, setPreviewViewport] = useState<"DESKTOP" | "MOBILE">("DESKTOP");
+  const [savedSettings, setSavedSettings] = useState<ChatSettings | null>(null);
+  const [savedDomainsText, setSavedDomainsText] = useState("");
   const messagesPaneRef = useRef<HTMLDivElement | null>(null);
+
+  const hasUnsavedSettings = Boolean(settings && savedSettings && (
+    JSON.stringify(settings) !== JSON.stringify(savedSettings) || domainsText !== savedDomainsText
+  ));
+
+  const updateSettings = (patch: Partial<ChatSettings>, customDesign = false) => {
+    setSettings((current) => current ? {
+      ...current,
+      ...patch,
+      ...(customDesign ? { designTemplate: "CUSTOM" as const } : {})
+    } : current);
+  };
+
+  const applyDesignTemplate = (template: ChatSettings["designTemplate"]) => {
+    if (template === "CUSTOM") {
+      updateSettings({ designTemplate: "CUSTOM" });
+      return;
+    }
+    updateSettings(DESIGN_PRESETS[template]);
+  };
+
+  const restoreDefaultAppearance = () => {
+    if (!settings || !window.confirm("Restore default Live Chat appearance? Visitor requirements and allowed domains will stay unchanged.")) return;
+    updateSettings(DEFAULT_APPEARANCE);
+  };
+
+  useEffect(() => {
+    if (!hasUnsavedSettings) return;
+    const warnBeforeLeave = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    const confirmAppNavigation = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      if (!(event.target instanceof Element)) return;
+      const link = event.target.closest("a[href]");
+      if (!(link instanceof HTMLAnchorElement) || link.target === "_blank" || link.hasAttribute("download")) return;
+      const target = new URL(link.href, window.location.href);
+      if (target.origin === window.location.origin && target.pathname === window.location.pathname) return;
+      if (!window.confirm("You have unsaved Live Chat appearance changes. Leave this page and discard them?")) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    };
+    window.addEventListener("beforeunload", warnBeforeLeave);
+    document.addEventListener("click", confirmAppNavigation, true);
+    return () => {
+      window.removeEventListener("beforeunload", warnBeforeLeave);
+      document.removeEventListener("click", confirmAppNavigation, true);
+    };
+  }, [hasUnsavedSettings]);
 
   const selected = useMemo(() => items.find((item) => item.id === selectedId) ?? null, [items, selectedId]);
   const visibleItems = useMemo(() => {
@@ -187,9 +272,12 @@ export default function LiveChatDashboard({
     try {
       const data = await api<SettingsPayload>("/api/live-chat/settings");
       setSettings(data.settings);
+      setSavedSettings(data.settings);
       setEmbedCode(data.embedCode);
       setCompanyWebsiteUrl(data.companyWebsiteUrl);
-      setDomainsText(data.settings.allowedDomains.join("\n"));
+      const savedDomains = data.settings.allowedDomains.join("\n");
+      setDomainsText(savedDomains);
+      setSavedDomainsText(savedDomains);
     } catch (cause) {
       setError((cause as Error & { code?: string }).code ?? (cause as Error).message);
     }
@@ -253,9 +341,11 @@ export default function LiveChatDashboard({
         body: JSON.stringify({ ...settings, allowedDomains: domainsText.split(/[\n,]/).map((value) => value.trim()).filter(Boolean) })
       });
       setSettings(data.settings);
-      setDomainsText(data.settings.allowedDomains.join("\n"));
-      await loadSettings();
-      setNotice("Live Chat settings saved.");
+      setSavedSettings(data.settings);
+      const savedDomains = data.settings.allowedDomains.join("\n");
+      setDomainsText(savedDomains);
+      setSavedDomainsText(savedDomains);
+      setNotice("Live Chat settings saved successfully.");
     } catch (cause) {
       setError((cause as Error & { code?: string }).code ?? (cause as Error).message);
     } finally {
@@ -403,7 +493,7 @@ export default function LiveChatDashboard({
     <div className="flex flex-col justify-between gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:p-6">
       <div><div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-700"><MessageCircle className="size-3.5" /> Website messaging</div><h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Live Chat</h1><p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">Manage website conversations, customize the visitor widget, and control retention.</p></div>
       <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-1">
-        <button onClick={() => setTab("inbox")} className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold ${tab === "inbox" ? "bg-white text-blue-700 shadow-sm" : "text-slate-600"}`}><MessageSquareText className="size-4" /> Inbox</button>
+        <button onClick={() => { if (tab === "settings" && hasUnsavedSettings && !window.confirm("Discard unsaved Live Chat settings and return to the inbox?")) return; setTab("inbox"); }} className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold ${tab === "inbox" ? "bg-white text-blue-700 shadow-sm" : "text-slate-600"}`}><MessageSquareText className="size-4" /> Inbox</button>
         <button onClick={() => canManageSettings && setTab("settings")} disabled={!canManageSettings} title={!canManageSettings ? "Only a company admin can change widget settings" : undefined} className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${tab === "settings" ? "bg-white text-blue-700 shadow-sm" : "text-slate-600"}`}><Settings2 className="size-4" /> Settings</button>
       </div>
     </div>
@@ -463,7 +553,7 @@ export default function LiveChatDashboard({
       </section>
     </div> : <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
       {settings && <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <div className="mb-6"><div className="flex items-center gap-2"><Palette className="size-4 text-blue-600" /><h2 className="text-base font-semibold text-slate-950">Widget appearance</h2></div><p className="mt-1 text-xs leading-5 text-slate-500">Changes save directly to this company’s settings. The embedded widget refreshes uncached settings every 3 seconds while open and every 10 seconds while minimized (and pauses network checks in hidden tabs).</p></div>
+        <div className="mb-6"><div className="flex items-center gap-2"><Palette className="size-4 text-blue-600" /><h2 className="text-base font-semibold text-slate-950">Design &amp; Appearance</h2></div><p className="mt-1 text-xs leading-5 text-slate-500">Changes save directly to this company’s settings. The embedded widget refreshes uncached settings every 3 seconds while open and every 10 seconds while minimized (and pauses network checks in hidden tabs).</p></div>
         <div className="space-y-5">
           <SettingToggle label="Enable public website widget" description="The embedded chat becomes available after you save allowed website domains." checked={settings.publicWidgetEnabled} onChange={(value) => setSettings({ ...settings, publicWidgetEnabled: value })} />
           <div className="grid gap-4 sm:grid-cols-2">
@@ -474,6 +564,41 @@ export default function LiveChatDashboard({
             <label className="block text-xs font-semibold text-slate-700">Widget position<select value={settings.position} onChange={(event) => setSettings({ ...settings, position: event.target.value as ChatSettings["position"] })} className={inputClass()}><option value="RIGHT">Bottom right</option><option value="LEFT">Bottom left</option></select></label>
           </div>
         </div>
+        <div className="mt-6 border-t border-slate-100 pt-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div><h3 className="text-sm font-semibold text-slate-900">Launcher &amp; panel styling</h3><p className="mt-1 text-xs leading-5 text-slate-500">Choose a template, then fine-tune its shape and size. These options affect appearance only.</p></div>
+            <button type="button" onClick={restoreDefaultAppearance} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Restore defaults</button>
+          </div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <label className="block text-xs font-semibold text-slate-700">Design template
+              <select value={settings.designTemplate} onChange={(event) => applyDesignTemplate(event.target.value as ChatSettings["designTemplate"])} className={inputClass()}>
+                <option value="CLASSIC">Classic · Balanced</option><option value="MODERN">Modern · Soft corners</option><option value="MINIMAL">Minimal · Compact</option><option value="FRIENDLY">Friendly · Bold launcher</option><option value="CUSTOM">Custom</option>
+              </select>
+            </label>
+            <label className="block text-xs font-semibold text-slate-700">Launcher shape
+              <select value={settings.launcherShape} onChange={(event) => updateSettings({ launcherShape: event.target.value as ChatSettings["launcherShape"] }, true)} className={inputClass()}>
+                <option value="CIRCLE">Circle</option><option value="ROUNDED">Rounded square</option>
+              </select>
+            </label>
+            <label className="block text-xs font-semibold text-slate-700">Header style
+              <select value={settings.headerStyle} onChange={(event) => updateSettings({ headerStyle: event.target.value as ChatSettings["headerStyle"] }, true)} className={inputClass()}>
+                <option value="SOLID">Solid brand color</option><option value="GRADIENT">Brand gradient</option><option value="MINIMAL">Minimal / neutral</option>
+              </select>
+            </label>
+            <label className="block text-xs font-semibold text-slate-700">Panel corner radius <span className="font-normal text-slate-500">{settings.panelRadius}px</span>
+              <input type="range" min={8} max={28} step={2} value={settings.panelRadius} onChange={(event) => updateSettings({ panelRadius: Number(event.target.value) }, true)} className="mt-3 w-full accent-blue-600" aria-label="Panel corner radius" />
+              <span className="mt-1 flex justify-between text-[10px] font-normal text-slate-400"><span>8px · Sharper</span><span>28px · Softer</span></span>
+            </label>
+            <label className="block text-xs font-semibold text-slate-700">Launcher button size <span className="font-normal text-slate-500">{settings.launcherSize}px</span>
+              <input type="range" min={52} max={80} step={2} value={settings.launcherSize} onChange={(event) => updateSettings({ launcherSize: Number(event.target.value), launcherIconSize: Math.min(settings.launcherIconSize, Math.floor(Number(event.target.value) * 0.6)) }, true)} className="mt-3 w-full accent-blue-600" aria-label="Launcher button size" />
+              <span className="mt-1 flex justify-between text-[10px] font-normal text-slate-400"><span>52px · Compact</span><span>80px · Large</span></span>
+            </label>
+            <label className="block text-xs font-semibold text-slate-700">Launcher icon size <span className="font-normal text-slate-500">{settings.launcherIconSize}px</span>
+              <input type="range" min={16} max={Math.min(40, Math.floor(settings.launcherSize * 0.6))} step={2} value={settings.launcherIconSize} onChange={(event) => updateSettings({ launcherIconSize: Number(event.target.value) }, true)} className="mt-3 w-full accent-blue-600" aria-label="Launcher icon size" />
+              <span className="mt-1 flex justify-between text-[10px] font-normal text-slate-400"><span>16px · Subtle</span><span>{Math.min(40, Math.floor(settings.launcherSize * 0.6))}px · Bold</span></span>
+            </label>
+          </div>
+        </div>
         <div className="mb-5 mt-7 border-t border-slate-100 pt-5"><div className="flex items-center gap-2"><UsersRound className="size-4 text-blue-600" /><h3 className="text-sm font-semibold text-slate-900">Contact collection</h3></div><p className="mt-1 text-xs leading-5 text-slate-500">When enabled, visitors must complete the selected fields before starting a conversation. All three disabled means anonymous chat is allowed.</p><div className="mt-3 grid gap-3 sm:grid-cols-3">
           <SettingToggle label="Require name" checked={settings.collectName} onChange={(value) => setSettings({ ...settings, collectName: value })} />
           <SettingToggle label="Require email" checked={settings.collectEmail} onChange={(value) => setSettings({ ...settings, collectEmail: value })} />
@@ -481,42 +606,41 @@ export default function LiveChatDashboard({
         </div></div>
         <div className="mb-5 border-t border-slate-100 pt-5"><SettingToggle label="Offline mode" description="Shows visitors that your team is offline while still allowing them to leave a message in the inbox." checked={settings.offlineMode} onChange={(value) => setSettings({ ...settings, offlineMode: value })} /></div>
         <div className="border-t border-slate-100 pt-5"><label className="block text-xs font-semibold text-slate-700">Allowed website domains<textarea value={domainsText} onChange={(event) => setDomainsText(event.target.value)} rows={3} placeholder={companyWebsiteUrl || "www.example.com"} className={inputClass()} /></label><p className="mt-2 text-[11px] leading-5 text-slate-500">Enter exact hostnames, one per line. Example: example.com and help.example.com. Requests from other websites are blocked by the server.</p></div>
-        <div className="mt-6 flex flex-col-reverse gap-2 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between"><span className="text-[11px] leading-5 text-slate-500">Server-enforced: {usage?.cooldownSeconds ?? 15}s cooldown · {usage?.retentionDays ?? 30}-day data retention</span><button onClick={() => void saveSettings()} disabled={!canManageSettings || savingSettings} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">{savingSettings ? <LoaderCircle className="size-4 animate-spin" /> : <Check className="size-4" />} Save settings</button></div>
+        <div className="mt-6 flex flex-col-reverse gap-2 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between"><div><span className="block text-[11px] leading-5 text-slate-500">Server-enforced: {usage?.cooldownSeconds ?? 15}s cooldown · {usage?.retentionDays ?? 30}-day data retention</span>{hasUnsavedSettings && <span className="mt-1 inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700"><span className="size-1.5 rounded-full bg-amber-500" /> Unsaved changes</span>}</div><button onClick={() => void saveSettings()} disabled={!canManageSettings || savingSettings || !hasUnsavedSettings} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">{savingSettings ? <LoaderCircle className="size-4 animate-spin" /> : <Check className="size-4" />} Save settings</button></div>
       </section>}
       <aside className="space-y-4">
         {settings && <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2"><MessageCircle className="size-4 text-blue-600" /><h2 className="text-sm font-semibold text-slate-900">Live preview</h2></div>
-              <p className="mt-1 text-xs leading-5 text-slate-500">See the widget update as you edit its settings. This preview does not save or publish changes.</p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">Updates with unsaved changes. Switch viewport to check desktop and mobile before publishing.</p>
             </div>
             <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ${settings.publicWidgetEnabled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{settings.publicWidgetEnabled ? "Enabled" : "Disabled"}</span>
           </div>
-          <div className="relative mt-4 h-[420px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 p-4">
+          <div className="mt-4 flex rounded-xl border border-slate-200 bg-slate-50 p-1">
+            <button type="button" onClick={() => setPreviewViewport("DESKTOP")} className={`flex flex-1 items-center justify-center rounded-lg px-2 py-2 text-xs font-semibold ${previewViewport === "DESKTOP" ? "bg-white text-blue-700 shadow-sm" : "text-slate-600"}`}>Desktop preview</button>
+            <button type="button" onClick={() => setPreviewViewport("MOBILE")} className={`flex flex-1 items-center justify-center rounded-lg px-2 py-2 text-xs font-semibold ${previewViewport === "MOBILE" ? "bg-white text-blue-700 shadow-sm" : "text-slate-600"}`}>Mobile preview</button>
+          </div>
+          <div className={`relative mt-4 overflow-hidden border border-slate-200 bg-slate-100 p-3 ${previewViewport === "MOBILE" ? "mx-auto h-[460px] w-[280px] rounded-[2rem]" : "h-[420px] w-full rounded-2xl"}`}>
             <div className="pointer-events-none select-none">
               <div className="flex items-center justify-between rounded-xl bg-white px-3 py-2.5 shadow-sm">
                 <div className="flex items-center gap-2"><span className="grid size-7 place-items-center rounded-lg text-xs font-bold text-white" style={{ backgroundColor: settings.primaryColor }}>Y</span><span className="text-xs font-semibold text-slate-800">Your website</span></div>
                 <div className="flex gap-1"><span className="h-1.5 w-5 rounded-full bg-slate-200" /><span className="h-1.5 w-5 rounded-full bg-slate-200" /><span className="h-1.5 w-5 rounded-full bg-slate-200" /></div>
               </div>
               <div className="px-1 pt-6">
-                <div className="h-2.5 w-2/3 rounded-full bg-slate-300" />
-                <div className="mt-3 h-2 w-full rounded-full bg-slate-200" />
-                <div className="mt-2 h-2 w-4/5 rounded-full bg-slate-200" />
-                <div className="mt-5 grid grid-cols-2 gap-2"><div className="h-16 rounded-xl border border-slate-200 bg-white/90" /><div className="h-16 rounded-xl border border-slate-200 bg-white/90" /></div>
-                <div className="mt-3 h-20 rounded-xl border border-slate-200 bg-white/80" />
+                <div className="h-2.5 w-2/3 rounded-full bg-slate-300" /><div className="mt-3 h-2 w-full rounded-full bg-slate-200" /><div className="mt-2 h-2 w-4/5 rounded-full bg-slate-200" />
+                <div className="mt-5 grid grid-cols-2 gap-2"><div className="h-16 rounded-xl border border-slate-200 bg-white/90" /><div className="h-16 rounded-xl border border-slate-200 bg-white/90" /></div><div className="mt-3 h-20 rounded-xl border border-slate-200 bg-white/80" />
               </div>
             </div>
             {!previewOpen ? (
               <div className={`absolute bottom-3 z-10 ${settings.position === "LEFT" ? "left-3" : "right-3"}`}>
-                <button type="button" aria-label="Open live chat preview" onClick={() => setPreviewOpen(true)} className="grid size-14 place-items-center rounded-full text-white shadow-xl ring-4 ring-white/70 transition hover:scale-105" style={{ backgroundColor: settings.primaryColor }}>
-                  <MessageCircle className="size-6" />
-                </button>
+                <button type="button" aria-label="Open live chat preview" onClick={() => setPreviewOpen(true)} className={`grid place-items-center text-white shadow-xl ring-4 ring-white/70 motion-reduce:transition-none ${settings.launcherShape === "CIRCLE" ? "rounded-full" : "rounded-2xl"}`} style={{ width: settings.launcherSize, height: settings.launcherSize, backgroundColor: settings.primaryColor }}><MessageCircle style={{ width: settings.launcherIconSize, height: settings.launcherIconSize }} /></button>
               </div>
             ) : (
-              <section aria-label="Live chat widget preview" className={`absolute bottom-3 z-10 flex h-[350px] w-[300px] max-w-[calc(100%_-_24px)] flex-col overflow-hidden rounded-2xl border shadow-2xl ${settings.position === "LEFT" ? "left-3" : "right-3"} ${settings.theme === "DARK" ? "border-slate-700 bg-slate-950 text-slate-100" : "border-slate-200 bg-white text-slate-950"}`}>
-                <header className="flex shrink-0 items-start gap-2 px-3 py-3 text-white" style={{ backgroundColor: settings.primaryColor }}>
-                  <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">{settings.title || "Chat with us"}</p><p className="mt-1 text-[10px] text-white/80">{settings.offlineMode ? "Offline · Leave a message" : "Online · Usually replies promptly"}</p></div>
-                  <button type="button" aria-label="Close chat preview" onClick={() => setPreviewOpen(false)} className="rounded-md p-1 hover:bg-white/15"><X className="size-4" /></button>
+              <section aria-label="Live chat widget preview" className={`absolute bottom-3 z-10 flex h-[350px] w-[300px] max-w-[calc(100%_-_24px)] flex-col overflow-hidden border shadow-2xl ${settings.position === "LEFT" ? "left-3" : "right-3"} ${settings.theme === "DARK" ? "border-slate-700 bg-slate-950 text-slate-100" : "border-slate-200 bg-white text-slate-950"}`} style={{ borderRadius: settings.panelRadius }}>
+                <header className={`flex shrink-0 items-start gap-2 px-3 py-3 ${settings.headerStyle === "MINIMAL" ? settings.theme === "DARK" ? "text-slate-100" : "text-slate-900" : "text-white"}`} style={settings.headerStyle === "MINIMAL" ? { backgroundColor: settings.theme === "DARK" ? "#0f172a" : "#f8fafc", borderBottom: `2px solid ${settings.primaryColor}` } : settings.headerStyle === "GRADIENT" ? { backgroundImage: `linear-gradient(135deg, ${settings.primaryColor}, #172554)` } : { backgroundColor: settings.primaryColor }}>
+                  <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">{settings.title || "Chat with us"}</p><p className={`mt-1 text-[10px] ${settings.headerStyle === "MINIMAL" ? settings.theme === "DARK" ? "text-slate-300" : "text-slate-600" : "text-white/80"}`}>{settings.offlineMode ? "Offline · Leave a message" : "Online · Usually replies promptly"}</p></div>
+                  <button type="button" aria-label="Close chat preview" onClick={() => setPreviewOpen(false)} className="rounded-md p-1 hover:bg-black/5"><X className="size-4" /></button>
                 </header>
                 <div className="min-h-0 flex-1 overflow-hidden p-3">
                   <div className={`rounded-xl p-3 text-xs leading-5 ${settings.theme === "DARK" ? "bg-slate-900 text-slate-200" : "bg-slate-50 text-slate-600"}`}>{settings.welcomeMessage || "Hello! How can we help?"}</div>
@@ -533,7 +657,7 @@ export default function LiveChatDashboard({
           </div>
           <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-slate-500"><span>{settings.position === "LEFT" ? "Launcher: bottom left" : "Launcher: bottom right"}</span><button type="button" onClick={() => setPreviewOpen((value) => !value)} className="font-semibold text-blue-700 hover:text-blue-800">{previewOpen ? "Show launcher" : "Open preview"}</button></div>
         </section>}
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center gap-2"><Code2 className="size-4 text-blue-600" /><h2 className="text-sm font-semibold text-slate-900">Website embed code</h2></div><p className="mt-2 text-xs leading-5 text-slate-500">Add this single script to your website before the closing body tag. It loads a small isolated iframe and only polls while the widget is visible.</p><pre className="mt-4 overflow-x-auto rounded-xl bg-slate-950 p-3 text-[11px] leading-5 text-blue-100">{embedCode || "Save settings to generate embed code."}</pre><button onClick={() => void copyEmbed()} disabled={!embedCode} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">{copied ? <Check className="size-4 text-emerald-600" /> : <Copy className="size-4" />}{copied ? "Copied" : "Copy embed code"}</button></section>
+                <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center gap-2"><Code2 className="size-4 text-blue-600" /><h2 className="text-sm font-semibold text-slate-900">Website embed code</h2></div><p className="mt-2 text-xs leading-5 text-slate-500">Add this single script to your website before the closing body tag. It loads a small isolated iframe and only polls while the widget is visible.</p><pre className="mt-4 overflow-x-auto rounded-xl bg-slate-950 p-3 text-[11px] leading-5 text-blue-100">{embedCode || "Save settings to generate embed code."}</pre><button onClick={() => void copyEmbed()} disabled={!embedCode} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">{copied ? <Check className="size-4 text-emerald-600" /> : <Copy className="size-4" />}{copied ? "Copied" : "Copy embed code"}</button></section>
         <section className="rounded-3xl border border-blue-100 bg-blue-50/60 p-5"><div className="flex items-center gap-2"><ShieldCheck className="size-4 text-blue-700" /><h2 className="text-sm font-semibold text-slate-900">Security & performance</h2></div><div className="mt-3 space-y-3 text-xs leading-5 text-slate-600"><p><strong className="text-slate-800">Spam protection stays on.</strong> The server atomically enforces message cooldowns, validates text, and limits rapid conversation creation.</p><p><strong className="text-slate-800">Tenant isolated.</strong> Every inbox/message query is scoped to your company and workspace. Agent roles and feature entitlements are checked on the server.</p><p><strong className="text-slate-800">Auto deletion.</strong> Chat messages expire individually; the daily retention job removes expired conversations in batches.</p><p><strong className="text-slate-800">Plan limits.</strong> {usage?.monthlyChats ?? 0} / {usage?.monthlyChatLimit ?? 0} monthly chats and {usage?.uniqueCustomers ?? 0} / {usage?.customerLimit ?? 0} unique visitors used.</p></div></section>
       </aside>
     </div>}

@@ -13,6 +13,12 @@ type WidgetSettings = {
   collectEmail: boolean;
   collectPhone: boolean;
   offlineMode: boolean;
+  launcherSize: number;
+  launcherIconSize: number;
+  launcherShape: "CIRCLE" | "ROUNDED";
+  panelRadius: number;
+  headerStyle: "SOLID" | "GRADIENT" | "MINIMAL";
+  designTemplate: "CLASSIC" | "MODERN" | "MINIMAL" | "FRIENDLY" | "CUSTOM";
 };
 type WidgetConfig = { company: { name: string; slug: string }; accessToken: string; settings: WidgetSettings; cooldownSeconds: number; retentionDays: number };
 type Message = { id: string; senderType: "CUSTOMER" | "AGENT"; body: string; createdAt: string; senderName?: string; senderAvatar?: string };
@@ -70,6 +76,18 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
   const lastMessageAtRef = useRef(0);
   const companyKey = useMemo(() => STORAGE_PREFIX + companySlug, [companySlug]);
   const theme = config?.settings.theme === "DARK";
+  const launcherSize = Math.min(80, Math.max(52, config?.settings.launcherSize ?? 60));
+  const launcherIconSize = Math.min(config?.settings.launcherIconSize ?? 28, Math.floor(launcherSize * 0.6));
+  const launcherShape = config?.settings.launcherShape ?? "CIRCLE";
+  const panelRadius = Math.min(28, Math.max(8, config?.settings.panelRadius ?? 18));
+  const headerStyle = config?.settings.headerStyle ?? "SOLID";
+  const headerBackgroundStyle = headerStyle === "MINIMAL"
+    ? { backgroundColor: theme ? "#0f172a" : "#f8fafc", color: theme ? "#f1f5f9" : "#0f172a", borderBottom: `2px solid ${config?.settings.primaryColor ?? "#2563eb"}` }
+    : headerStyle === "GRADIENT"
+      ? { backgroundImage: `linear-gradient(135deg, ${config?.settings.primaryColor ?? "#2563eb"}, #172554)` }
+      : { backgroundColor: config?.settings.primaryColor ?? "#2563eb" };
+  const headerTextClass = headerStyle === "MINIMAL" ? (theme ? "text-slate-100" : "text-slate-900") : "text-white";
+  const headerSecondaryClass = headerStyle === "MINIMAL" ? (theme ? "text-slate-300" : "text-slate-600") : "text-white/85";
 
   useEffect(() => {
     if (window.parent === window) return;
@@ -118,11 +136,14 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
     window.parent.postMessage({
       type: "conventus-live-chat-resize",
       open: isOpen,
-      width: isOpen ? 380 : 76,
-      height: isOpen ? 620 : 76,
+      width: isOpen ? 380 : launcherSize + 12,
+      height: isOpen ? 620 : launcherSize + 12,
+      launcherSize,
+      launcherShape,
+      panelRadius,
       position: config?.settings.position === "LEFT" ? "left" : "right"
     }, verifiedSiteOrigin);
-  }, [config?.settings.position, verifiedSiteOrigin]);
+  }, [config?.settings.position, launcherSize, launcherShape, panelRadius, verifiedSiteOrigin]);
 
   const refreshConfig = useCallback(async () => {
     if (!verifiedSiteOrigin || !visitorId) return null;
@@ -314,15 +335,15 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
   if (!config) {
     if (!opened) {
       return (
-        <div className="flex h-full items-end justify-end bg-transparent">
+        <div className="flex h-full items-end justify-end bg-transparent p-1.5">
           <button
             type="button"
             onClick={() => setOpened(true)}
             aria-label="Open live chat"
-            className="grid size-[68px] place-items-center rounded-full text-white shadow-xl ring-4 ring-white/70 transition hover:scale-105"
-            style={{ backgroundColor: "#2563eb" }}
+            className={`grid shrink-0 place-items-center text-white shadow-xl ring-4 ring-white/70 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 focus-visible:ring-offset-2 motion-safe:transition-transform motion-safe:hover:scale-105 ${launcherShape === "CIRCLE" ? "rounded-full" : "rounded-2xl"}`}
+            style={{ width: launcherSize, height: launcherSize, backgroundColor: "#2563eb" }}
           >
-            <MessageCircle className="size-7" />
+            <MessageCircle style={{ width: launcherIconSize, height: launcherIconSize }} />
           </button>
         </div>
       );
@@ -332,7 +353,7 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
         <header className="flex shrink-0 items-start gap-3 bg-blue-600 px-4 py-4 text-white">
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">Live Chat</p>
-            <p className="mt-1 text-[11px] text-white/85">Powered by Conventus</p>
+            <p className={`mt-1 text-[11px] ${headerSecondaryClass}`}>Powered by Conventus</p>
           </div>
           <button type="button" onClick={() => setOpened(false)} aria-label="Minimize chat" className="rounded-lg p-1.5 hover:bg-white/15">
             <X className="size-4" />
@@ -359,26 +380,26 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
   }
 
   return (
-    <div className={opened ? "flex h-full min-h-0 flex-col" : "flex h-full items-end justify-end bg-transparent"}>
+    <div className={opened ? "flex h-full min-h-0 flex-col" : "flex h-full items-end justify-end bg-transparent p-1.5"}>
       {!opened ? (
-        <button type="button" onClick={() => setOpened(true)} aria-label="Open live chat" className="grid size-[68px] place-items-center rounded-full text-white shadow-xl ring-4 ring-white/70 transition hover:scale-105" style={{ backgroundColor: config.settings.primaryColor }}>
-          <MessageCircle className="size-7" />
+        <button type="button" onClick={() => setOpened(true)} aria-label="Open live chat" className={`grid shrink-0 place-items-center text-white shadow-xl ring-4 ring-white/70 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 focus-visible:ring-offset-2 motion-safe:transition-transform motion-safe:hover:scale-105 ${launcherShape === "CIRCLE" ? "rounded-full" : "rounded-2xl"}`} style={{ width: launcherSize, height: launcherSize, backgroundColor: config.settings.primaryColor }}>
+          <MessageCircle style={{ width: launcherIconSize, height: launcherIconSize }} />
         </button>
       ) : (
-        <section className={`flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border shadow-2xl ${panelClass}`} aria-label="Live customer chat">
-          <header className="flex shrink-0 items-start gap-3 px-4 py-4 text-white" style={{ backgroundColor: config.settings.primaryColor }}>
+        <section className={`flex h-full min-h-0 w-full flex-col overflow-hidden border shadow-2xl ${panelClass}`} style={{ borderRadius: panelRadius }} aria-label="Live customer chat">
+          <header className={`flex shrink-0 items-start gap-3 px-4 py-4 ${headerTextClass}`} style={headerBackgroundStyle}>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold">{config.settings.title}</p>
               {messages.some((message) => message.senderType === "AGENT") ? (() => {
                 const agent = messages.find((message) => message.senderType === "AGENT" && message.senderName);
                 const agentName = agent?.senderName || "our support team";
-                return <div className="mt-1 flex items-center gap-1.5 text-[11px] text-white/90">
+                return <div className={`mt-1 flex items-center gap-1.5 text-[11px] ${headerSecondaryClass}`}>
                   {agent?.senderAvatar ? <img src={agent.senderAvatar} alt="" referrerPolicy="no-referrer" className="size-4 rounded-full border border-white/40 object-cover" /> : null}
                   <span className="truncate">Chatting with {agentName}</span>
-                  <span className={`relative ml-0.5 inline-flex size-2 rounded-full ${config.settings.offlineMode ? "bg-slate-300" : "bg-emerald-300"}`}>{!config.settings.offlineMode && <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-300 opacity-60" />}</span>
+                  <span className={`relative ml-0.5 inline-flex size-2 rounded-full ${config.settings.offlineMode ? "bg-slate-300" : "bg-emerald-300"}`}>{!config.settings.offlineMode && <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-300 opacity-60 motion-reduce:animate-none" />}</span>
                   <span className="text-[10px]">{config.settings.offlineMode ? "Offline" : "Online"}</span>
                 </div>;
-              })() : <p className="mt-1 text-[11px] text-white/85">{config.settings.offlineMode ? "Offline · Leave a message" : config.company.name + " · Usually replies promptly"}</p>}
+              })() : <p className={`mt-1 text-[11px] ${headerSecondaryClass}`}>{config.settings.offlineMode ? "Offline · Leave a message" : config.company.name + " · Usually replies promptly"}</p>}
             </div>
             <button type="button" onClick={() => setOpened(false)} aria-label="Minimize chat" className="rounded-lg p-1.5 hover:bg-white/15"><X className="size-4" /></button>
           </header>

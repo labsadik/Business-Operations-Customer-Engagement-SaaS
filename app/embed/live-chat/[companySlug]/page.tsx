@@ -10,7 +10,7 @@ export default async function EmbeddedLiveChatPage({
 }) {
   const { companySlug } = await params;
   return (
-    <main className="h-dvh w-full overflow-hidden bg-transparent p-0">
+    <main className="h-dvh min-h-0 min-w-0 w-full overflow-hidden bg-transparent p-0">
       <LiveChatWidget companySlug={companySlug} />
     </main>
   );
