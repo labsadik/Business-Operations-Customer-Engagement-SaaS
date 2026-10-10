@@ -207,13 +207,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ conv
       if (entry.image) avatarImages.set(entry.id, entry.image);
     }
 
-    const pages: ReturnType<typeof pdf.addPage>[] = [];
-    let page: ReturnType<typeof pdf.addPage>;
+    let page = pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+    const pages: ReturnType<typeof pdf.addPage>[] = [page];
     let y = PAGE_HEIGHT - MARGIN;
 
     const addPage = (first = false) => {
-      page = pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-      pages.push(page);
+      if (!first) {
+        page = pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+        pages.push(page);
+      }
       page.drawRectangle({
         x: 0,
         y: PAGE_HEIGHT - (first ? 138 : 52),
