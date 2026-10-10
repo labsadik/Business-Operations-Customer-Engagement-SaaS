@@ -248,7 +248,7 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
       const recentlyActive = Date.now() - lastMessageAtRef.current < 5 * 60 * 1000;
       timer = window.setTimeout(async () => {
         if (document.hidden) {
-          schedule();
+          timer = undefined;
           return;
         }
         await loadMessages(true);
