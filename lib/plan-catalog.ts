@@ -434,6 +434,11 @@ export function serializePublicPlan(plan: ManagedPlan) {
     vaultQuotaBytes: plan.vaultQuotaBytes,
     vaultMaxFileBytes: plan.vaultMaxFileBytes,
     vaultMaxItems: plan.vaultMaxItems,
+    liveChatEnabled: Boolean(plan.liveChatEnabled),
+    liveChatMonthlyLimit: plan.liveChatMonthlyLimit,
+    liveChatCustomerLimit: plan.liveChatCustomerLimit,
+    liveChatAgentLimit: plan.liveChatAgentLimit,
+    liveChatRetentionDays: plan.liveChatRetentionDays,
     validityDays: plan.validityDays,
     freeFeatureDays: plan.freeFeatureDays,
     requiresPayment: plan.requiresPayment
