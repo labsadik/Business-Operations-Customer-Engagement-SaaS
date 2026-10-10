@@ -30,10 +30,20 @@ export async function resolveInvoicePlanSnapshot(input: {
   planSnapshot?: unknown;
 }): Promise<PlanEntitlements | null> {
   const storedSnapshot = asSnapshot(input.planSnapshot);
+  const entitlementKeys: Array<keyof PlanEntitlements> = [
+    "id", "name", "priceInr", "maxWorkspaces", "maxCompanies", "maxEmployees",
+    "monthlyMeetingLimit", "maxMeetingDurationMinutes", "maxConcurrentMeetings",
+    "taskManagementEnabled", "taskManagementDailyLimit", "vaultEnabled",
+    "vaultQuotaBytes", "vaultMaxFileBytes", "vaultMaxItems", "validityDays",
+    "freeFeatureDays", "requiresPayment"
+  ];
+  const needsLegacyRepair = !storedSnapshot ||
+    entitlementKeys.some((key) => storedSnapshot[key] === undefined);
+
   let checkoutSnapshot: PlanSnapshotLike | null = null;
   const paymentId = input.paymentId == null ? "" : String(input.paymentId);
 
-  if (paymentId && Types.ObjectId.isValid(paymentId)) {
+  if (needsLegacyRepair && paymentId && Types.ObjectId.isValid(paymentId)) {
     const payment = await Payment.findOne({
       _id: new Types.ObjectId(paymentId),
       companyId: input.companyId
@@ -43,12 +53,16 @@ export async function resolveInvoicePlanSnapshot(input: {
     checkoutSnapshot = asSnapshot(payment?.checkoutPlanSnapshot);
   }
 
-  const [managedPlan] = await Promise.all([
-    getManagedPlan(input.planId, { includeArchived: true })
-  ]);
+  const managedPlan = needsLegacyRepair
+    ? await getManagedPlan(input.planId, { includeArchived: true })
+    : null;
   const legacyPlan = getPlan(input.planId);
-  const sources = [storedSnapshot, checkoutSnapshot, managedPlan, legacyPlan]
-    .filter((source): source is PlanSnapshotLike => Boolean(source));
+  const sources = [
+    storedSnapshot,
+    checkoutSnapshot,
+    managedPlan,
+    legacyPlan
+  ].filter((source): source is PlanSnapshotLike => Boolean(source));
 
   function pick<K extends keyof PlanEntitlements>(
     key: K,
