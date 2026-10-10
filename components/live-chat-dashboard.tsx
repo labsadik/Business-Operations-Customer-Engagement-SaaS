@@ -5,8 +5,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   MessageCircle, Settings2, Download, Trash2, Send, RefreshCw, Copy, CheckCircle2,
   Check, LoaderCircle, Palette, ShieldCheck, UsersRound, MessageSquareText,
-  Clock3, AlertCircle, Code2, X
+  Clock3, AlertCircle, Code2, X, Info, Search as SearchIcon, ChevronLeft, MapPin, Laptop2, Globe2, UserRound, CircleCheck
 } from "lucide-react";
+import WorkspaceSidebar from "@/components/workspace-sidebar";
+import { useWorkspaceSidebarState } from "@/components/use-workspace-sidebar-state";
 
 type ApiEnvelope<T> = { ok: boolean; data?: T; error?: string; details?: unknown };
 type Conversation = {
@@ -80,7 +82,23 @@ function SettingToggle({ label, description, checked, onChange }: { label: strin
   </label>;
 }
 
-export default function LiveChatDashboard({ canManageSettings = true }: { canManageSettings?: boolean }) {
+export default function LiveChatDashboard({
+  canManageSettings = true,
+  companyName,
+  taskManagementEnabled = false,
+  vaultEnabled = false,
+  sessionRole = "EMPLOYEE"
+}: {
+  canManageSettings?: boolean;
+  companyName: string;
+  taskManagementEnabled?: boolean;
+  vaultEnabled?: boolean;
+  sessionRole?: string;
+}) {
+  const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useWorkspaceSidebarState();
+  const [conversationTab, setConversationTab] = useState<"OPEN" | "UNASSIGNED" | "CLOSED">("OPEN");
+  const [conversationSearch, setConversationSearch] = useState("");
+  const [userDetailsOpen, setUserDetailsOpen] = useState(false);
   const [tab, setTab] = useState<"inbox" | "settings">("inbox");
   const [items, setItems] = useState<Conversation[]>([]);
   const [usage, setUsage] = useState<Usage | null>(null);
@@ -265,12 +283,59 @@ export default function LiveChatDashboard({ canManageSettings = true }: { canMan
     }
   };
 
-  if (loading) return <div className="grid min-h-[420px] place-items-center rounded-3xl border border-slate-200 bg-white"><LoaderCircle className="size-6 animate-spin text-blue-600" /></div>;
+  if (loading) return (
+    <>
+      <WorkspaceSidebar
+        companyName={companyName}
+        taskManagementEnabled={taskManagementEnabled}
+        vaultEnabled={vaultEnabled}
+        liveChatEnabled
+        canManage={canManageSettings}
+        adminManaged={sessionRole === "PLATFORM_ADMIN"}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={toggleSidebar}
+      />
+      <main className={`relative min-h-screen bg-slate-50 transition-all duration-300 ${sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"}`}>
+        <div className="grid min-h-screen place-items-center p-5"><div className="grid min-h-[420px] w-full max-w-[1600px] place-items-center rounded-3xl border border-slate-200 bg-white"><LoaderCircle className="size-6 animate-spin text-blue-600" /></div></div>
+      </main>
+    </>
+  );
   if ((error === "LIVE_CHAT_NOT_INCLUDED" || error === "FORBIDDEN") && !usage) {
-    return <div className="rounded-3xl border border-amber-200 bg-white p-8"><AlertCircle className="size-6 text-amber-600" /><h2 className="mt-3 text-lg font-semibold text-slate-900">Live Chat is not available</h2><p className="mt-1 max-w-xl text-sm leading-6 text-slate-600">Your current plan may not include Live Chat, or your account cannot access this workspace. A platform administrator can enable the feature in Admin → Plans.</p><Link href="/dashboard" className="mt-4 inline-flex rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white">Back to workspace</Link></div>;
+    return (
+      <>
+        <WorkspaceSidebar
+        companyName={companyName}
+        taskManagementEnabled={taskManagementEnabled}
+        vaultEnabled={vaultEnabled}
+        liveChatEnabled
+        canManage={canManageSettings}
+        adminManaged={sessionRole === "PLATFORM_ADMIN"}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={toggleSidebar}
+      />
+        <main className={`relative min-h-screen bg-slate-50 transition-all duration-300 ${sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"}`}>
+          <div className="mx-auto max-w-[1600px] p-5 sm:p-7">
+            <div className="rounded-3xl border border-amber-200 bg-white p-8"><AlertCircle className="size-6 text-amber-600" /><h2 className="mt-3 text-lg font-semibold text-slate-900">Live Chat is not available</h2><p className="mt-1 max-w-xl text-sm leading-6 text-slate-600">Your current plan may not include Live Chat, or your account cannot access this workspace. A platform administrator can enable the feature in Admin → Plans.</p><Link href="/dashboard" className="mt-4 inline-flex rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white">Back to workspace</Link></div>
+          </div>
+        </main>
+      </>
+    );
   }
 
-  return <div className="space-y-5">
+  return (
+    <>
+      <WorkspaceSidebar
+        companyName={companyName}
+        taskManagementEnabled={taskManagementEnabled}
+        vaultEnabled={vaultEnabled}
+        liveChatEnabled
+        canManage={canManageSettings}
+        adminManaged={sessionRole === "PLATFORM_ADMIN"}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={toggleSidebar}
+      />
+      <main className={`relative min-h-screen bg-slate-50 transition-all duration-300 ${sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"}`}>
+        <div className="space-y-5">
     <div className="flex flex-col justify-between gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:p-6">
       <div><div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-700"><MessageCircle className="size-3.5" /> Website messaging</div><h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Live Chat</h1><p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">Manage website conversations, customize the visitor widget, and control retention.</p></div>
       <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-1">
@@ -394,5 +459,8 @@ export default function LiveChatDashboard({ canManageSettings = true }: { canMan
         <section className="rounded-3xl border border-blue-100 bg-blue-50/60 p-5"><div className="flex items-center gap-2"><ShieldCheck className="size-4 text-blue-700" /><h2 className="text-sm font-semibold text-slate-900">Security & performance</h2></div><div className="mt-3 space-y-3 text-xs leading-5 text-slate-600"><p><strong className="text-slate-800">Spam protection stays on.</strong> The server atomically enforces message cooldowns, validates text, and limits rapid conversation creation.</p><p><strong className="text-slate-800">Tenant isolated.</strong> Every inbox/message query is scoped to your company and workspace. Agent roles and feature entitlements are checked on the server.</p><p><strong className="text-slate-800">Auto deletion.</strong> Chat messages expire individually; the daily retention job removes expired conversations in batches.</p><p><strong className="text-slate-800">Plan limits.</strong> {usage?.monthlyChats ?? 0} / {usage?.monthlyChatLimit ?? 0} monthly chats and {usage?.uniqueCustomers ?? 0} / {usage?.customerLimit ?? 0} unique visitors used.</p></div></section>
       </aside>
     </div>}
-  </div>;
+        </div>
+      </main>
+    </>
+  );
 }
