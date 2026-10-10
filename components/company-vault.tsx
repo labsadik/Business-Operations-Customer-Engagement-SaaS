@@ -328,7 +328,7 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
                     <ChevronRight className="size-3.5 text-slate-400" />
                     <button
                       type="button"
-                      onClick={() => navigateToFolder(item.id)
+                      onClick={() => navigateToFolder(item.id)}
                       className={index === (snapshot?.breadcrumbs.length ?? 0) - 1 ? "max-w-48 truncate font-semibold text-slate-900" : "max-w-48 truncate text-slate-500 hover:text-blue-700"}
                     >
                       {item.name}
@@ -370,7 +370,7 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
                   <>
                     {snapshot.folders.map((folder) => (
                       <div key={folder.id} className="grid grid-cols-[minmax(0,1fr)_100px_76px] items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_150px_100px_86px]">
-                        <button type="button" onClick={() => navigateToFolder(folder.id) className="flex min-w-0 items-center gap-3 text-left">
+                        <button type="button" onClick={() => navigateToFolder(folder.id)} className="flex min-w-0 items-center gap-3 text-left">
                           <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-600"><Folder className="size-4.5" /></div>
                           <span className="min-w-0 truncate text-sm font-semibold text-slate-800 hover:text-blue-700">{folder.name}</span>
                         </button>
