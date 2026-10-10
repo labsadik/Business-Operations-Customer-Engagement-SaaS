@@ -402,5 +402,5 @@ test("vault uploads stream chunks and never report 100 percent before Bunny fina
 
   assert.ok(cleanupJob.includes("cleanupExpiredVaultUploads(undefined, CLEANUP_BATCH_LIMIT)"));
   assert.ok(cleanupJob.includes('request.headers.get("authorization") === `Bearer ${secret}`'));
-  assert.ok(vercel.includes('"schedule": "*/5 * * * *"'));
+  assert.ok(vercel.includes('"schedule": "0 3 * * *"'));
 });
