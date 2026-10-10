@@ -129,6 +129,35 @@ function videoThumbnailSupported(mimeType: string) {
   return /^video\/(mp4|webm|ogg)$/.test(mimeType);
 }
 
+type PreparedUpload = { blob: Blob; contentEncoding: "identity" | "gzip" };
+
+function shouldTryLosslessCompression(file: File) {
+  // Gzip helps text/data formats; already-compressed media (JPEG, WebP, MP4, PDF,
+  // Office ZIP containers) are left byte-for-byte intact to preserve quality and seeking.
+  if (file.size < 256 * 1024 || file.size > 64 * 1024 * 1024) return false;
+  const mime = file.type.toLowerCase();
+  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+  return mime.startsWith("text/") ||
+    ["application/json", "application/xml", "application/javascript", "application/x-ndjson"].includes(mime) ||
+    ["txt", "md", "csv", "json", "xml", "html", "css", "js", "ts", "log", "sql", "yaml", "yml"].includes(extension);
+}
+
+async function prepareLosslessUpload(file: File): Promise<PreparedUpload> {
+  if (!shouldTryLosslessCompression(file) || typeof CompressionStream === "undefined") {
+    return { blob: file, contentEncoding: "identity" };
+  }
+  try {
+    const compressed = await new Response(
+      file.stream().pipeThrough(new CompressionStream("gzip"))
+    ).blob();
+    // Keep compression only when savings exceed the small gzip framing overhead.
+    if (compressed.size + 128 < file.size) return { blob: compressed, contentEncoding: "gzip" };
+  } catch {
+    // Compression is an optimization only; retain the original bytes on any failure.
+  }
+  return { blob: file, contentEncoding: "identity" };
+}
+
 export default function CompanyVault({ companyName, currentRole }: { companyName: string; currentRole: string }) {
   const [folderId, setFolderId] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<VaultSnapshot | null>(null);
@@ -279,12 +308,19 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
         setProgress("Preparing " + file.name + " (" + (fileIndex + 1) + " of " + selected.length + ")");
         let uploadId: string | null = null;
         try {
+          const prepared = await prepareLosslessUpload(file);
+          const payload = prepared.blob;
+          if (prepared.contentEncoding === "gzip") {
+            setProgress("Losslessly compressing " + file.name + " · " + formatBytes(file.size) + " → " + formatBytes(payload.size));
+          }
           const upload = await apiRequest<UploadStart>("/api/vault/uploads", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               name: file.name,
-              size: file.size,
+              size: payload.size,
+              originalSize: file.size,
+              contentEncoding: prepared.contentEncoding,
               mimeType: file.type,
               folderId
             })
@@ -293,7 +329,7 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
 
           for (let index = 0; index < upload.expectedChunks; index += 1) {
             const chunkStart = index * upload.chunkSizeBytes;
-            const chunk = file.slice(chunkStart, Math.min(file.size, chunkStart + upload.chunkSizeBytes));
+            const chunk = payload.slice(chunkStart, Math.min(payload.size, chunkStart + upload.chunkSizeBytes));
             const percentage = Math.round(((fileIndex + (index + 1) / upload.expectedChunks) / selected.length) * 100);
             setUploadPercent(percentage);
             setProgress("Uploading " + file.name + " — " + percentage + "%");

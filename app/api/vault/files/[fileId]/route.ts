@@ -46,13 +46,19 @@ export async function GET(
     const topLevelDocument = request.headers.get("sec-fetch-dest") === "document";
     const inline = wantsInline && !topLevelDocument && previewableMimeType(file.mimeType);
     const requestedRange = request.headers.get("range");
-    const safeRange = requestedRange && /^bytes=(?:\d+-\d*|-\d+)$/.test(requestedRange)
+    const compressed = file.contentEncoding === "gzip";
+    const safeRange = !compressed && requestedRange && /^bytes=(?:\d+-\d*|-\d+)$/.test(requestedRange)
       ? requestedRange
       : undefined;
     const remote = await bunnyDownload(file.storageKey, safeRange);
+    let body = remote.body;
+    if (compressed) {
+      if (!body || typeof DecompressionStream === "undefined") throw new Error("VAULT_DECOMPRESSION_UNAVAILABLE");
+      body = body.pipeThrough(new DecompressionStream("gzip"));
+    }
     const responseHeaders: Record<string, string> = {
       "Content-Type": file.mimeType || "application/octet-stream",
-      "Content-Length": remote.headers.get("content-length") ?? String(file.sizeBytes),
+      "Content-Length": compressed ? String(file.sizeBytes) : remote.headers.get("content-length") ?? String(file.sizeBytes),
       "Content-Disposition": downloadDisposition(file.originalName, inline),
       "X-Content-Type-Options": "nosniff",
       "Content-Security-Policy": "sandbox",
@@ -60,12 +66,12 @@ export async function GET(
       "Cross-Origin-Resource-Policy": "same-origin",
       "Referrer-Policy": "no-referrer",
       "X-Frame-Options": "SAMEORIGIN",
-      "Accept-Ranges": "bytes"
+      ...(compressed ? {} : { "Accept-Ranges": "bytes" })
     };
     const contentRange = remote.headers.get("content-range");
-    if (remote.status === 206 && contentRange) responseHeaders["Content-Range"] = contentRange;
-    return new Response(remote.body, {
-      status: remote.status === 206 ? 206 : 200,
+    if (!compressed && remote.status === 206 && contentRange) responseHeaders["Content-Range"] = contentRange;
+    return new Response(body, {
+      status: !compressed && remote.status === 206 ? 206 : 200,
       headers: responseHeaders
     });
   } catch (error) {

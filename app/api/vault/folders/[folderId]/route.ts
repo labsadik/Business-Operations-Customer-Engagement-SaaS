@@ -102,7 +102,7 @@ export async function DELETE(
       companyId,
       workspaceId,
       folderId: { $in: folderIds }
-    }).select("_id storageKey sizeBytes").lean();
+    }).select("_id storageKey sizeBytes storageSizeBytes").lean();
 
     // Delete remote content before removing the matching metadata. Each successful
     // deletion is committed separately so a transient Bunny failure can be retried.

@@ -28,6 +28,8 @@ type UploadRecord = {
   originalName: string;
   mimeType: string;
   sizeBytes: number;
+  originalSizeBytes?: number;
+  contentEncoding?: "identity" | "gzip";
   chunkSizeBytes: number;
   expectedChunks: number;
   receivedChunks: number[];
@@ -120,7 +122,9 @@ export async function POST(
       createdByUserId: claimedUpload.createdByUserId,
       originalName: safeVaultFilename(claimedUpload.originalName),
       mimeType: claimedUpload.mimeType,
-      sizeBytes: claimedUpload.sizeBytes,
+      sizeBytes: claimedUpload.originalSizeBytes ?? claimedUpload.sizeBytes,
+      storageSizeBytes: claimedUpload.sizeBytes,
+      contentEncoding: claimedUpload.contentEncoding ?? "identity",
       storageKey: "pending"
     });
     file.storageKey = claimedUpload.storageBaseKey + "/" + String(file._id) + "-" + safeVaultFilename(claimedUpload.originalName);

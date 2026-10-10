@@ -274,13 +274,13 @@ export async function ensureVaultUsage(
     // persisted file/upload metadata as authoritative and collapse old counters
     // only after the company-wide row has been created.
     const [files, activeUploads] = await Promise.all([
-      VaultFile.find({ companyId }).select("_id uploadId sizeBytes").lean(),
+      VaultFile.find({ companyId }).select("_id uploadId sizeBytes storageSizeBytes").lean(),
       VaultUpload.find({
         companyId,
         status: { $in: ["OPEN", "COMPLETING"] }
       }).select("_id sizeBytes").lean()
     ]);
-    const fileBytes = files.reduce((sum, file) => sum + file.sizeBytes, 0);
+    const fileBytes = files.reduce((sum, file) => sum + (file.storageSizeBytes ?? file.sizeBytes), 0);
     const filesByUpload = new Set(files.map((file) => String(file.uploadId)));
     const pendingUploads = activeUploads.filter((upload) => !filesByUpload.has(String(upload._id)));
     const pendingBytes = pendingUploads.reduce((sum, upload) => sum + upload.sizeBytes, 0);
@@ -313,7 +313,7 @@ export async function ensureVaultUsage(
   if (usage.counterVersion !== 2) {
     await cleanupExpiredVaultUploads(scope);
     const [files, activeUploads] = await Promise.all([
-      VaultFile.find({ companyId }).select("uploadId sizeBytes").lean(),
+      VaultFile.find({ companyId }).select("uploadId sizeBytes storageSizeBytes").lean(),
       VaultUpload.find({
         companyId,
         status: { $in: ["OPEN", "COMPLETING"] },
@@ -322,7 +322,7 @@ export async function ensureVaultUsage(
     ]);
     const filesByUpload = new Set(files.map((file) => String(file.uploadId)));
     const pendingUploads = activeUploads.filter((upload) => !filesByUpload.has(String(upload._id)));
-    const usedBytes = files.reduce((sum, file) => sum + file.sizeBytes, 0) +
+    const usedBytes = files.reduce((sum, file) => sum + (file.storageSizeBytes ?? file.sizeBytes), 0) +
       pendingUploads.reduce((sum, upload) => sum + upload.sizeBytes, 0);
     await VaultUsage.updateOne(
       { ...filter, counterVersion: { $ne: 2 } },
@@ -397,7 +397,7 @@ export async function releaseVaultBytes(scope: Pick<VaultScope, "companyId">, by
 
 export async function deleteVaultFileAndRelease(
   scope: Pick<VaultScope, "companyId" | "workspaceId">,
-  file: { _id: Types.ObjectId; sizeBytes: number }
+  file: { _id: Types.ObjectId; sizeBytes: number; storageSizeBytes?: number }
 ) {
   const companyId = new Types.ObjectId(scope.companyId);
   const workspaceId = new Types.ObjectId(scope.workspaceId);
@@ -407,7 +407,7 @@ export async function deleteVaultFileAndRelease(
   if (!deleted.deletedCount) return false;
 
   try {
-    await releaseVaultBytes(scope, file.sizeBytes);
+    await releaseVaultBytes(scope, file.storageSizeBytes ?? file.sizeBytes);
   } catch (error) {
     // The metadata deletion has succeeded; mark the counter stale so the next
     // vault request can reconcile it rather than returning a false delete failure.
@@ -431,7 +431,7 @@ export async function getVaultUsageSnapshot(
   const [fileRows, pendingRows] = await Promise.all([
     VaultFile.aggregate<{ count: number; sizeBytes: number }>([
       { $match: { companyId } },
-      { $group: { _id: null, count: { $sum: 1 }, sizeBytes: { $sum: "$sizeBytes" } } }
+      { $group: { _id: null, count: { $sum: 1 }, sizeBytes: { $sum: { $ifNull: ["$storageSizeBytes", "$sizeBytes"] } } } }
     ]),
     VaultUpload.aggregate<{ count: number; sizeBytes: number }>([
       {
