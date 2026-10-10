@@ -546,3 +546,20 @@ test("Cloud Vault server-prefetches tenant content and renders a light Drive-sty
   assert.ok(vault.includes("/api/vault/folders/"));
   assert.ok(vault.includes("/api/vault/files/"));
 });
+
+
+test("Cloud Vault PDF previews use the first-party page-by-page canvas viewer", () => {
+  const vault = source("components/company-vault.tsx");
+  const viewer = source("components/custom-pdf-viewer.tsx");
+
+  assert.ok(vault.includes('import CustomPdfViewer from "@/components/custom-pdf-viewer"'));
+  assert.ok(vault.includes("<CustomPdfViewer"));
+  assert.ok(vault.includes('previewFile.name.toLowerCase().endsWith(".pdf")'));
+  assert.ok(vault.includes('"/api/vault/files/" + encodeURIComponent(previewFile.id) + "?inline=1"'));
+  assert.ok(viewer.includes('import("pdfjs-dist")'));
+  assert.ok(viewer.includes('new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url)'));
+  assert.ok(viewer.includes('aria-label="Previous PDF page"'));
+  assert.ok(viewer.includes('aria-label="Next PDF page"'));
+  assert.ok(viewer.includes("canvasContext: context"));
+  assert.ok(viewer.includes("Fit width"));
+});
