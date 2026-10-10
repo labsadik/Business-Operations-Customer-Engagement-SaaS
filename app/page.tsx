@@ -2,14 +2,21 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
+  BellRing,
   CalendarCheck2,
   CalendarDays,
   CheckCircle2,
   Clock3,
+  FileText,
+  FolderLock,
   HelpCircle,
   Link2,
+  ListTodo,
+  Megaphone,
+  ShieldCheck,
   UsersRound,
-  Video
+  Video,
+  WalletCards
 } from "lucide-react";
 import { listPublicPlans } from "@/lib/plan-catalog";
 import LandingPricingCarousel from "@/components/landing-pricing-carousel";
@@ -19,89 +26,239 @@ import { PlatformAnnouncement } from "@/models/platform-announcement";
 import { landingPlatformAnnouncementFilter } from "@/lib/platform-announcement-query";
 import PlatformAnnouncementBanner from "@/components/platform-announcement-banner";
 import CountrySelector from "@/components/country-selector";
+import LandingWorkflowMockup from "@/components/landing-workflow-mockup";
 
 const howItWorks = [
   {
     number: "01",
-    title: "Set up your team",
-    text: "Create your company workspace, add employees, define availability, and connect Google for scheduling.",
-    icon: UsersRound
+    title: "Set Up Workspace",
+    text: "Add team members, define working hours, and connect your Calendar. Keep company rules and availability in one place.",
+    icon: UsersRound,
+    chips: ["Team members", "Working hours"]
   },
   {
     number: "02",
-    title: "Share your booking page",
-    text: "Publish one company link where customers can choose a meeting type, duration, date, and available time.",
-    icon: Link2
+    title: "Share Public Link",
+    text: "Publish your company booking URL and share it with clients in emails, proposals, or on your website.",
+    icon: Link2,
+    chips: ["Branded booking page", "Verified clients"]
   },
   {
     number: "03",
-    title: "Receive the request",
-    text: "Conventus routes the request to an eligible employee. The employee accepts or declines within the existing response window.",
-    icon: Clock3
+    title: "Review & Accept",
+    text: "Eligible team members receive the request and choose to accept or decline. A time is not locked before acceptance.",
+    icon: CheckCircle2,
+    chips: ["Instant alerts", "Explicit acceptance"]
   },
   {
     number: "04",
-    title: "Meet after acceptance",
-    text: "Once accepted, Conventus creates the Google Meet and Calendar event and exposes the meeting route.",
-    icon: Video
+    title: "Meet & Collaborate",
+    text: "The meeting room link is issued, the time is blocked on calendars, and follow-up tasks and files stay with the workspace.",
+    icon: Video,
+    chips: ["Meeting room", "Vault & tasks"]
   }
 ] as const;
 
 const features = [
   {
-    title: "A public booking page",
-    text: "Give customers one clear place to request time with your company instead of coordinating availability over messages.",
-    icon: CalendarCheck2
+    id: "portal",
+    eyebrow: "Client experience",
+    title: "Company Booking Portal",
+    route: "/{companySlug}",
+    text: "Give every workspace a branded public link. Verified client sign-in helps prevent spam, while 15, 30, 45, and 60 minute options reflect eligible employee availability.",
+    icon: CalendarCheck2,
+    href: "/dashboard",
+    action: "Configure booking portal",
+    accent: "blue"
   },
   {
-    title: "Team-aware availability",
-    text: "Show times that respect meeting duration, employee eligibility, workspace rules, and connected Google calendar availability.",
-    icon: UsersRound
+    id: "routing",
+    eyebrow: "Conflict-aware scheduling",
+    title: "Smart Employee Routing",
+    route: "Acceptance-gated requests",
+    text: "Requests go to active, eligible employees. A meeting becomes confirmed only after explicit acceptance, preventing phantom bookings and reducing double-booking risk.",
+    icon: UsersRound,
+    href: "/dashboard",
+    action: "Explore team workflow",
+    accent: "emerald"
   },
   {
-    title: "Employee acceptance",
-    text: "A request is not treated as a confirmed meeting until an eligible employee accepts it.",
-    icon: CheckCircle2
+    id: "tasks",
+    eyebrow: "Operations",
+    title: "Integrated Team Task Management",
+    route: "/dashboard/tasks",
+    text: "Coordinate work in Kanban or list views, set Low, Medium, High, and Urgent priorities, and account for Active, On Leave, or Inactive team availability.",
+    icon: ListTodo,
+    href: "/dashboard/tasks",
+    action: "Open team tasks",
+    accent: "violet"
   },
   {
-    title: "Google Meet after confirmation",
-    text: "The meeting link is created as part of the confirmed meeting workflow rather than presented before acceptance.",
-    icon: Video
+    id: "vault",
+    eyebrow: "Private company files",
+    title: "Private Cloud Document Vault",
+    route: "/dashboard/vault",
+    text: "Store files in structured folders, upload large assets in chunks, and preview contracts, proposals, PDFs, and client documents in the browser.",
+    icon: FolderLock,
+    href: "/dashboard/vault",
+    action: "Open company vault",
+    accent: "blue"
   },
   {
-    title: "Company-scoped workspace",
-    text: "Company members, billing records, public pages, and meeting operations stay tied to the intended company scope.",
-    icon: Link2
+    id: "billing",
+    eyebrow: "Finance & plan controls",
+    title: "Automated Billing & Invoices",
+    route: "/dashboard?panel=billing",
+    text: "See plan quotas and usage progress at a glance. Download one-page enterprise PDF invoices designed to make corporate accounting and recordkeeping easier.",
+    icon: WalletCards,
+    href: "/dashboard?panel=billing",
+    action: "Open billing & invoices",
+    accent: "amber"
   },
   {
-    title: "Clear plan limits",
-    text: "Every plan exposes its actual employee, meeting, duration, concurrency, workspace, company, and validity limits.",
-    icon: Clock3
+    id: "announcements",
+    eyebrow: "Company communications",
+    title: "Platform & Company Announcements",
+    route: "Targeted workspace notices",
+    text: "Publish operational updates across all companies or target a specific client workspace, so people see relevant notices in context.",
+    icon: Megaphone,
+    href: "/dashboard",
+    action: "Explore announcements",
+    accent: "emerald"
   }
 ] as const;
 
 const faqs = [
   {
     question: "What is Conventus?",
-    answer: "Conventus is a company scheduling layer that connects a customer booking page to the right employee, then turns an accepted request into a Google Meet and Calendar event."
+    answer: "Conventus brings public client booking, employee routing and acceptance, meeting coordination, team tasks, private company files, billing, and announcements into one company workspace."
   },
   {
-    question: "Who is it for?",
-    answer: "It is designed for companies where customers need to reach a team member at a suitable time and the business wants one repeatable scheduling workflow."
-  },
-  {
-    question: "Do customers need to sign in?",
-    answer: "Yes. On published company booking pages, Google sign-in is required before Conventus reveals live availability or accepts a booking request."
+    question: "Do clients need to sign in?",
+    answer: "Yes. Published company booking pages require verified client sign-in before live availability is revealed or a booking request is accepted."
   },
   {
     question: "When is a meeting confirmed?",
-    answer: "The request becomes confirmed only after the eligible employee accepts it. The meeting link is available as part of that confirmed workflow."
+    answer: "The request becomes confirmed only after an eligible employee explicitly accepts it. Calendar blocking and meeting-room details follow that confirmation workflow."
+  },
+  {
+    question: "What can teams manage in the workspace?",
+    answer: "Depending on their access and plan, teams can coordinate bookings, tasks, company files, usage limits and invoices, and platform or workspace announcements."
   },
   {
     question: "Can I start without paying?",
-    answer: "Yes. The current product configuration includes a Free plan with its own limits. Paid plans are available for larger teams and higher meeting capacity."
+    answer: "Yes. The current plan configuration includes a Free plan with defined limits. The pricing cards below use the live public plan configuration."
   }
 ] as const;
+
+type FeatureKind = (typeof features)[number]["id"];
+
+function FeaturePreview({ kind }: { kind: FeatureKind }) {
+  if (kind === "portal") {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-white p-3.5">
+        <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2">
+            <span className="grid size-7 place-items-center rounded-lg bg-blue-600 text-white"><CalendarDays className="size-3.5" /></span>
+            <div><p className="text-[10px] font-bold text-slate-900">Meridian Health</p><p className="text-[9px] text-slate-500">meridian.conventus.com</p></div>
+          </div>
+          <span className="rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-semibold text-emerald-700">Verified</span>
+        </div>
+        <p className="mt-3 text-[11px] font-semibold text-slate-800">Choose a meeting length</p>
+        <div className="mt-2 grid grid-cols-4 gap-1.5">
+          {["15 min", "30 min", "45 min", "60 min"].map((duration) => (
+            <span key={duration} className={"rounded-lg border px-1 py-2 text-center text-[9px] font-semibold " + (duration === "30 min" ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-200 bg-white text-slate-600")}>{duration}</span>
+          ))}
+        </div>
+        <p className="mt-2 text-[9px] text-slate-500">Times reflect eligible team availability.</p>
+      </div>
+    );
+  }
+
+  if (kind === "routing") {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-white p-3.5">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[10px] font-semibold text-slate-700">New client request</span>
+          <span className="rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-semibold text-emerald-700">Confirmed</span>
+        </div>
+        <div className="mt-3 flex items-center gap-2.5 rounded-xl bg-slate-50 p-2.5">
+          <span className="grid size-8 place-items-center rounded-full bg-violet-100 text-[10px] font-bold text-violet-800">SJ</span>
+          <div className="min-w-0 flex-1"><p className="text-[10px] font-semibold text-slate-900">Sarah Jenkins</p><p className="text-[9px] text-slate-500">Solutions Architect · Active</p></div>
+          <CheckCircle2 className="size-4 text-emerald-600" />
+        </div>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          <span className="rounded-md bg-blue-50 px-2 py-1 text-[9px] font-medium text-blue-700">Eligibility checked</span>
+          <span className="rounded-md bg-emerald-50 px-2 py-1 text-[9px] font-medium text-emerald-700">Accepted by employee</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (kind === "tasks") {
+    return (
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { title: "To do", task: "Prepare proposal", priority: "High", cls: "bg-amber-50 text-amber-800" },
+          { title: "In progress", task: "Client handoff", priority: "Urgent", cls: "bg-rose-50 text-rose-700" },
+          { title: "Done", task: "Review notes", priority: "Low", cls: "bg-emerald-50 text-emerald-700" }
+        ].map((column) => (
+          <div key={column.title} className="min-w-0 rounded-xl border border-slate-200 bg-white p-2">
+            <p className="text-[9px] font-semibold text-slate-700">{column.title}</p>
+            <div className="mt-2 min-h-[65px] rounded-lg border border-slate-100 bg-slate-50 p-2">
+              <p className="text-[9px] font-semibold leading-4 text-slate-800">{column.task}</p>
+              <span className={"mt-2 inline-flex rounded-md px-1.5 py-1 text-[8px] font-semibold " + column.cls}>{column.priority}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (kind === "vault") {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-white p-3">
+        <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+          <div className="flex items-center gap-2"><FolderLock className="size-4 text-blue-700" /><p className="text-[10px] font-semibold text-slate-800">Company Vault</p></div>
+          <span className="text-[9px] text-slate-500">Private workspace</span>
+        </div>
+        {[
+          { name: "Client contract.pdf", meta: "PDF · 2.4 MB", icon: FileText },
+          { name: "Project proposal.pdf", meta: "PDF · 1.8 MB", icon: FileText },
+          { name: "Client assets", meta: "Folder · 12 files", icon: FolderLock }
+        ].map((file) => {
+          const FileIcon = file.icon;
+          return <div key={file.name} className="flex items-center gap-2.5 border-b border-slate-100 py-2.5 last:border-b-0"><span className="grid size-7 place-items-center rounded-lg bg-blue-50 text-blue-700"><FileIcon className="size-3.5" /></span><div className="min-w-0 flex-1"><p className="truncate text-[10px] font-semibold text-slate-800">{file.name}</p><p className="text-[9px] text-slate-500">{file.meta}</p></div><ShieldCheck className="size-3.5 text-emerald-600" /></div>;
+        })}
+      </div>
+    );
+  }
+
+  if (kind === "billing") {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-white p-3.5">
+        <div className="flex items-center justify-between gap-2"><p className="text-[10px] font-semibold text-slate-800">Monthly plan usage</p><span className="text-[10px] font-bold text-blue-700">72%</span></div>
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full w-[72%] rounded-full bg-blue-600" /></div>
+        <div className="mt-2 flex justify-between text-[9px] text-slate-500"><span>72 of 100 meetings</span><span>Resets monthly</span></div>
+        <div className="mt-3 flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50 p-2.5">
+          <span className="grid size-8 place-items-center rounded-lg bg-amber-100 text-amber-800"><FileText className="size-4" /></span>
+          <div className="min-w-0 flex-1"><p className="text-[10px] font-semibold text-slate-900">Enterprise invoice</p><p className="text-[9px] text-slate-500">PDF · One-page summary</p></div>
+          <span className="text-[9px] font-semibold text-blue-700">Download</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-3.5">
+      <div className="flex items-start gap-2.5">
+        <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><BellRing className="size-4" /></span>
+        <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="text-[10px] font-semibold text-slate-900">Service update</p><span className="rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-semibold text-blue-700">Published</span></div><p className="mt-1 text-[10px] leading-4 text-slate-600">A new operational notice is available for your workspace.</p></div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1.5"><span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[9px] text-slate-600">All companies</span><span className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[9px] text-emerald-700">Selected workspaces</span></div>
+    </div>
+  );
+}
 
 export default async function Home() {
   const plans = await listPublicPlans();
@@ -130,7 +287,6 @@ export default async function Home() {
 
   return (
     <main className="min-h-screen bg-[#f8fafc] text-slate-950">
-      {/* Platform Announcement Banner placed above the platform header */}
       <PlatformAnnouncementBanner
         initialAnnouncements={platformAnnouncements.map((item) => ({
           id: String(item._id),
@@ -145,51 +301,46 @@ export default async function Home() {
         surface="landing"
       />
 
-      <header className="sticky top-0 z-50 border-b border-amber-200/80 bg-gradient-to-r from-amber-50/90 via-white to-amber-50/90 backdrop-blur-xl">
-        <div className="mx-auto flex min-h-[72px] max-w-7xl items-center justify-between gap-5 px-5 sm:px-6 lg:px-8">
-          <Link
-            href="/"
-            className="flex shrink-0 items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
-          >
-            <span className="grid size-10 place-items-center overflow-hidden rounded-xl border border-slate-200 bg-slate-950 shadow-sm">
+      <header className="sticky top-0 z-50 border-b border-slate-200/90 bg-white/95 backdrop-blur-xl">
+        <div className="mx-auto flex min-h-[72px] max-w-7xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
+          <Link href="/" className="flex shrink-0 items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+            <span className="grid size-10 place-items-center overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               <Image src="/favicon.svg" alt="" width={40} height={40} className="size-full object-contain" />
             </span>
-            <span className="text-sm font-semibold tracking-tight text-slate-950">Conventus</span>
+            <span className="text-sm font-bold tracking-tight text-slate-950">Conventus</span>
           </Link>
 
-          <nav aria-label="Main navigation" className="hidden items-center gap-8 text-sm font-medium text-slate-600 md:flex">
-            <a href="#how-it-works" className="rounded-lg px-1.5 py-2 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">How it works</a>
-            <a href="#features" className="rounded-lg px-1.5 py-2 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">Features</a>
-            <a href="#pricing" className="rounded-lg px-1.5 py-2 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">Pricing</a>
-            <a href="#faq" className="rounded-lg px-1.5 py-2 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">FAQ</a>
+          <nav aria-label="Main navigation" className="hidden items-center gap-6 text-sm font-medium text-slate-600 lg:flex">
+            <a href="#how-it-works" className="rounded-lg px-1.5 py-2 transition hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">How it works</a>
+            <a href="#features" className="rounded-lg px-1.5 py-2 transition hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Features</a>
+            <a href="#pricing" className="rounded-lg px-1.5 py-2 transition hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Pricing</a>
+            <a href="#faq" className="rounded-lg px-1.5 py-2 transition hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">FAQ</a>
           </nav>
 
           <div className="flex items-center gap-2">
-            <Link href="/login" className="hidden rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-amber-100/50 sm:inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2">
-              Sign in
-            </Link>
-            
-            {/* Country Selector shown for both desktop and mobile header (small size) */}
             <CountrySelector className="[&_button]:h-9 [&_button]:px-2.5 [&_button]:text-xs" />
-
-            {/* Animated Interactive Hamburger Menu (not a button element) */}
-            <details className="group relative md:hidden">
-              <summary className="grid size-9 cursor-pointer list-none place-items-center rounded-xl border border-amber-200 bg-white text-slate-700 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2">
+            <Link href="/login" className="hidden rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 sm:inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Sign in</Link>
+            <Link href="/dashboard" className="hidden items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 sm:inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+              Workspace <ArrowRight className="size-4" />
+            </Link>
+            <details className="group relative lg:hidden">
+              <summary className="grid size-10 cursor-pointer list-none place-items-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
                 <span className="sr-only">Open menu</span>
                 <span className="relative flex size-4 flex-col items-center justify-center gap-1" aria-hidden="true">
-                  <span className="h-0.5 w-3.5 rounded-full bg-slate-700 transition-all duration-300 ease-in-out group-open:translate-y-1.5 group-open:rotate-45" />
-                  <span className="h-0.5 w-3.5 rounded-full bg-slate-700 transition-all duration-300 ease-in-out group-open:opacity-0" />
-                  <span className="h-0.5 w-3.5 rounded-full bg-slate-700 transition-all duration-300 ease-in-out group-open:-translate-y-1.5 group-open:-rotate-45" />
+                  <span className="h-0.5 w-4 rounded-full bg-slate-700 transition-all group-open:translate-y-1.5 group-open:rotate-45" />
+                  <span className="h-0.5 w-4 rounded-full bg-slate-700 transition-all group-open:opacity-0" />
+                  <span className="h-0.5 w-4 rounded-full bg-slate-700 transition-all group-open:-translate-y-1.5 group-open:-rotate-45" />
                 </span>
               </summary>
-              <div className="absolute right-0 top-11 z-50 w-56 rounded-2xl border border-amber-200 bg-white p-2 shadow-xl animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute right-0 top-12 z-50 w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
                 <div className="grid gap-1">
-                  <a href="#how-it-works" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-amber-50">How it works</a>
-                  <a href="#features" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-amber-50">Features</a>
-                  <a href="#pricing" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-amber-50">Pricing</a>
-                  <a href="#faq" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-amber-50">FAQ</a>
+                  <a href="#how-it-works" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">How it works</a>
+                  <a href="#features" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Features</a>
+                  <a href="#pricing" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Pricing</a>
+                  <a href="#faq" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">FAQ</a>
                   <div className="my-1 border-t border-slate-200" />
-                  <Link href="/login" className="rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-amber-50">Sign in</Link>
+                  <Link href="/login" className="rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Sign in</Link>
+                  <Link href="/dashboard" className="rounded-xl px-3 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50">Open workspace</Link>
                 </div>
               </div>
             </details>
@@ -197,139 +348,58 @@ export default async function Home() {
         </div>
       </header>
 
-      <section className="relative overflow-hidden border-b border-slate-200 bg-white">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_10%,_rgba(254,240,138,0.28),_transparent_30%),radial-gradient(circle_at_86%_12%,_rgba(37,99,235,0.11),_transparent_34%)]" />
-        <div className="relative mx-auto max-w-7xl px-5 pb-20 pt-14 sm:px-6 sm:pb-24 sm:pt-20 lg:px-8 lg:pb-28 lg:pt-24">
-          <div className="grid items-center gap-12 lg:grid-cols-[1.03fr_.97fr] lg:gap-16">
-            <div className="max-w-3xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">
+      <section className="relative isolate overflow-hidden border-b border-slate-200/90 bg-[#f8fafc]">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_14%_5%,rgba(37,99,235,0.10),transparent_38%),radial-gradient(ellipse_at_90%_24%,rgba(5,150,105,0.08),transparent_34%)]" />
+        <div className="mx-auto max-w-7xl px-5 pb-14 pt-12 sm:px-6 sm:pb-20 sm:pt-16 lg:px-8 lg:pb-24 lg:pt-20">
+          <div className="grid items-center gap-12 lg:grid-cols-[.95fr_1.05fr] lg:gap-14">
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3.5 py-2 text-xs font-semibold text-blue-800">
                 <span className="size-1.5 rounded-full bg-blue-600" />
-                Customer booking → team routing → confirmed meeting
+                Enterprise Scheduling &amp; Operations Platform
               </div>
 
-              <h1 className="mt-6 max-w-3xl text-5xl font-semibold tracking-[-0.05em] text-slate-950 sm:text-6xl lg:text-[68px] lg:leading-[1.02]">
-                Let customers book time with the right person on your team.
+              <h1 className="mt-6 max-w-2xl text-[2.65rem] font-semibold leading-[1.07] tracking-[-0.045em] text-slate-950 sm:text-5xl lg:text-[58px]">
+                Turn client booking requests into confirmed virtual meetings and calendar events with your team.
               </h1>
 
-              <p className="mt-6 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
-                Conventus gives your company one scheduling workflow: customers request a suitable time, Conventus routes the request to an eligible employee, and a Google Meet is created after the request is accepted.
+              <p className="mt-6 max-w-xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
+                Conventus unites customer booking pages, intelligent employee routing, team task delegation, and private cloud file storage into one cohesive company workspace.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Link
-                  href="/login"
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/15 transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                >
-                  Get started
-                  <ArrowRight className="size-4" />
+                <Link href="/login" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/15 transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+                  Get started for free <ArrowRight className="size-4" />
                 </Link>
-                <a
-                  href="#pricing"
-                  className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-6 py-3.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                >
-                  View plans
+                <a href="#features" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-6 py-3.5 text-sm font-semibold text-slate-800 transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50/60 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+                  Explore capabilities <ArrowRight className="size-4" />
                 </a>
               </div>
 
-              <div className="mt-8 grid max-w-2xl gap-3 text-sm text-slate-600 sm:grid-cols-3">
-                {[
-                  ["For customers", "Choose a time from a public company page."],
-                  ["For teams", "Route requests to eligible employees."],
-                  ["For meetings", "Create Meet + Calendar after acceptance."]
-                ].map(([label, text]) => (
-                  <div key={label} className="rounded-2xl border border-slate-200 bg-[#faf9f1] px-4 py-3.5">
-                    <p className="text-xs font-semibold text-slate-950">{label}</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">{text}</p>
-                  </div>
-                ))}
+              <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-medium text-slate-600">
+                <span className="inline-flex items-center gap-2"><ShieldCheck className="size-4 text-emerald-700" /> Workspace-scoped access</span>
+                <span className="inline-flex items-center gap-2"><CheckCircle2 className="size-4 text-emerald-700" /> Acceptance before confirmation</span>
               </div>
             </div>
 
-            <div className="relative mx-auto w-full max-w-xl">
-              <div className="rounded-[2rem] border border-slate-200 bg-slate-100 p-2.5 shadow-[0_30px_70px_rgba(15,23,42,0.10)]">
-                <div className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white p-4 sm:p-5">
-                  <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Illustrative product preview</p>
-                      <p className="mt-1 text-sm font-semibold text-slate-950">Example team request</p>
-                    </div>
-                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-700">Demo</span>
-                  </div>
-
-                  <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-blue-700">Public booking page</p>
-                    <p className="mt-2 text-base font-semibold text-slate-950">Customer chooses a time</p>
-                    <div className="mt-3 grid grid-cols-3 gap-2">
-                      {["10:30", "11:00", "11:30"].map((time, index) => (
-                        <div
-                          key={time}
-                          className={
-                            "rounded-xl border px-3 py-2.5 text-center text-xs font-semibold " +
-                            (index === 1
-                              ? "border-blue-300 bg-blue-500 text-white"
-                              : "border-white/10 bg-white/[0.03] text-white/60")
-                          }
-                        >
-                          {time}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mx-auto my-3 grid size-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-400">
-                    <ArrowRight className="size-4 rotate-90" />
-                  </div>
-
-                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-700">Team request</p>
-                        <p className="mt-2 text-base font-semibold text-white">Eligible employee receives it</p>
-                        <p className="mt-1 text-xs leading-5 text-slate-500">Acceptance happens before confirmation.</p>
-                      </div>
-                      <CheckCircle2 className="size-5 shrink-0 text-emerald-600" />
-                    </div>
-                  </div>
-
-                  <div className="mt-3 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                    <span className="grid size-9 place-items-center rounded-xl bg-blue-50 text-blue-700">
-                      <Video className="size-4" />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-slate-950">Confirmed meeting</p>
-                      <p className="mt-0.5 text-[11px] text-slate-500">Google Meet + Calendar created</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <p className="mt-3 text-center text-[11px] leading-5 text-slate-400">
-                Demonstration only — the names, times, and request shown above are not live customer data.
-              </p>
-            </div>
+            <LandingWorkflowMockup />
           </div>
         </div>
       </section>
 
-      <section aria-label="Product capabilities" className="border-b border-slate-200 bg-[#faf9f1]">
-        <div className="mx-auto max-w-7xl px-5 py-7 sm:px-6 lg:px-8">
-          <div className="grid overflow-hidden rounded-2xl border border-slate-200 bg-white sm:grid-cols-2 lg:grid-cols-4">
+      <section aria-label="Platform trust metrics" className="border-b border-slate-200/90 bg-white">
+        <div className="mx-auto max-w-7xl px-5 py-5 sm:px-6 lg:px-8">
+          <div className="grid gap-3 md:grid-cols-3">
             {[
-              [CalendarCheck2, "Customer booking", "One public company page for meeting requests."],
-              [UsersRound, "Team routing", "Requests route to eligible employees."],
-              [CheckCircle2, "Employee acceptance", "Confirmation follows an explicit acceptance step."],
-              [Video, "Google meeting", "Meet + Calendar are created after acceptance."]
-            ].map(([Icon, title, text]) => {
-              const TrustIcon = Icon as typeof Video;
+              { icon: CalendarCheck2, title: "Zero scheduling conflicts", text: "Calendar & meeting sync", tone: "blue" },
+              { icon: CheckCircle2, title: "Real employee acceptance", text: "No phantom bookings", tone: "emerald" },
+              { icon: FolderLock, title: "Private company vault", text: "Task delegation included", tone: "violet" }
+            ].map((metric) => {
+              const MetricIcon = metric.icon;
+              const iconClass = metric.tone === "emerald" ? "bg-emerald-50 text-emerald-700" : metric.tone === "violet" ? "bg-violet-50 text-violet-700" : "bg-blue-50 text-blue-700";
               return (
-                <div key={title as string} className="flex items-start gap-3 border-b border-slate-200 px-5 py-4 last:border-b-0 sm:border-r sm:last:border-r-0 lg:border-b-0 lg:border-r lg:last:border-r-0">
-                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-700">
-                    <TrustIcon className="size-4" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-slate-950">{title as string}</p>
-                    <p className="mt-1 text-[11px] leading-5 text-slate-500">{text as string}</p>
-                  </div>
+                <div key={metric.title} className="flex items-center gap-3 rounded-xl border border-slate-200/90 bg-white px-4 py-3.5">
+                  <span className={"grid size-10 shrink-0 place-items-center rounded-xl " + iconClass}><MetricIcon className="size-5" /></span>
+                  <div><p className="text-sm font-semibold text-slate-900">{metric.title}</p><p className="mt-0.5 text-xs text-slate-500">{metric.text}</p></div>
                 </div>
               );
             })}
@@ -337,139 +407,118 @@ export default async function Home() {
         </div>
       </section>
 
-      <section id="how-it-works" className="scroll-mt-24 border-b border-slate-200 bg-[#faf9f1]">
-        <div className="mx-auto max-w-7xl px-5 py-20 sm:px-6 lg:px-8">
-          <div className="max-w-2xl">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">How it works</p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              A simple path from customer request to confirmed call.
-            </h2>
-            <p className="mt-4 text-base leading-7 text-slate-600">
-              Conventus keeps the customer-facing booking experience and the internal team workflow connected.
-            </p>
+      <section id="how-it-works" className="scroll-mt-24 border-b border-slate-200/90 bg-[#faf9f1]">
+        <div className="mx-auto max-w-7xl px-5 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+          <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">How it works</p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">One clear workflow from first request to follow-up.</h2>
+            </div>
+            <p className="max-w-lg text-sm leading-6 text-slate-600">A customer-friendly entry point connected to the internal tools your team needs to deliver.</p>
           </div>
 
-          <div className="mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {howItWorks.map(({ number, title, text, icon: Icon }) => (
-              <article key={number} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_rgba(15,23,42,0.05)]">
+          <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {howItWorks.map(({ number, title, text, icon: Icon, chips }) => (
+              <article key={number} className="group rounded-2xl border border-slate-200/90 bg-white p-5 transition-all hover:-translate-y-0.5 hover:shadow-md sm:p-6">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-bold tracking-[0.18em] text-blue-600">{number}</span>
-                  <span className="grid size-10 place-items-center rounded-xl bg-blue-50 text-blue-700">
-                    <Icon className="size-5" />
-                  </span>
+                  <span className="text-xs font-bold tracking-[0.18em] text-blue-700">STEP {number}</span>
+                  <span className="grid size-11 place-items-center rounded-2xl bg-blue-50 text-blue-700"><Icon className="size-5" /></span>
                 </div>
-                <h3 className="mt-6 text-lg font-semibold text-slate-950">{title}</h3>
-                <p className="mt-3 text-sm leading-6 text-slate-600">{text}</p>
+                <h3 className="mt-5 text-lg font-semibold tracking-tight text-slate-950">{title}</h3>
+                <p className="mt-2.5 text-sm leading-6 text-slate-600">{text}</p>
+                <div className="mt-5 flex flex-wrap gap-1.5">
+                  {chips.map((chip) => <span key={chip} className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-medium text-slate-600">{chip}</span>)}
+                </div>
               </article>
             ))}
           </div>
         </div>
       </section>
 
-      <section id="features" className="scroll-mt-24 border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-5 py-20 sm:px-6 lg:px-8">
+      <section id="features" className="scroll-mt-24 border-b border-slate-200/90 bg-white">
+        <div className="mx-auto max-w-7xl px-5 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">Key features</p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                Everything the workflow needs, without making the visitor learn your system.
-              </h2>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Built for enterprise operations</p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">One workspace. Six connected capabilities.</h2>
             </div>
-            <p className="max-w-xl text-sm leading-6 text-slate-500">
-              The public page stays focused on booking. The workspace handles routing, availability, billing, and meeting operations.
-            </p>
+            <p className="max-w-xl text-sm leading-6 text-slate-600">Explore realistic previews of the booking, routing, collaboration, file, finance, and announcement workflows built into Conventus.</p>
           </div>
 
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {features.map(({ title, text, icon: Icon }) => (
-              <article key={title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_6px_22px_rgba(15,23,42,0.04)] transition hover:border-blue-200 hover:shadow-[0_12px_30px_rgba(15,23,42,0.07)]">
-                <div className="grid size-11 place-items-center rounded-2xl bg-blue-50 text-blue-700">
-                  <Icon className="size-5" />
-                </div>
-                <h3 className="mt-5 text-base font-semibold text-slate-950">{title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{text}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="google" className="scroll-mt-24 border-b border-slate-200 bg-[#f8fafc]">
-        <div className="mx-auto max-w-7xl px-5 py-20 sm:px-6 lg:px-8">
-          <div className="grid gap-10 lg:grid-cols-[.75fr_1.25fr] lg:items-start">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">Google integration</p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                Know what Google is doing before you connect it.
-              </h2>
-              <p className="mt-4 max-w-xl text-sm leading-6 text-slate-600">
-                Conventus uses Google differently for identity and scheduling. A normal sign-in identifies the user; a scheduling member can separately authorize Calendar access when the workflow needs it.
-              </p>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-3">
-              {[
-                [CalendarCheck2, "Google sign-in", "Used for account identity. Customer booking sign-in does not request Calendar access."],
-                [CalendarDays, "Calendar availability", "Scheduling members authorize Calendar free/busy access so Conventus can check the primary calendar before offering a time."],
-                [Video, "Meet after acceptance", "The existing meeting flow creates the Calendar event with a Google Meet conference after an eligible employee accepts the request."]
-              ].map(([Icon, title, text]) => {
-                const IntegrationIcon = Icon as typeof Video;
-                return (
-                  <article key={title as string} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_6px_24px_rgba(15,23,42,0.04)]">
-                    <div className="grid size-10 place-items-center rounded-xl bg-blue-50 text-blue-700">
-                      <IntegrationIcon className="size-4.5" />
-                    </div>
-                    <h3 className="mt-4 text-sm font-semibold text-slate-950">{title as string}</h3>
-                    <p className="mt-2 text-xs leading-5 text-slate-600">{text as string}</p>
-                  </article>
-                );
-              })}
-            </div>
+          <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {features.map((feature) => {
+              const FeatureIcon = feature.icon;
+              const iconClass = feature.accent === "emerald" ? "bg-emerald-50 text-emerald-700" : feature.accent === "violet" ? "bg-violet-50 text-violet-700" : feature.accent === "amber" ? "bg-amber-50 text-amber-800" : "bg-blue-50 text-blue-700";
+              return (
+                <article key={feature.id} className="flex h-full flex-col rounded-2xl border border-slate-200/90 bg-white p-4 transition-all hover:-translate-y-0.5 hover:shadow-md sm:p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className={"grid size-11 shrink-0 place-items-center rounded-2xl " + iconClass}><FeatureIcon className="size-5" /></span>
+                    <span className="max-w-[58%] rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-right text-[9px] font-medium leading-3 text-slate-600">{feature.route}</span>
+                  </div>
+                  <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.13em] text-slate-500">{feature.eyebrow}</p>
+                  <h3 className="mt-1.5 text-lg font-semibold tracking-tight text-slate-950">{feature.title}</h3>
+                  <p className="mt-2 min-h-[5.5rem] text-sm leading-6 text-slate-600">{feature.text}</p>
+                  <div className="mt-4"><FeaturePreview kind={feature.id} /></div>
+                  <div className="mt-auto pt-4">
+                    <Link href={feature.href} className="inline-flex items-center gap-2 rounded-lg py-1 text-xs font-semibold text-blue-700 transition hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+                      {feature.action} <ArrowRight className="size-3.5" />
+                    </Link>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      <section id="pricing" className="scroll-mt-24 border-b border-slate-200 bg-[#faf9f1]">
-        <div className="mx-auto max-w-7xl px-5 py-20 sm:px-6 lg:px-8">
+      <section className="border-b border-slate-200/90 bg-[#f8fafc]">
+        <div className="mx-auto max-w-7xl px-5 py-14 sm:px-6 lg:px-8">
+          <div className="grid gap-4 md:grid-cols-3">
+            <article className="flex items-start gap-3 rounded-2xl border border-slate-200/90 bg-white p-5">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-700"><ShieldCheck className="size-5" /></span>
+              <div><h3 className="text-sm font-semibold text-slate-900">Access stays scoped</h3><p className="mt-1.5 text-xs leading-5 text-slate-600">Keep client-facing booking, team operations, billing, and files aligned with the intended company workspace.</p></div>
+            </article>
+            <article className="flex items-start gap-3 rounded-2xl border border-slate-200/90 bg-white p-5">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><CheckCircle2 className="size-5" /></span>
+              <div><h3 className="text-sm font-semibold text-slate-900">A human confirms the meeting</h3><p className="mt-1.5 text-xs leading-5 text-slate-600">Employee acceptance is a real workflow step, not a decorative booking status.</p></div>
+            </article>
+            <article className="flex items-start gap-3 rounded-2xl border border-slate-200/90 bg-white p-5">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-800"><Clock3 className="size-5" /></span>
+              <div><h3 className="text-sm font-semibold text-slate-900">Plan rules remain visible</h3><p className="mt-1.5 text-xs leading-5 text-slate-600">Live plan configuration determines workspace limits, meeting capacity, and the price shown in billing.</p></div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="pricing" className="scroll-mt-24 border-b border-slate-200/90 bg-[#faf9f1]">
+        <div className="mx-auto max-w-7xl px-5 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
           <div className="max-w-2xl">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">Pricing</p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              Choose capacity, not complexity.
-            </h2>
-            <p className="mt-4 text-base leading-7 text-slate-600">
-              These cards use the real plan configuration already used by Conventus. Prices are shown in INR and each plan card uses the validity period defined in the current plan configuration.
-            </p>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Pricing</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Choose capacity, not complexity.</h2>
+            <p className="mt-4 text-base leading-7 text-slate-600">Compare plans using the current Conventus configuration. Prices are shown in INR, with validity and usage limits taken from the live public plan catalog.</p>
           </div>
 
           <LandingPricingCarousel plans={plans} />
 
-          <p className="mt-5 text-center text-xs leading-5 text-slate-400">
-            Paid checkout continues through the existing Conventus billing flow and uses the server-calculated price and tax configuration.
-          </p>
+          <p className="mt-5 text-center text-xs leading-5 text-slate-500">Paid checkout follows the existing billing flow and uses the server-calculated price and tax configuration.</p>
         </div>
       </section>
 
-      <section id="faq" className="scroll-mt-24 border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-5 py-20 sm:px-6 lg:px-8">
-          <div className="grid gap-12 lg:grid-cols-[.72fr_1.28fr]">
+      <section id="faq" className="scroll-mt-24 border-b border-slate-200/90 bg-white">
+        <div className="mx-auto max-w-7xl px-5 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+          <div className="grid gap-10 lg:grid-cols-[.75fr_1.25fr] lg:gap-14">
             <div>
-              <div className="grid size-11 place-items-center rounded-2xl bg-blue-50 text-blue-700">
-                <HelpCircle className="size-5" />
-              </div>
-              <p className="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-blue-600">FAQ</p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                The essentials, before you sign in.
-              </h2>
-              <p className="mt-4 max-w-md text-sm leading-6 text-slate-600">
-                No invented testimonials or statistics here. Just the product behavior that new visitors actually need to understand.
-              </p>
+              <span className="grid size-11 place-items-center rounded-2xl bg-blue-50 text-blue-700"><HelpCircle className="size-5" /></span>
+              <p className="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-blue-700">FAQ</p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Clear answers for your team.</h2>
+              <p className="mt-4 max-w-md text-sm leading-6 text-slate-600">Learn how booking, acceptance, team collaboration, and plan access fit together before you create a workspace.</p>
             </div>
 
-            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white">
               {faqs.map(({ question, answer }) => (
-                <details key={question} className="group border-b border-slate-200 px-5 py-5 last:border-b-0 sm:px-6">
+                <details key={question} className="group border-b border-slate-200/90 px-5 py-5 last:border-b-0 sm:px-6">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-semibold text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-                    <span>{question}</span>
-                    <span className="text-lg text-slate-400 transition group-open:rotate-45">+</span>
+                    <span>{question}</span><span className="text-lg text-slate-400 transition group-open:rotate-45">+</span>
                   </summary>
                   <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">{answer}</p>
                 </details>
@@ -479,80 +528,42 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="bg-slate-950">
-        <div className="mx-auto max-w-7xl px-5 py-16 sm:px-6 lg:px-8 lg:py-20">
-          <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_85%_10%,_rgba(37,99,235,0.22),_transparent_34%)] p-7 shadow-2xl sm:p-10 lg:p-12">
-            <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+      <section className="border-b border-slate-200/90 bg-[#f8fafc]">
+        <div className="mx-auto max-w-7xl px-5 py-12 sm:px-6 sm:py-16 lg:px-8">
+          <div className="overflow-hidden rounded-3xl border border-blue-200/80 bg-white p-6 shadow-[0_20px_60px_rgba(37,99,235,0.08)] sm:p-9 lg:p-12">
+            <div className="flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between">
               <div className="max-w-2xl">
-                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-blue-300">Start with Conventus</p>
-                <h2 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-white sm:text-4xl">
-                  Give customers a clear way to reach your team.
-                </h2>
-                <p className="mt-4 text-sm leading-6 text-white/60">
-                  Sign in with Google to create or access your Conventus workspace. Your existing authentication and company routing rules stay in control.
-                </p>
+                <p className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-blue-700"><CalendarCheck2 className="size-3.5" /> Start with Conventus</p>
+                <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Give every client request a clear next step.</h2>
+                <p className="mt-3 text-sm leading-6 text-slate-600">Bring bookings, accepted meetings, team tasks, private files, and operational updates into one cohesive company workspace.</p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
-                <Link href="/login" className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950">
-                  Get started
-                  <ArrowRight className="size-4" />
-                </Link>
-                <a href="#pricing" className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-white/90 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">
-                  View plans
-                </a>
+                <Link href="/login" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">Get started for free <ArrowRight className="size-4" /></Link>
+                <a href="#pricing" className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">Compare plans</a>
               </div>
             </div>
           </div>
         </div>
-
-        <footer className="border-t border-white/10">
-          <div className="mx-auto grid max-w-7xl gap-10 px-5 py-10 text-sm text-white/55 sm:px-6 md:grid-cols-[1.1fr_2fr] lg:px-8">
-            <div>
-              <div className="flex items-center gap-3 font-semibold text-white">
-                <span className="grid size-9 place-items-center overflow-hidden rounded-xl bg-white">
-                  <Image src="/favicon.svg" alt="" width={36} height={36} className="size-full object-contain" />
-                </span>
-                <span>Conventus</span>
-              </div>
-              <p className="mt-4 max-w-sm text-xs leading-5 text-white/45">
-                Customer booking, team routing, and confirmed meetings in one company scheduling workflow.
-              </p>
-            </div>
-
-            <div className="grid gap-8 sm:grid-cols-4">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/35">Product</p>
-                <div className="mt-3 grid gap-2.5">
-                  <a href="#how-it-works" className="rounded-lg py-1 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">How it works</a>
-                  <a href="#features" className="rounded-lg py-1 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">Features</a>
-                  <a href="#pricing" className="rounded-lg py-1 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">Pricing</a>
-                  <a href="#faq" className="rounded-lg py-1 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">FAQ</a>
-                </div>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/35">Account</p>
-                <div className="mt-3 grid gap-2.5">
-                  <Link href="/login" className="rounded-lg py-1 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">Sign in</Link>
-                  <Link href="/login" className="rounded-lg py-1 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">Get started</Link>
-                </div>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/35">Legal</p>
-                <div className="mt-3 grid gap-2.5">
-                  <Link href="/terms" className="rounded-lg py-1 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">Terms</Link>
-                  <Link href="/privacy" className="rounded-lg py-1 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">Privacy</Link>
-                </div>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/35">Preferences</p>
-                <div className="mt-3">
-                  <CookieSettingsButton className="py-1 text-white/55 hover:text-white" aria-label="Open cookie settings">Cookie settings</CookieSettingsButton>
-                </div>
-              </div>
-            </div>
-          </div>
-        </footer>
       </section>
+
+      <footer className="bg-white">
+        <div className="mx-auto grid max-w-7xl gap-10 px-5 py-10 text-sm text-slate-500 sm:px-6 md:grid-cols-[1.1fr_2fr] lg:px-8">
+          <div>
+            <div className="flex items-center gap-3 font-semibold text-slate-950">
+              <span className="grid size-9 place-items-center overflow-hidden rounded-xl border border-slate-200 bg-white"><Image src="/favicon.svg" alt="" width={36} height={36} className="size-full object-contain" /></span>
+              <span>Conventus</span>
+            </div>
+            <p className="mt-4 max-w-sm text-xs leading-5 text-slate-500">Client booking, team routing, task delegation, private files, and enterprise operations in one company workspace.</p>
+          </div>
+
+          <div className="grid gap-8 sm:grid-cols-4">
+            <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Product</p><div className="mt-3 grid gap-2.5"><a href="#how-it-works" className="rounded-lg py-1 hover:text-blue-700">How it works</a><a href="#features" className="rounded-lg py-1 hover:text-blue-700">Features</a><a href="#pricing" className="rounded-lg py-1 hover:text-blue-700">Pricing</a><a href="#faq" className="rounded-lg py-1 hover:text-blue-700">FAQ</a></div></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Workspace</p><div className="mt-3 grid gap-2.5"><Link href="/dashboard" className="rounded-lg py-1 hover:text-blue-700">Open dashboard</Link><Link href="/dashboard/tasks" className="rounded-lg py-1 hover:text-blue-700">Team tasks</Link><Link href="/dashboard/vault" className="rounded-lg py-1 hover:text-blue-700">Company vault</Link></div></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Account & legal</p><div className="mt-3 grid gap-2.5"><Link href="/login" className="rounded-lg py-1 hover:text-blue-700">Sign in</Link><Link href="/terms" className="rounded-lg py-1 hover:text-blue-700">Terms</Link><Link href="/privacy" className="rounded-lg py-1 hover:text-blue-700">Privacy</Link></div></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Preferences</p><div className="mt-3"><CookieSettingsButton className="rounded-lg py-1 text-slate-500 hover:text-blue-700" aria-label="Open cookie settings">Cookie settings</CookieSettingsButton></div></div>
+          </div>
+        </div>
+      </footer>
     </main>
   );
 }

@@ -266,17 +266,17 @@ export default function LandingPricingCarousel({ plans }: { plans: PublicPlan[] 
         })}
       </div>
 
-      <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950 p-5 text-white shadow-[0_18px_48px_rgba(15,23,42,0.14)] sm:p-6">
+      <div className="mt-5 rounded-2xl border border-slate-200/90 bg-white p-5 text-slate-950 shadow-[0_12px_36px_rgba(15,23,42,0.06)] sm:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-blue-300">Selected plan</p>
-              <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-semibold text-white/70">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-blue-700">Selected plan</p>
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
                 {statusLabel(selected.status)}
               </span>
             </div>
             <h3 className="mt-2 text-xl font-semibold">{selected.name}</h3>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-white/60">
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
               {selected.maxEmployees} employees · {selected.monthlyMeetingLimit} meetings/month · {selected.maxMeetingDurationMinutes} minute maximum · {selected.maxConcurrentMeetings} concurrent meetings.
             </p>
           </div>
@@ -284,14 +284,14 @@ export default function LandingPricingCarousel({ plans }: { plans: PublicPlan[] 
             <button
               type="button"
               disabled
-              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-semibold text-white/45 disabled:cursor-not-allowed"
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-500 disabled:cursor-not-allowed"
             >
               {selected.status === "COMING_SOON" ? "Coming soon" : "Unavailable"}
             </button>
           ) : (
             <Link
               href={checkoutHref as Route}
-              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
             >
               {selected.requiresPayment ? "Continue with " + selected.name : "Start with " + selected.name}
               <ArrowRight className="size-4" />
