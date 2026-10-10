@@ -29,6 +29,11 @@ type PublicPlan = {
   vaultQuotaBytes: number;
   vaultMaxFileBytes: number;
   vaultMaxItems: number;
+  liveChatEnabled: boolean;
+  liveChatMonthlyLimit: number;
+  liveChatCustomerLimit: number;
+  liveChatAgentLimit: number;
+  liveChatRetentionDays: number;
   validityDays: number;
   freeFeatureDays: number | null;
   requiresPayment: boolean;
@@ -258,6 +263,22 @@ export default function LandingPricingCarousel({ plans }: { plans: PublicPlan[] 
                   </span>
                   <span className="sr-only">
                     {plan.taskManagementEnabled ? "Included" : "Not included"}
+                  </span>
+                </div>
+                <div className="flex items-start gap-2 text-sm text-slate-700">
+                  {plan.liveChatEnabled ? (
+                    <Check className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden="true" />
+                  ) : (
+                    <X className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden="true" />
+                  )}
+                  <span>
+                    Live Chat &amp; customer support
+                    {plan.liveChatEnabled
+                      ? " (" + plan.liveChatMonthlyLimit.toLocaleString("en-IN") + " chats/month; " + plan.liveChatCustomerLimit.toLocaleString("en-IN") + " unique customers/month; " + plan.liveChatAgentLimit.toLocaleString("en-IN") + " agents; " + plan.liveChatRetentionDays + "-day history)"
+                      : " (not included)"}
+                  </span>
+                  <span className="sr-only">
+                    {plan.liveChatEnabled ? "Included" : "Not included"}
                   </span>
                 </div>
               </div>
