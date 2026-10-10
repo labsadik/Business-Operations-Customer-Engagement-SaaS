@@ -197,7 +197,7 @@ export async function getPublicLiveChatContext(companySlug: string, siteOrigin: 
   if (!workspace) throw new Error("COMPANY_NOT_CONFIGURED");
   const entitlements = await getCompanyEntitlements(String(company._id));
   if (!entitlements.liveChatEnabled) throw new Error("LIVE_CHAT_NOT_INCLUDED");
-  const settings = await getOrCreateLiveChatSettings(String(company._id), String(workspace._id));
+  const settings = await LiveChatSettings.findOne({ companyId: company._id, workspaceId: workspace._id }).lean();
   if (!settings?.publicWidgetEnabled) throw new Error("LIVE_CHAT_WIDGET_DISABLED");
   const allowedDomains = (settings.allowedDomains?.length ? settings.allowedDomains : companyWebsiteDomain(company.websiteUrl));
   if (!siteOrigin || !isAllowedOrigin(siteOrigin, allowedDomains)) throw new Error("LIVE_CHAT_ORIGIN_NOT_ALLOWED");
