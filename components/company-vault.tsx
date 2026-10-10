@@ -63,7 +63,9 @@ function explainError(code: string) {
   const messages: Record<string, string> = {
     BUNNY_STORAGE_NOT_CONFIGURED: "Vault storage is not configured yet. Add the Bunny Storage Zone name and password to the server environment.",
     BUNNY_STORAGE_CONFIGURATION_INVALID: "The Bunny Storage endpoint must be a valid HTTPS URL.",
-    BUNNY_STORAGE_REQUEST_FAILED: "Bunny Storage could not complete the request. Please try again.",
+    BUNNY_STORAGE_REQUEST_FAILED: "Private storage could not complete this operation. Your company data has not been shared. Please retry.",
+    VAULT_USAGE_UNAVAILABLE: "Storage usage could not be updated safely. Refresh the vault and retry.",
+    VAULT_FILE_DELETE_FAILED: "The file could not be deleted. Refresh the vault and retry.",
     VAULT_STORAGE_LIMIT_REACHED: "This upload would exceed your company's plan storage quota.",
     VAULT_ITEM_LIMIT_REACHED: "Your plan's maximum stored item count has been reached. Delete an item or contact your administrator.",
     VAULT_FEATURE_NOT_INCLUDED: "Cloud vault is not included in this company's current plan. Ask your platform administrator to enable it on the plan.",
@@ -498,24 +500,31 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
                       const isVideo = videoThumbnailSupported(file.mimeType);
                       return (
                         <article key={file.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:border-blue-300 hover:shadow-sm">
-                          <button type="button" onClick={() => setPreviewFile(file)} className="block w-full p-3 text-left" title={"Preview " + file.name}>
+                          <button type="button" draggable={false} onDragStart={(event) => event.preventDefault()} onContextMenu={(event) => event.preventDefault()} onClick={() => setPreviewFile(file)} className="block w-full select-none p-3 text-left" title={"Preview " + file.name}>
                             <div className="relative grid h-32 place-items-center overflow-hidden rounded-xl bg-slate-100">
                               {isImage ? (
                                 // eslint-disable-next-line @next/next/no-img-element
-                                <img src={previewUrl} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
+                                <img src={previewUrl} alt="" draggable={false} referrerPolicy="no-referrer" loading="lazy" decoding="async" onDragStart={(event) => event.preventDefault()} onContextMenu={(event) => event.preventDefault()} className="pointer-events-none size-full select-none object-cover" />
                               ) : isVideo ? (
                                 <video
                                   src={previewUrl}
                                   muted
                                   playsInline
                                   preload="metadata"
+                                  draggable={false}
+                                  controlsList="nodownload noremoteplayback"
+                                  disablePictureInPicture
+                                  disableRemotePlayback
+                                  onDragStart={(event) => event.preventDefault()}
+                                  onContextMenu={(event) => event.preventDefault()}
+                                  referrerPolicy="no-referrer"
                                   tabIndex={-1}
                                   aria-hidden="true"
                                   onLoadedData={(event) => {
                                     const video = event.currentTarget;
                                     if (Number.isFinite(video.duration) && video.duration > 0.5) video.currentTime = Math.min(1, video.duration / 2);
                                   }}
-                                  className="pointer-events-none size-full object-cover"
+                                  className="pointer-events-none size-full select-none object-cover"
                                 />
                               ) : (
                                 <div className="grid size-16 place-items-center rounded-2xl bg-white text-blue-700 shadow-sm">
@@ -628,7 +637,7 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
       )}
 
       {previewFile && (
-        <div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950/65 p-3 backdrop-blur-sm sm:p-6" role="dialog" aria-modal="true" aria-labelledby="vault-preview-title" onMouseDown={(event) => { if (event.target === event.currentTarget) setPreviewFile(null); }}>
+        <div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950/65 p-3 backdrop-blur-sm sm:p-6" role="dialog" aria-modal="true" aria-labelledby="vault-preview-title" onContextMenu={(event) => event.preventDefault()} onDragStart={(event) => event.preventDefault()} onMouseDown={(event) => { if (event.target === event.currentTarget) setPreviewFile(null); }}>
           <section className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/15 bg-white shadow-2xl">
             <header className="flex items-center justify-between gap-4 border-b border-slate-200 px-4 py-3 sm:px-6">
               <div className="min-w-0">
@@ -643,11 +652,11 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
             <div className="min-h-[45vh] flex-1 overflow-auto bg-slate-100 p-3 sm:p-5">
               {previewFile.mimeType.startsWith("image/") && !previewFile.mimeType.includes("svg") ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={"/api/vault/files/" + encodeURIComponent(previewFile.id) + "?inline=1"} alt={previewFile.name} className="mx-auto max-h-[74vh] max-w-full rounded-xl object-contain" />
+                <img src={"/api/vault/files/" + encodeURIComponent(previewFile.id) + "?inline=1"} alt={previewFile.name} draggable={false} referrerPolicy="no-referrer" onDragStart={(event) => event.preventDefault()} onContextMenu={(event) => event.preventDefault()} className="mx-auto max-h-[74vh] max-w-full select-none rounded-xl object-contain" />
               ) : previewFile.mimeType.startsWith("video/") && /^(video\/(mp4|webm|ogg))$/.test(previewFile.mimeType) ? (
-                <video controls preload="metadata" src={"/api/vault/files/" + encodeURIComponent(previewFile.id) + "?inline=1"} className="mx-auto max-h-[74vh] max-w-full rounded-xl" />
+                <video controls controlsList="nodownload noremoteplayback" disablePictureInPicture disableRemotePlayback draggable={false} referrerPolicy="no-referrer" onDragStart={(event) => event.preventDefault()} onContextMenu={(event) => event.preventDefault()} preload="metadata" src={"/api/vault/files/" + encodeURIComponent(previewFile.id) + "?inline=1"} className="mx-auto max-h-[74vh] max-w-full rounded-xl" />
               ) : /^(application\/pdf|text\/(plain|csv)|application\/json)$/.test(previewFile.mimeType) ? (
-                <iframe title={"Preview " + previewFile.name} sandbox="" src={"/api/vault/files/" + encodeURIComponent(previewFile.id) + "?inline=1"} className="h-[72vh] w-full rounded-xl border border-slate-200 bg-white" />
+                <iframe title={"Preview " + previewFile.name} sandbox="" referrerPolicy="no-referrer" src={"/api/vault/files/" + encodeURIComponent(previewFile.id) + "?inline=1"} className="h-[72vh] w-full rounded-xl border border-slate-200 bg-white" />
               ) : (
                 <div className="grid min-h-[45vh] place-items-center">
                   <div className="max-w-md text-center">

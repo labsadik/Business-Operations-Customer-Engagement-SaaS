@@ -337,3 +337,11 @@ test("company profile and drive thumbnails use live usage and labeled, private p
   assert.ok(fileRoute.includes("Accept-Ranges"));
   assert.ok(fileRoute.includes("deleteVaultFileAndRelease"));
 });
+
+
+test("vault errors do not expose MongoDB or provider internals to users", () => {
+  const storage = source("features/company-vault/server/vault-storage.ts");
+  assert.ok(storage.includes("Internal MongoDB/provider errors belong in server logs"));
+  assert.ok(storage.includes('console.error("Company vault operation failed"'));
+  assert.doesNotMatch(storage, /return jsonError\\(code \\|\\| fallback, status\\)/);
+});

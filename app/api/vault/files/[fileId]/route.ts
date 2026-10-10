@@ -41,7 +41,10 @@ export async function GET(
     if (!file) throw new Error("FILE_NOT_FOUND");
 
     const wantsInline = new URL(request.url).searchParams.get("inline") === "1";
-    const inline = wantsInline && previewableMimeType(file.mimeType);
+    // Preview URLs only render inside the application UI. Opening a copied image/video
+    // URL as a top-level browser document falls back to attachment download.
+    const topLevelDocument = request.headers.get("sec-fetch-dest") === "document";
+    const inline = wantsInline && !topLevelDocument && previewableMimeType(file.mimeType);
     const requestedRange = request.headers.get("range");
     const safeRange = requestedRange && /^bytes=(?:\d+-\d*|-\d+)$/.test(requestedRange)
       ? requestedRange
@@ -55,6 +58,8 @@ export async function GET(
       "Content-Security-Policy": "sandbox",
       "Cache-Control": "private, no-store",
       "Cross-Origin-Resource-Policy": "same-origin",
+      "Referrer-Policy": "no-referrer",
+      "X-Frame-Options": "SAMEORIGIN",
       "Accept-Ranges": "bytes"
     };
     const contentRange = remote.headers.get("content-range");
