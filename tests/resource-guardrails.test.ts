@@ -217,3 +217,45 @@ test("invoice service periods hydrate invoice views and the profile dropdown rem
   assert.doesNotMatch(profileUi, /Plan period|billingPlan|profileCompany/);
   assert.ok(dashboard.includes("Plan period:"));
 });
+
+
+test("company vault APIs stay tenant-scoped and Bunny secrets remain server-only", () => {
+  const routes = [
+    "app/api/vault/route.ts",
+    "app/api/vault/folders/route.ts",
+    "app/api/vault/folders/[folderId]/route.ts",
+    "app/api/vault/uploads/route.ts",
+    "app/api/vault/uploads/[uploadId]/chunks/[chunkIndex]/route.ts",
+    "app/api/vault/uploads/[uploadId]/complete/route.ts",
+    "app/api/vault/uploads/[uploadId]/route.ts",
+    "app/api/vault/files/[fileId]/route.ts"
+  ].map(source);
+
+  for (const route of routes) {
+    assert.ok(route.includes("requireVaultScope()"));
+    assert.ok(route.includes("scope.companyId"));
+    assert.ok(route.includes("scope.workspaceId"));
+    assert.doesNotMatch(route, /searchParams\.get\(["']companyId["']\)/);
+    assert.doesNotMatch(route, /body\.companyId/);
+  }
+
+  const storage = source("features/company-vault/server/vault-storage.ts");
+  const browser = source("components/company-vault.tsx");
+  const downloads = source("app/api/vault/files/[fileId]/route.ts");
+  const folderModel = source("models/vault-folder.ts");
+  const fileModel = source("models/vault-file.ts");
+
+  assert.ok(storage.includes("requireCompanyMember("));
+  assert.ok(storage.includes("headers: Record<string, string> = { AccessKey: config.password }"));
+  assert.doesNotMatch(browser, /BUNNY_STORAGE_PASSWORD|AccessKey/);
+  assert.ok(downloads.includes('"Content-Disposition": downloadDisposition(file.originalName)'));
+  assert.ok(downloads.includes('"X-Content-Type-Options": "nosniff"'));
+  assert.ok(downloads.includes('"Cache-Control": "private, no-store"'));
+  assert.match(folderModel, /companyId:[\s\S]*?immutable: true/);
+  assert.match(folderModel, /workspaceId:[\s\S]*?immutable: true/);
+  assert.match(fileModel, /companyId:[\s\S]*?immutable: true/);
+  assert.match(fileModel, /workspaceId:[\s\S]*?immutable: true/);
+
+  const listing = source("app/api/vault/route.ts");
+  assert.doesNotMatch(listing, /cleanupExpiredVaultUploads|bunnyEnsureMarker/);
+});
