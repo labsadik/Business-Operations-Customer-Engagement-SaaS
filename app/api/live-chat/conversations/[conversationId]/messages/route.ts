@@ -4,6 +4,7 @@ import { getMongo } from "@/lib/mongodb";
 import { jsonError, jsonOk } from "@/lib/http";
 import { LiveChatConversation } from "@/models/live-chat-conversation";
 import { LiveChatMessage } from "@/models/live-chat-message";
+import { User } from "@/models/user";
 import { addRetentionDays, liveChatError, requireLiveChatScope } from "@/lib/live-chat";
 import { validateChatMessage } from "@/features/live-chat/shared/validation";
 
@@ -25,6 +26,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ con
     const rows = await LiveChatMessage.find({
       ...tenant, conversationId: conversation._id, expiresAt: { $gt: new Date() }
     }).sort({ createdAt: -1, _id: -1 }).limit(100).lean();
+    const agentIds = [...new Set(rows.filter((row) => row.senderType === "AGENT" && row.senderUserId).map((row) => String(row.senderUserId)))];
+    const agents = agentIds.length ? await User.find({ _id: { $in: agentIds }, active: true }).select("_id name image").lean() : [];
+    const agentById = new Map(agents.map((agent) => [String(agent._id), { name: agent.name || "Support agent", image: agent.image || "" }]));
     return jsonOk({
       conversation: {
         id: String(conversation._id),
@@ -52,6 +56,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ con
         id: String(row._id),
         senderType: row.senderType,
         senderUserId: row.senderUserId ? String(row.senderUserId) : null,
+        senderName: row.senderType === "AGENT" && row.senderUserId ? agentById.get(String(row.senderUserId))?.name ?? "Support agent" : "",
+        senderAvatar: row.senderType === "AGENT" && row.senderUserId ? agentById.get(String(row.senderUserId))?.image ?? "" : "",
         body: row.body,
         createdAt: row.createdAt
       }))
