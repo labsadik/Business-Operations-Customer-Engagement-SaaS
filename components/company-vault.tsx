@@ -315,6 +315,7 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
     <>
       <WorkspaceSidebar
         companyName={companyName}
+        vaultEnabled
         canManage={canManage}
         adminManaged={currentRole === "PLATFORM_ADMIN"}
       />
