@@ -100,12 +100,15 @@ function fileIcon(mimeType: string) {
 
 function displayFileName(name: string) {
   const dot = name.lastIndexOf(".");
-  return dot > 0 && name.length - dot <= 11 ? name.slice(0, dot) : name;
+  const extension = dot > 0 ? name.slice(dot + 1).toLowerCase() : "";
+  const knownExtensions = new Set(["jpg", "jpeg", "png", "gif", "webp", "avif", "bmp", "mp4", "webm", "mov", "m4v", "ogg", "pdf", "doc", "docx", "rtf", "odt", "xls", "xlsx", "xlsm", "ods", "csv", "ppt", "pptx", "odp", "txt", "md", "json", "xml"]);
+  return dot > 0 && knownExtensions.has(extension) ? name.slice(0, dot) : name;
 }
 
 function fileTypeLabel(file: Pick<FileItem, "name" | "mimeType">) {
   const mime = file.mimeType.toLowerCase();
-  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const dot = file.name.lastIndexOf(".");
+  const extension = dot > 0 ? file.name.slice(dot + 1).toLowerCase() : "";
   if (mime.startsWith("image/") || ["jpg", "jpeg", "png", "gif", "webp", "avif", "bmp"].includes(extension)) return "Image";
   if (mime.startsWith("video/") || ["mp4", "webm", "mov", "m4v", "ogg"].includes(extension)) return "Video";
   if (mime.includes("pdf") || extension === "pdf") return "PDF";

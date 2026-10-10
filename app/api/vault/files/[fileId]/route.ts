@@ -43,7 +43,7 @@ export async function GET(
     const wantsInline = new URL(request.url).searchParams.get("inline") === "1";
     const inline = wantsInline && previewableMimeType(file.mimeType);
     const requestedRange = request.headers.get("range");
-    const safeRange = inline && requestedRange && /^bytes=(?:\d+-\d*|-\d+)$/.test(requestedRange)
+    const safeRange = requestedRange && /^bytes=(?:\d+-\d*|-\d+)$/.test(requestedRange)
       ? requestedRange
       : undefined;
     const remote = await bunnyDownload(file.storageKey, safeRange);
