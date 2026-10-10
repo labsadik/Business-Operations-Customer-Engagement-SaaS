@@ -792,7 +792,7 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
                       <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-white text-slate-400 shadow-sm"><SearchX className="size-6" /></span>
                       <p className="mt-3 text-sm font-semibold text-slate-900">No matching items</p>
                       <p className="mt-1 text-xs leading-5 text-slate-500">Try a different name or clear the selected filters. Search covers items loaded in this folder so far.</p>
-                      <button type="button" onClick={() => { setSearchQuery(""); setContentFilter("all"); setTypeFilter("all"); }} className="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100">Clear filters</button>
+                      <button type="button" onClick={() => { setSearchQuery(""); setTypeFilter("all"); }} className="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100">Clear filters</button>
                     </div>
                   </div>
                 ) : visibleCount === 0 ? (
