@@ -36,9 +36,10 @@ export default async function TaskManagementPage() {
     : null;
   if (!company) redirect("/dashboard");
 
+  const entitlements = await getCompanyEntitlements(String(company._id));
   const plan = session.role === "PLATFORM_ADMIN"
-    ? { taskManagementEnabled: true }
-    : await getCompanyEntitlements(String(company._id));
+    ? { ...entitlements, taskManagementEnabled: true }
+    : entitlements;
 
   return (
     <TaskManagementDashboard
@@ -49,6 +50,7 @@ export default async function TaskManagementPage() {
       userId={session.userId}
       currentRole={session.role}
       taskManagementEnabled={Boolean(plan.taskManagementEnabled)}
+      vaultEnabled={Boolean(plan.vaultEnabled)}
     />
   );
 }
