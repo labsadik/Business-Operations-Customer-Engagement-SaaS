@@ -143,9 +143,7 @@ export async function getAdminVaultUsage(companyIds?: string[]): Promise<AdminVa
   const items: AdminVaultUsageItem[] = companies.map((company) => {
     const companyId = String(company._id);
     const subscription = subscriptionsByCompany.get(companyId);
-    const subscriptionEnd = subscription?.currentPeriodEnd
-      ? new Date(subscription.currentPeriodEnd).getTime()
-      : 0;
+    const subscriptionEnd = subscription?.currentPeriodEnd?.getTime() ?? 0;
     const subscriptionActive = Boolean(
       subscription &&
       subscription.status === "ACTIVE" &&
