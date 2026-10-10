@@ -108,11 +108,11 @@ const features = [
     id: "billing",
     eyebrow: "Finance & plan controls",
     title: "Automated Billing & Invoices",
-    route: "/billing/invoices",
+    route: "/dashboard?panel=billing",
     text: "See plan quotas and usage progress at a glance. Download one-page enterprise PDF invoices designed to make corporate accounting and recordkeeping easier.",
     icon: WalletCards,
-    href: "/billing/invoices",
-    action: "View invoices",
+    href: "/dashboard?panel=billing",
+    action: "Open billing & invoices",
     accent: "amber"
   },
   {
