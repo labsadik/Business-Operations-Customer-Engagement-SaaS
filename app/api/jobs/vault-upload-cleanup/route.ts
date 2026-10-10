@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
-const CLEANUP_BATCH_LIMIT = 10;
+const CLEANUP_BATCH_LIMIT = 25;
 
 function authorized(request: Request) {
   const secret = process.env.CRON_SECRET;
