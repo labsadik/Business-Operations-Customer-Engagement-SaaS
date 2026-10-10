@@ -1,5 +1,4 @@
 import { Types } from "mongoose";
-import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from "node:crypto";
 import { getMongo } from "@/lib/mongodb";
 import { requireCompanyMember } from "@/lib/authz";
 import type { AuthSession } from "@/lib/session";
@@ -13,8 +12,6 @@ import { jsonError } from "@/lib/http";
 import { getCompanyEntitlements } from "@/lib/plans-server";
 
 export const VAULT_CHUNK_SIZE_BYTES = 3 * 1024 * 1024;
-export const VAULT_CHUNK_ENCRYPTION_VERSION = "aes-256-gcm-chunks-v1" as const;
-export const VAULT_ENCRYPTION_OVERHEAD_BYTES = 12 + 16;
 const DEFAULT_QUOTA_BYTES = 5 * 1024 * 1024 * 1024;
 const DEFAULT_MAX_FILE_BYTES = 100 * 1024 * 1024;
 const HARD_MAX_FILE_BYTES = 250 * 1024 * 1024;
@@ -229,171 +226,6 @@ export async function bunnyPutStream(
     duplex: "half"
   } as RequestInit & { duplex: "half" });
   if (!response.ok) throwBunnyError(response);
-}
-
-function vaultEncryptionMasterKey() {
-  const value = process.env.VAULT_ENCRYPTION_KEY?.trim();
-  if (!value) return null;
-  if (!/^[0-9a-fA-F]{64}$/.test(value)) throw new Error("VAULT_ENCRYPTION_CONFIGURATION_INVALID");
-  return Buffer.from(value, "hex");
-}
-
-export function getVaultEncryptionVersion() {
-  return vaultEncryptionMasterKey() ? VAULT_CHUNK_ENCRYPTION_VERSION : "none";
-}
-
-function deriveVaultChunkKey(
-  uploadId: string,
-  companyId: string,
-  workspaceId: string,
-  chunkIndex: number
-) {
-  const masterKey = vaultEncryptionMasterKey();
-  if (!masterKey) throw new Error("VAULT_ENCRYPTION_NOT_CONFIGURED");
-  const salt = Buffer.from(uploadId, "utf8");
-  const info = Buffer.from(
-    "conventus-cloud-vault/aes-256-gcm-chunks/v1/" +
-    companyId + "/" + workspaceId + "/" + chunkIndex,
-    "utf8"
-  );
-  return Buffer.from(hkdfSync("sha256", masterKey, salt, info, 32));
-}
-
-export function getVaultStoredPayloadSize(
-  payloadSizeBytes: number,
-  expectedChunks: number,
-  encryptionVersion: string
-) {
-  return payloadSizeBytes + (
-    encryptionVersion === VAULT_CHUNK_ENCRYPTION_VERSION
-      ? expectedChunks * VAULT_ENCRYPTION_OVERHEAD_BYTES
-      : 0
-  );
-}
-
-export async function* encryptVaultChunkBody(
-  body: ReadableStream<Uint8Array>,
-  expectedSizeBytes: number,
-  uploadId: string,
-  companyId: string,
-  workspaceId: string,
-  chunkIndex: number
-): AsyncGenerator<Uint8Array> {
-  const key = deriveVaultChunkKey(uploadId, companyId, workspaceId, chunkIndex);
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", key, iv);
-  const reader = body.getReader();
-  let receivedBytes = 0;
-  let finished = false;
-  try {
-    yield iv;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        finished = true;
-        break;
-      }
-      if (!value?.byteLength) continue;
-      receivedBytes += value.byteLength;
-      if (receivedBytes > expectedSizeBytes) throw new Error("INVALID_CHUNK_SIZE");
-      const encrypted = cipher.update(Buffer.from(value));
-      if (encrypted.byteLength) yield encrypted;
-    }
-    if (receivedBytes !== expectedSizeBytes) throw new Error("INVALID_CHUNK_SIZE");
-    const finalBytes = cipher.final();
-    if (finalBytes.byteLength) yield finalBytes;
-    yield cipher.getAuthTag();
-  } finally {
-    if (!finished) await reader.cancel().catch(() => undefined);
-    reader.releaseLock();
-  }
-}
-
-export async function* decryptVaultChunkObject(
-  body: ReadableStream<Uint8Array>,
-  uploadId: string,
-  companyId: string,
-  workspaceId: string,
-  payloadSizeBytes: number,
-  chunkSizeBytes: number,
-  expectedChunks: number
-): AsyncGenerator<Uint8Array> {
-  const reader = body.getReader();
-  let pending: Uint8Array | null = null;
-  let pendingOffset = 0;
-
-  const readExact = async (length: number) => {
-    const output = Buffer.allocUnsafe(length);
-    let offset = 0;
-    while (offset < length) {
-      if (!pending || pendingOffset >= pending.byteLength) {
-        const next = await reader.read();
-        if (next.done || !next.value?.byteLength) {
-          if (next.done) throw new Error("VAULT_ENCRYPTED_OBJECT_TRUNCATED");
-          continue;
-        }
-        pending = next.value;
-        pendingOffset = 0;
-      }
-      const available = pending.byteLength - pendingOffset;
-      const take = Math.min(available, length - offset);
-      output.set(pending.subarray(pendingOffset, pendingOffset + take), offset);
-      offset += take;
-      pendingOffset += take;
-    }
-    return output;
-  };
-
-  try {
-    let totalPlainBytes = 0;
-    for (let index = 0; index < expectedChunks; index += 1) {
-      const plainLength = Math.min(chunkSizeBytes, payloadSizeBytes - totalPlainBytes);
-      if (!Number.isSafeInteger(plainLength) || plainLength < 1) throw new Error("VAULT_ENCRYPTED_OBJECT_INVALID");
-      const iv = await readExact(12);
-      const ciphertext = await readExact(plainLength);
-      const authTag = await readExact(16);
-      const decipher = createDecipheriv(
-        "aes-256-gcm",
-        deriveVaultChunkKey(uploadId, companyId, workspaceId, index),
-        iv
-      );
-      decipher.setAuthTag(authTag);
-      // Only release a chunk after GCM authenticates it; an invalid tag never
-      // results in unauthenticated plaintext being sent to a browser.
-      const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-      totalPlainBytes += plaintext.byteLength;
-      yield plaintext;
-    }
-    if (totalPlainBytes !== payloadSizeBytes) throw new Error("VAULT_ENCRYPTED_OBJECT_INVALID");
-    if (pending && pendingOffset < pending.byteLength) throw new Error("VAULT_ENCRYPTED_OBJECT_TRAILING_DATA");
-    while (true) {
-      const extra = await reader.read();
-      if (extra.done) break;
-      if (extra.value?.byteLength) throw new Error("VAULT_ENCRYPTED_OBJECT_TRAILING_DATA");
-    }
-  } finally {
-    reader.releaseLock();
-  }
-}
-
-export function asyncIterableToReadableStream(
-  iterable: AsyncIterable<Uint8Array>
-): ReadableStream<Uint8Array> {
-  const iterator = iterable[Symbol.asyncIterator]();
-  return new ReadableStream<Uint8Array>({
-    async pull(controller) {
-      try {
-        const next = await iterator.next();
-        if (next.done) controller.close();
-        else controller.enqueue(next.value);
-      } catch (error) {
-        controller.error(error);
-      }
-    },
-    async cancel() {
-      await iterator.return?.();
-    }
-  });
 }
 
 export async function* streamRequestBody(
