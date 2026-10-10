@@ -114,7 +114,7 @@ export default function LandingWorkflowMockup() {
                   <p className="text-[10px] text-slate-500">Times shown in your timezone</p>
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2">
-                  {["10:00 AM", "11:30 AM", "02:00 PM"].map((time, index) => (
+                  {["10:00 AM", "11:30 AM", "02:00 PM"].map((time) => (
                     <button
                       type="button"
                       key={time}
