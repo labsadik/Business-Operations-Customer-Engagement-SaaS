@@ -24,6 +24,7 @@ export async function GET(request: Request) {
         collectName: Boolean(settings?.collectName),
         collectEmail: Boolean(settings?.collectEmail),
         collectPhone: Boolean(settings?.collectPhone),
+        offlineMode: Boolean(settings?.offlineMode),
         allowedDomains: settings?.allowedDomains ?? []
       },
       companyWebsiteUrl: scope.company.websiteUrl ?? "",
@@ -66,6 +67,7 @@ export async function PATCH(request: Request) {
         collectName: updated?.collectName ?? false,
         collectEmail: updated?.collectEmail ?? false,
         collectPhone: updated?.collectPhone ?? false,
+        offlineMode: updated?.offlineMode ?? false,
         allowedDomains: updated?.allowedDomains ?? []
       }
     });
