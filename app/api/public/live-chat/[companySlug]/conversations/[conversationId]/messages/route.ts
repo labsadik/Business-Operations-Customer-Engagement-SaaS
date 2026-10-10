@@ -1,21 +1,23 @@
 import { Types } from "mongoose";
 import { getMongo } from "@/lib/mongodb";
 import { jsonError, jsonOk } from "@/lib/http";
-import { addRetentionDays, liveChatError, visitorHash, verifyPublicWidgetToken, readLiveChatJson } from "@/lib/live-chat";
+import { addRetentionDays, assertWidgetApiOrigin, liveChatError, visitorHash, verifyPublicWidgetToken, readLiveChatJson } from "@/lib/live-chat";
 import { LiveChatConversation } from "@/models/live-chat-conversation";
 import { LiveChatMessage } from "@/models/live-chat-message";
+import { User } from "@/models/user";
 import { validateChatMessage } from "@/features/live-chat/shared/validation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 async function publicConversation(request: Request, companySlug: string, conversationId: string) {
+  assertWidgetApiOrigin(request);
   if (!Types.ObjectId.isValid(conversationId)) throw new Error("LIVE_CHAT_CONVERSATION_NOT_FOUND");
   const url = new URL(request.url);
   const visitorId = url.searchParams.get("visitorId") ?? "";
   const siteOrigin = url.searchParams.get("site") ?? "";
   if (!/^[a-zA-Z0-9_-]{16,100}$/.test(visitorId)) throw new Error("LIVE_CHAT_VISITOR_INVALID");
-  const claims = verifyPublicWidgetToken(request.headers.get("x-conventus-live-chat-token"), companySlug, siteOrigin);
+  const claims = verifyPublicWidgetToken(request.headers.get("x-conventus-live-chat-token"), companySlug, siteOrigin, Date.now(), visitorId);
   await getMongo();
   const companyId = new Types.ObjectId(claims.companyId);
   const workspaceId = new Types.ObjectId(claims.workspaceId);
@@ -41,6 +43,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ comp
       conversationId: scope.conversation._id,
       expiresAt: { $gt: new Date() }
     }).sort({ createdAt: -1, _id: -1 }).limit(100).lean();
+    const agentIds = [...new Set(rows.filter((row) => row.senderType === "AGENT" && row.senderUserId).map((row) => String(row.senderUserId)))];
+    const agents = agentIds.length ? await User.find({ _id: { $in: agentIds }, active: true })
+      .select("_id name image").lean() : [];
+    const agentById = new Map(agents.map((agent) => [String(agent._id), { name: agent.name || "Support agent", image: agent.image || "" }]));
     return jsonOk({
       conversation: {
         id: String(scope.conversation._id),
@@ -52,7 +58,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ comp
         id: String(row._id),
         senderType: row.senderType,
         body: row.body,
-        createdAt: row.createdAt
+        createdAt: row.createdAt,
+        senderName: row.senderType === "AGENT" && row.senderUserId ? agentById.get(String(row.senderUserId))?.name ?? "Support agent" : "",
+        senderAvatar: row.senderType === "AGENT" && row.senderUserId ? agentById.get(String(row.senderUserId))?.image ?? "" : ""
       }))
     });
   } catch (error) {
@@ -71,7 +79,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ com
     const { getCompanyEntitlements } = await import("@/lib/plans-server");
     const entitlements = await getCompanyEntitlements(scope.claims.companyId);
     if (!entitlements.liveChatEnabled) return jsonError("LIVE_CHAT_NOT_INCLUDED", 403);
-    const nextAt = new Date(now.getTime() + entitlements.liveChatMessageCooldownSeconds * 1000);
+    const nextAt = new Date(now.getTime() + Math.max(2, entitlements.liveChatMessageCooldownSeconds) * 1000);
     const retentionExpiresAt = addRetentionDays(now, entitlements.liveChatRetentionDays);
     const query = {
       _id: new Types.ObjectId(conversationId),
@@ -87,8 +95,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ com
       ]
     };
     const updated = await LiveChatConversation.findOneAndUpdate(query, {
-      $set: { nextCustomerMessageAt: nextAt, lastMessageAt: now, expiresAt: retentionExpiresAt },
-      $inc: { messageCount: 1 }
+      $set: { nextCustomerMessageAt: nextAt, lastMessageAt: now, lastMessagePreview: message.slice(0, 240), expiresAt: retentionExpiresAt },
+      $inc: { messageCount: 1, unreadAgentCount: 1 }
     }, { returnDocument: "after" }).select("_id").lean();
 
     if (!updated) {
