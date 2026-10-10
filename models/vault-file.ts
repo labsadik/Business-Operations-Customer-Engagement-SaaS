@@ -13,7 +13,11 @@ const vaultFileSchema = new Schema(
     sizeBytes: { type: Number, required: true, min: 0 },
     // Logical/original file size and bytes stored in Bunny may differ after lossless compression.
     storageSizeBytes: { type: Number, min: 0 },
-    contentEncoding: { type: String, enum: ["identity", "gzip"], default: "identity" }
+    payloadSizeBytes: { type: Number, min: 0 },
+    chunkSizeBytes: { type: Number, min: 1 },
+    expectedChunks: { type: Number, min: 1 },
+    contentEncoding: { type: String, enum: ["identity", "gzip"], default: "identity" },
+    encryptionVersion: { type: String, enum: ["none", "aes-256-gcm-chunks-v1"], default: "none" }
   },
   { timestamps: true }
 );
