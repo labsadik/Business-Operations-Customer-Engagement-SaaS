@@ -121,6 +121,7 @@ export type PublicWidgetTokenClaims = {
   slug: string;
   siteHost: string;
   exp: number;
+  visitorKeyHash?: string;
 };
 
 function publicWidgetSigningSecret() {
@@ -141,7 +142,8 @@ export function verifyPublicWidgetToken(
   token: string | null,
   companySlug: string,
   siteOrigin: string,
-  now = Date.now()
+  now = Date.now(),
+  visitorId?: string
 ): PublicWidgetTokenClaims {
   if (!token || token.length > 2048) throw new Error("LIVE_CHAT_TOKEN_INVALID");
   const parts = token.split(".");
@@ -160,10 +162,34 @@ export function verifyPublicWidgetToken(
   let host = "";
   try { host = new URL(siteOrigin).host.toLowerCase(); } catch { throw new Error("LIVE_CHAT_TOKEN_INVALID"); }
   if (!host || claims.siteHost !== host) throw new Error("LIVE_CHAT_TOKEN_INVALID");
+  if (visitorId !== undefined) {
+    if (!/^[a-zA-Z0-9_-]{16,100}$/.test(visitorId) ||
+        !claims.visitorKeyHash ||
+        claims.visitorKeyHash !== visitorHash(claims.companyId, visitorId)) {
+      throw new Error("LIVE_CHAT_TOKEN_INVALID");
+    }
+  } else if (claims.visitorKeyHash) {
+    throw new Error("LIVE_CHAT_TOKEN_INVALID");
+  }
   return claims;
 }
 
-export async function getPublicLiveChatContext(companySlug: string, siteOrigin: string) {
+export function assertWidgetApiOrigin(request: Request) {
+  const requestOrigin = new URL(request.url).origin;
+  const origin = request.headers.get("origin");
+  if (origin && origin !== requestOrigin) throw new Error("LIVE_CHAT_REQUEST_ORIGIN_INVALID");
+  const referer = request.headers.get("referer");
+  if (referer) {
+    try {
+      if (new URL(referer).origin !== requestOrigin) throw new Error("LIVE_CHAT_REQUEST_ORIGIN_INVALID");
+    } catch (error) {
+      if (error instanceof Error && error.message === "LIVE_CHAT_REQUEST_ORIGIN_INVALID") throw error;
+      throw new Error("LIVE_CHAT_REQUEST_ORIGIN_INVALID");
+    }
+  }
+}
+
+export async function getPublicLiveChatContext(companySlug: string, siteOrigin: string, visitorId?: string) {
   await getMongo();
   const company = await Company.findOne({ slug: companySlug.toLowerCase() }).select("_id name slug websiteUrl").lean();
   if (!company) throw new Error("COMPANY_NOT_FOUND");
@@ -176,7 +202,14 @@ export async function getPublicLiveChatContext(companySlug: string, siteOrigin: 
   const allowedDomains = (settings.allowedDomains?.length ? settings.allowedDomains : companyWebsiteDomain(company.websiteUrl));
   if (!siteOrigin || !isAllowedOrigin(siteOrigin, allowedDomains)) throw new Error("LIVE_CHAT_ORIGIN_NOT_ALLOWED");
   const siteHost = new URL(siteOrigin).host.toLowerCase();
-  const accessToken = createPublicWidgetToken({ companyId: String(company._id), workspaceId: String(workspace._id), slug: company.slug, siteHost });
+  if (visitorId !== undefined && !/^[a-zA-Z0-9_-]{16,100}$/.test(visitorId)) throw new Error("LIVE_CHAT_VISITOR_INVALID");
+  const accessToken = createPublicWidgetToken({
+    companyId: String(company._id),
+    workspaceId: String(workspace._id),
+    slug: company.slug,
+    siteHost,
+    ...(visitorId ? { visitorKeyHash: visitorHash(String(company._id), visitorId) } : {})
+  });
   return { company, workspace, settings, entitlements, allowedDomains, accessToken };
 }
 
@@ -187,7 +220,7 @@ export function liveChatError(error: unknown, fallback: string) {
     code === "FORBIDDEN" || code === "CSRF_ORIGIN_INVALID" ? 403 :
     code === "COMPANY_NOT_FOUND" ? 404 :
     code === "LIVE_CHAT_WIDGET_DISABLED" || code === "LIVE_CHAT_NOT_INCLUDED" ? 403 :
-    code === "LIVE_CHAT_ORIGIN_NOT_ALLOWED" || code === "LIVE_CHAT_DOMAIN_NOT_CONFIGURED" ? 403 :
+    code === "LIVE_CHAT_ORIGIN_NOT_ALLOWED" || code === "LIVE_CHAT_DOMAIN_NOT_CONFIGURED" || code === "LIVE_CHAT_DOMAIN_NOT_ALLOWED" || code === "LIVE_CHAT_REQUEST_ORIGIN_INVALID" ? 403 :
     code === "LIVE_CHAT_CONVERSATION_NOT_FOUND" ? 404 :
     code === "LIVE_CHAT_TOKEN_INVALID" || code === "LIVE_CHAT_TOKEN_EXPIRED" ? 401 :
     code === "LIVE_CHAT_MESSAGE_RETRY" || code === "LIVE_CHAT_CONVERSATION_ALREADY_OPEN" ? 409 :
