@@ -14,13 +14,17 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function downloadDisposition(name: string) {
+function downloadDisposition(name: string, inline: boolean) {
   const fallback = name.replace(/[^A-Za-z0-9._ -]/g, "_").replace(/["\\]/g, "_") || "download";
-  return "attachment; filename=\"" + fallback + "\"; filename*=UTF-8''" + encodeURIComponent(name);
+  return (inline ? "inline" : "attachment") + "; filename=\"" + fallback + "\"; filename*=UTF-8''" + encodeURIComponent(name);
+}
+
+function previewableMimeType(mimeType: string) {
+  return /^(image\/(?:jpeg|png|gif|webp|avif)|video\/(?:mp4|webm|ogg)|application\/pdf|text\/(?:plain|csv)|application\/json)$/.test(mimeType);
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ fileId: string }> }
 ) {
   try {
@@ -36,15 +40,18 @@ export async function GET(
     if (!file) throw new Error("FILE_NOT_FOUND");
 
     const remote = await bunnyDownload(file.storageKey);
+    const wantsInline = new URL(request.url).searchParams.get("inline") === "1";
+    const inline = wantsInline && previewableMimeType(file.mimeType);
     return new Response(remote.body, {
       status: 200,
       headers: {
         "Content-Type": file.mimeType || "application/octet-stream",
         "Content-Length": String(file.sizeBytes),
-        "Content-Disposition": downloadDisposition(file.originalName),
+        "Content-Disposition": downloadDisposition(file.originalName, inline),
         "X-Content-Type-Options": "nosniff",
         "Content-Security-Policy": "sandbox",
-        "Cache-Control": "private, no-store"
+        "Cache-Control": "private, no-store",
+        "Cross-Origin-Resource-Policy": "same-origin"
       }
     });
   } catch (error) {

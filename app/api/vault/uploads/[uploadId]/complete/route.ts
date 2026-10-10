@@ -8,7 +8,8 @@ import { VaultUpload } from "@/models/vault-upload";
 import {
   bunnyDelete,
   bunnyPut,
-  bunnyReadBuffer,
+  bunnyPutStream,
+  streamVaultParts,
   getUploadExpiry,
   removeUploadChunks,
   requireVaultScope,
@@ -114,16 +115,6 @@ export async function POST(
     if (!claimed) throw new Error("UPLOAD_ALREADY_COMPLETING");
     claimedUpload = claimed as unknown as UploadRecord;
 
-    const chunks: Buffer[] = [];
-    let totalBytes = 0;
-    for (let index = 0; index < claimedUpload.expectedChunks; index += 1) {
-      const part = await bunnyReadBuffer(uploadChunkKey(claimedUpload.storageRoot, uploadId, index));
-      chunks.push(part);
-      totalBytes += part.length;
-    }
-    if (totalBytes !== claimedUpload.sizeBytes) throw new Error("INVALID_CHUNK_SIZE");
-
-    const bytes = Buffer.concat(chunks, totalBytes);
     const file = new VaultFile({
       companyId: claimedUpload.companyId,
       workspaceId: claimedUpload.workspaceId,
@@ -138,7 +129,17 @@ export async function POST(
     file.storageKey = claimedUpload.storageBaseKey + "/" + String(file._id) + "-" + safeVaultFilename(claimedUpload.originalName);
     finalStorageKey = file.storageKey;
 
-    await bunnyPut(finalStorageKey, bytes, claimedUpload.mimeType);
+    await bunnyPutStream(
+      finalStorageKey,
+      streamVaultParts(
+        claimedUpload.storageRoot,
+        uploadId,
+        claimedUpload.expectedChunks,
+        claimedUpload.sizeBytes
+      ),
+      claimedUpload.sizeBytes,
+      claimedUpload.mimeType
+    );
     finalStored = true;
     await file.save();
     fileSaved = true;

@@ -202,7 +202,13 @@ export async function bunnyPutStream(
   if (!response.ok) throwBunnyError(response);
 }
 
-export async function* streamVaultParts(storageRoot: string, uploadId: string, expectedChunks: number): AsyncGenerator<Uint8Array> {
+export async function* streamVaultParts(
+  storageRoot: string,
+  uploadId: string,
+  expectedChunks: number,
+  expectedSizeBytes: number
+): AsyncGenerator<Uint8Array> {
+  let totalBytes = 0;
   for (let index = 0; index < expectedChunks; index += 1) {
     const response = await bunnyDownload(uploadChunkKey(storageRoot, uploadId, index));
     if (!response.body) throw new Error("BUNNY_OBJECT_NOT_FOUND");
@@ -211,12 +217,17 @@ export async function* streamVaultParts(storageRoot: string, uploadId: string, e
       while (true) {
         const item = await reader.read();
         if (item.done) break;
-        if (item.value?.byteLength) yield item.value;
+        if (item.value?.byteLength) {
+          totalBytes += item.value.byteLength;
+          if (totalBytes > expectedSizeBytes) throw new Error("INVALID_CHUNK_SIZE");
+          yield item.value;
+        }
       }
     } finally {
       reader.releaseLock();
     }
   }
+  if (totalBytes !== expectedSizeBytes) throw new Error("INVALID_CHUNK_SIZE");
 }
 
 export async function ensureVaultUsage(
