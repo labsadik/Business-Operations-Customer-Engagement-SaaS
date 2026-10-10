@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight, BookOpen, CalendarCheck2, Check, ChevronDown, ClipboardCopy, Code2,
-  ExternalLink, FileLock2, FolderLock, ListTodo, LockKeyhole, Menu, MessageCircle,
-  Search, ShieldCheck, Sparkles, Users, X
+  ExternalLink, FolderLock, ListTodo, LockKeyhole, Menu, MessageCircle,
+  Search, ShieldCheck, Sparkles, X
 } from "lucide-react";
 
 type NavItem = { id: string; label: string; description: string; keywords: string };
@@ -112,7 +112,7 @@ function StepList({ steps }: { steps: { title: string; text: string }[] }) {
   );
 }
 
-function FeatureCard({ icon: Icon, eyebrow, title, description, href, id }: { icon: typeof CalendarCheck2; eyebrow: string; title: string; description: string; href: string; id: string }) {
+function FeatureCard({ icon: Icon, eyebrow, title, description, id }: { icon: typeof CalendarCheck2; eyebrow: string; title: string; description: string; id: string }) {
   return (
     <a href={`#${id}`} className="group flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-4 transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 sm:p-5">
       <span className="grid size-10 place-items-center rounded-xl bg-blue-50 text-blue-700"><Icon className="size-5" /></span>
@@ -238,10 +238,10 @@ export default function PublicDocs() {
             <h1 className="mt-5 text-4xl font-semibold leading-tight tracking-[-0.04em] text-slate-950 sm:text-5xl">Conventus Documentation</h1>
             <p className="mt-5 max-w-3xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">Everything your team needs to coordinate client meetings, delegate work, protect company files, and support website visitors—from setup through daily operation.</p>
             <div className="mt-7 grid gap-3 sm:grid-cols-2">
-              <FeatureCard id="scheduling" icon={CalendarCheck2} eyebrow="Client experience" title="Scheduling & acceptance" description="Share a booking page, route requests to eligible teammates, and confirm meetings only after acceptance." href="/dashboard" />
-              <FeatureCard id="tasks" icon={ListTodo} eyebrow="Team operations" title="Tasks & delegation" description="Assign work, set priorities and due dates, and track progress with a shared workflow." href="/dashboard/tasks" />
-              <FeatureCard id="vault" icon={FolderLock} eyebrow="Private documents" title="Company Vault" description="Organize company files and preview supported documents inside the protected workspace." href="/dashboard/vault" />
-              <FeatureCard id="live-chat" icon={MessageCircle} eyebrow="Customer support" title="Public Live Chat" description="Embed a branded website widget and respond to customer conversations from the agent inbox." href="/dashboard/live-chat" />
+              <FeatureCard id="scheduling" icon={CalendarCheck2} eyebrow="Client experience" title="Scheduling & acceptance" description="Share a booking page, route requests to eligible teammates, and confirm meetings only after acceptance." />
+              <FeatureCard id="tasks" icon={ListTodo} eyebrow="Team operations" title="Tasks & delegation" description="Assign work, set priorities and due dates, and track progress with a shared workflow." />
+              <FeatureCard id="vault" icon={FolderLock} eyebrow="Private documents" title="Company Vault" description="Organize company files and preview supported documents inside the protected workspace." />
+              <FeatureCard id="live-chat" icon={MessageCircle} eyebrow="Customer support" title="Public Live Chat" description="Embed a branded website widget and respond to customer conversations from the agent inbox." />
             </div>
 
             <section className="mt-12 border-b border-slate-200 pb-10" aria-labelledby="overview-heading">
