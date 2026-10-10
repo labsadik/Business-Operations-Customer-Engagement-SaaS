@@ -15,6 +15,8 @@ import {
   safeVaultFilename,
   vaultErrorResponse,
   VAULT_CHUNK_SIZE_BYTES,
+  getVaultEncryptionVersion,
+  getVaultStoredPayloadSize,
   ensureVaultUsage
 } from "@/features/company-vault/server/vault-storage";
 
@@ -56,7 +58,9 @@ export async function POST(request: Request) {
     // Remove legacy marker objects from older deployments; new uploads need none.
     await bunnyDelete(root + "/.conventus-vault").catch(() => undefined);
     const expectedChunks = Math.ceil(body.size / VAULT_CHUNK_SIZE_BYTES);
-    await reserveVaultBytes(scope, body.size);
+    const encryptionVersion = getVaultEncryptionVersion();
+    const reservedBytes = getVaultStoredPayloadSize(body.size, expectedChunks, encryptionVersion);
+    await reserveVaultBytes(scope, reservedBytes);
 
     const upload = new VaultUpload({
       companyId: new Types.ObjectId(scope.companyId),
@@ -66,8 +70,10 @@ export async function POST(request: Request) {
       originalName,
       mimeType,
       sizeBytes: body.size,
+      reservedBytes,
       originalSizeBytes,
       contentEncoding,
+      encryptionVersion,
       chunkSizeBytes: VAULT_CHUNK_SIZE_BYTES,
       expectedChunks,
       receivedChunks: [],
@@ -80,7 +86,7 @@ export async function POST(request: Request) {
     try {
       await upload.save();
     } catch (error) {
-      await releaseVaultBytes(scope, body.size);
+      await releaseVaultBytes(scope, reservedBytes);
       throw error;
     }
 
