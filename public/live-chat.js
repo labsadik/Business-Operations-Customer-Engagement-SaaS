@@ -69,8 +69,9 @@
     lastResizeData = Object.assign({}, lastResizeData, data);
     var state = lastResizeData;
     var isLeft = state.position === "left" || (!state.position && initialPosition === "left");
-    frame.style.left = isLeft ? "16px" : "auto";
-    frame.style.right = isLeft ? "auto" : "16px";
+    var inset = state.open ? "16px" : "10px";
+    frame.style.left = isLeft ? inset : "auto";
+    frame.style.right = isLeft ? "auto" : inset;
 
     if (state.open) {
       var maxWidth = Math.max(1, window.innerWidth - 32);
