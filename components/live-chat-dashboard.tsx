@@ -370,7 +370,7 @@ export default function LiveChatDashboard({ canManageSettings = true }: { canMan
                 </button>
               </div>
             ) : (
-              <section aria-label="Live chat widget preview" className={`absolute bottom-3 z-10 flex h-[350px] w-[300px] max-w-[calc(100%-24px)] flex-col overflow-hidden rounded-2xl border shadow-2xl ${settings.position === "LEFT" ? "left-3" : "right-3"} ${settings.theme === "DARK" ? "border-slate-700 bg-slate-950 text-slate-100" : "border-slate-200 bg-white text-slate-950"}`}>
+              <section aria-label="Live chat widget preview" className={`absolute bottom-3 z-10 flex h-[350px] w-[300px] max-w-[calc(100%_-_24px)] flex-col overflow-hidden rounded-2xl border shadow-2xl ${settings.position === "LEFT" ? "left-3" : "right-3"} ${settings.theme === "DARK" ? "border-slate-700 bg-slate-950 text-slate-100" : "border-slate-200 bg-white text-slate-950"}`}>
                 <header className="flex shrink-0 items-start gap-2 px-3 py-3 text-white" style={{ backgroundColor: settings.primaryColor }}>
                   <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">{settings.title || "Chat with us"}</p><p className="mt-1 text-[10px] text-white/80">Your company · Usually replies promptly</p></div>
                   <button type="button" aria-label="Close chat preview" onClick={() => setPreviewOpen(false)} className="rounded-md p-1 hover:bg-white/15"><X className="size-4" /></button>
