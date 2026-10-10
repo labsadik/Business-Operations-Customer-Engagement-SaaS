@@ -9,6 +9,7 @@ import { Company } from "@/models/company";
 import { Payment } from "@/models/payment";
 import { Invoice } from "@/models/invoice";
 import { getPlan } from "@/lib/plans";
+import { resolveInvoicePlanSnapshot } from "@/lib/invoice-plan-snapshot";
 import { ensureInvoicesForCapturedPayments } from "@/lib/billing";
 import { calculateInvoiceTax } from "@/lib/invoicing";
 import { platformLegalProfile, PLATFORM_BRAND } from "@/lib/platform";
@@ -62,7 +63,14 @@ export default async function BillingResultPage({
     ?? (payment ? await Invoice.findOne({ paymentId: payment._id }).lean() : null)
     ?? await Invoice.findOne({ companyId: session.companyId }).sort({ issuedAt: -1 }).lean();
 
-  const plan = getPlan(invoice?.planId ?? subscription?.planId);
+  const plan = invoice
+    ? await resolveInvoicePlanSnapshot({
+        companyId: invoice.companyId,
+        paymentId: invoice.paymentId,
+        planId: invoice.planId,
+        planSnapshot: invoice.planSnapshot
+      })
+    : getPlan(subscription?.planId);
   const legal = await platformLegalProfile();
 
   const tax = invoice?.taxSnapshot ?? (
@@ -109,15 +117,23 @@ export default async function BillingResultPage({
     providerPaymentId: invoice.providerPaymentId || "",
     serviceDescription: invoice.serviceDescription,
     plan: {
-      id: invoice.planId,
-      name: (invoice.planSnapshot ?? plan).name,
-      priceInr: (invoice.planSnapshot ?? plan).priceInr,
-      maxEmployees: (invoice.planSnapshot ?? plan).maxEmployees,
-      monthlyMeetingLimit: (invoice.planSnapshot ?? plan).monthlyMeetingLimit,
-      maxMeetingDurationMinutes: (invoice.planSnapshot ?? plan).maxMeetingDurationMinutes,
-      maxConcurrentMeetings: (invoice.planSnapshot ?? plan).maxConcurrentMeetings,
-      validityDays: (invoice.planSnapshot ?? plan).validityDays ?? plan.validityDays,
-      freeFeatureDays: (invoice.planSnapshot ?? plan).freeFeatureDays ?? plan.freeFeatureDays
+      id: plan.id,
+      name: plan.name,
+      priceInr: plan.priceInr,
+      maxEmployees: plan.maxEmployees,
+      monthlyMeetingLimit: plan.monthlyMeetingLimit,
+      maxMeetingDurationMinutes: plan.maxMeetingDurationMinutes,
+      maxConcurrentMeetings: plan.maxConcurrentMeetings,
+      maxWorkspaces: plan.maxWorkspaces,
+      maxCompanies: plan.maxCompanies,
+      taskManagementEnabled: plan.taskManagementEnabled,
+      taskManagementDailyLimit: plan.taskManagementDailyLimit,
+      vaultEnabled: plan.vaultEnabled,
+      vaultQuotaBytes: plan.vaultQuotaBytes,
+      vaultMaxFileBytes: plan.vaultMaxFileBytes,
+      vaultMaxItems: plan.vaultMaxItems,
+      validityDays: plan.validityDays,
+      freeFeatureDays: plan.freeFeatureDays
     },
     currentPlanId,
     billingPeriodStart: invoice.billingPeriodStart ?? null,
