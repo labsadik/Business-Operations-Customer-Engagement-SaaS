@@ -228,6 +228,35 @@ export async function bunnyPutStream(
   if (!response.ok) throwBunnyError(response);
 }
 
+export async function* streamRequestBody(
+  body: ReadableStream<Uint8Array>,
+  expectedSizeBytes: number
+): AsyncGenerator<Uint8Array> {
+  const reader = body.getReader();
+  let receivedBytes = 0;
+  let finished = false;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        finished = true;
+        break;
+      }
+      if (!value?.byteLength) continue;
+      receivedBytes += value.byteLength;
+      if (receivedBytes > expectedSizeBytes) throw new Error("INVALID_CHUNK_SIZE");
+      // Yield the network chunk as-is. Backpressure is provided by fetch's
+      // async-iterable request body, so memory remains bounded under load.
+      yield value;
+    }
+  } finally {
+    if (!finished) await reader.cancel().catch(() => undefined);
+    reader.releaseLock();
+  }
+
+  if (receivedBytes !== expectedSizeBytes) throw new Error("INVALID_CHUNK_SIZE");
+}
+
 export async function* streamVaultParts(
   storageRoot: string,
   uploadId: string,
@@ -477,30 +506,61 @@ export function uploadChunkKey(storageRoot: string, uploadId: string, index: num
 }
 
 export async function removeUploadChunks(storageRoot: string, uploadId: string, expectedChunks: number) {
-  for (let index = 0; index < expectedChunks; index += 1) {
-    try {
-      await bunnyDelete(uploadChunkKey(storageRoot, uploadId, index));
-    } catch {
-      // Cleanup is best-effort; expiration cleanup retries the same deterministic keys.
+  // Bound provider concurrency during cleanup instead of issuing one request per
+  // chunk at once. Uploads are capped at 250 MiB, but corrupted metadata is capped too.
+  const chunkCount = Math.max(0, Math.min(Math.trunc(expectedChunks), Math.ceil(HARD_MAX_FILE_BYTES / VAULT_CHUNK_SIZE_BYTES)));
+  const workerCount = Math.min(6, chunkCount);
+  let nextIndex = 0;
+  const worker = async () => {
+    while (true) {
+      const index = nextIndex;
+      nextIndex += 1;
+      if (index >= chunkCount) return;
+      try {
+        await bunnyDelete(uploadChunkKey(storageRoot, uploadId, index));
+      } catch {
+        // Cleanup is best-effort; expiration cleanup retries the same deterministic keys.
+      }
     }
-  }
+  };
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
 }
 
-export async function cleanupExpiredVaultUploads(scope: Pick<VaultScope, "companyId">) {
+export async function cleanupExpiredVaultUploads(
+  scope?: Pick<VaultScope, "companyId">,
+  batchLimit?: number
+) {
   const now = new Date();
-  const companyId = new Types.ObjectId(scope.companyId);
-  const expired = await VaultUpload.find({ companyId, expiresAt: { $lte: now } }).lean();
-  for (const upload of expired) {
+  const filter = scope
+    ? { companyId: new Types.ObjectId(scope.companyId), expiresAt: { $lte: now } }
+    : { expiresAt: { $lte: now } };
+  const limit = Number.isSafeInteger(batchLimit) && (batchLimit ?? 0) > 0
+    ? Math.min(batchLimit as number, 25)
+    : undefined;
+  let query = VaultUpload.find(filter).sort({ expiresAt: 1 }).select(
+    "_id companyId sizeBytes storageRoot expectedChunks expiresAt"
+  );
+  if (limit) query = query.limit(limit + 1);
+  const expired = await query.lean();
+  const batch = limit ? expired.slice(0, limit) : expired;
+  const hasMoreWork = Boolean(limit && expired.length > limit);
+
+  for (const upload of batch) {
     const uploadId = String(upload._id);
     await removeUploadChunks(upload.storageRoot, uploadId, upload.expectedChunks);
+    const companyId = upload.companyId;
     const fileExists = await VaultFile.exists({ uploadId: upload._id, companyId });
     const deleted = await VaultUpload.deleteOne({
       _id: upload._id,
       companyId,
       expiresAt: { $lte: now }
     });
-    if (deleted.deletedCount && !fileExists) await releaseVaultBytes(scope, upload.sizeBytes);
+    if (deleted.deletedCount && !fileExists) {
+      await releaseVaultBytes({ companyId: String(companyId) }, upload.sizeBytes);
+    }
   }
+
+  return { processed: batch.length, hasMoreWork };
 }
 
 export function vaultErrorResponse(error: unknown, fallback = "VAULT_REQUEST_FAILED") {
