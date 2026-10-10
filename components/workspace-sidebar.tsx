@@ -135,7 +135,11 @@ export default function WorkspaceSidebar({
         if (parsed.workspace === companyName && typeof parsed.top === "number" && Number.isFinite(parsed.top)) {
           // Restore synchronously before the active-item visibility pass to avoid a top-of-nav flash.
           nav.scrollTop = Math.max(0, parsed.top);
+        } else {
+          nav.scrollTop = 0;
         }
+      } else {
+        nav.scrollTop = 0;
       }
     } catch {
       // Invalid or unavailable session storage falls back to the browser's default position.
@@ -195,7 +199,7 @@ export default function WorkspaceSidebar({
   ].join(" ");
 
   const groupHeading = (label: string) => (
-    <div className={`flex items-center ${collapsed ? "justify-center px-1 py-3" : "px-3 pb-2 pt-5 first:pt-0"}`}>
+    <div className={`flex items-center ${collapsed ? "justify-center px-1 py-3" : "px-3 pb-2 pt-1"}`}>
       {collapsed ? (
         <span className="h-px w-7 bg-slate-200" aria-hidden="true" />
       ) : (
@@ -205,7 +209,7 @@ export default function WorkspaceSidebar({
   );
 
   const mobileGroupHeading = (label: string) => (
-    <h2 className="px-1 pb-2 pt-4 text-[10px] font-bold uppercase tracking-wider text-slate-400 first:pt-0">
+    <h2 className="px-1 pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
       {label}
     </h2>
   );
@@ -246,7 +250,7 @@ export default function WorkspaceSidebar({
           onScroll={(event) => handleNavScroll(event.currentTarget.scrollTop)}
           className={`flex-1 overflow-y-auto overscroll-contain py-2 ${collapsed ? "px-2" : "px-3"}`}
         >
-          <div role="group" aria-label="Core Workspace">
+          <div role="group" aria-label="Core Workspace" className="mt-3 first:mt-0">
             {groupHeading("Core Workspace")}
             {primaryItems.map((item) => {
               const selected = isActive("dashboard");
@@ -284,7 +288,7 @@ export default function WorkspaceSidebar({
           </div>
 
           {(taskManagementEnabled || vaultEnabled) && (
-            <div role="group" aria-label="Workspace Tools">
+            <div role="group" aria-label="Workspace Tools" className="mt-4">
               {groupHeading("Workspace Tools")}
               {taskManagementEnabled && (
                 <Link href={"/dashboard/tasks" as Route} onClick={() => persistScrollPosition()} className={buttonClass(isTasks)} title="Task Management" aria-current={isTasks ? "page" : undefined} data-sidebar-active={isTasks ? "true" : "false"} data-sidebar-key="tasks">
@@ -303,8 +307,9 @@ export default function WorkspaceSidebar({
             </div>
           )}
 
-          <div role="group" aria-label="Workspace Management">
-            {canManage && groupHeading("Workspace Management")}
+          {canManage && (
+            <div role="group" aria-label="Workspace Management" className="mt-4">
+              {groupHeading("Workspace Management")}
             {canManage && (
               <Link href={"/dashboard/company-profile" as Route} onClick={() => persistScrollPosition()} className={buttonClass(isProfile)} title={labels.companyProfile} aria-current={isProfile ? "page" : undefined} data-sidebar-active={isProfile ? "true" : "false"} data-sidebar-key="profile">
                 <Building2 className={`size-4 shrink-0 ${iconClass(isProfile)}`} />
@@ -329,9 +334,10 @@ export default function WorkspaceSidebar({
                 <span className={collapsed ? "sr-only" : "min-w-0 truncate"}>{labels.workspaceSettings}</span>
               </button>
             )}
-          </div>
+            </div>
+          )}
 
-          <div role="group" aria-label="Help & Support">
+          <div role="group" aria-label="Help & Support" className="mt-4">
             {groupHeading("Help & Support")}
             <button type="button" onClick={() => open("feedback")} className={buttonClass(isActive("feedback"))} title={labels.feedback} aria-pressed={isActive("feedback")} data-sidebar-active={isActive("feedback") ? "true" : "false"} data-sidebar-key="feedback">
               <MessageSquareText className={`size-4 shrink-0 ${iconClass(isActive("feedback"))}`} />
@@ -381,7 +387,7 @@ export default function WorkspaceSidebar({
         </div>
         {mobileMenuOpen && (
           <div id="mobile-company-workspace-menu" className="border-t border-slate-200/80 px-4 pb-4">
-            <div role="group" aria-label="Core Workspace">
+            <div role="group" aria-label="Core Workspace" className="mt-4 first:mt-0">
               {mobileGroupHeading("Core Workspace")}
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 <Link href="/dashboard" onClick={(event) => { persistScrollPosition(); if (onNavigateOverview) { event.preventDefault(); onNavigateOverview(); } }} className={mobileItemClass(isDashboard)} title={labels.dashboard} aria-current={isDashboard ? "page" : undefined}>
@@ -397,7 +403,7 @@ export default function WorkspaceSidebar({
             </div>
 
             {(taskManagementEnabled || vaultEnabled) && (
-              <div role="group" aria-label="Workspace Tools">
+              <div role="group" aria-label="Workspace Tools" className="mt-4">
                 {mobileGroupHeading("Workspace Tools")}
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {taskManagementEnabled && <Link href={"/dashboard/tasks" as Route} onClick={() => persistScrollPosition()} className={mobileItemClass(isTasks)} title="Task Management" aria-current={isTasks ? "page" : undefined}><ClipboardList className="size-4 shrink-0" /><span className="min-w-0 truncate">Task Management</span><span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">New</span></Link>}
@@ -407,7 +413,7 @@ export default function WorkspaceSidebar({
             )}
 
             {canManage && (
-              <div role="group" aria-label="Workspace Management">
+              <div role="group" aria-label="Workspace Management" className="mt-4">
                 {mobileGroupHeading("Workspace Management")}
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   <Link href={"/dashboard/company-profile" as Route} onClick={() => persistScrollPosition()} className={mobileItemClass(isProfile)} title={labels.companyProfile} aria-current={isProfile ? "page" : undefined}><Building2 className="size-4 shrink-0" /><span className="min-w-0 truncate">{labels.companyProfile}</span></Link>
@@ -418,7 +424,7 @@ export default function WorkspaceSidebar({
               </div>
             )}
 
-            <div role="group" aria-label="Help & Support">
+            <div role="group" aria-label="Help & Support" className="mt-4">
               {mobileGroupHeading("Help & Support")}
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 <button type="button" onClick={() => open("feedback")} className={mobileItemClass(isActive("feedback"))} title={labels.feedback} aria-pressed={isActive("feedback")}><MessageSquareText className="size-4 shrink-0" /><span className="min-w-0 truncate">{labels.feedback}</span></button>
