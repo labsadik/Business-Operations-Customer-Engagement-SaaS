@@ -205,30 +205,27 @@ export default function LiveChatDashboard({
   }, []);
 
   useEffect(() => {
-    // Initial authenticated reads synchronize this view with the API after mount.
+    // Load the inbox and settings once; changing selection must not refetch settings.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadInbox();
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadSettings();
+  }, [loadInbox, loadSettings]);
+
+  useEffect(() => {
     const pollInterval = selectedId && tab === "inbox" ? 3000 : 12000;
-    const timer = window.setInterval(() => {
-      if (!document.hidden) {
-        void loadInbox(true);
-        if (selectedId && tab === "inbox") void loadMessages(selectedId, true);
-      }
-    }, pollInterval);
-    const visible = () => {
-      if (!document.hidden) {
-        void loadInbox(true);
-        if (selectedId && tab === "inbox") void loadMessages(selectedId, true);
-      }
+    const poll = () => {
+      if (document.hidden) return;
+      void loadInbox(true);
+      if (selectedId && tab === "inbox") void loadMessages(selectedId, true);
     };
-    document.addEventListener("visibilitychange", visible);
+    const timer = window.setInterval(poll, pollInterval);
+    document.addEventListener("visibilitychange", poll);
     return () => {
       window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", visible);
+      document.removeEventListener("visibilitychange", poll);
     };
-  }, [loadInbox, loadSettings, loadMessages, selectedId, tab]);
+  }, [loadInbox, loadMessages, selectedId, tab]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
