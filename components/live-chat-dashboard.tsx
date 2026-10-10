@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   MessageCircle, Settings2, Download, Trash2, Send, RefreshCw, Copy, CheckCircle2,
   Check, LoaderCircle, Palette, ShieldCheck, UsersRound, MessageSquareText,
-  Clock3, AlertCircle, Code2, X, Info, Search as SearchIcon, ChevronLeft, MapPin, Laptop2, Globe2, UserRound, CircleCheck
+  Clock3, AlertCircle, Code2, X, Info, Search as SearchIcon, ChevronLeft, MapPin, Laptop2, Globe2, UserRound
 } from "lucide-react";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
 import { useWorkspaceSidebarState } from "@/components/use-workspace-sidebar-state";
@@ -57,6 +57,7 @@ type ChatSettings = {
   collectName: boolean;
   collectEmail: boolean;
   collectPhone: boolean;
+  offlineMode: boolean;
   allowedDomains: string[];
 };
 type SettingsPayload = {
@@ -157,7 +158,7 @@ export default function LiveChatDashboard({
         ? item.status === "CLOSED"
         : conversationTab === "UNASSIGNED"
           ? item.status === "OPEN" && !item.assignedAgentId
-          : item.status === "OPEN" && Boolean(item.assignedAgentId);
+          : item.status === "OPEN";
       if (!inTab) return false;
       if (!query) return true;
       return [item.customerName, item.customerEmail, item.customerPhone, item.geoCountry, item.geoCity, item.geoRegion, item.lastMessagePreview]
@@ -434,7 +435,7 @@ export default function LiveChatDashboard({
 
       <section className={`flex min-h-[580px] min-w-0 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm ${!selectedId ? "hidden lg:flex" : ""}`}>
         {selected ? <>
-          <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-4 sm:px-5"><button onClick={() => setSelectedId("")} className="rounded-lg border border-slate-200 p-2 text-slate-600 lg:hidden" aria-label="Back to conversations"><MessageCircle className="size-4" /></button><span className="grid size-10 shrink-0 place-items-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">{selected.customerName.slice(0,1).toUpperCase() || "A"}</span><div className="min-w-0 flex-1"><h2 className="truncate text-sm font-semibold text-slate-900">{selected.customerName}</h2><p className="truncate text-xs text-slate-500">{selected.customerEmail || selected.customerPhone || "Anonymous customer"}{selected.geoCity || selected.geoCountry ? " · " + countryFlag(selected.geoCountry) + " " + [selected.geoCity, countryName(selected.geoCountry)].filter(Boolean).join(", ") : ""}</p></div><div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-4 sm:px-5"><button onClick={() => setSelectedId("")} className="rounded-lg border border-slate-200 p-2 text-slate-600 lg:hidden" aria-label="Back to conversations"><ChevronLeft className="size-4" /></button><span className="grid size-10 shrink-0 place-items-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">{selected.customerName.slice(0,1).toUpperCase() || "A"}</span><div className="min-w-0 flex-1"><h2 className="truncate text-sm font-semibold text-slate-900">{selected.customerName}</h2><p className="truncate text-xs text-slate-500">{selected.customerEmail || selected.customerPhone || "Anonymous customer"}{selected.geoCity || selected.geoCountry ? " · " + countryFlag(selected.geoCountry) + " " + [selected.geoCity, countryName(selected.geoCountry)].filter(Boolean).join(", ") : ""}</p></div><div className="flex items-center gap-1.5">
             <button onClick={() => setUserDetailsOpen(true)} title="Visitor details" aria-label="Visitor details" className="rounded-xl border border-slate-200 p-2.5 text-slate-600 hover:bg-slate-50"><Info className="size-4" /></button>
             {selected.status === "OPEN" && <button onClick={() => void closeConversation(selected)} title="Close conversation" aria-label="Close conversation" className="rounded-xl border border-emerald-200 p-2.5 text-emerald-700 hover:bg-emerald-50"><CheckCircle2 className="size-4" /></button>}
             {usage?.pdfExportEnabled && <button onClick={() => void exportConversation(selected)} title="Export formatted PDF" aria-label="Export chat as PDF" className="rounded-xl border border-slate-200 p-2.5 text-slate-600 hover:bg-slate-50"><Download className="size-4" /></button>}
@@ -475,6 +476,7 @@ export default function LiveChatDashboard({
           <SettingToggle label="Require email" checked={settings.collectEmail} onChange={(value) => setSettings({ ...settings, collectEmail: value })} />
           <SettingToggle label="Require phone" checked={settings.collectPhone} onChange={(value) => setSettings({ ...settings, collectPhone: value })} />
         </div></div>
+        <div className="mb-5 border-t border-slate-100 pt-5"><SettingToggle label="Offline mode" description="Shows visitors that your team is offline while still allowing them to leave a message in the inbox." checked={settings.offlineMode} onChange={(value) => setSettings({ ...settings, offlineMode: value })} /></div>
         <div className="border-t border-slate-100 pt-5"><label className="block text-xs font-semibold text-slate-700">Allowed website domains<textarea value={domainsText} onChange={(event) => setDomainsText(event.target.value)} rows={3} placeholder={companyWebsiteUrl || "www.example.com"} className={inputClass()} /></label><p className="mt-2 text-[11px] leading-5 text-slate-500">Enter exact hostnames, one per line. Example: example.com and help.example.com. Requests from other websites are blocked by the server.</p></div>
         <div className="mt-6 flex flex-col-reverse gap-2 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between"><span className="text-[11px] leading-5 text-slate-500">Server-enforced: {usage?.cooldownSeconds ?? 15}s cooldown · {usage?.retentionDays ?? 30}-day data retention</span><button onClick={() => void saveSettings()} disabled={!canManageSettings || savingSettings} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">{savingSettings ? <LoaderCircle className="size-4 animate-spin" /> : <Check className="size-4" />} Save settings</button></div>
       </section>}
@@ -510,7 +512,7 @@ export default function LiveChatDashboard({
             ) : (
               <section aria-label="Live chat widget preview" className={`absolute bottom-3 z-10 flex h-[350px] w-[300px] max-w-[calc(100%_-_24px)] flex-col overflow-hidden rounded-2xl border shadow-2xl ${settings.position === "LEFT" ? "left-3" : "right-3"} ${settings.theme === "DARK" ? "border-slate-700 bg-slate-950 text-slate-100" : "border-slate-200 bg-white text-slate-950"}`}>
                 <header className="flex shrink-0 items-start gap-2 px-3 py-3 text-white" style={{ backgroundColor: settings.primaryColor }}>
-                  <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">{settings.title || "Chat with us"}</p><p className="mt-1 text-[10px] text-white/80">Your company · Usually replies promptly</p></div>
+                  <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">{settings.title || "Chat with us"}</p><p className="mt-1 text-[10px] text-white/80">{settings.offlineMode ? "Offline · Leave a message" : "Online · Usually replies promptly"}</p></div>
                   <button type="button" aria-label="Close chat preview" onClick={() => setPreviewOpen(false)} className="rounded-md p-1 hover:bg-white/15"><X className="size-4" /></button>
                 </header>
                 <div className="min-h-0 flex-1 overflow-hidden p-3">
