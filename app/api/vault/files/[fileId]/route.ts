@@ -29,6 +29,7 @@ export async function GET(
   { params }: { params: Promise<{ fileId: string }> }
 ) {
   try {
+    if (request.headers.get("sec-fetch-site") === "cross-site") throw new Error("FORBIDDEN");
     const scope = await requireVaultScope();
     await getMongo();
     const { fileId } = await params;
