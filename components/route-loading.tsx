@@ -9,23 +9,50 @@ export function Pulse({ className }: { className: string }) {
 
 function SidebarSkeleton() {
   return (
-    <aside className="hidden w-72 shrink-0 flex-col border-r border-slate-200 bg-white lg:flex">
-      <div className="flex h-20 items-center gap-3 border-b border-slate-200 px-5">
-        <Pulse className="size-10 rounded-xl" />
-        <div className="space-y-2">
-          <Pulse className="h-3 w-24" />
-          <Pulse className="h-2 w-20" />
+    <aside className="hidden w-72 shrink-0 flex-col border-r border-slate-200 bg-white lg:flex" aria-hidden="true">
+      <div className="flex min-h-[68px] items-center justify-between gap-2.5 border-b border-slate-200/80 px-3.5 py-3.5">
+        <div className="flex min-w-0 items-center gap-3">
+          <Pulse className="size-10 shrink-0 rounded-2xl" />
+          <div className="min-w-0 space-y-1.5">
+            <Pulse className="h-3 w-28" />
+            <Pulse className="h-2 w-24" />
+          </div>
         </div>
+        <Pulse className="size-8 shrink-0 rounded-lg" />
       </div>
-      <div className="border-b border-slate-200 p-5">
-        <Pulse className="h-16 w-full rounded-2xl" />
-      </div>
-      <div className="space-y-2 p-4">
-        <Pulse className="h-3 w-20" />
-        {Array.from({ length: 7 }, (_, index) => (
-          <Pulse key={index} className="h-10 w-full rounded-xl" />
-        ))}
-      </div>
+
+      <nav className="flex-1 space-y-4 overflow-hidden px-3 py-3">
+        <section>
+          <Pulse className="mb-2 h-2.5 w-24 rounded-md" />
+          <div className="space-y-1">
+            {Array.from({ length: 3 }, (_, index) => (
+              <Pulse key={index} className="h-10 w-full rounded-xl" />
+            ))}
+          </div>
+        </section>
+        <section>
+          <Pulse className="mb-2 h-2.5 w-24 rounded-md" />
+          <div className="space-y-1">
+            <Pulse className="h-10 w-full rounded-xl" />
+            <Pulse className="h-10 w-full rounded-xl" />
+          </div>
+        </section>
+        <section>
+          <Pulse className="mb-2 h-2.5 w-32 rounded-md" />
+          <div className="space-y-1">
+            {Array.from({ length: 4 }, (_, index) => (
+              <Pulse key={index} className="h-10 w-full rounded-xl" />
+            ))}
+          </div>
+        </section>
+        <section>
+          <Pulse className="mb-2 h-2.5 w-24 rounded-md" />
+          <div className="space-y-1">
+            <Pulse className="h-10 w-full rounded-xl" />
+            <Pulse className="h-10 w-full rounded-xl" />
+          </div>
+        </section>
+      </nav>
     </aside>
   );
 }
