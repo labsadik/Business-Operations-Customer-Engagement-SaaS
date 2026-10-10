@@ -508,7 +508,8 @@ export function uploadChunkKey(storageRoot: string, uploadId: string, index: num
 export async function removeUploadChunks(storageRoot: string, uploadId: string, expectedChunks: number) {
   // Bound provider concurrency during cleanup instead of issuing one request per
   // chunk at once. Uploads are capped at 250 MiB, but corrupted metadata is capped too.
-  const chunkCount = Math.max(0, Math.min(Math.trunc(expectedChunks), Math.ceil(HARD_MAX_FILE_BYTES / VAULT_CHUNK_SIZE_BYTES)));
+  const requestedChunkCount = Number.isSafeInteger(expectedChunks) && expectedChunks > 0 ? expectedChunks : 0;
+  const chunkCount = Math.min(requestedChunkCount, Math.ceil(HARD_MAX_FILE_BYTES / VAULT_CHUNK_SIZE_BYTES));
   const workerCount = Math.min(6, chunkCount);
   let nextIndex = 0;
   const worker = async () => {
