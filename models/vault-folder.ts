@@ -17,5 +17,6 @@ const vaultFolderSchema = new Schema(
 
 vaultFolderSchema.index({ companyId: 1, workspaceId: 1, parentFolderId: 1, nameKey: 1 }, { unique: true });
 vaultFolderSchema.index({ companyId: 1, workspaceId: 1, parentFolderId: 1, name: 1 });
+vaultFolderSchema.index({ companyId: 1, workspaceId: 1, parentFolderId: 1, nameKey: 1, _id: 1 });
 
 export const VaultFolder = models.VaultFolder ?? model("VaultFolder", vaultFolderSchema);
