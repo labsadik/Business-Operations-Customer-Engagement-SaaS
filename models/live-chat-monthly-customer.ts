@@ -4,7 +4,7 @@ const liveChatMonthlyCustomerSchema = new Schema({
   companyId: { type: Schema.Types.ObjectId, ref: "Company", required: true },
   periodKey: { type: String, required: true, match: /^\d{4}-\d{2}$/ },
   visitorKeyHash: { type: String, required: true, maxlength: 64 },
-  expiresAt: { type: Date, required: true, index: true }
+  expiresAt: { type: Date, required: true }
 }, { timestamps: true });
 
 liveChatMonthlyCustomerSchema.index(

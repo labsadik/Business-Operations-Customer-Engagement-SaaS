@@ -5,7 +5,7 @@ const liveChatMonthlyUsageSchema = new Schema({
   periodKey: { type: String, required: true, match: /^\d{4}-\d{2}$/ },
   chatCount: { type: Number, required: true, default: 0, min: 0 },
   customerCount: { type: Number, required: true, default: 0, min: 0 },
-  expiresAt: { type: Date, required: true, index: true }
+  expiresAt: { type: Date, required: true }
 }, { timestamps: true });
 
 liveChatMonthlyUsageSchema.index({ companyId: 1, periodKey: 1 }, { unique: true });
