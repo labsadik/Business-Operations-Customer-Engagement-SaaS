@@ -23,6 +23,7 @@ import {
   X
 } from "lucide-react";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
+import { useWorkspaceSidebarState } from "@/components/use-workspace-sidebar-state";
 import UserAvatar from "@/components/user-avatar";
 import WorkspaceUserProfile from "@/components/workspace-user-profile";
 import { playTaskSoundIfEnabled } from "@/lib/client-task-sound";
@@ -99,6 +100,7 @@ type TaskPageProps = {
   userId: string;
   currentRole: string;
   taskManagementEnabled: boolean;
+  vaultEnabled: boolean;
 };
 
 const MANAGER_ROLES = ["COMPANY_ADMIN", "PLATFORM_ADMIN"];
@@ -180,7 +182,8 @@ export default function TaskManagementDashboard({
   userImage,
   userId,
   currentRole,
-  taskManagementEnabled
+  taskManagementEnabled,
+  vaultEnabled
 }: TaskPageProps) {
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [dailyUsage, setDailyUsage] = useState<TaskDailyUsage>({
@@ -223,7 +226,7 @@ export default function TaskManagementDashboard({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [cancelConfirm, setCancelConfirm] = useState<{ task: TaskItem; assignment: TaskAssignmentItem } | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useWorkspaceSidebarState();
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dropTargetStatus, setDropTargetStatus] = useState<TaskStatus | null>(null);
   const [movingTaskId, setMovingTaskId] = useState<string | null>(null);
@@ -680,10 +683,11 @@ export default function TaskManagementDashboard({
       <WorkspaceSidebar
         companyName={companyName}
         taskManagementEnabled={taskManagementEnabled}
+        vaultEnabled={vaultEnabled}
         canManage={canManage}
         adminManaged={currentRole === "PLATFORM_ADMIN"}
         collapsed={sidebarCollapsed}
-        onToggleCollapsed={() => setSidebarCollapsed((collapsed) => !collapsed)}
+        onToggleCollapsed={toggleSidebar}
       />
       <div className={sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"}>
         <header className="sticky top-0 z-40 border-b border-slate-200/90 bg-[#faf9f1]/95 backdrop-blur-xl">
