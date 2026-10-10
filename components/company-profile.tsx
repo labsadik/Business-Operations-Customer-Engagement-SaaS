@@ -48,6 +48,7 @@ type ProfileData = {
 
 type CompanyResponse = {
   company: ProfileData;
+  currentPlan?: { vaultEnabled?: boolean };
   memberCount: number;
   canPublish: boolean;
   featureLocked: boolean;
@@ -66,6 +67,7 @@ export default function CompanyProfile({
 }) {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [memberCount, setMemberCount] = useState(0);
+  const [vaultEnabled, setVaultEnabled] = useState(false);
   const [canPublish, setCanPublish] = useState(false);
   const [featureLocked, setFeatureLocked] = useState(false);
   const [form, setForm] = useState<ProfileData | null>(null);
@@ -93,6 +95,7 @@ export default function CompanyProfile({
         setProfile(data.company);
         setForm(data.company);
         setMemberCount(data.memberCount);
+        setVaultEnabled(Boolean(data.currentPlan?.vaultEnabled));
         setCanPublish(data.canPublish);
         setFeatureLocked(data.featureLocked);
       } catch {
@@ -209,6 +212,7 @@ export default function CompanyProfile({
     <main className="min-h-screen bg-[#faf9f1] text-slate-950">
       <WorkspaceSidebar
         companyName={form.name}
+        vaultEnabled={vaultEnabled}
         canManage
         activeProfile
       />
