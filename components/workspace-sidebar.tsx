@@ -164,7 +164,7 @@ export default function WorkspaceSidebar({
     const navRect = nav.getBoundingClientRect();
     const itemRect = activeItem.getBoundingClientRect();
     if (itemRect.top < navRect.top || itemRect.bottom > navRect.bottom) {
-      activeItem.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "auto" });
+      activeItem.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
     }
     persistScrollPosition(nav.scrollTop);
   }, [pathname, activePanel, activeSettingsSection, activeProfile, isTasks, isVault, canManage, taskManagementEnabled, vaultEnabled, companyName, persistScrollPosition]);
@@ -310,34 +310,26 @@ export default function WorkspaceSidebar({
           {canManage && (
             <div role="group" aria-label="Workspace Management" className="mt-4">
               {groupHeading("Workspace Management")}
-            {canManage && (
               <Link href={"/dashboard/company-profile" as Route} onClick={() => persistScrollPosition()} className={buttonClass(isProfile)} title={labels.companyProfile} aria-current={isProfile ? "page" : undefined} data-sidebar-active={isProfile ? "true" : "false"} data-sidebar-key="profile">
                 <Building2 className={`size-4 shrink-0 ${iconClass(isProfile)}`} />
                 <span className={collapsed ? "sr-only" : "min-w-0 truncate"}>{labels.companyProfile}</span>
               </Link>
-            )}
-            {canManage && (
               <button type="button" onClick={() => open("settings", "announcements")} className={buttonClass(isAnnouncements)} title={labels.announcements} aria-pressed={isAnnouncements} data-sidebar-active={isAnnouncements ? "true" : "false"} data-sidebar-key="announcements">
                 <Megaphone className={`size-4 shrink-0 ${iconClass(isAnnouncements)}`} />
                 <span className={collapsed ? "sr-only" : "min-w-0 truncate"}>{labels.announcements}</span>
               </button>
-            )}
-            {canManage && (
               <button type="button" onClick={() => open("billing")} className={buttonClass(isActive("billing"))} title={labels.billing} aria-pressed={isActive("billing")} data-sidebar-active={isActive("billing") ? "true" : "false"} data-sidebar-key="billing">
                 <CreditCard className={`size-4 shrink-0 ${iconClass(isActive("billing"))}`} />
                 <span className={collapsed ? "sr-only" : "min-w-0 truncate"}>{labels.billing}</span>
               </button>
-            )}
-            {canManage && (
               <button type="button" onClick={() => open("settings")} className={buttonClass(isSettings)} title={labels.workspaceSettings} aria-pressed={isSettings} data-sidebar-active={isSettings ? "true" : "false"} data-sidebar-key="settings">
                 <Settings2 className={`size-4 shrink-0 ${iconClass(isSettings)}`} />
                 <span className={collapsed ? "sr-only" : "min-w-0 truncate"}>{labels.workspaceSettings}</span>
               </button>
-            )}
             </div>
           )}
 
-          <div role="group" aria-label="Help & Support" className="mt-4">
+                    <div role="group" aria-label="Help & Support" className="mt-4">
             {groupHeading("Help & Support")}
             <button type="button" onClick={() => open("feedback")} className={buttonClass(isActive("feedback"))} title={labels.feedback} aria-pressed={isActive("feedback")} data-sidebar-active={isActive("feedback") ? "true" : "false"} data-sidebar-key="feedback">
               <MessageSquareText className={`size-4 shrink-0 ${iconClass(isActive("feedback"))}`} />
