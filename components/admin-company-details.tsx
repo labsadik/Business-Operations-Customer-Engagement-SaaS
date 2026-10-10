@@ -9,7 +9,6 @@ import {
   ClipboardList,
   CreditCard,
   FileText,
-  FolderOpen,
   Globe2,
   HardDrive,
   UploadCloud,
