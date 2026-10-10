@@ -23,7 +23,7 @@ export async function GET() {
     const companyIds = companies.map((company) => company._id);
     const [subscriptions, usageRows, fileStatsRows, pendingRows] = await Promise.all([
       Subscription.find({ companyId: { $in: companyIds } }).select("companyId planId status currentPeriodEnd").lean(),
-      VaultUsage.find({ companyId: { $in: companyIds } }).select("companyId usedBytes quotaBytes usedItems").lean(),
+      VaultUsage.find({ companyId: { $in: companyIds } }).select("companyId workspaceId usedBytes quotaBytes usedItems").lean(),
       VaultFile.aggregate<{ _id: unknown; count: number; sizeBytes: number }>([
         { $match: { companyId: { $in: companyIds } } },
         { $group: { _id: "$companyId", count: { $sum: 1 }, sizeBytes: { $sum: "$sizeBytes" } } }
@@ -36,7 +36,11 @@ export async function GET() {
 
     const plansById = new Map(plans.map((plan) => [plan.id, plan]));
     const subscriptionsByCompany = new Map(subscriptions.map((row) => [String(row.companyId), row]));
-    const usageByCompany = new Map(usageRows.map((row) => [String(row.companyId), row]));
+    const usageByCompany = new Map(
+      usageRows
+        .filter((row) => String(row.workspaceId) === String(row.companyId))
+        .map((row) => [String(row.companyId), row])
+    );
     const filesByCompany = new Map(fileStatsRows.map((row) => [String(row._id), row]));
     const pendingByCompany = new Map(pendingRows.map((row) => [String(row._id), row]));
     const now = Date.now();
@@ -44,8 +48,7 @@ export async function GET() {
     const items = companies.map((company) => {
       const companyId = String(company._id);
       const subscription = subscriptionsByCompany.get(companyId);
-      const activePlanId = subscription?.status === "ACTIVE" &&
-        subscription.currentPeriodEnd.getTime() > now
+      const activePlanId = subscription && subscription.currentPeriodEnd.getTime() > now
         ? subscription.planId
         : "free";
       const plan = plansById.get(activePlanId) ?? plansById.get("free") ?? null;

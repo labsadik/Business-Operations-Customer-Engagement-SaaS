@@ -234,38 +234,64 @@ export async function ensureVaultUsage(
   scope: Pick<VaultScope, "companyId" | "workspaceId" | "vaultQuotaBytes">
 ) {
   const companyId = new Types.ObjectId(scope.companyId);
-  const filter = { companyId };
-  let usage;
-  try {
-    usage = await VaultUsage.findOneAndUpdate(
-      filter,
-      {
-        $set: { quotaBytes: scope.vaultQuotaBytes },
-        $setOnInsert: {
-          workspaceId: new Types.ObjectId(scope.workspaceId),
-          usedBytes: 0,
-          usedItems: 0
-        }
-      },
-      { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
-    ).lean();
-  } catch (error) {
-    if (!(error && typeof error === "object" && "code" in error && error.code === 11000)) throw error;
-    usage = await VaultUsage.findOne(filter).lean();
-  }
-  if (!usage) throw new Error("VAULT_USAGE_UNAVAILABLE");
+  // Keep the existing company+workspace unique index compatible with earlier
+  // deployments, while using a deterministic company-wide counter row.
+  const usageWorkspaceId = companyId;
+  const filter = { companyId, workspaceId: usageWorkspaceId };
+  let usage = await VaultUsage.findOne(filter).lean();
 
-  // Backfill item usage for records created before item quotas existed.
-  if (!Number.isSafeInteger(usage.usedItems)) {
-    const [fileCount, openUploadCount] = await Promise.all([
-      VaultFile.countDocuments({ companyId }),
-      VaultUpload.countDocuments({ companyId, status: { $in: ["OPEN", "COMPLETING"] } })
+  if (!usage) {
+    // During the transition from the earlier workspace-based counter, treat
+    // persisted file/upload metadata as authoritative and collapse old counters
+    // only after the company-wide row has been created.
+    const [files, activeUploads] = await Promise.all([
+      VaultFile.find({ companyId }).select("_id uploadId sizeBytes").lean(),
+      VaultUpload.find({
+        companyId,
+        status: { $in: ["OPEN", "COMPLETING"] }
+      }).select("_id sizeBytes").lean()
     ]);
-    await VaultUsage.updateOne(filter, { $set: { usedItems: fileCount + openUploadCount } });
+    const fileBytes = files.reduce((sum, file) => sum + file.sizeBytes, 0);
+    const filesByUpload = new Set(files.map((file) => String(file.uploadId)));
+    const pendingUploads = activeUploads.filter((upload) => !filesByUpload.has(String(upload._id)));
+    const pendingBytes = pendingUploads.reduce((sum, upload) => sum + upload.sizeBytes, 0);
+    const usedBytes = fileBytes + pendingBytes;
+    const usedItems = files.length + pendingUploads.length;
+
+    try {
+      usage = await VaultUsage.findOneAndUpdate(
+        filter,
+        {
+          $set: { quotaBytes: scope.vaultQuotaBytes },
+          $setOnInsert: { usedBytes, usedItems }
+        },
+        { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
+      ).lean();
+    } catch (error) {
+      if (!(error && typeof error === "object" && "code" in error && error.code === 11000)) throw error;
+      usage = await VaultUsage.findOne(filter).lean();
+    }
+
+    // Old rows are now superseded by the company-level ledger row.
+    await VaultUsage.deleteMany({ companyId, workspaceId: { $ne: usageWorkspaceId } });
+  }
+
+  if (!usage) throw new Error("VAULT_USAGE_UNAVAILABLE");
+  if (!Number.isSafeInteger(usage.usedItems)) {
+    const [files, activeUploads] = await Promise.all([
+      VaultFile.find({ companyId }).select("uploadId").lean(),
+      VaultUpload.find({ companyId, status: { $in: ["OPEN", "COMPLETING"] } }).select("_id").lean()
+    ]);
+    const filesByUpload = new Set(files.map((file) => String(file.uploadId)));
+    const pendingCount = activeUploads.filter((upload) => !filesByUpload.has(String(upload._id))).length;
+    await VaultUsage.updateOne(filter, { $set: { usedItems: files.length + pendingCount } });
     usage = await VaultUsage.findOne(filter).lean();
   }
+
+  // Plan edits can change the quota without changing any stored file bytes.
+  await VaultUsage.updateOne(filter, { $set: { quotaBytes: scope.vaultQuotaBytes } });
   if (!usage) throw new Error("VAULT_USAGE_UNAVAILABLE");
-  return usage;
+  return { ...usage, quotaBytes: scope.vaultQuotaBytes };
 }
 
 export async function reserveVaultBytes(
@@ -277,6 +303,7 @@ export async function reserveVaultBytes(
   const updated = await VaultUsage.findOneAndUpdate(
     {
       companyId,
+      workspaceId: companyId,
       $expr: {
         $and: [
           { $lte: [{ $add: [{ $ifNull: ["$usedBytes", 0] }, bytes] }, "$quotaBytes"] },
@@ -288,7 +315,7 @@ export async function reserveVaultBytes(
     { returnDocument: "after" }
   ).lean();
   if (!updated) {
-    const usage = await VaultUsage.findOne({ companyId }).select("usedBytes quotaBytes usedItems").lean();
+    const usage = await VaultUsage.findOne({ companyId, workspaceId: companyId }).select("usedBytes quotaBytes usedItems").lean();
     if (usage && (usage.usedItems ?? 0) >= scope.vaultMaxItems) throw new Error("VAULT_ITEM_LIMIT_REACHED");
     throw new Error("VAULT_STORAGE_LIMIT_REACHED");
   }
@@ -299,7 +326,7 @@ export async function releaseVaultBytes(scope: Pick<VaultScope, "companyId">, by
   if (bytes <= 0) return;
   const companyId = new Types.ObjectId(scope.companyId);
   await VaultUsage.updateOne(
-    { companyId },
+    { companyId, workspaceId: companyId },
     [{
       $set: {
         usedBytes: { $max: [0, { $subtract: [{ $ifNull: ["$usedBytes", 0] }, bytes] }] },

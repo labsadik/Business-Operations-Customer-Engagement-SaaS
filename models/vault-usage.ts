@@ -11,6 +11,6 @@ const vaultUsageSchema = new Schema(
   { timestamps: true }
 );
 
-vaultUsageSchema.index({ companyId: 1 }, { unique: true });
+vaultUsageSchema.index({ companyId: 1, workspaceId: 1 }, { unique: true });
 
 export const VaultUsage = models.VaultUsage ?? model("VaultUsage", vaultUsageSchema);
