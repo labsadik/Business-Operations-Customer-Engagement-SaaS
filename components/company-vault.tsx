@@ -115,7 +115,18 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
 
   const refresh = () => {
     setLoading(true);
+    setError("");
     setReloadVersion((version) => version + 1);
+  };
+
+  const navigateToFolder = (nextFolderId: string | null) => {
+    if (nextFolderId === folderId) {
+      refresh();
+      return;
+    }
+    setLoading(true);
+    setError("");
+    setFolderId(nextFolderId);
   };
 
   const createFolder = async () => {
@@ -236,7 +247,8 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
       refresh();
     } catch (reason) {
       setError(explainError(reason instanceof Error ? reason.message : "VAULT_UPLOAD_FAILED"));
-      refresh();
+      setLoading(true);
+      setReloadVersion((version) => version + 1);
     } finally {
       setBusy(false);
       setProgress("");
@@ -310,13 +322,13 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
               </div>
 
               <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 text-sm">
-                <button type="button" onClick={() => { setLoading(true); setFolderId(null); }} className="font-semibold text-blue-700 hover:text-blue-900">Vault</button>
+                <button type="button" onClick={() => navigateToFolder(null)} className="font-semibold text-blue-700 hover:text-blue-900">Vault</button>
                 {(snapshot?.breadcrumbs ?? []).map((item, index) => (
                   <span key={item.id} className="inline-flex items-center gap-2">
                     <ChevronRight className="size-3.5 text-slate-400" />
                     <button
                       type="button"
-                      onClick={() => { setLoading(true); setFolderId(item.id); }}
+                      onClick={() => navigateToFolder(item.id)
                       className={index === (snapshot?.breadcrumbs.length ?? 0) - 1 ? "max-w-48 truncate font-semibold text-slate-900" : "max-w-48 truncate text-slate-500 hover:text-blue-700"}
                     >
                       {item.name}
@@ -358,7 +370,7 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
                   <>
                     {snapshot.folders.map((folder) => (
                       <div key={folder.id} className="grid grid-cols-[minmax(0,1fr)_100px_76px] items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_150px_100px_86px]">
-                        <button type="button" onClick={() => { setLoading(true); setFolderId(folder.id); }} className="flex min-w-0 items-center gap-3 text-left">
+                        <button type="button" onClick={() => navigateToFolder(folder.id) className="flex min-w-0 items-center gap-3 text-left">
                           <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-600"><Folder className="size-4.5" /></div>
                           <span className="min-w-0 truncate text-sm font-semibold text-slate-800 hover:text-blue-700">{folder.name}</span>
                         </button>
