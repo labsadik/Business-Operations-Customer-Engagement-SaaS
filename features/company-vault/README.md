@@ -1,33 +1,35 @@
 # Company Vault
 
-Conventus Company Vault gives each authenticated company a private document area. MongoDB stores the folder tree, file metadata, upload sessions, and storage quota. File bytes are stored in a Bunny.net Storage Zone using the server-side Storage Zone password.
+Conventus Company Vault gives each company an isolated document area. MongoDB stores folder metadata, file metadata, upload sessions, quota reservations, and usage. File bytes live in Bunny.net Storage and are accessed only through authenticated Conventus server routes.
+
+## Plan entitlements and exact limits
+
+The **Plans** admin editor controls the **Cloud vault** entitlement. It is disabled by default on every plan. When enabled, the admin assigns the company's storage quota (GB or TB), maximum size per file, and maximum stored item count. The server resolves these settings from the company's active plan; a company without the entitlement receives a 403 and cannot list, upload, download, rename, or delete vault data through the API.
+
+GB/TB values are converted to bytes using powers of 1024 (1 GB = 1,073,741,824 bytes; 1 TB = 1,099,511,627,776 bytes). Values displayed in the plan editor and public plan cards use those same byte values. Admin plan edits apply to live entitlement resolution; existing usage above a lowered quota remains visible to the administrator, but new uploads are refused until usage fits the cap. The global hard maximum per file is 250 MiB to protect production workloads. The default plan-editor per-file cap is 100 MiB. Each batch is limited to 25 files; the plan can also set a lower lifetime stored-item limit.
 
 ## Configure Bunny Storage
 
-Set these variables in the server environment (for example, Vercel Project Settings or .env.local):
+Set these variables in the server environment (for example, Vercel Project Settings or the local .env.local file):
 
-- **BUNNY_STORAGE_ZONE**: the existing Bunny Storage Zone name.
+- **BUNNY_STORAGE_ZONE**: the Bunny Storage Zone name.
 - **BUNNY_STORAGE_PASSWORD**: the Storage Zone password. Never use a storage credential in browser code or a NEXT_PUBLIC_ variable.
-- **BUNNY_STORAGE_ENDPOINT**: optional HTTPS regional endpoint, defaulting to https://storage.bunnycdn.com. Use the endpoint for the Storage Zone's configured primary region when required.
-- **BUNNY_VAULT_QUOTA_BYTES**: default per-company quota in bytes for newly initialized vaults. Default: 5 GiB. The quota is persisted in MongoDB on first use.
-- **BUNNY_VAULT_MAX_FILE_BYTES**: maximum size for an individual upload. Default: 100 MiB; the implementation caps this at 250 MiB because completion assembles chunks in server memory.
+- **BUNNY_STORAGE_ENDPOINT**: optional HTTPS regional endpoint, default https://storage.bunnycdn.com.
+- **BUNNY_VAULT_QUOTA_BYTES** and **BUNNY_VAULT_MAX_FILE_BYTES**: compatibility/default values for legacy or default initialization only; an enabled plan's quota and file limit are authoritative.
 
-Use a dedicated Storage Zone for private Conventus vault data, and do not connect it to a publicly reachable Pull Zone. Bunny explains that Storage Zone files are not publicly reachable on their own; a Pull Zone is what serves them over HTTP. Linking this zone to a public Pull Zone would bypass the application's authenticated download route unless you separately enforce token/access controls at the CDN layer. Keep vault downloads proxied through Conventus.
+Use a dedicated Storage Zone for private vault data and **do not connect it to a publicly reachable Pull Zone**. All downloads are proxied by the authenticated API, which never exposes the Storage Zone password.
 
-Restart/redeploy the application after adding environment variables. Existing company quotas are stored in MongoDB and will not automatically change when the default quota variable changes.
+## Storage layout and resource safety
 
-## Storage layout
+Every company uses a stable root named company- followed by its immutable MongoDB company ID. The public company name and public slug are not authorization inputs and changing either never changes the storage root. Folder trees are metadata-only: a new folder does not write a .conventus-folder or .conventus-vault marker object to Bunny. Folder delete requests remove old marker objects left by previous builds.
 
-The Bunny Storage Zone stores each tenant beneath a root similar to acme-labs-65f..., formed from the company's slug and immutable MongoDB company ID. This keeps company names readable while preventing slug collisions. The root contains a hidden .conventus-vault marker. Each physical folder path uses a readable, sanitized folder-name slug plus its immutable folder ID, nested beneath its parent's storage path, with a hidden marker for each folder. The stable ID prevents name collisions and lets users rename a folder in the UI without moving every stored file; the Bunny path retains the original slug after a rename. The UI shows current folder names from tenant-scoped MongoDB metadata.
+Uploads use 3 MiB chunks, sequentially; byte and item slots are atomically reserved in MongoDB before chunk upload starts. The completed file is streamed from Bunny staging objects into its final Bunny object, so the app does not read or concatenate the entire file in RAM. Staging keys are private server-side implementation details. Abandoned upload sessions expire after six hours; cleanup is retried when a company accesses the vault API.
 
-The browser never receives the Storage Zone password. It starts an upload through the authenticated API, sends 3 MiB chunks to server routes, and asks the server to assemble the completed file into Bunny Storage. Downloads are proxied by an authenticated route; the response uses attachment disposition and nosniff headers. Folder and file deletion removes the associated Bunny objects and tenant-scoped MongoDB metadata.
+Images (except SVG), common videos, PDFs, and safe plain-text/CSV/JSON content have in-app previews through the authenticated file route. Word, Excel, PowerPoint, and other formats remain downloadable but are not passed to a third-party preview service. There is no public download URL or public Pull Zone requirement.
 
-## Tenant and usage controls
+## Tenant, usage, and administration
 
-- Every route derives company/workspace identity from the active server session and current membership. It does not accept a company ID from the browser.
-- Reads, edits, downloads, and deletes include company and workspace conditions in MongoDB queries.
-- Each upload reserves quota atomically before receiving chunks. Abandoned sessions expire after six hours and are cleaned on the next company vault API request.
-- A company may have root-level files or create arbitrarily nested folders.
-- Deleting a folder recursively deletes its stored files and subfolders.
-
-Bunny credentials, MongoDB, and the application's production HTTPS/session settings must be configured before using this feature in production.
+- Server routes derive company and workspace identity from the authenticated session and active membership; clients cannot supply another company ID.
+- File/folder queries are scoped by company and workspace. Quota and item reservations are company-wide, so workspaces under one company cannot multiply its storage allowance.
+- The /admin/vault-usage view reports usage, assigned quota, stored items, active uploads, plan entitlement, and file counts per company.
+- File downloads include private cache, nosniff, and same-origin resource headers. Bunny credentials remain server-only.

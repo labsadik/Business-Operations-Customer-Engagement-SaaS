@@ -189,3 +189,8 @@ Before deploying this role hardening to an existing database, back up the databa
 The company-scoped document vault is available at `/dashboard/vault`. It supports nested folders, folder rename/delete, multi-file uploads, authenticated file downloads, per-company storage usage/quota, and recursive folder deletion. Every API derives tenant scope from the authenticated company/workspace session.
 
 Configure the server-only variables `BUNNY_STORAGE_ZONE` and `BUNNY_STORAGE_PASSWORD`; optionally configure `BUNNY_STORAGE_ENDPOINT`, `BUNNY_VAULT_QUOTA_BYTES` (default 5 GiB per company), and `BUNNY_VAULT_MAX_FILE_BYTES` (default 100 MiB). Uploads are sent in 3 MiB chunks to avoid large request bodies, then the server assembles the file in Bunny Storage. The absolute per-file cap is 250 MiB because assembly currently uses server memory. Do not put Bunny credentials in any `NEXT_PUBLIC_*` variable. Use a dedicated Storage Zone that is **not connected to a public Pull Zone**, because a Pull Zone is what makes Storage Zone files serveable by public URLs. Conventus proxies downloads through authenticated routes. See [the Company Vault guide](./features/company-vault/README.md) for details.
+
+
+## Company Cloud Vault
+
+The Company Vault is an optional plan entitlement. Platform admins enable it per plan and configure the exact per-company storage quota, maximum file size, and maximum stored item count. The server enforces access, byte quota, item reservations, and the global file cap; companies without the entitlement are denied vault API access. See the Company Vault operations and security guide at features/company-vault/README.md. Platform admins can review company-by-company usage at /admin/vault-usage.
