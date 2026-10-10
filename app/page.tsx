@@ -12,6 +12,7 @@ import {
   HelpCircle,
   Link2,
   ListTodo,
+  Layers3,
   Megaphone,
   ShieldCheck,
   UsersRound,
@@ -315,6 +316,7 @@ export default async function Home() {
             <a href="#features" className="rounded-lg px-1.5 py-2 transition hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Features</a>
             <a href="#pricing" className="rounded-lg px-1.5 py-2 transition hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Pricing</a>
             <a href="#faq" className="rounded-lg px-1.5 py-2 transition hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">FAQ</a>
+            <Link href="/compare" className="rounded-lg px-1.5 py-2 transition hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Compare</Link>
           </nav>
 
           <div className="flex items-center gap-2">
@@ -338,6 +340,7 @@ export default async function Home() {
                   <a href="#features" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Features</a>
                   <a href="#pricing" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Pricing</a>
                   <a href="#faq" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">FAQ</a>
+                  <Link href="/compare" className="rounded-xl px-3 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50">Compare Conventus</Link>
                   <div className="my-1 border-t border-slate-200" />
                   <Link href="/login" className="rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Sign in</Link>
                   <Link href="/dashboard" className="rounded-xl px-3 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50">Open workspace</Link>
@@ -404,6 +407,15 @@ export default async function Home() {
               );
             })}
           </div>
+        </div>
+      </section>
+
+      <section aria-label="Compare Conventus" className="border-b border-slate-200/90 bg-white">
+        <div className="mx-auto max-w-7xl px-5 py-3 sm:px-6 lg:px-8">
+          <Link href="/compare" className="group flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200/80 bg-amber-50/70 px-4 py-3 transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md sm:px-5">
+            <span className="flex items-center gap-2 text-sm font-semibold text-slate-800"><span className="grid size-8 shrink-0 place-items-center rounded-xl bg-white text-blue-700"><Layers3 className="size-4" /></span>Consolidate 3 tools in 1 <span className="hidden font-normal text-slate-600 sm:inline">— See how we compare</span></span>
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700">See how we compare <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" /></span>
+          </Link>
         </div>
       </section>
 
@@ -557,7 +569,7 @@ export default async function Home() {
           </div>
 
           <div className="grid gap-8 sm:grid-cols-4">
-            <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Product</p><div className="mt-3 grid gap-2.5"><a href="#how-it-works" className="rounded-lg py-1 hover:text-blue-700">How it works</a><a href="#features" className="rounded-lg py-1 hover:text-blue-700">Features</a><a href="#pricing" className="rounded-lg py-1 hover:text-blue-700">Pricing</a><a href="#faq" className="rounded-lg py-1 hover:text-blue-700">FAQ</a></div></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Product</p><div className="mt-3 grid gap-2.5"><a href="#how-it-works" className="rounded-lg py-1 hover:text-blue-700">How it works</a><a href="#features" className="rounded-lg py-1 hover:text-blue-700">Features</a><a href="#pricing" className="rounded-lg py-1 hover:text-blue-700">Pricing</a><a href="#faq" className="rounded-lg py-1 hover:text-blue-700">FAQ</a><Link href="/compare" className="rounded-lg py-1 hover:text-blue-700">Conventus vs Cal.com &amp; Jira</Link></div></div>
             <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Workspace</p><div className="mt-3 grid gap-2.5"><Link href="/dashboard" className="rounded-lg py-1 hover:text-blue-700">Open dashboard</Link><Link href="/dashboard/tasks" className="rounded-lg py-1 hover:text-blue-700">Team tasks</Link><Link href="/dashboard/vault" className="rounded-lg py-1 hover:text-blue-700">Company vault</Link></div></div>
             <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Account & legal</p><div className="mt-3 grid gap-2.5"><Link href="/login" className="rounded-lg py-1 hover:text-blue-700">Sign in</Link><Link href="/terms" className="rounded-lg py-1 hover:text-blue-700">Terms</Link><Link href="/privacy" className="rounded-lg py-1 hover:text-blue-700">Privacy</Link></div></div>
             <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Preferences</p><div className="mt-3"><CookieSettingsButton className="rounded-lg py-1 text-slate-500 hover:text-blue-700" aria-label="Open cookie settings">Cookie settings</CookieSettingsButton></div></div>
