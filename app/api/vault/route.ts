@@ -3,12 +3,10 @@ import { getMongo } from "@/lib/mongodb";
 import { jsonOk } from "@/lib/http";
 import { VaultFolder } from "@/models/vault-folder";
 import { VaultFile } from "@/models/vault-file";
+import { VaultUsage } from "@/models/vault-usage";
 import {
-  bunnyEnsureMarker,
-  cleanupExpiredVaultUploads,
-  companyVaultRoot,
-  ensureVaultUsage,
   getTenantFolder,
+  getVaultDefaultQuotaBytes,
   requireVaultScope,
   vaultErrorResponse
 } from "@/features/company-vault/server/vault-storage";
@@ -20,10 +18,6 @@ export async function GET(request: Request) {
   try {
     const scope = await requireVaultScope();
     await getMongo();
-    await cleanupExpiredVaultUploads(scope);
-
-    const root = companyVaultRoot(scope);
-    await bunnyEnsureMarker(root + "/.conventus-vault", "Conventus private company vault marker.");
     const url = new URL(request.url);
     const requestedFolderId = url.searchParams.get("folderId");
     const currentFolder = requestedFolderId ? await getTenantFolder(scope, requestedFolderId) : null;
@@ -40,7 +34,7 @@ export async function GET(request: Request) {
         .sort({ originalName: 1, _id: 1 })
         .select("_id originalName mimeType sizeBytes createdAt updatedAt")
         .lean(),
-      ensureVaultUsage(scope)
+      VaultUsage.findOne({ companyId, workspaceId }).select("usedBytes quotaBytes").lean()
     ]);
 
     const breadcrumbs: { id: string; name: string }[] = [];
@@ -52,6 +46,9 @@ export async function GET(request: Request) {
       ancestor = await getTenantFolder(scope, String(ancestor.parentFolderId));
       depth += 1;
     }
+
+    const usedBytes = usage?.usedBytes ?? 0;
+    const quotaBytes = usage?.quotaBytes ?? getVaultDefaultQuotaBytes();
 
     return jsonOk({
       companyName: scope.companyName,
@@ -72,9 +69,9 @@ export async function GET(request: Request) {
         updatedAt: file.updatedAt
       })),
       usage: {
-        usedBytes: usage.usedBytes,
-        quotaBytes: usage.quotaBytes,
-        availableBytes: Math.max(0, usage.quotaBytes - usage.usedBytes)
+        usedBytes,
+        quotaBytes,
+        availableBytes: Math.max(0, quotaBytes - usedBytes)
       }
     });
   } catch (error) {

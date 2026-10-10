@@ -5,6 +5,7 @@ import { jsonOk } from "@/lib/http";
 import { VaultFolder } from "@/models/vault-folder";
 import {
   bunnyEnsureMarker,
+  cleanupExpiredVaultUploads,
   companyVaultRoot,
   getTenantFolder,
   requireVaultScope,
@@ -33,6 +34,7 @@ export async function POST(request: Request) {
     assertSameOrigin(request);
     const scope = await requireVaultScope();
     await getMongo();
+    await cleanupExpiredVaultUploads(scope);
     const body = await request.json().catch(() => null);
     const name = validateFolderName(body?.name);
     const rawParentId = body?.parentFolderId;
