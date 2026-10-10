@@ -6,7 +6,8 @@ import { VaultFile } from "@/models/vault-file";
 import {
   bunnyDelete,
   bunnyDownload,
-  releaseVaultBytes,
+  deleteVaultFileAndRelease,
+  ensureVaultUsage,
   requireVaultScope,
   vaultErrorResponse
 } from "@/features/company-vault/server/vault-storage";
@@ -39,20 +40,28 @@ export async function GET(
     }).lean();
     if (!file) throw new Error("FILE_NOT_FOUND");
 
-    const remote = await bunnyDownload(file.storageKey);
     const wantsInline = new URL(request.url).searchParams.get("inline") === "1";
     const inline = wantsInline && previewableMimeType(file.mimeType);
+    const requestedRange = request.headers.get("range");
+    const safeRange = inline && requestedRange && /^bytes=(?:\d+-\d*|-\d+)$/.test(requestedRange)
+      ? requestedRange
+      : undefined;
+    const remote = await bunnyDownload(file.storageKey, safeRange);
+    const responseHeaders: Record<string, string> = {
+      "Content-Type": file.mimeType || "application/octet-stream",
+      "Content-Length": remote.headers.get("content-length") ?? String(file.sizeBytes),
+      "Content-Disposition": downloadDisposition(file.originalName, inline),
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "sandbox",
+      "Cache-Control": "private, no-store",
+      "Cross-Origin-Resource-Policy": "same-origin",
+      "Accept-Ranges": "bytes"
+    };
+    const contentRange = remote.headers.get("content-range");
+    if (remote.status === 206 && contentRange) responseHeaders["Content-Range"] = contentRange;
     return new Response(remote.body, {
-      status: 200,
-      headers: {
-        "Content-Type": file.mimeType || "application/octet-stream",
-        "Content-Length": String(file.sizeBytes),
-        "Content-Disposition": downloadDisposition(file.originalName, inline),
-        "X-Content-Type-Options": "nosniff",
-        "Content-Security-Policy": "sandbox",
-        "Cache-Control": "private, no-store",
-        "Cross-Origin-Resource-Policy": "same-origin"
-      }
+      status: remote.status === 206 ? 206 : 200,
+      headers: responseHeaders
     });
   } catch (error) {
     return vaultErrorResponse(error, "VAULT_FILE_DOWNLOAD_FAILED");
@@ -74,9 +83,9 @@ export async function DELETE(
     const file = await VaultFile.findOne({ _id: new Types.ObjectId(fileId), companyId, workspaceId }).lean();
     if (!file) throw new Error("FILE_NOT_FOUND");
 
+    await ensureVaultUsage(scope);
     await bunnyDelete(file.storageKey);
-    const deleted = await VaultFile.deleteOne({ _id: file._id, companyId, workspaceId });
-    if (deleted.deletedCount) await releaseVaultBytes(scope, file.sizeBytes);
+    await deleteVaultFileAndRelease(scope, file);
     return jsonOk({ deleted: true });
   } catch (error) {
     return vaultErrorResponse(error, "VAULT_FILE_DELETE_FAILED");

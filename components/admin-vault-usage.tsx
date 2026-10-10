@@ -7,6 +7,7 @@ type UsageItem = {
   companyId: string;
   companyName: string;
   companySlug: string;
+  storagePrefix: string;
   planId: string;
   planName: string;
   vaultEnabled: boolean;
@@ -76,7 +77,7 @@ export default function AdminVaultUsage() {
   }, []);
 
   const filtered = (data?.items ?? []).filter((item) =>
-    [item.companyName, item.companySlug, item.companyId, item.planName]
+    [item.companyName, item.companySlug, item.companyId, item.planName, item.storagePrefix]
       .some((value) => value.toLowerCase().includes(search.toLowerCase().trim()))
   );
 
@@ -137,6 +138,7 @@ export default function AdminVaultUsage() {
                       <div className="min-w-0">
                         <h3 className="truncate text-sm font-semibold text-slate-950">{item.companyName}</h3>
                         <p className="mt-1 truncate text-xs text-slate-500">{item.companySlug} · {item.planName}</p>
+                        <p className="mt-1 truncate font-mono text-[10px] text-slate-400" title={item.storagePrefix}>Bunny path: {item.storagePrefix}</p>
                         <p className="mt-1 break-all text-[10px] text-slate-400">{item.companyId}</p>
                       </div>
                     </div>

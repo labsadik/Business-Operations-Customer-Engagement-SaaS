@@ -6,6 +6,8 @@ const vaultUsageSchema = new Schema(
     workspaceId: { type: Schema.Types.ObjectId, ref: "Workspace", required: true, immutable: true },
     usedBytes: { type: Number, required: true, default: 0, min: 0 },
     usedItems: { type: Number, required: true, default: 0, min: 0 },
+    // Version 2 counters have been reconciled against committed files and active reservations.
+    counterVersion: { type: Number, required: true, default: 1 },
     quotaBytes: { type: Number, required: true, min: 1 }
   },
   { timestamps: true }

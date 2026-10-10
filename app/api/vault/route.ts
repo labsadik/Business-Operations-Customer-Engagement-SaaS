@@ -5,7 +5,7 @@ import { VaultFolder } from "@/models/vault-folder";
 import { VaultFile } from "@/models/vault-file";
 import {
   getTenantFolder,
-  ensureVaultUsage,
+  getVaultUsageSnapshot,
   requireVaultScope,
   vaultErrorResponse
 } from "@/features/company-vault/server/vault-storage";
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
         .sort({ originalName: 1, _id: 1 })
         .select("_id originalName mimeType sizeBytes createdAt updatedAt")
         .lean(),
-      ensureVaultUsage(scope)
+      getVaultUsageSnapshot(scope)
     ]);
 
     const breadcrumbs: { id: string; name: string }[] = [];

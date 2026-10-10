@@ -7,7 +7,8 @@ import { VaultFile } from "@/models/vault-file";
 import {
   bunnyDelete,
   getTenantFolder,
-  releaseVaultBytes,
+  deleteVaultFileAndRelease,
+  ensureVaultUsage,
   requireVaultScope,
   vaultErrorResponse
 } from "@/features/company-vault/server/vault-storage";
@@ -71,6 +72,7 @@ export async function DELETE(
     const folder = await getTenantFolder(scope, folderId);
     const companyId = new Types.ObjectId(scope.companyId);
     const workspaceId = new Types.ObjectId(scope.workspaceId);
+    await ensureVaultUsage(scope);
 
     const allFolders = await VaultFolder.find({ companyId, workspaceId })
       .select("_id parentFolderId storageKey")
@@ -106,8 +108,7 @@ export async function DELETE(
     // deletion is committed separately so a transient Bunny failure can be retried.
     for (const file of files) {
       await bunnyDelete(file.storageKey);
-      const deleted = await VaultFile.deleteOne({ _id: file._id, companyId, workspaceId });
-      if (deleted.deletedCount) await releaseVaultBytes(scope, file.sizeBytes);
+      await deleteVaultFileAndRelease(scope, file);
     }
 
     // Clean marker files written by older vault builds; new folders never create them.

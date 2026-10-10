@@ -98,6 +98,32 @@ function fileIcon(mimeType: string) {
   return FileIcon;
 }
 
+function displayFileName(name: string) {
+  const dot = name.lastIndexOf(".");
+  return dot > 0 && name.length - dot <= 11 ? name.slice(0, dot) : name;
+}
+
+function fileTypeLabel(file: Pick<FileItem, "name" | "mimeType">) {
+  const mime = file.mimeType.toLowerCase();
+  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+  if (mime.startsWith("image/") || ["jpg", "jpeg", "png", "gif", "webp", "avif", "bmp"].includes(extension)) return "Image";
+  if (mime.startsWith("video/") || ["mp4", "webm", "mov", "m4v", "ogg"].includes(extension)) return "Video";
+  if (mime.includes("pdf") || extension === "pdf") return "PDF";
+  if (mime.includes("spreadsheet") || mime.includes("excel") || mime.includes("csv") || ["xls", "xlsx", "xlsm", "ods", "csv"].includes(extension)) return "Spreadsheet";
+  if (mime.includes("word") || ["doc", "docx", "rtf", "odt"].includes(extension)) return "Word";
+  if (mime.includes("presentation") || mime.includes("powerpoint") || ["ppt", "pptx", "odp"].includes(extension)) return "Presentation";
+  if (mime.startsWith("text/") || ["txt", "md", "json", "xml"].includes(extension)) return "Text";
+  return extension && extension.length <= 8 ? extension.toUpperCase() : "File";
+}
+
+function imageThumbnailSupported(mimeType: string) {
+  return /^image\/(jpeg|png|gif|webp|avif)$/.test(mimeType);
+}
+
+function videoThumbnailSupported(mimeType: string) {
+  return /^video\/(mp4|webm|ogg)$/.test(mimeType);
+}
+
 export default function CompanyVault({ companyName, currentRole }: { companyName: string; currentRole: string }) {
   const [folderId, setFolderId] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<VaultSnapshot | null>(null);
@@ -418,64 +444,101 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
                 </div>
               )}
 
-              <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-                <div className="grid grid-cols-[minmax(0,1fr)_100px_76px] gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 sm:grid-cols-[minmax(0,1fr)_150px_100px_86px]">
-                  <span>Name</span>
-                  <span className="hidden sm:block">Last updated</span>
-                  <span>Size</span>
-                  <span className="text-right">Actions</span>
-                </div>
-
+              <div className="mt-4">
                 {loading ? (
-                  <div className="flex items-center justify-center gap-2 px-5 py-14 text-sm text-slate-500">
+                  <div className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-14 text-sm text-slate-500">
                     <LoaderCircle className="size-4 animate-spin" />
                     Loading private files…
                   </div>
                 ) : !snapshot ? (
-                  <div className="px-5 py-12 text-center text-sm text-slate-500">The vault could not be loaded.</div>
+                  <div className="rounded-2xl border border-slate-200 bg-white px-5 py-12 text-center text-sm text-slate-500">The vault could not be loaded.</div>
                 ) : usedFiles === 0 ? (
-                  <div className="flex flex-col items-center px-5 py-12 text-center">
+                  <div className="flex flex-col items-center rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-12 text-center">
                     <div className="grid size-12 place-items-center rounded-2xl bg-slate-100 text-slate-500">
                       <CloudUpload className="size-6" />
                     </div>
                     <p className="mt-3 text-sm font-semibold text-slate-900">This folder is empty</p>
-                    <p className="mt-1 max-w-sm text-xs leading-5 text-slate-500">Create a folder or upload files. Items in this vault are available only to authorized members of {companyName}.</p>
+                    <p className="mt-1 max-w-sm text-xs leading-5 text-slate-500">Create a folder or upload files. New folders and uploads stay inside the folder currently open. Items are visible only to authorized members of {companyName}.</p>
+                    <div className="mt-4 flex gap-2">
+                      <button type="button" onClick={createFolder} disabled={busy} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Create folder</button>
+                      <button type="button" onClick={() => inputRef.current?.click()} disabled={busy || uploadBlocked} className="rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50">Upload files</button>
+                    </div>
                   </div>
                 ) : (
-                  <>
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {snapshot.folders.map((folder) => (
-                      <div key={folder.id} className="grid grid-cols-[minmax(0,1fr)_100px_76px] items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_150px_100px_86px]">
-                        <button type="button" onClick={() => navigateToFolder(folder.id)} className="flex min-w-0 items-center gap-3 text-left">
-                          <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-600"><Folder className="size-4.5" /></div>
-                          <span className="min-w-0 truncate text-sm font-semibold text-slate-800 hover:text-blue-700">{folder.name}</span>
+                      <article key={folder.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:border-blue-300 hover:shadow-sm">
+                        <button type="button" onClick={() => navigateToFolder(folder.id)} className="block w-full p-3 text-left">
+                          <div className="grid h-32 place-items-center rounded-xl bg-amber-50 text-amber-600">
+                            <Folder className="size-12 stroke-[1.4]" />
+                          </div>
+                          <div className="mt-3 flex items-start justify-between gap-2">
+                            <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-slate-800">
+                              <Folder className="size-4 shrink-0 text-amber-600" />
+                              <span className="truncate">{folder.name}</span>
+                            </span>
+                            <span className="shrink-0 rounded-md bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">Folder</span>
+                          </div>
+                          <p className="mt-1 text-[11px] text-slate-400">Updated {new Date(folder.updatedAt).toLocaleDateString()}</p>
                         </button>
-                        <span className="hidden truncate text-xs text-slate-500 sm:block">{new Date(folder.updatedAt).toLocaleDateString()}</span>
-                        <span className="text-xs text-slate-400">Folder</span>
-                        <div className="flex justify-end gap-1">
+                        <div className="flex justify-end gap-1 border-t border-slate-100 px-3 py-2">
                           <button type="button" disabled={busy} onClick={() => void renameFolder(folder)} title="Rename folder" aria-label={"Rename " + folder.name} className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40"><Pencil className="size-3.5" /></button>
                           <button type="button" disabled={busy} onClick={() => void deleteFolder(folder)} title="Delete folder and contents" aria-label={"Delete " + folder.name} className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-40"><Trash2 className="size-3.5" /></button>
                         </div>
-                      </div>
+                      </article>
                     ))}
-
                     {snapshot.files.map((file) => {
                       const Icon = fileIcon(file.mimeType);
+                      const label = fileTypeLabel(file);
+                      const previewUrl = "/api/vault/files/" + encodeURIComponent(file.id) + "?inline=1";
+                      const isImage = imageThumbnailSupported(file.mimeType) && !file.mimeType.includes("svg");
+                      const isVideo = videoThumbnailSupported(file.mimeType);
                       return (
-                        <div key={file.id} className="grid grid-cols-[minmax(0,1fr)_100px_76px] items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_150px_100px_86px]">
-                          <div className="flex min-w-0 items-center gap-3">
-                            <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-700"><Icon className="size-4.5" /></div>
-                            <button type="button" onClick={() => setPreviewFile(file)} className="min-w-0 truncate text-left text-sm font-medium text-slate-800 hover:text-blue-700" title={"Preview " + file.name}>{file.name}</button>
+                        <article key={file.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:border-blue-300 hover:shadow-sm">
+                          <button type="button" onClick={() => setPreviewFile(file)} className="block w-full p-3 text-left" title={"Preview " + file.name}>
+                            <div className="relative grid h-32 place-items-center overflow-hidden rounded-xl bg-slate-100">
+                              {isImage ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={previewUrl} alt="" loading="lazy" decoding="async" className="size-full object-cover" />
+                              ) : isVideo ? (
+                                <video
+                                  src={previewUrl}
+                                  muted
+                                  playsInline
+                                  preload="metadata"
+                                  tabIndex={-1}
+                                  aria-hidden="true"
+                                  onLoadedData={(event) => {
+                                    const video = event.currentTarget;
+                                    if (Number.isFinite(video.duration) && video.duration > 0.5) video.currentTime = Math.min(1, video.duration / 2);
+                                  }}
+                                  className="pointer-events-none size-full object-cover"
+                                />
+                              ) : (
+                                <div className="grid size-16 place-items-center rounded-2xl bg-white text-blue-700 shadow-sm">
+                                  <Icon className="size-9 stroke-[1.5]" />
+                                </div>
+                              )}
+                              {isVideo && <div className="pointer-events-none absolute inset-0 grid place-items-center"><span className="grid size-9 place-items-center rounded-full bg-slate-950/65 text-white"><FileVideo className="size-4" /></span></div>}
+                              <span className="absolute left-2 top-2 rounded-md bg-white/95 px-2 py-1 text-[10px] font-bold text-slate-700 shadow-sm">{label}</span>
+                            </div>
+                            <div className="mt-3 flex items-start justify-between gap-2">
+                              <span className="min-w-0 truncate text-sm font-semibold text-slate-800" title={file.name}>{displayFileName(file.name)}</span>
+                              <span className="shrink-0 text-[11px] tabular-nums text-slate-500">{formatBytes(file.sizeBytes)}</span>
+                            </div>
+                            <p className="mt-1 truncate text-[11px] text-slate-400">Updated {new Date(file.updatedAt).toLocaleDateString()}</p>
+                          </button>
+                          <div className="flex items-center justify-between border-t border-slate-100 px-3 py-2">
+                            <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">{label}</span>
+                            <div className="flex gap-1">
+                              <a href={"/api/vault/files/" + encodeURIComponent(file.id)} title="Download file" aria-label={"Download " + file.name} className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-blue-50 hover:text-blue-700"><ArrowDownToLine className="size-3.5" /></a>
+                              <button type="button" disabled={busy} onClick={() => void deleteFile(file)} title="Delete file" aria-label={"Delete " + file.name} className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-40"><Trash2 className="size-3.5" /></button>
+                            </div>
                           </div>
-                          <span className="hidden truncate text-xs text-slate-500 sm:block">{new Date(file.updatedAt).toLocaleDateString()}</span>
-                          <span className="text-xs tabular-nums text-slate-500">{formatBytes(file.sizeBytes)}</span>
-                          <div className="flex justify-end gap-1">
-                            <a href={"/api/vault/files/" + encodeURIComponent(file.id)} title="Download file" aria-label={"Download " + file.name} className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-blue-50 hover:text-blue-700"><ArrowDownToLine className="size-3.5" /></a>
-                            <button type="button" disabled={busy} onClick={() => void deleteFile(file)} title="Delete file" aria-label={"Delete " + file.name} className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-40"><Trash2 className="size-3.5" /></button>
-                          </div>
-                        </div>
+                        </article>
                       );
                     })}
-                  </>
+                  </div>
                 )}
               </div>
               <p className="mt-3 text-xs leading-5 text-slate-400">Files download through an authenticated server route; Bunny storage credentials never reach the browser.</p>
@@ -566,7 +629,7 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
           <section className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/15 bg-white shadow-2xl">
             <header className="flex items-center justify-between gap-4 border-b border-slate-200 px-4 py-3 sm:px-6">
               <div className="min-w-0">
-                <h2 id="vault-preview-title" className="truncate text-sm font-semibold text-slate-950">{previewFile.name}</h2>
+                <h2 id="vault-preview-title" className="truncate text-sm font-semibold text-slate-950" title={previewFile.name}>{displayFileName(previewFile.name)}</h2>
                 <p className="mt-1 text-[11px] text-slate-500">{formatBytes(previewFile.sizeBytes)} · Preview uses your authenticated company session</p>
               </div>
               <div className="flex shrink-0 items-center gap-2">

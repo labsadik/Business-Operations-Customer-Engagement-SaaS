@@ -3,10 +3,10 @@ import { requirePlatformAdmin } from "@/lib/admin";
 import { jsonError, jsonOk } from "@/lib/http";
 import { Company } from "@/models/company";
 import { Subscription } from "@/models/subscription";
-import { VaultUsage } from "@/models/vault-usage";
 import { VaultFile } from "@/models/vault-file";
 import { VaultUpload } from "@/models/vault-upload";
 import { listPlansForAdmin } from "@/lib/plan-catalog";
+import { buildCompanyVaultRoot } from "@/features/company-vault/server/vault-storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,13 +17,12 @@ export async function GET() {
     await getMongo();
 
     const [companies, plans] = await Promise.all([
-      Company.find({}).select("_id name slug").sort({ name: 1, _id: 1 }).limit(5000).lean(),
+      Company.find({}).select("_id name slug vaultStorageRoot").sort({ name: 1, _id: 1 }).limit(5000).lean(),
       listPlansForAdmin()
     ]);
     const companyIds = companies.map((company) => company._id);
-    const [subscriptions, usageRows, fileStatsRows, pendingRows] = await Promise.all([
+    const [subscriptions, fileStatsRows, pendingRows] = await Promise.all([
       Subscription.find({ companyId: { $in: companyIds } }).select("companyId planId status currentPeriodEnd").lean(),
-      VaultUsage.find({ companyId: { $in: companyIds } }).select("companyId workspaceId usedBytes quotaBytes usedItems").lean(),
       VaultFile.aggregate<{ _id: unknown; count: number; sizeBytes: number }>([
         { $match: { companyId: { $in: companyIds } } },
         { $group: { _id: "$companyId", count: { $sum: 1 }, sizeBytes: { $sum: "$sizeBytes" } } }
@@ -51,11 +50,6 @@ export async function GET() {
 
     const plansById = new Map(plans.map((plan) => [plan.id, plan]));
     const subscriptionsByCompany = new Map(subscriptions.map((row) => [String(row.companyId), row]));
-    const usageByCompany = new Map(
-      usageRows
-        .filter((row) => String(row.workspaceId) === String(row.companyId))
-        .map((row) => [String(row.companyId), row])
-    );
     const filesByCompany = new Map(fileStatsRows.map((row) => [String(row._id), row]));
     const pendingByCompany = new Map(pendingRows.map((row) => [String(row._id), row]));
     const now = Date.now();
@@ -67,11 +61,11 @@ export async function GET() {
         ? subscription.planId
         : "free";
       const plan = plansById.get(activePlanId) ?? plansById.get("free") ?? null;
-      const usage = usageByCompany.get(companyId);
       const fileStats = filesByCompany.get(companyId);
       const pendingStats = pendingByCompany.get(companyId);
-      const usedBytes = usage?.usedBytes ?? ((fileStats?.sizeBytes ?? 0) + (pendingStats?.sizeBytes ?? 0));
-      const usedItems = usage?.usedItems ?? ((fileStats?.count ?? 0) + (pendingStats?.count ?? 0));
+      // Live file metadata and uncommitted upload reservations are the source of truth.
+      const usedBytes = (fileStats?.sizeBytes ?? 0) + (pendingStats?.sizeBytes ?? 0);
+      const usedItems = (fileStats?.count ?? 0) + (pendingStats?.count ?? 0);
       const quotaBytes = plan?.vaultEnabled ? plan.vaultQuotaBytes : 0;
       const maxFileBytes = plan?.vaultEnabled ? plan.vaultMaxFileBytes : 0;
       const maxItems = plan?.vaultEnabled ? plan.vaultMaxItems : 0;
@@ -80,6 +74,7 @@ export async function GET() {
         companyId,
         companyName: company.name,
         companySlug: company.slug,
+        storagePrefix: company.vaultStorageRoot ?? buildCompanyVaultRoot(company.name, companyId),
         planId: plan?.id ?? activePlanId,
         planName: plan?.name ?? "Unknown plan",
         vaultEnabled: Boolean(plan?.vaultEnabled),
