@@ -215,7 +215,11 @@ export async function getCompanyEntitlements(companyId: string): Promise<PlanEnt
         taskManagementDailyLimit:
           currentPlan.taskManagementDailyLimit === undefined
             ? snapshot.taskManagementDailyLimit ?? 10
-            : currentPlan.taskManagementDailyLimit
+            : currentPlan.taskManagementDailyLimit,
+        vaultEnabled: Boolean(currentPlan.vaultEnabled),
+        vaultQuotaBytes: currentPlan.vaultQuotaBytes ?? snapshot.vaultQuotaBytes ?? 5368709120,
+        vaultMaxFileBytes: currentPlan.vaultMaxFileBytes ?? snapshot.vaultMaxFileBytes ?? 104857600,
+        vaultMaxItems: currentPlan.vaultMaxItems ?? snapshot.vaultMaxItems ?? 1000
       }
     : {
         ...snapshot,

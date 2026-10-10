@@ -14,6 +14,10 @@ export type PlanEntitlements = {
   maxConcurrentMeetings: number;
   taskManagementEnabled: boolean;
   taskManagementDailyLimit: number | null;
+  vaultEnabled: boolean;
+  vaultQuotaBytes: number;
+  vaultMaxFileBytes: number;
+  vaultMaxItems: number;
   validityDays: number;
   freeFeatureDays: number | null;
   requiresPayment: boolean;
@@ -32,6 +36,10 @@ export const PLANS: Record<PlanId, PlanEntitlements> = {
     maxConcurrentMeetings: 1,
     taskManagementEnabled: false,
     taskManagementDailyLimit: 10,
+    vaultEnabled: false,
+    vaultQuotaBytes: 5368709120,
+    vaultMaxFileBytes: 104857600,
+    vaultMaxItems: 1000,
     validityDays: 30,
     freeFeatureDays: 14,
     requiresPayment: false
@@ -48,6 +56,10 @@ export const PLANS: Record<PlanId, PlanEntitlements> = {
     maxConcurrentMeetings: 10,
     taskManagementEnabled: false,
     taskManagementDailyLimit: 10,
+    vaultEnabled: false,
+    vaultQuotaBytes: 5368709120,
+    vaultMaxFileBytes: 104857600,
+    vaultMaxItems: 1000,
     validityDays: 30,
     freeFeatureDays: null,
     requiresPayment: true
@@ -64,6 +76,10 @@ export const PLANS: Record<PlanId, PlanEntitlements> = {
     maxConcurrentMeetings: 25,
     taskManagementEnabled: false,
     taskManagementDailyLimit: 10,
+    vaultEnabled: false,
+    vaultQuotaBytes: 5368709120,
+    vaultMaxFileBytes: 104857600,
+    vaultMaxItems: 1000,
     validityDays: 30,
     freeFeatureDays: null,
     requiresPayment: true
@@ -80,6 +96,10 @@ export const PLANS: Record<PlanId, PlanEntitlements> = {
     maxConcurrentMeetings: 50,
     taskManagementEnabled: false,
     taskManagementDailyLimit: 10,
+    vaultEnabled: false,
+    vaultQuotaBytes: 5368709120,
+    vaultMaxFileBytes: 104857600,
+    vaultMaxItems: 1000,
     validityDays: 30,
     freeFeatureDays: null,
     requiresPayment: true
@@ -96,6 +116,10 @@ export const PLANS: Record<PlanId, PlanEntitlements> = {
     maxConcurrentMeetings: 100,
     taskManagementEnabled: false,
     taskManagementDailyLimit: 10,
+    vaultEnabled: false,
+    vaultQuotaBytes: 5368709120,
+    vaultMaxFileBytes: 104857600,
+    vaultMaxItems: 1000,
     validityDays: 30,
     freeFeatureDays: null,
     requiresPayment: true

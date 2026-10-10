@@ -83,6 +83,10 @@ export function createEntitlementSnapshot(plan: PlanEntitlements): PlanEntitleme
       (plan as Partial<PlanEntitlements>).taskManagementDailyLimit === undefined
         ? 10
         : plan.taskManagementDailyLimit,
+    vaultEnabled: Boolean((plan as Partial<PlanEntitlements>).vaultEnabled),
+    vaultQuotaBytes: (plan as Partial<PlanEntitlements>).vaultQuotaBytes ?? 5368709120,
+    vaultMaxFileBytes: (plan as Partial<PlanEntitlements>).vaultMaxFileBytes ?? 104857600,
+    vaultMaxItems: (plan as Partial<PlanEntitlements>).vaultMaxItems ?? 1000,
     validityDays: plan.validityDays,
     freeFeatureDays: plan.freeFeatureDays,
     requiresPayment: plan.requiresPayment
@@ -118,6 +122,10 @@ export function isValidEntitlementSnapshot(value: unknown): value is PlanEntitle
       item.taskManagementDailyLimit === null ||
       isPositiveSafeInteger(item.taskManagementDailyLimit)
     ) &&
+    (item.vaultEnabled === undefined || typeof item.vaultEnabled === "boolean") &&
+    (item.vaultQuotaBytes === undefined || isPositiveSafeInteger(item.vaultQuotaBytes)) &&
+    (item.vaultMaxFileBytes === undefined || isPositiveSafeInteger(item.vaultMaxFileBytes)) &&
+    (item.vaultMaxItems === undefined || isPositiveSafeInteger(item.vaultMaxItems)) &&
     isPositiveSafeInteger(item.validityDays) &&
     (
       item.freeFeatureDays === null ||
@@ -147,6 +155,10 @@ export function serializeManagedPlan(doc: any): ManagedPlan {
         : doc.taskManagementDailyLimit === null
           ? null
           : Number(doc.taskManagementDailyLimit),
+    vaultEnabled: Boolean(doc.vaultEnabled),
+    vaultQuotaBytes: Number(doc.vaultQuotaBytes ?? 5368709120),
+    vaultMaxFileBytes: Number(doc.vaultMaxFileBytes ?? 104857600),
+    vaultMaxItems: Number(doc.vaultMaxItems ?? 1000),
     validityDays: Number(doc.validityDays),
     freeFeatureDays: doc.freeFeatureDays == null ? null : Number(doc.freeFeatureDays),
     requiresPayment: Boolean(doc.requiresPayment),
@@ -232,6 +244,10 @@ async function seedLegacyPlans() {
             maxConcurrentMeetings: plan.maxConcurrentMeetings,
             taskManagementEnabled: Boolean(plan.taskManagementEnabled),
             taskManagementDailyLimit: plan.taskManagementDailyLimit ?? 10,
+            vaultEnabled: false,
+            vaultQuotaBytes: 5368709120,
+            vaultMaxFileBytes: 104857600,
+            vaultMaxItems: 1000,
             validityDays: plan.validityDays,
             freeFeatureDays: plan.freeFeatureDays,
             requiresPayment: plan.requiresPayment,
@@ -382,6 +398,10 @@ export function serializePublicPlan(plan: ManagedPlan) {
     maxConcurrentMeetings: plan.maxConcurrentMeetings,
     taskManagementEnabled: Boolean(plan.taskManagementEnabled),
     taskManagementDailyLimit: plan.taskManagementDailyLimit,
+    vaultEnabled: Boolean(plan.vaultEnabled),
+    vaultQuotaBytes: plan.vaultQuotaBytes,
+    vaultMaxFileBytes: plan.vaultMaxFileBytes,
+    vaultMaxItems: plan.vaultMaxItems,
     validityDays: plan.validityDays,
     freeFeatureDays: plan.freeFeatureDays,
     requiresPayment: plan.requiresPayment

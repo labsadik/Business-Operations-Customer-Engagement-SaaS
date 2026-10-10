@@ -42,6 +42,10 @@ const planSchema = new Schema(
       min: 1,
       max: 1000000
     },
+    vaultEnabled: { type: Boolean, required: true, default: false },
+    vaultQuotaBytes: { type: Number, required: true, default: 5368709120, min: 1048576, max: Number.MAX_SAFE_INTEGER },
+    vaultMaxFileBytes: { type: Number, required: true, default: 104857600, min: 1048576, max: 262144000 },
+    vaultMaxItems: { type: Number, required: true, default: 1000, min: 1, max: 10000000 },
     validityDays: { type: Number, required: true, min: 1, max: 3650 },
     freeFeatureDays: { type: Number, default: null, min: 0, max: 3650 },
     requiresPayment: { type: Boolean, required: true },

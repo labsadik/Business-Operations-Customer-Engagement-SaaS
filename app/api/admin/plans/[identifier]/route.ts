@@ -26,6 +26,10 @@ const CHECKOUT_CONFIG_KEYS = [
   "maxConcurrentMeetings",
   "taskManagementEnabled",
   "taskManagementDailyLimit",
+  "vaultEnabled",
+  "vaultQuotaBytes",
+  "vaultMaxFileBytes",
+  "vaultMaxItems",
   "validityDays",
   "freeFeatureDays",
   "requiresPayment",
@@ -110,6 +114,10 @@ export async function PATCH(
         body.taskManagementDailyLimit === undefined
           ? current.taskManagementDailyLimit
           : body.taskManagementDailyLimit,
+      vaultEnabled: body.vaultEnabled === undefined ? current.vaultEnabled : body.vaultEnabled,
+      vaultQuotaBytes: body.vaultQuotaBytes ?? current.vaultQuotaBytes,
+      vaultMaxFileBytes: body.vaultMaxFileBytes ?? current.vaultMaxFileBytes,
+      vaultMaxItems: body.vaultMaxItems ?? current.vaultMaxItems,
       validityDays: body.validityDays ?? current.validityDays,
       freeFeatureDays: body.freeFeatureDays === undefined ? current.freeFeatureDays : body.freeFeatureDays
     });
@@ -135,6 +143,10 @@ export async function PATCH(
       maxConcurrentMeetings: draft.maxConcurrentMeetings,
       taskManagementEnabled: draft.taskManagementEnabled,
       taskManagementDailyLimit: draft.taskManagementDailyLimit,
+      vaultEnabled: draft.vaultEnabled,
+      vaultQuotaBytes: draft.vaultQuotaBytes,
+      vaultMaxFileBytes: draft.vaultMaxFileBytes,
+      vaultMaxItems: draft.vaultMaxItems,
       validityDays: draft.validityDays,
       freeFeatureDays: draft.freeFeatureDays,
       requiresPayment: draft.requiresPayment
@@ -157,6 +169,10 @@ export async function PATCH(
       maxConcurrentMeetings: current.maxConcurrentMeetings,
       taskManagementEnabled: current.taskManagementEnabled,
       taskManagementDailyLimit: current.taskManagementDailyLimit,
+      vaultEnabled: current.vaultEnabled,
+      vaultQuotaBytes: current.vaultQuotaBytes,
+      vaultMaxFileBytes: current.vaultMaxFileBytes,
+      vaultMaxItems: current.vaultMaxItems,
       validityDays: current.validityDays,
       freeFeatureDays: current.freeFeatureDays,
       requiresPayment: current.requiresPayment,
