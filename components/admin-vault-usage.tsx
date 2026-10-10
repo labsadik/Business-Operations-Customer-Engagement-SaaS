@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import type { Route } from "next";
 import { useEffect, useState } from "react";
 import { AlertCircle, HardDrive, RefreshCw, Search, ShieldCheck } from "lucide-react";
 
@@ -10,6 +12,7 @@ type UsageItem = {
   storagePrefix: string;
   planId: string;
   planName: string;
+  subscriptionStatus: "ACTIVE" | "PAST_DUE" | "CANCELLED" | "EXPIRED" | "NONE";
   vaultEnabled: boolean;
   usedBytes: number;
   quotaBytes: number;
@@ -27,10 +30,16 @@ type UsageResponse = {
   totals: {
     companies: number;
     enabledCompanies: number;
+    disabledCompanies: number;
     usedBytes: number;
     quotaBytes: number;
+    availableBytes: number;
+    usedItems: number;
+    maxItems: number;
     fileCount: number;
     pendingUploadCount: number;
+    pendingUploadBytes: number;
+    overQuotaCompanies: number;
   };
 };
 type Envelope<T> = { ok: boolean; data?: T; error?: string };
@@ -87,7 +96,7 @@ export default function AdminVaultUsage() {
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-600">Storage governance</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Company vault usage</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">Inspect each company’s plan quota, actual bytes, stored items, active uploads, and entitlement status. Limits are configured in Plans.</p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">All companies, sorted A–Z. Storage reflects committed file storage bytes plus active, uncommitted upload reservations; plan quotas are applied from the current server-side plan catalog.</p>
         </div>
         <button type="button" onClick={() => void load(true)} disabled={loading || refreshing} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
           <RefreshCw className={"size-4 " + (refreshing ? "animate-spin" : "")} /> Refresh
@@ -98,14 +107,18 @@ export default function AdminVaultUsage() {
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { label: "Companies", value: (data?.totals.companies ?? 0).toLocaleString("en-IN") },
-          { label: "Vaults enabled", value: (data?.totals.enabledCompanies ?? 0).toLocaleString("en-IN") },
-          { label: "Company storage used", value: formatBytes(data?.totals.usedBytes ?? 0) },
-          { label: "Stored files", value: (data?.totals.fileCount ?? 0).toLocaleString("en-IN") }
+          { label: "Total companies", value: (data?.totals.companies ?? 0).toLocaleString("en-IN"), detail: "All companies including disabled vaults" },
+          { label: "Vaults enabled", value: (data?.totals.enabledCompanies ?? 0).toLocaleString("en-IN"), detail: `${(data?.totals.disabledCompanies ?? 0).toLocaleString("en-IN")} disabled by plan` },
+          { label: "Storage in use", value: formatBytes(data?.totals.usedBytes ?? 0), detail: `${formatBytes(data?.totals.pendingUploadBytes ?? 0)} active upload reservations` },
+          { label: "Assigned quota", value: formatBytes(data?.totals.quotaBytes ?? 0), detail: `${formatBytes(data?.totals.availableBytes ?? 0)} available in aggregate` },
+          { label: "Stored files", value: (data?.totals.fileCount ?? 0).toLocaleString("en-IN"), detail: "Committed vault file records" },
+          { label: "Active uploads", value: (data?.totals.pendingUploadCount ?? 0).toLocaleString("en-IN"), detail: `${(data?.totals.usedItems ?? 0).toLocaleString("en-IN")} total items including files` },
+          { label: "Over-quota companies", value: (data?.totals.overQuotaCompanies ?? 0).toLocaleString("en-IN"), detail: "Includes storage with no active entitlement" }
         ].map((item) => (
           <div key={item.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">{item.label}</p>
             <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">{item.value}</p>
+            <p className="mt-1 text-[10px] leading-4 text-slate-500">{item.detail}</p>
           </div>
         ))}
       </section>
@@ -113,8 +126,8 @@ export default function AdminVaultUsage() {
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <div>
-            <h2 className="text-base font-semibold text-slate-950">Company-by-company breakdown</h2>
-            <p className="mt-1 text-xs text-slate-500">Usage includes completed files and active-upload reservations.</p>
+            <h2 className="text-base font-semibold text-slate-950">Company-by-company breakdown · A–Z</h2>
+            <p className="mt-1 text-xs text-slate-500">Select a company to inspect its profile, current plan, stored files, folders, and active upload sessions.</p>
           </div>
           <label className="flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2.5 sm:w-80">
             <Search className="size-4 text-slate-400" />
@@ -136,8 +149,9 @@ export default function AdminVaultUsage() {
                     <div className="flex items-start gap-3">
                       <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600"><HardDrive className="size-4.5" /></div>
                       <div className="min-w-0">
-                        <h3 className="truncate text-sm font-semibold text-slate-950">{item.companyName}</h3>
+                        <Link href={`/admin/companies/${item.companyId}` as Route} className="inline-flex max-w-full items-center gap-1.5 truncate text-sm font-semibold text-slate-950 hover:text-blue-700">{item.companyName}<span aria-hidden="true">↗</span></Link>
                         <p className="mt-1 truncate text-xs text-slate-500">{item.companySlug} · {item.planName}</p>
+                        <p className="mt-1 text-[10px] text-slate-500">Subscription: {item.subscriptionStatus.replaceAll("_", " ").toLowerCase()}</p>
                         <p className="mt-1 truncate font-mono text-[10px] text-slate-400" title={item.storagePrefix}>Bunny path: {item.storagePrefix}</p>
                         <p className="mt-1 break-all text-[10px] text-slate-400">{item.companyId}</p>
                       </div>
