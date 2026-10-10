@@ -12,6 +12,7 @@ type WidgetSettings = {
   collectName: boolean;
   collectEmail: boolean;
   collectPhone: boolean;
+  offlineMode: boolean;
 };
 type WidgetConfig = { company: { name: string; slug: string }; accessToken: string; settings: WidgetSettings; cooldownSeconds: number; retentionDays: number };
 type Message = { id: string; senderType: "CUSTOMER" | "AGENT"; body: string; createdAt: string; senderName?: string; senderAvatar?: string };
@@ -345,10 +346,10 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
                 return <div className="mt-1 flex items-center gap-1.5 text-[11px] text-white/90">
                   {agent?.senderAvatar ? <img src={agent.senderAvatar} alt="" referrerPolicy="no-referrer" className="size-4 rounded-full border border-white/40 object-cover" /> : null}
                   <span className="truncate">Chatting with {agentName}</span>
-                  <span className="relative ml-0.5 inline-flex size-2 rounded-full bg-emerald-300"><span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-300 opacity-60" /></span>
-                  <span className="text-[10px]">Online</span>
+                  <span className={`relative ml-0.5 inline-flex size-2 rounded-full ${config.settings.offlineMode ? "bg-slate-300" : "bg-emerald-300"}`}>{!config.settings.offlineMode && <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-300 opacity-60" />}</span>
+                  <span className="text-[10px]">{config.settings.offlineMode ? "Offline" : "Online"}</span>
                 </div>;
-              })() : <p className="mt-1 text-[11px] text-white/85">{config.company.name} · Usually replies promptly</p>}
+              })() : <p className="mt-1 text-[11px] text-white/85">{config.settings.offlineMode ? "Offline · Leave a message" : config.company.name + " · Usually replies promptly"}</p>}
             </div>
             <button type="button" onClick={() => setOpened(false)} aria-label="Minimize chat" className="rounded-lg p-1.5 hover:bg-white/15"><X className="size-4" /></button>
           </header>
