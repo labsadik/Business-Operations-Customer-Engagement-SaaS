@@ -523,3 +523,26 @@ test("enterprise workspace sidebar groups navigation, aligns the toggle, and ret
   assert.ok(profile.includes("WorkspaceSidebar"));
   assert.ok(profile.includes("onToggleCollapsed={toggleSidebar}"));
 });
+
+
+test("Cloud Vault server-prefetches tenant content and renders a light Drive-style explorer", () => {
+  const page = source("app/dashboard/vault/page.tsx");
+  const vault = source("components/company-vault.tsx");
+
+  assert.ok(page.includes("getTenantFolder(scope, requestedFolderId)"));
+  assert.ok(page.includes("VaultFolder.find({ companyId, workspaceId, parentFolderId })"));
+  assert.ok(page.includes("VaultFile.find({ companyId, workspaceId, folderId: parentFolderId })"));
+  assert.ok(page.includes("getVaultUsageSnapshot({"));
+  assert.ok(page.includes("initialSnapshot={initialSnapshot}"));
+  assert.ok(vault.includes("useState<VaultSnapshot | null>(initialSnapshot)"));
+  assert.ok(vault.includes("lastLoadedRequestRef.current"));
+  assert.ok(vault.includes('aria-label="Filter files by type"'));
+  assert.ok(vault.includes('["spreadsheets", "Spreadsheets"]'));
+  assert.ok(vault.includes("Drop files to upload"));
+  assert.ok(vault.includes('aria-label={"Preview " + file.name}'));
+  assert.ok(vault.includes("<span>File size</span>"));
+  assert.doesNotMatch(vault, /bg-slate-950|blur-3xl|backdrop-blur|bg-black/);
+  assert.ok(vault.includes("/api/vault/uploads"));
+  assert.ok(vault.includes("/api/vault/folders/"));
+  assert.ok(vault.includes("/api/vault/files/"));
+});
