@@ -41,6 +41,10 @@ type Plan = {
   maxConcurrentMeetings: number;
   taskManagementEnabled: boolean;
   taskManagementDailyLimit: number | null;
+  vaultEnabled: boolean;
+  vaultQuotaBytes: number;
+  vaultMaxFileBytes: number;
+  vaultMaxItems: number;
   validityDays: number;
   freeFeatureDays: number | null;
   requiresPayment: boolean;
@@ -73,6 +77,11 @@ type Draft = {
   taskManagementEnabled: boolean;
   taskManagementDailyLimit: string;
   taskManagementUnlimitedDaily: boolean;
+  vaultEnabled: boolean;
+  vaultQuotaAmount: string;
+  vaultQuotaUnit: "GB" | "TB";
+  vaultMaxFileMiB: string;
+  vaultMaxItems: string;
   validityDays: string;
   freeFeatureDays: string;
 };
@@ -96,9 +105,20 @@ const emptyDraft: Draft = {
   taskManagementEnabled: false,
   taskManagementDailyLimit: "10",
   taskManagementUnlimitedDaily: false,
+  vaultEnabled: false,
+  vaultQuotaAmount: "5",
+  vaultQuotaUnit: "GB",
+  vaultMaxFileMiB: "100",
+  vaultMaxItems: "1000",
   validityDays: "30",
   freeFeatureDays: ""
 };
+
+function storageLimitLabel(bytes: number) {
+  if (bytes % (1024 ** 4) === 0) return (bytes / (1024 ** 4)) + " TB";
+  const gb = bytes / (1024 ** 3);
+  return (Number.isInteger(gb) ? String(gb) : gb.toFixed(2).replace(/0+$/, "").replace(/\\.$/, "")) + " GB";
+}
 
 function money(value: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -128,6 +148,13 @@ function toDraft(plan: Plan): Draft {
     taskManagementEnabled: Boolean(plan.taskManagementEnabled),
     taskManagementDailyLimit: String(plan.taskManagementDailyLimit ?? 10),
     taskManagementUnlimitedDaily: plan.taskManagementDailyLimit === null,
+    vaultEnabled: Boolean(plan.vaultEnabled),
+    vaultQuotaAmount: String((plan.vaultQuotaBytes ?? 5368709120) >= 1024 ** 4
+      ? (plan.vaultQuotaBytes ?? 5368709120) / (1024 ** 4)
+      : (plan.vaultQuotaBytes ?? 5368709120) / (1024 ** 3)),
+    vaultQuotaUnit: (plan.vaultQuotaBytes ?? 5368709120) >= 1024 ** 4 ? "TB" : "GB",
+    vaultMaxFileMiB: String((plan.vaultMaxFileBytes ?? 104857600) / (1024 ** 2)),
+    vaultMaxItems: String(plan.vaultMaxItems ?? 1000),
     validityDays: String(plan.validityDays),
     freeFeatureDays: plan.freeFeatureDays == null ? "" : String(plan.freeFeatureDays)
   };
@@ -157,6 +184,10 @@ function draftPayload(draft: Draft) {
     maxConcurrentMeetings: parseNumber(draft.maxConcurrentMeetings),
     taskManagementEnabled: draft.taskManagementEnabled,
     taskManagementDailyLimit: draft.taskManagementUnlimitedDaily ? null : parseNumber(draft.taskManagementDailyLimit),
+    vaultEnabled: draft.vaultEnabled,
+    vaultQuotaBytes: Math.round(parseNumber(draft.vaultQuotaAmount) * (draft.vaultQuotaUnit === "TB" ? 1024 ** 4 : 1024 ** 3)),
+    vaultMaxFileBytes: Math.round(parseNumber(draft.vaultMaxFileMiB) * (1024 ** 2)),
+    vaultMaxItems: parseNumber(draft.vaultMaxItems),
     validityDays: parseNumber(draft.validityDays),
     freeFeatureDays: draft.freeFeatureDays.trim() === "" ? null : parseNumber(draft.freeFeatureDays)
   };
@@ -310,6 +341,11 @@ export default function AdminPlans() {
       "taskManagementEnabled",
       "taskManagementDailyLimit",
       "taskManagementUnlimitedDaily",
+      "vaultEnabled",
+      "vaultQuotaAmount",
+      "vaultQuotaUnit",
+      "vaultMaxFileMiB",
+      "vaultMaxItems",
       "validityDays",
       "freeFeatureDays"
     ].some((key) => nextDraft[key as keyof Draft] !== original[key as keyof Draft]);
@@ -617,6 +653,15 @@ export default function AdminPlans() {
                     </p>
                   </div>
 
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-3">
+                    <p className="text-[10px] uppercase tracking-[0.11em] text-slate-400">Cloud vault</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-800">
+                      {item.vaultEnabled
+                        ? "Included · " + storageLimitLabel(item.vaultQuotaBytes) + " · " + storageLimitLabel(item.vaultMaxFileBytes) + " max/file · " + item.vaultMaxItems.toLocaleString("en-IN") + " items"
+                        : "Not included"}
+                    </p>
+                  </div>
+
                   <div className="flex flex-wrap gap-2 text-[10px] text-slate-500">
                     <span className="rounded-full border border-slate-200 px-2.5 py-1">{item.activeSubscriptionCount} active subscriptions</span>
                     <span className="rounded-full border border-slate-200 px-2.5 py-1">{item.paymentCount} payment records</span>
@@ -824,6 +869,26 @@ export default function AdminPlans() {
                           </p>
                         </div>
                       )}
+                      <div className="mt-5 border-t border-slate-200 pt-4">
+                        <Toggle label="Cloud vault & private company storage" value={draft.vaultEnabled} onChange={(value) => setDraft((current) => ({ ...current, vaultEnabled: value }))} />
+                        {draft.vaultEnabled && (
+                          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                            <label className="block">
+                              <span className="text-xs font-semibold text-slate-700">Storage quota per company</span>
+                              <div className="mt-2 flex gap-2">
+                                <input type="number" min="0.01" step="0.01" value={draft.vaultQuotaAmount} onChange={(event) => setDraft((current) => ({ ...current, vaultQuotaAmount: event.target.value }))} className="min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-3 text-sm outline-none focus:border-blue-500" />
+                                <select aria-label="Storage unit" value={draft.vaultQuotaUnit} onChange={(event) => setDraft((current) => ({ ...current, vaultQuotaUnit: event.target.value as "GB" | "TB" }))} className="rounded-xl border border-slate-300 px-3 py-3 text-sm">
+                                  <option value="GB">GB</option>
+                                  <option value="TB">TB</option>
+                                </select>
+                              </div>
+                            </label>
+                            <Field label="Max size per file (MiB)" type="number" min="1" step="1" value={draft.vaultMaxFileMiB} onChange={(value) => setDraft((current) => ({ ...current, vaultMaxFileMiB: value }))} />
+                            <Field label="Maximum stored items" type="number" min="1" step="1" value={draft.vaultMaxItems} onChange={(value) => setDraft((current) => ({ ...current, vaultMaxItems: value }))} />
+                            <p className="text-[11px] leading-5 text-slate-500 sm:col-span-2">Storage is assigned per company, not per employee. The server reserves bytes and item slots before upload and blocks new uploads at the configured quota. Per-file size is capped at 250 MiB globally to protect production memory and request processing.</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-3">
                       <Info title="Payment" text="Payment requirement is derived from price: INR 0 is non-payable; positive price uses the existing Razorpay flow." />

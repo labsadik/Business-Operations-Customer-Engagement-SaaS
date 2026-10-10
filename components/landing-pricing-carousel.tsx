@@ -25,6 +25,10 @@ type PublicPlan = {
   maxConcurrentMeetings: number;
   taskManagementEnabled: boolean;
   taskManagementDailyLimit: number | null;
+  vaultEnabled: boolean;
+  vaultQuotaBytes: number;
+  vaultMaxFileBytes: number;
+  vaultMaxItems: number;
   validityDays: number;
   freeFeatureDays: number | null;
   requiresPayment: boolean;
@@ -214,6 +218,20 @@ export default function LandingPricingCarousel({ plans }: { plans: PublicPlan[] 
                     <span>{item}</span>
                   </div>
                 ))}
+                <div className="flex items-center gap-2 text-sm text-slate-700">
+                  {plan.vaultEnabled ? (
+                    <Check className="size-4 shrink-0 text-blue-600" aria-hidden="true" />
+                  ) : (
+                    <X className="size-4 shrink-0 text-slate-400" aria-hidden="true" />
+                  )}
+                  <span>
+                    Cloud vault
+                    {plan.vaultEnabled
+                      ? " (" + (plan.vaultQuotaBytes % (1024 ** 4) === 0 ? plan.vaultQuotaBytes / (1024 ** 4) + " TB" : (plan.vaultQuotaBytes / (1024 ** 3)) + " GB") + ")"
+                      : " (not included)"}
+                  </span>
+                  <span className="sr-only">{plan.vaultEnabled ? "Included" : "Not included"}</span>
+                </div>
                 <div className="flex items-center gap-2 text-sm text-slate-700">
                   {plan.taskManagementEnabled ? (
                     <Check className="size-4 shrink-0 text-blue-600" aria-hidden="true" />
