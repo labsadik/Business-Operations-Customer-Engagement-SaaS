@@ -124,33 +124,36 @@ export default function WorkspaceSidebar({
     }, 120);
   };
 
-  useEffect(() => {
-    const nav = navRef.current;
+  const attachNavRef = useCallback((nav: HTMLElement | null) => {
+    navRef.current = nav;
     if (!nav) return;
 
+    // A callback ref runs during the commit, restoring the scroll before the first visible paint.
     try {
       const saved = sessionStorage.getItem(SIDEBAR_SCROLL_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as { workspace?: string; top?: number };
-        if (parsed.workspace === companyName && typeof parsed.top === "number" && Number.isFinite(parsed.top)) {
-          // Restore synchronously before the active-item visibility pass to avoid a top-of-nav flash.
-          nav.scrollTop = Math.max(0, parsed.top);
-        } else {
-          nav.scrollTop = 0;
-        }
+        nav.scrollTop = parsed.workspace === companyName &&
+          typeof parsed.top === "number" &&
+          Number.isFinite(parsed.top)
+          ? Math.max(0, parsed.top)
+          : 0;
       } else {
         nav.scrollTop = 0;
       }
     } catch {
       // Invalid or unavailable session storage falls back to the browser's default position.
     }
+  }, [companyName]);
 
+  useEffect(() => {
     return () => {
       if (scrollPersistTimerRef.current) {
         clearTimeout(scrollPersistTimerRef.current);
         scrollPersistTimerRef.current = null;
       }
-      persistScrollPosition(nav.scrollTop);
+      const nav = navRef.current;
+      if (nav) persistScrollPosition(nav.scrollTop);
     };
   }, [companyName, persistScrollPosition]);
 
@@ -245,7 +248,7 @@ export default function WorkspaceSidebar({
         </div>
 
         <nav
-          ref={navRef}
+          ref={attachNavRef}
           aria-label="Company workspace navigation"
           onScroll={(event) => handleNavScroll(event.currentTarget.scrollTop)}
           className={`flex-1 overflow-y-auto overscroll-contain py-2 ${collapsed ? "px-2" : "px-3"}`}
