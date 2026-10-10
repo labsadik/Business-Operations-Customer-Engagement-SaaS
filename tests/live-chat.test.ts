@@ -157,15 +157,15 @@ test("public Live Chat appearance options have validated defaults and are persis
   const widget = source("components/live-chat-widget.tsx");
   const embed = source("public/live-chat.js");
 
-  assert.match(schema, /launcherSize:[\\s\\S]*min: 52, max: 80, default: 60/);
-  assert.match(schema, /launcherIconSize:[\\s\\S]*min: 16, max: 40, default: 28/);
-  assert.match(schema, /launcherShape:[\\s\\S]*enum: \\["CIRCLE", "ROUNDED"\\]/);
-  assert.match(schema, /headerStyle:[\\s\\S]*enum: \\["SOLID", "GRADIENT", "MINIMAL"\\]/);
-  assert.match(validation, /numeric\\("launcherSize", 60, 52, 80\\)/);
-  assert.match(validation, /numeric\\("launcherIconSize", 28, 16, 40\\)/);
+  assert.match(schema, /launcherSize:[\s\S]*min: 52, max: 80, default: 60/);
+  assert.match(schema, /launcherIconSize:[\s\S]*min: 16, max: 40, default: 28/);
+  assert.match(schema, /launcherShape:[\s\S]*enum: \["CIRCLE", "ROUNDED"\]/);
+  assert.match(schema, /headerStyle:[\s\S]*enum: \["SOLID", "GRADIENT", "MINIMAL"\]/);
+  assert.match(validation, /numeric\("launcherSize", 60, 52, 80\)/);
+  assert.match(validation, /numeric\("launcherIconSize", 28, 16, 40\)/);
   assert.match(validation, /LIVE_CHAT_SETTINGS_INVALID/);
-  assert.match(settingsApi, /launcherSize: updated\\?\\.launcherSize \\?\\? 60/);
-  assert.match(publicApi, /launcherIconSize: context\\.settings\\.launcherIconSize \\?\\? 28/);
+  assert.match(settingsApi, /launcherSize: updated\?\.launcherSize \?\? 60/);
+  assert.match(publicApi, /launcherIconSize: context\.settings\.launcherIconSize \?\? 28/);
   assert.match(dashboard, /Desktop preview/);
   assert.match(dashboard, /Mobile preview/);
   assert.match(dashboard, /Unsaved changes/);
