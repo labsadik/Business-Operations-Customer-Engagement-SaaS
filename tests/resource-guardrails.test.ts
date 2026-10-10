@@ -504,7 +504,7 @@ test("enterprise workspace sidebar groups navigation, aligns the toggle, and ret
   assert.ok(sidebar.includes('aria-label="Help & Support"'));
   assert.ok(sidebar.includes('aria-label="Mobile company workspace navigation"'));
   assert.ok(sidebar.includes("sessionStorage.setItem(SIDEBAR_SCROLL_KEY"));
-  assert.ok(sidebar.includes("ref={navRef}"));
+  assert.ok(sidebar.includes("ref={attachNavRef}"));
   assert.ok(sidebar.includes('scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" })'));
   assert.ok(sidebar.includes("data-sidebar-active={isSettings ? \"true\" : \"false\"}"));
   assert.ok(sidebar.includes("onOpenPanel"));
