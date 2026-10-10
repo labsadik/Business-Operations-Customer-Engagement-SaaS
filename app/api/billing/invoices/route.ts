@@ -1,6 +1,5 @@
 import { getMongo } from "@/lib/mongodb";
 import { Invoice } from "@/models/invoice";
-import { Payment } from "@/models/payment";
 import { resolveInvoicePlanSnapshot } from "@/lib/invoice-plan-snapshot";
 import { getSession } from "@/lib/session";
 import { Membership } from "@/models/membership";
