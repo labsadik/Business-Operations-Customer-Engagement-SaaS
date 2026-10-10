@@ -467,9 +467,9 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
     : 0;
   const canManage = currentRole === "COMPANY_ADMIN" || currentRole === "PLATFORM_ADMIN";
   const searchTerm = searchQuery.trim().toLowerCase();
-  const visibleFolders = (snapshot?.folders ?? []).filter((folder) =>
-    folder.name.toLowerCase().includes(searchTerm)
-  );
+  const visibleFolders = typeFilter === "all"
+    ? (snapshot?.folders ?? []).filter((folder) => folder.name.toLowerCase().includes(searchTerm))
+    : [];
   const visibleFiles = (snapshot?.files ?? []).filter((file) => {
     const matchesName = file.name.toLowerCase().includes(searchTerm);
     const label = fileTypeLabel(file);
