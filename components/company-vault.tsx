@@ -43,6 +43,8 @@ type VaultSnapshot = {
   breadcrumbs: { id: string; name: string }[];
   folders: FolderItem[];
   files: FileItem[];
+  nextFolderCursor?: string | null;
+  nextFileCursor?: string | null;
   usage: Usage;
 };
 type ApiEnvelope<T> = { ok: boolean; data?: T; error?: string };
@@ -162,6 +164,7 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
   const [folderId, setFolderId] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<VaultSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [progress, setProgress] = useState("");
@@ -195,8 +198,40 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
 
   const refresh = () => {
     setLoading(true);
+    setLoadingMore(false);
     setError("");
     setReloadVersion((version) => version + 1);
+  };
+
+  const loadMoreItems = async () => {
+    if (!snapshot || loadingMore || (!snapshot.nextFolderCursor && !snapshot.nextFileCursor)) return;
+    setLoadingMore(true);
+    setError("");
+    try {
+      const params = new URLSearchParams();
+      if (folderId) params.set("folderId", folderId);
+      params.set("loadMore", "1");
+      if (snapshot.nextFolderCursor) params.set("folderCursor", snapshot.nextFolderCursor);
+      if (snapshot.nextFileCursor) params.set("fileCursor", snapshot.nextFileCursor);
+      const page = await apiRequest<VaultSnapshot>("/api/vault?" + params.toString());
+      setSnapshot((current) => {
+        if (!current) return page;
+        const folderIds = new Set(current.folders.map((folder) => folder.id));
+        const fileIds = new Set(current.files.map((file) => file.id));
+        return {
+          ...current,
+          folders: [...current.folders, ...page.folders.filter((folder) => !folderIds.has(folder.id))],
+          files: [...current.files, ...page.files.filter((file) => !fileIds.has(file.id))],
+          nextFolderCursor: page.nextFolderCursor ?? null,
+          nextFileCursor: page.nextFileCursor ?? null,
+          usage: page.usage
+        };
+      });
+    } catch (reason) {
+      setError(explainError(reason instanceof Error ? reason.message : "VAULT_LIST_FAILED"));
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   const navigateToFolder = (nextFolderId: string | null) => {
@@ -597,6 +632,19 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
                   </div>
                 )}
               </div>
+              {(snapshot?.nextFolderCursor || snapshot?.nextFileCursor) && !loading && (
+                <div className="mt-4 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => void loadMoreItems()}
+                    disabled={loadingMore || busy}
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {loadingMore && <LoaderCircle className="size-3.5 animate-spin" />}
+                    {loadingMore ? "Loading more items…" : "Load more items"}
+                  </button>
+                </div>
+              )}
               <p className="mt-3 text-xs leading-5 text-slate-400">Files download through an authenticated server route; Bunny storage credentials never reach the browser.</p>
             </div>
 
