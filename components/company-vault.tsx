@@ -22,7 +22,17 @@ import {
   ShieldCheck,
   Trash2,
   Upload,
-  RefreshCw
+  RefreshCw,
+  Search,
+  Grid2X2,
+  List,
+  LockKeyhole,
+  CheckCircle2,
+  Files,
+  Clock3,
+  SearchX,
+  FileUp,
+  Shield
 } from "lucide-react";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
 import ConfirmDialog from "@/components/confirm-dialog";
@@ -174,6 +184,10 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
   const [folderDialog, setFolderDialog] = useState<FolderDialog | null>(null);
   const [confirmation, setConfirmation] = useState<ConfirmationTarget | null>(null);
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [contentFilter, setContentFilter] = useState<"all" | "files" | "folders">("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "documents" | "images" | "videos">("all");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -416,7 +430,22 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
     ? Math.min(100, (snapshot.usage.usedBytes / snapshot.usage.quotaBytes) * 100)
     : 0;
   const canManage = currentRole === "COMPANY_ADMIN" || currentRole === "PLATFORM_ADMIN";
-  const usedFiles = (snapshot?.folders.length ?? 0) + (snapshot?.files.length ?? 0);
+  const searchTerm = searchQuery.trim().toLowerCase();
+  const visibleFolders = (snapshot?.folders ?? []).filter((folder) =>
+    contentFilter !== "files" && folder.name.toLowerCase().includes(searchTerm)
+  );
+  const visibleFiles = (snapshot?.files ?? []).filter((file) => {
+    if (contentFilter === "folders") return false;
+    const matchesName = file.name.toLowerCase().includes(searchTerm);
+    const matchesType = typeFilter === "all" ||
+      (typeFilter === "images" && file.mimeType.startsWith("image/")) ||
+      (typeFilter === "videos" && file.mimeType.startsWith("video/")) ||
+      (typeFilter === "documents" && !file.mimeType.startsWith("image/") && !file.mimeType.startsWith("video/"));
+    return matchesName && matchesType;
+  });
+  const visibleCount = visibleFolders.length + visibleFiles.length;
+  const folderHasMore = Boolean(snapshot?.nextFolderCursor);
+  const fileHasMore = Boolean(snapshot?.nextFileCursor);
   const uploadBlocked = Boolean(snapshot && (
     snapshot.usage.usedBytes >= snapshot.usage.quotaBytes ||
     snapshot.usage.usedItems >= snapshot.usage.maxItems
