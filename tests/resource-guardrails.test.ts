@@ -299,12 +299,12 @@ test("vault limits follow company plan entitlement, avoid Bunny folder marker wr
 test("vault quota counter remains compatible with workspace-era records", () => {
   const usageModel = source("models/vault-usage.ts");
   const storage = source("features/company-vault/server/vault-storage.ts");
-  const adminUsage = source("app/api/admin/vault-usage/route.ts");
+  const adminUsage = source("lib/admin-vault-usage.ts");
 
   assert.ok(usageModel.includes("vaultUsageSchema.index({ companyId: 1, workspaceId: 1 }, { unique: true })"));
   assert.ok(storage.includes("const usageWorkspaceId = companyId"));
   assert.ok(storage.includes("VaultUsage.deleteMany({ companyId, workspaceId: { $ne: usageWorkspaceId } })"));
-  assert.ok(adminUsage.includes("const usedBytes = (fileStats?.sizeBytes ?? 0) + (pendingStats?.sizeBytes ?? 0);"));
+  assert.ok(adminUsage.includes("const usedBytes = (fileStats?.sizeBytes ?? 0) + pendingUploadBytes;"));
   assert.ok(adminUsage.includes("committedFiles"));
 });
 
@@ -312,7 +312,7 @@ test("vault quota counter remains compatible with workspace-era records", () => 
 test("company vault uses the database company name plus immutable company ID for Bunny prefixes", () => {
   const company = source("models/company.ts");
   const storage = source("features/company-vault/server/vault-storage.ts");
-  const adminUsage = source("app/api/admin/vault-usage/route.ts");
+  const adminUsage = source("lib/admin-vault-usage.ts");
 
   assert.ok(company.includes("vaultStorageRoot"));
   assert.ok(storage.includes("buildCompanyVaultRoot(company.name, String(company._id))"));
@@ -354,7 +354,7 @@ test("vault compression is lossless, optional, and usage is counted by stored by
   const complete = source("app/api/vault/uploads/[uploadId]/complete/route.ts");
   const fileRoute = source("app/api/vault/files/[fileId]/route.ts");
   const storage = source("features/company-vault/server/vault-storage.ts");
-  const adminUsage = source("app/api/admin/vault-usage/route.ts");
+  const adminUsage = source("lib/admin-vault-usage.ts");
   const ui = source("components/company-vault.tsx");
 
   assert.ok(fileModel.includes("storageSizeBytes"));

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { useMemo, useState } from "react";
-import { ArrowUpRight, Building2, Search } from "lucide-react";
+import { ArrowUpRight, Building2, HardDrive, Search } from "lucide-react";
 import type { AdminCompanyListItem } from "@/lib/admin";
 
 function dateLabel(value: Date | null) {
@@ -13,6 +13,18 @@ function dateLabel(value: Date | null) {
 
 function money(minor: number) {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(minor / 100);
+}
+
+function formatBytes(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB", "PB"];
+  let amount = value;
+  let index = 0;
+  while (amount >= 1024 && index < units.length - 1) {
+    amount /= 1024;
+    index += 1;
+  }
+  return `${amount >= 100 || index === 0 ? amount.toFixed(0) : amount >= 10 ? amount.toFixed(1) : amount.toFixed(2)} ${units[index]}`;
 }
 
 export default function AdminCompanies({ companies }: { companies: AdminCompanyListItem[] }) {
@@ -34,7 +46,7 @@ export default function AdminCompanies({ companies }: { companies: AdminCompanyL
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-600">Companies</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">Company directory</h1>
-          <p className="mt-2 text-sm text-slate-500">Search tenants, review subscription health, payments, employees, and scheduling volume.</p>
+          <p className="mt-2 text-sm text-slate-500">Every company, sorted A–Z, with plan, billing, scheduling, and live vault storage details.</p>
         </div>
         <div className="relative w-full max-w-md">
           <Search className="pointer-events-none absolute left-3 top-3 size-4 text-slate-400" />
@@ -50,13 +62,13 @@ export default function AdminCompanies({ companies }: { companies: AdminCompanyL
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-5 py-4">
           <p className="text-xs font-semibold text-slate-900">{visible.length} companies shown</p>
-          <p className="mt-1 text-[11px] text-slate-500">Latest 100 companies are loaded for fast administration.</p>
+          <p className="mt-1 text-[11px] text-slate-500">All matching companies are loaded A–Z. Vault usage includes stored bytes and active upload reservations.</p>
         </div>
         <div className="hidden overflow-x-auto lg:block">
-          <table className="min-w-[1240px] w-full text-left">
+          <table className="min-w-[1450px] w-full text-left">
             <thead className="bg-slate-50">
               <tr className="border-b border-slate-200">
-                {["Company", "Plan", "Employees", "Meetings", "Meeting users", "Tasks", "Payments", "Renewal", ""].map((item) => (
+                {["Company", "Plan", "Company vault", "Employees", "Meetings", "Meeting users", "Tasks", "Payments", "Renewal", ""].map((item) => (
                   <th key={item} className="px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">{item}</th>
                 ))}
               </tr>
@@ -76,6 +88,16 @@ export default function AdminCompanies({ companies }: { companies: AdminCompanyL
                   <td className="px-4 py-4">
                     <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-700">{company.planName}</span>
                     <p className="mt-1 text-[10px] text-slate-400">{company.monthlyMeetingsUsed}/{company.planLimit || "—"} used</p>
+                  </td>
+                  <td className="px-4 py-4">
+                    <div className="flex items-start gap-2">
+                      <HardDrive className={"mt-0.5 size-4 shrink-0 " + (company.vaultUsage?.vaultEnabled ? "text-emerald-600" : "text-slate-400")} />
+                      <div>
+                        <p className="text-xs font-semibold text-slate-800">{formatBytes(company.vaultUsage?.usedBytes ?? 0)} <span className="font-normal text-slate-400">/ {company.vaultUsage?.vaultEnabled ? formatBytes(company.vaultUsage.quotaBytes) : "No quota"}</span></p>
+                        <p className="mt-1 text-[10px] text-slate-500">{company.vaultUsage?.fileCount ?? 0} files · {company.vaultUsage?.usedItems ?? 0} items</p>
+                        <p className={"mt-1 text-[10px] font-semibold " + (company.vaultUsage?.vaultEnabled ? "text-emerald-700" : "text-slate-400")}>{company.vaultUsage?.vaultEnabled ? company.vaultUsage.planName + " · enabled" : "Vault disabled"}</p>
+                      </div>
+                    </div>
                   </td>
                   <td className="px-4 py-4 text-sm font-semibold">{company.employees}</td>
                   <td className="px-4 py-4"><p className="text-sm font-semibold">{company.totalMeetings}</p><p className="text-[10px] text-slate-400">{company.completedMeetings} completed</p></td>
@@ -106,6 +128,8 @@ export default function AdminCompanies({ companies }: { companies: AdminCompanyL
                     <span><b>{company.totalMeetings}</b> meetings</span>
                     <span><b>{company.totalTasks}</b> tasks · {company.activeTasks} active</span>
                     <span><b>{money(company.totalPayments)}</b> paid</span>
+                    <span><b>{formatBytes(company.vaultUsage?.usedBytes ?? 0)}</b> vault used</span>
+                    <span><b>{company.vaultUsage?.fileCount ?? 0}</b> stored files · {company.vaultUsage?.pendingUploadCount ?? 0} uploading</span>
                   </div>
                 </div>
               </div>

@@ -17,6 +17,10 @@ import type { AdminPlan } from "@/lib/plan-catalog";
 import { ensurePlanCatalog, listPlansForAdmin } from "@/lib/plan-catalog";
 import { Plan } from "@/models/plan";
 import { ensureInvoicesForCapturedPayments } from "@/lib/billing";
+import { getAdminVaultUsage, type AdminVaultUsageItem } from "@/lib/admin-vault-usage";
+import { VaultFile } from "@/models/vault-file";
+import { VaultFolder } from "@/models/vault-folder";
+import { VaultUpload } from "@/models/vault-upload";
 
 export type AdminCompanyListItem = {
   id: string;
@@ -45,6 +49,7 @@ export type AdminCompanyListItem = {
   totalPayments: number;
   paymentCount: number;
   lastPaymentAt: Date | null;
+  vaultUsage?: AdminVaultUsageItem | null;
 };
 
 export type AdminCompanyDetails = AdminCompanyListItem & {
@@ -103,6 +108,28 @@ export type AdminCompanyDetails = AdminCompanyListItem & {
   }>;
   plans: Record<string, AdminPlan>;
   alternativePlanId: string | null;
+  vaultUsage: AdminVaultUsageItem;
+  vaultFolderCount: number;
+  vaultFiles: Array<{
+    id: string;
+    name: string;
+    mimeType: string;
+    originalSizeBytes: number;
+    storedBytes: number;
+    folderName: string;
+    createdAt: Date;
+    uploadedBy: { name: string; email: string } | null;
+  }>;
+  activeVaultUploads: Array<{
+    id: string;
+    name: string;
+    reservedBytes: number;
+    receivedChunks: number;
+    expectedChunks: number;
+    status: "OPEN" | "COMPLETING";
+    expiresAt: Date;
+    createdAt: Date;
+  }>;
 };
 
 export type AdminUserListItem = {
@@ -306,6 +333,8 @@ export async function getAdminOverview() {
     ])
   ]);
 
+  const vaultUsage = await getAdminVaultUsage();
+
   await ensurePlanCatalog();
   const catalogPlanIds = await Plan.find({}).select("identifier").limit(200).lean();
 
@@ -329,7 +358,11 @@ export async function getAdminOverview() {
         String(item.identifier),
         planMix.find((row) => row._id === item.identifier)?.count ?? 0
       ])
-    ) as Record<string, number>
+    ) as Record<string, number>,
+    vaultUsage: {
+      totals: vaultUsage.totals,
+      items: vaultUsage.items.slice(0, 8)
+    }
   };
 }
 
@@ -349,11 +382,18 @@ export async function getAdminCompanies(search = "") {
     : {};
 
   const companies = await Company.find(query)
-    .sort({ createdAt: -1 })
-    .limit(100)
+    .sort({ name: 1, _id: 1 })
     .lean();
 
-  return buildCompanyRows(companies as typeof companies);
+  const [rows, vaultSnapshot] = await Promise.all([
+    buildCompanyRows(companies as typeof companies),
+    getAdminVaultUsage(companies.map((company) => String(company._id)))
+  ]);
+  const vaultByCompany = new Map(vaultSnapshot.items.map((item) => [item.companyId, item]));
+  return rows.map((row) => ({
+    ...row,
+    vaultUsage: vaultByCompany.get(row.id) ?? null
+  }));
 }
 
 export async function getAdminCompanyDetails(companyId: string) {
@@ -393,6 +433,96 @@ export async function getAdminCompanyDetails(companyId: string) {
 
   if (!baseRow) return null;
 
+  const [vaultSnapshot, vaultFileRows, vaultFolderCount, activeVaultUploadRows] = await Promise.all([
+    getAdminVaultUsage([String(objectId)]),
+    VaultFile.find({ companyId: objectId })
+      .sort({ createdAt: -1, _id: -1 })
+      .select("_id originalName mimeType sizeBytes storageSizeBytes folderId createdByUserId createdAt")
+      .limit(25)
+      .lean(),
+    VaultFolder.countDocuments({ companyId: objectId }),
+    VaultUpload.aggregate<{
+      _id: Types.ObjectId;
+      originalName: string;
+      sizeBytes: number;
+      receivedChunks: number[];
+      expectedChunks: number;
+      status: "OPEN" | "COMPLETING";
+      expiresAt: Date;
+      createdAt: Date;
+    }>([
+      {
+        $match: {
+          companyId: objectId,
+          status: { $in: ["OPEN", "COMPLETING"] },
+          expiresAt: { $gt: new Date() }
+        }
+      },
+      {
+        $lookup: {
+          from: VaultFile.collection.name,
+          localField: "_id",
+          foreignField: "uploadId",
+          as: "committedFiles"
+        }
+      },
+      { $match: { $expr: { $eq: [{ $size: "$committedFiles" }, 0] } } },
+      { $sort: { createdAt: -1, _id: -1 } },
+      { $limit: 25 },
+      {
+        $project: {
+          originalName: 1,
+          sizeBytes: 1,
+          receivedChunks: 1,
+          expectedChunks: 1,
+          status: 1,
+          expiresAt: 1,
+          createdAt: 1
+        }
+      }
+    ])
+  ]);
+  const vaultUsage = vaultSnapshot.items[0];
+  if (!vaultUsage) throw new Error("ADMIN_VAULT_USAGE_UNAVAILABLE");
+
+  const vaultFolderIds = [...new Set(vaultFileRows
+    .map((file) => file.folderId ? String(file.folderId) : "")
+    .filter(Boolean))].map((id) => new Types.ObjectId(id));
+  const vaultCreatorIds = [...new Set(vaultFileRows.map((file) => String(file.createdByUserId)))];
+  const [vaultFolders, vaultCreators] = await Promise.all([
+    vaultFolderIds.length
+      ? VaultFolder.find({ companyId: objectId, _id: { $in: vaultFolderIds } }).select("_id name").lean()
+      : Promise.resolve([]),
+    vaultCreatorIds.length
+      ? User.find({ _id: { $in: vaultCreatorIds } }).select("name email").lean()
+      : Promise.resolve([])
+  ]);
+  const vaultFolderNames = new Map(vaultFolders.map((folder) => [String(folder._id), folder.name]));
+  const vaultCreatorMap = new Map(vaultCreators.map((creator) => [String(creator._id), creator]));
+  const vaultFiles = vaultFileRows.map((file) => {
+    const creator = vaultCreatorMap.get(String(file.createdByUserId));
+    return {
+      id: String(file._id),
+      name: file.originalName,
+      mimeType: file.mimeType,
+      originalSizeBytes: file.sizeBytes,
+      storedBytes: file.storageSizeBytes ?? file.sizeBytes,
+      folderName: file.folderId ? vaultFolderNames.get(String(file.folderId)) ?? "Folder unavailable" : "Root",
+      createdAt: file.createdAt,
+      uploadedBy: creator ? { name: creator.name ?? "Unknown user", email: creator.email ?? "" } : null
+    };
+  });
+  const activeVaultUploads = activeVaultUploadRows.map((upload) => ({
+    id: String(upload._id),
+    name: upload.originalName,
+    reservedBytes: upload.sizeBytes,
+    receivedChunks: Array.isArray(upload.receivedChunks) ? upload.receivedChunks.length : 0,
+    expectedChunks: upload.expectedChunks,
+    status: upload.status,
+    expiresAt: upload.expiresAt,
+    createdAt: upload.createdAt
+  }));
+
   const memberUserMap = new Map(memberUsers.map((item) => [String(item._id), item]));
   const connectedAccounts = await GoogleAccount.find({
     userId: { $in: members.map((member) => member.userId) },
@@ -417,6 +547,10 @@ export async function getAdminCompanyDetails(companyId: string) {
 
   return {
     ...baseRow,
+    vaultUsage,
+    vaultFolderCount,
+    vaultFiles,
+    activeVaultUploads,
     description: company.description ?? "",
     websiteUrl: company.websiteUrl ?? "",
     taxId: company.taxId ?? "",
