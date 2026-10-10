@@ -45,6 +45,7 @@ const primaryItems = [
 ] as const;
 
 export default function WorkspaceSidebar({
+  companyName,
   taskManagementEnabled = false,
   vaultEnabled = false,
   canManage = false,
