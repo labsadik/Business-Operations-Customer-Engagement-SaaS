@@ -371,3 +371,36 @@ test("vault compression is lossless, optional, and usage is counted by stored by
   assert.ok(ui.includes('compressed.size + 128 < file.size'));
   assert.ok(ui.includes('return { blob: file, contentEncoding: "identity" }'));
 });
+
+
+test("vault uploads stream chunks and never report 100 percent before Bunny finalization", () => {
+  const chunks = source("app/api/vault/uploads/[uploadId]/chunks/[chunkIndex]/route.ts");
+  const storage = source("features/company-vault/server/vault-storage.ts");
+  const ui = source("components/company-vault.tsx");
+  const start = source("app/api/vault/uploads/route.ts");
+  const cleanupJob = source("app/api/jobs/vault-upload-cleanup/route.ts");
+  const vercel = source("vercel.json");
+
+  assert.ok(chunks.includes("bunnyPutStream("));
+  assert.ok(chunks.includes("streamRequestBody(request.body, expectedSize)"));
+  assert.ok(!chunks.includes("request.arrayBuffer()"));
+  assert.ok(!chunks.includes("Buffer.from(await request.arrayBuffer())"));
+  assert.ok(storage.includes("export async function* streamRequestBody("));
+  assert.ok(storage.includes("Math.min(6, chunkCount)"));
+  assert.ok(storage.includes("batchLimit?: number"));
+  assert.doesNotMatch(start, /cleanupExpiredVaultUploads/);
+
+  const chunkRequest = ui.indexOf('await apiRequest("/api/vault/uploads/" + upload.uploadId + "/chunks/" + index');
+  const confirmedProgress = ui.indexOf("setUploadPercent(percentage);", chunkRequest);
+  const finalization = ui.indexOf('await apiRequest("/api/vault/uploads/" + upload.uploadId + "/complete"');
+  const completedProgress = ui.indexOf("setUploadPercent(100);");
+  assert.ok(chunkRequest >= 0 && confirmedProgress > chunkRequest);
+  assert.ok(finalization > confirmedProgress);
+  assert.ok(completedProgress > finalization);
+  assert.ok(ui.includes("Math.min(99, Math.floor("));
+  assert.ok(ui.includes("Upload complete · Bunny confirmed all files"));
+
+  assert.ok(cleanupJob.includes("cleanupExpiredVaultUploads(undefined, CLEANUP_BATCH_LIMIT)"));
+  assert.ok(cleanupJob.includes('request.headers.get("authorization") === `Bearer ${secret}`'));
+  assert.ok(vercel.includes('"schedule": "0 3 * * *"'));
+});

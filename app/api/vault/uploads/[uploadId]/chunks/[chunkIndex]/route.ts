@@ -4,9 +4,11 @@ import { assertSameOrigin } from "@/lib/security";
 import { jsonOk } from "@/lib/http";
 import { VaultUpload } from "@/models/vault-upload";
 import {
-  bunnyPut,
+  bunnyDelete,
+  bunnyPutStream,
   getUploadExpiry,
   requireVaultScope,
+  streamRequestBody,
   uploadChunkKey,
   vaultErrorResponse
 } from "@/features/company-vault/server/vault-storage";
@@ -37,16 +39,38 @@ export async function PUT(
     }).lean();
     if (!upload) throw new Error("UPLOAD_NOT_FOUND");
     if (index >= upload.expectedChunks) throw new Error("INVALID_CHUNK_INDEX");
+    // Idempotent retry: a prior 200 means Bunny already confirmed this chunk.
+    if (upload.receivedChunks.includes(index)) {
+      return jsonOk({ received: true, chunkIndex: index, alreadyReceived: true });
+    }
 
-    const bytes = Buffer.from(await request.arrayBuffer());
     const expectedSize = index === upload.expectedChunks - 1
       ? upload.sizeBytes - index * upload.chunkSizeBytes
       : upload.chunkSizeBytes;
-    if (bytes.length !== expectedSize || bytes.length > upload.chunkSizeBytes) {
+    const declaredLength = request.headers.get("content-length");
+    if (declaredLength && Number(declaredLength) !== expectedSize) {
+      throw new Error("INVALID_CHUNK_SIZE");
+    }
+    if (!request.body || expectedSize < 1 || expectedSize > upload.chunkSizeBytes) {
       throw new Error("INVALID_CHUNK_SIZE");
     }
 
-    await bunnyPut(uploadChunkKey(upload.storageRoot, uploadId, index), bytes, "application/octet-stream");
+    const chunkKey = uploadChunkKey(upload.storageRoot, uploadId, index);
+    try {
+      // Stream the request directly to Bunny. Never materialize a whole 3 MiB
+      // chunk in a Node Buffer for every concurrent upload request.
+      await bunnyPutStream(
+        chunkKey,
+        streamRequestBody(request.body, expectedSize),
+        expectedSize,
+        "application/octet-stream"
+      );
+    } catch (error) {
+      // A rejected/short upload can leave a partial staging object at the provider.
+      await bunnyDelete(chunkKey).catch(() => undefined);
+      throw error;
+    }
+
     const updated = await VaultUpload.findOneAndUpdate(
       {
         _id: upload._id,
@@ -59,7 +83,11 @@ export async function PUT(
       { returnDocument: "after" }
     ).select("_id").lean();
 
-    if (!updated) throw new Error("UPLOAD_NOT_FOUND");
+    if (!updated) {
+      await bunnyDelete(chunkKey).catch(() => undefined);
+      throw new Error("UPLOAD_NOT_FOUND");
+    }
+    // Mark a chunk received only after Bunny returned success and MongoDB recorded it.
     return jsonOk({ received: true, chunkIndex: index });
   } catch (error) {
     return vaultErrorResponse(error, "VAULT_CHUNK_UPLOAD_FAILED");

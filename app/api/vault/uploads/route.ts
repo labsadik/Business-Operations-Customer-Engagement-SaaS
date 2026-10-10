@@ -15,8 +15,7 @@ import {
   safeVaultFilename,
   vaultErrorResponse,
   VAULT_CHUNK_SIZE_BYTES,
-  ensureVaultUsage,
-  cleanupExpiredVaultUploads
+  ensureVaultUsage
 } from "@/features/company-vault/server/vault-storage";
 
 export const runtime = "nodejs";
@@ -27,7 +26,6 @@ export async function POST(request: Request) {
     assertSameOrigin(request);
     const scope = await requireVaultScope();
     await getMongo();
-    await cleanupExpiredVaultUploads(scope);
 
     const body = await request.json().catch(() => null);
     if (!body || typeof body.name !== "string" ||
