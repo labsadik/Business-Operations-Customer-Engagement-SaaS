@@ -339,9 +339,9 @@ export default function WorkspaceSidebar({
               <span className={collapsed ? "sr-only" : "min-w-0 truncate"}>{labels.feedback}</span>
             </button>
             {!adminManaged && (
-              <button type="button" onClick={() => open("support-tickets")} className={buttonClass(isActive("support-tickets"))} title="Support Tickets" aria-pressed={isActive("support-tickets")} data-sidebar-active={isActive("support-tickets") ? "true" : "false"} data-sidebar-key="support-tickets">
+              <button type="button" onClick={() => open("support-tickets")} className={buttonClass(isActive("support-tickets"))} title="Support tickets" aria-pressed={isActive("support-tickets")} data-sidebar-active={isActive("support-tickets") ? "true" : "false"} data-sidebar-key="support-tickets">
                 <LifeBuoy className={`size-4 shrink-0 ${iconClass(isActive("support-tickets"))}`} />
-                <span className={collapsed ? "sr-only" : "min-w-0 truncate"}>Support Tickets</span>
+                <span className={collapsed ? "sr-only" : "min-w-0 truncate"}>Support tickets</span>
               </button>
             )}
           </div>
@@ -423,7 +423,7 @@ export default function WorkspaceSidebar({
               {mobileGroupHeading("Help & Support")}
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 <button type="button" onClick={() => open("feedback")} className={mobileItemClass(isActive("feedback"))} title={labels.feedback} aria-pressed={isActive("feedback")}><MessageSquareText className="size-4 shrink-0" /><span className="min-w-0 truncate">{labels.feedback}</span></button>
-                {!adminManaged && <button type="button" onClick={() => open("support-tickets")} className={mobileItemClass(isActive("support-tickets"))} title="Support Tickets" aria-pressed={isActive("support-tickets")}><LifeBuoy className="size-4 shrink-0" /><span className="min-w-0 truncate">Support Tickets</span></button>}
+                {!adminManaged && <button type="button" onClick={() => open("support-tickets")} className={mobileItemClass(isActive("support-tickets"))} title="Support tickets" aria-pressed={isActive("support-tickets")}><LifeBuoy className="size-4 shrink-0" /><span className="min-w-0 truncate">Support tickets</span></button>}
               </div>
             </div>
           </div>
