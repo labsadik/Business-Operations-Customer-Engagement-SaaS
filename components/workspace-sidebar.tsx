@@ -9,6 +9,7 @@ import {
   Building2,
   ArrowUpRight,
   BarChart3,
+  MessageCircle,
   CalendarDays,
   ClipboardList,
   CreditCard,
@@ -29,6 +30,7 @@ type WorkspaceSidebarProps = {
   companyName: string;
   taskManagementEnabled?: boolean;
   vaultEnabled?: boolean;
+  liveChatEnabled?: boolean;
   canManage?: boolean;
   adminManaged?: boolean;
   activePanel?: Panel | null;
@@ -52,6 +54,7 @@ type SidebarKey =
   | "team"
   | "tasks"
   | "vault"
+  | "live-chat"
   | "profile"
   | "announcements"
   | "billing"
@@ -63,6 +66,7 @@ export default function WorkspaceSidebar({
   companyName,
   taskManagementEnabled = false,
   vaultEnabled = false,
+  liveChatEnabled = false,
   canManage = false,
   adminManaged = false,
   activePanel = null,
@@ -83,6 +87,7 @@ export default function WorkspaceSidebar({
   const isDashboard = pathname === "/dashboard" && !activePanel;
   const isTasks = pathname === "/dashboard/tasks" || pathname.startsWith("/dashboard/tasks/");
   const isVault = pathname === "/dashboard/vault";
+  const isLiveChat = pathname === "/dashboard/live-chat" || pathname.startsWith("/dashboard/live-chat/");
   const isProfile = activeProfile || pathname === "/dashboard/company-profile" || pathname.startsWith("/dashboard/company-profile/");
   const isAnnouncements = activePanel === "settings" && activeSettingsSection === "announcements" && !activeProfile;
   const isSettings = activePanel === "settings" && activeSettingsSection !== "announcements" && !activeProfile;
@@ -94,6 +99,7 @@ export default function WorkspaceSidebar({
       case "team": return activePanel === "team";
       case "tasks": return isTasks;
       case "vault": return isVault;
+      case "live-chat": return isLiveChat;
       case "profile": return isProfile;
       case "announcements": return isAnnouncements;
       case "billing": return activePanel === "billing";
@@ -170,7 +176,7 @@ export default function WorkspaceSidebar({
       activeItem.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
     }
     persistScrollPosition(nav.scrollTop);
-  }, [pathname, activePanel, activeSettingsSection, activeProfile, isTasks, isVault, canManage, taskManagementEnabled, vaultEnabled, companyName, persistScrollPosition]);
+  }, [pathname, activePanel, activeSettingsSection, activeProfile, isTasks, isVault, canManage, taskManagementEnabled, vaultEnabled, liveChatEnabled, companyName, persistScrollPosition]);
 
   const open = (panel: Panel, section?: "announcements") => {
     persistScrollPosition();
@@ -290,7 +296,7 @@ export default function WorkspaceSidebar({
             </button>
           </div>
 
-          {(taskManagementEnabled || vaultEnabled) && (
+          {(taskManagementEnabled || vaultEnabled || liveChatEnabled) && (
             <div role="group" aria-label="Workspace Tools" className="mt-4">
               {groupHeading("Workspace Tools")}
               {taskManagementEnabled && (
@@ -304,6 +310,13 @@ export default function WorkspaceSidebar({
                 <Link href={"/dashboard/vault" as Route} onClick={() => persistScrollPosition()} className={buttonClass(isVault)} title="Cloud Vault" aria-current={isVault ? "page" : undefined} data-sidebar-active={isVault ? "true" : "false"} data-sidebar-key="vault">
                   <FolderOpen className={`size-4 shrink-0 ${iconClass(isVault)}`} />
                   <span className={collapsed ? "sr-only" : "min-w-0 truncate"}>Cloud Vault</span>
+                  {!collapsed && <span className="ml-auto rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">New</span>}
+                </Link>
+              )}
+              {liveChatEnabled && (
+                <Link href={"/dashboard/live-chat" as Route} onClick={() => persistScrollPosition()} className={buttonClass(isLiveChat)} title="Live Chat" aria-current={isLiveChat ? "page" : undefined} data-sidebar-active={isLiveChat ? "true" : "false"} data-sidebar-key="live-chat">
+                  <MessageCircle className={`size-4 shrink-0 ${iconClass(isLiveChat)}`} />
+                  <span className={collapsed ? "sr-only" : "min-w-0 truncate"}>Live Chat</span>
                   {!collapsed && <span className="ml-auto rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">New</span>}
                 </Link>
               )}
@@ -397,12 +410,13 @@ export default function WorkspaceSidebar({
               </div>
             </div>
 
-            {(taskManagementEnabled || vaultEnabled) && (
+            {(taskManagementEnabled || vaultEnabled || liveChatEnabled) && (
               <div role="group" aria-label="Workspace Tools" className="mt-4">
                 {mobileGroupHeading("Workspace Tools")}
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {taskManagementEnabled && <Link href={"/dashboard/tasks" as Route} onClick={() => persistScrollPosition()} className={mobileItemClass(isTasks)} title="Task Management" aria-current={isTasks ? "page" : undefined}><ClipboardList className="size-4 shrink-0" /><span className="min-w-0 truncate">Task Management</span><span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">New</span></Link>}
                   {vaultEnabled && <Link href={"/dashboard/vault" as Route} onClick={() => persistScrollPosition()} className={mobileItemClass(isVault)} title="Cloud Vault" aria-current={isVault ? "page" : undefined}><FolderOpen className="size-4 shrink-0" /><span className="min-w-0 truncate">Cloud Vault</span><span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">New</span></Link>}
+                  {liveChatEnabled && <Link href={"/dashboard/live-chat" as Route} onClick={() => persistScrollPosition()} className={mobileItemClass(isLiveChat)} title="Live Chat" aria-current={isLiveChat ? "page" : undefined}><MessageCircle className="size-4 shrink-0" /><span className="min-w-0 truncate">Live Chat</span><span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">New</span></Link>}
                 </div>
               </div>
             )}

@@ -49,6 +49,13 @@ const nextConfig: NextConfig = {
         headers: [{ key: "Content-Security-Policy", value: "frame-ancestors *;" }]
       },
       {
+        source: "/embed/live-chat/:companySlug",
+        headers: [
+          { key: "Content-Security-Policy", value: "frame-ancestors *;" },
+          noStore
+        ]
+      },
+      {
         source: "/terms",
         headers: [publicLongCache]
       },

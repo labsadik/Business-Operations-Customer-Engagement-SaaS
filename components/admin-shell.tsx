@@ -17,6 +17,7 @@ import {
   LogOut,
   LifeBuoy,
   MessageSquareText,
+  MessageCircle,
   Megaphone,
   ShieldCheck,
   UsersRound,
@@ -29,6 +30,7 @@ const nav = [
   { href: "/admin/users", key: "adminPublicUsers", label: "Public users", icon: UsersRound },
   { href: "/admin/plans", key: "adminPlans", label: "Plans", icon: BadgeDollarSign },
   { href: "/admin/vault-usage", key: "adminPlans", label: "Vault usage", icon: HardDrive },
+  { href: "/admin/live-chat", key: "adminPlans", label: "Live Chat usage", icon: MessageCircle },
   { href: "/admin/announcements", key: "adminAnnouncements", label: "Announcements", icon: Megaphone },
   { href: "/admin/feedback", key: "adminFeedback", label: "Feedback", icon: MessageSquareText },
   { href: "/admin/support-tickets", key: "adminSupportTickets", label: "Support tickets", icon: LifeBuoy },
@@ -47,6 +49,7 @@ function pageTitle(pathname: string, labels: NavigationLabels) {
   if (pathname.startsWith("/admin/users")) return labels.adminPublicUsers;
   if (pathname.startsWith("/admin/plans")) return labels.adminPlans;
   if (pathname.startsWith("/admin/vault-usage")) return "Vault usage";
+  if (pathname.startsWith("/admin/live-chat")) return "Live Chat usage";
   if (pathname.startsWith("/admin/announcements")) return labels.adminAnnouncements;
   if (pathname.startsWith("/admin/feedback")) return labels.adminFeedback;
   if (pathname.startsWith("/admin/support-tickets")) return labels.adminSupportTickets;
@@ -102,7 +105,7 @@ export default function AdminShell({
                   ].join(" ")}
                 >
                   <Icon className="size-4" />
-                  <span>{item.href === "/admin/vault-usage" ? item.label : labels[item.key]}</span>
+                  <span>{item.href === "/admin/vault-usage" || item.href === "/admin/live-chat" ? item.label : labels[item.key]}</span>
                   {selected && <ChevronRight className="ml-auto size-4 opacity-60" />}
                 </Link>
               </div>

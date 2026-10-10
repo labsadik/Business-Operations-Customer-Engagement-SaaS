@@ -6,6 +6,10 @@
     {
       "path": "/api/jobs/vault-upload-cleanup",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/jobs/live-chat-retention",
+      "schedule": "0 4 * * *"
     }
   ]
 }

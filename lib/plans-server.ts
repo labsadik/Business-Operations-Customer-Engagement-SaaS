@@ -219,7 +219,15 @@ export async function getCompanyEntitlements(companyId: string): Promise<PlanEnt
         vaultEnabled: Boolean(currentPlan.vaultEnabled),
         vaultQuotaBytes: currentPlan.vaultQuotaBytes ?? snapshot.vaultQuotaBytes ?? 5368709120,
         vaultMaxFileBytes: currentPlan.vaultMaxFileBytes ?? snapshot.vaultMaxFileBytes ?? 104857600,
-        vaultMaxItems: currentPlan.vaultMaxItems ?? snapshot.vaultMaxItems ?? 1000
+        vaultMaxItems: currentPlan.vaultMaxItems ?? snapshot.vaultMaxItems ?? 1000,
+        liveChatEnabled: Boolean(currentPlan.liveChatEnabled),
+        liveChatMonthlyLimit: currentPlan.liveChatMonthlyLimit ?? snapshot.liveChatMonthlyLimit ?? 1000,
+        liveChatCustomerLimit: currentPlan.liveChatCustomerLimit ?? snapshot.liveChatCustomerLimit ?? 500,
+        liveChatAgentLimit: currentPlan.liveChatAgentLimit ?? snapshot.liveChatAgentLimit ?? 5,
+        liveChatRetentionDays: currentPlan.liveChatRetentionDays ?? snapshot.liveChatRetentionDays ?? 30,
+        liveChatMessageCooldownSeconds: currentPlan.liveChatMessageCooldownSeconds ?? snapshot.liveChatMessageCooldownSeconds ?? 15,
+        liveChatPdfExportEnabled: currentPlan.liveChatPdfExportEnabled !== false,
+        liveChatDeleteEnabled: currentPlan.liveChatDeleteEnabled !== false
       }
     : {
         ...snapshot,
