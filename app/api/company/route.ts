@@ -149,7 +149,7 @@ export async function GET() {
     vaultQuotaBytes: currentEntitlements.vaultQuotaBytes ?? 0,
     vaultMaxItems: currentEntitlements.vaultMaxItems ?? 0,
     vaultMaxFileBytes: currentEntitlements.vaultMaxFileBytes ?? 0
-  }, true);
+  });
 
   const employees = activeMembers.filter((member) => member.role === "EMPLOYEE");
   const employeeStatusCounts = {
