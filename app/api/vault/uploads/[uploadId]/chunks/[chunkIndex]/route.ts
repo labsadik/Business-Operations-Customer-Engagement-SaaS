@@ -39,6 +39,10 @@ export async function PUT(
     }).lean();
     if (!upload) throw new Error("UPLOAD_NOT_FOUND");
     if (index >= upload.expectedChunks) throw new Error("INVALID_CHUNK_INDEX");
+    // Idempotent retry: a prior 200 means Bunny already confirmed this chunk.
+    if (upload.receivedChunks.includes(index)) {
+      return jsonOk({ received: true, chunkIndex: index, alreadyReceived: true });
+    }
 
     const expectedSize = index === upload.expectedChunks - 1
       ? upload.sizeBytes - index * upload.chunkSizeBytes
