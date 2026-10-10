@@ -18,6 +18,7 @@ import { Task } from "@/models/task";
 import { TaskAssignment } from "@/models/task-assignment";
 import { TaskDailyUsage } from "@/models/task-daily-usage";
 import { getTodayIso } from "@/lib/timezone";
+import { getVaultUsageSnapshot } from "@/features/company-vault/server/vault-storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -143,6 +144,12 @@ export async function GET() {
     getCompanyEntitlements(String(company._id))
   );
   const currentCatalogPlan = await getManagedPlan(subscription.planId, { includeArchived: true });
+  const vaultUsage = await getVaultUsageSnapshot({
+    companyId: String(company._id),
+    vaultQuotaBytes: currentEntitlements.vaultQuotaBytes ?? 0,
+    vaultMaxItems: currentEntitlements.vaultMaxItems ?? 0,
+    vaultMaxFileBytes: currentEntitlements.vaultMaxFileBytes ?? 0
+  });
 
   const employees = activeMembers.filter((member) => member.role === "EMPLOYEE");
   const employeeStatusCounts = {
@@ -249,6 +256,7 @@ export async function GET() {
           planId: subscription.planId
         }
       : null,
+    vaultUsage: { enabled: Boolean(currentEntitlements.vaultEnabled), ...vaultUsage },
     currentPlan: {
       ...currentEntitlements,
       description: currentCatalogPlan?.description ?? "",

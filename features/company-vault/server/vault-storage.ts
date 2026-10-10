@@ -23,6 +23,7 @@ export type VaultScope = {
   workspaceId: string;
   companyName: string;
   companySlug: string;
+  vaultStorageRoot: string;
   isPlatformAdmin: boolean;
   vaultEnabled: boolean;
   vaultQuotaBytes: number;
@@ -62,10 +63,18 @@ export async function requireVaultScope(): Promise<VaultScope> {
   const companyId = new Types.ObjectId(session.companyId);
   const workspaceId = new Types.ObjectId(session.workspaceId);
   const [company, workspace] = await Promise.all([
-    Company.findOne({ _id: companyId }).select("_id name slug").lean(),
+    Company.findOne({ _id: companyId }).select("_id name slug vaultStorageRoot").lean(),
     Workspace.findOne({ _id: workspaceId, companyId, active: true }).select("_id").lean()
   ]);
   if (!company || !workspace) throw new Error("WORKSPACE_NOT_FOUND");
+
+  // Persist a human-readable name + immutable ID once. A later company rename
+  // never changes the storage prefix and therefore cannot orphan existing files.
+  let vaultStorageRoot = company.vaultStorageRoot;
+  if (typeof vaultStorageRoot !== "string" || !/^company-[a-z0-9-]{1,80}-[0-9a-f]{24}$/.test(vaultStorageRoot)) {
+    vaultStorageRoot = buildCompanyVaultRoot(company.name, String(company._id));
+    await Company.updateOne({ _id: companyId }, { $set: { vaultStorageRoot } });
+  }
 
   const entitlements = await getCompanyEntitlements(String(companyId));
   if (!entitlements.vaultEnabled) throw new Error("VAULT_FEATURE_NOT_INCLUDED");
@@ -76,6 +85,7 @@ export async function requireVaultScope(): Promise<VaultScope> {
     workspaceId: String(workspaceId),
     companyName: company.name,
     companySlug: company.slug,
+    vaultStorageRoot,
     isPlatformAdmin: session.role === "PLATFORM_ADMIN",
     vaultEnabled: Boolean(entitlements.vaultEnabled),
     vaultQuotaBytes: entitlements.vaultQuotaBytes ?? getVaultDefaultQuotaBytes(),
@@ -84,10 +94,20 @@ export async function requireVaultScope(): Promise<VaultScope> {
   };
 }
 
-export function companyVaultRoot(scope: Pick<VaultScope, "companyId">) {
-  // Stable company ID only: renaming a company or changing its public slug cannot
-  // orphan stored bytes or change which tenant owns them.
-  return "company-" + scope.companyId;
+export function buildCompanyVaultRoot(companyName: string, companyId: string) {
+  const readable = companyName
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "company";
+  if (!/^[0-9a-f]{24}$/.test(companyId)) throw new Error("COMPANY_NOT_CONFIGURED");
+  return "company-" + readable + "-" + companyId;
+}
+
+export function companyVaultRoot(scope: Pick<VaultScope, "vaultStorageRoot">) {
+  return scope.vaultStorageRoot;
 }
 
 export function vaultFolderSegment(name: string, folderId: string) {
@@ -169,9 +189,15 @@ export async function bunnyDelete(path: string) {
   if (!response.ok) throwBunnyError(response);
 }
 
-export async function bunnyDownload(path: string) {
-  const response = await bunnyRequest("GET", path);
-  if (!response.ok) throwBunnyError(response);
+export async function bunnyDownload(path: string, range?: string) {
+  const config = bunnyConfig();
+  const headers: Record<string, string> = { AccessKey: config.password };
+  // Only forward a single byte range; user-controlled arbitrary headers never reach Bunny.
+  if (range && /^bytes=(?:\d+-\d*|-\d+)$/.test(range)) headers.Range = range;
+  const response = range && headers.Range
+    ? await fetch(bunnyObjectUrl(path, config), { method: "GET", headers, cache: "no-store" })
+    : await bunnyRequest("GET", path);
+  if (!response.ok && response.status !== 206) throwBunnyError(response);
   return response;
 }
 
@@ -266,7 +292,7 @@ export async function ensureVaultUsage(
         filter,
         {
           $set: { quotaBytes: scope.vaultQuotaBytes },
-          $setOnInsert: { usedBytes, usedItems }
+          $setOnInsert: { usedBytes, usedItems, counterVersion: 2 }
         },
         { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
       ).lean();
@@ -280,7 +306,51 @@ export async function ensureVaultUsage(
   }
 
   if (!usage) throw new Error("VAULT_USAGE_UNAVAILABLE");
-  if (!Number.isSafeInteger(usage.usedItems)) {
+
+  // One-time repair for counters predating reliable delete accounting. The
+  // transaction conflicts with simultaneous quota reservations instead of
+  // overwriting their increments.
+  if (usage.counterVersion !== 2) {
+    await cleanupExpiredVaultUploads(scope);
+    const db = await getMongo();
+    const session = await db.startSession();
+    try {
+      await session.withTransaction(async () => {
+        const latest = await VaultUsage.findOne(filter).session(session).lean();
+        if (!latest || latest.counterVersion === 2) return;
+        const files = await VaultFile.find({ companyId })
+          .select("_id uploadId sizeBytes")
+          .session(session)
+          .lean();
+        const activeUploads = await VaultUpload.find({
+          companyId,
+          status: { $in: ["OPEN", "COMPLETING"] },
+          expiresAt: { $gt: new Date() }
+        }).select("_id sizeBytes").session(session).lean();
+        const filesByUpload = new Set(files.map((file) => String(file.uploadId)));
+        const pendingUploads = activeUploads.filter((upload) => !filesByUpload.has(String(upload._id)));
+        const usedBytes = files.reduce((sum, file) => sum + file.sizeBytes, 0) +
+          pendingUploads.reduce((sum, upload) => sum + upload.sizeBytes, 0);
+        await VaultUsage.updateOne(
+          filter,
+          {
+            $set: {
+              usedBytes,
+              usedItems: files.length + pendingUploads.length,
+              quotaBytes: scope.vaultQuotaBytes,
+              counterVersion: 2
+            }
+          },
+          { session }
+        );
+      });
+    } finally {
+      await session.endSession();
+    }
+    usage = await VaultUsage.findOne(filter).lean();
+  }
+
+  if (!Number.isSafeInteger(usage?.usedItems)) {
     const [files, activeUploads] = await Promise.all([
       VaultFile.find({ companyId }).select("uploadId").lean(),
       VaultUpload.find({ companyId, status: { $in: ["OPEN", "COMPLETING"] } }).select("_id").lean()
@@ -339,6 +409,89 @@ export async function releaseVaultBytes(scope: Pick<VaultScope, "companyId">, by
   );
 }
 
+export async function deleteVaultFileAndRelease(
+  scope: Pick<VaultScope, "companyId" | "workspaceId">,
+  file: { _id: Types.ObjectId; sizeBytes: number }
+) {
+  const companyId = new Types.ObjectId(scope.companyId);
+  const workspaceId = new Types.ObjectId(scope.workspaceId);
+  const db = await getMongo();
+  const session = await db.startSession();
+  let deletedCount = 0;
+  try {
+    await session.withTransaction(async () => {
+      const deleted = await VaultFile.deleteOne({
+        _id: file._id,
+        companyId,
+        workspaceId
+      }, { session });
+      if (!deleted.deletedCount) return;
+      deletedCount = deleted.deletedCount;
+      await VaultUsage.updateOne(
+        { companyId, workspaceId: companyId },
+        [{
+          $set: {
+            usedBytes: { $max: [0, { $subtract: [{ $ifNull: ["$usedBytes", 0] }, file.sizeBytes] }] },
+            usedItems: { $max: [0, { $subtract: [{ $ifNull: ["$usedItems", 0] }, 1] }] }
+          }
+        }],
+        { session }
+      );
+    });
+  } finally {
+    await session.endSession();
+  }
+  return deletedCount > 0;
+}
+
+export async function getVaultUsageSnapshot(
+  scope: Pick<VaultScope, "companyId" | "vaultQuotaBytes" | "vaultMaxItems" | "vaultMaxFileBytes">
+) {
+  const companyId = new Types.ObjectId(scope.companyId);
+  const [fileRows, pendingRows] = await Promise.all([
+    VaultFile.aggregate<{ count: number; sizeBytes: number }>([
+      { $match: { companyId } },
+      { $group: { _id: null, count: { $sum: 1 }, sizeBytes: { $sum: "$sizeBytes" } } }
+    ]),
+    VaultUpload.aggregate<{ count: number; sizeBytes: number }>([
+      {
+        $match: {
+          companyId,
+          status: { $in: ["OPEN", "COMPLETING"] },
+          expiresAt: { $gt: new Date() }
+        }
+      },
+      {
+        $lookup: {
+          from: VaultFile.collection.name,
+          localField: "_id",
+          foreignField: "uploadId",
+          as: "committedFiles"
+        }
+      },
+      { $match: { $expr: { $eq: [{ $size: "$committedFiles" }, 0] } } },
+      { $group: { _id: null, count: { $sum: 1 }, sizeBytes: { $sum: "$sizeBytes" } } }
+    ])
+  ]);
+  const fileCount = fileRows[0]?.count ?? 0;
+  const fileBytes = fileRows[0]?.sizeBytes ?? 0;
+  const pendingUploadCount = pendingRows[0]?.count ?? 0;
+  const pendingUploadBytes = pendingRows[0]?.sizeBytes ?? 0;
+  const usedBytes = fileBytes + pendingUploadBytes;
+  const usedItems = fileCount + pendingUploadCount;
+  return {
+    usedBytes,
+    quotaBytes: scope.vaultQuotaBytes,
+    availableBytes: Math.max(0, scope.vaultQuotaBytes - usedBytes),
+    usedItems,
+    maxItems: scope.vaultMaxItems,
+    maxFileBytes: scope.vaultMaxFileBytes,
+    fileCount,
+    pendingUploadCount,
+    pendingUploadBytes
+  };
+}
+
 export function uploadChunkKey(storageRoot: string, uploadId: string, index: number) {
   return ".conventus-staging/" + storageRoot + "/" + uploadId + "/" + index + ".part";
 }
@@ -353,19 +506,17 @@ export async function removeUploadChunks(storageRoot: string, uploadId: string, 
   }
 }
 
-export async function cleanupExpiredVaultUploads(scope: Pick<VaultScope, "companyId" | "workspaceId">) {
+export async function cleanupExpiredVaultUploads(scope: Pick<VaultScope, "companyId">) {
   const now = new Date();
   const companyId = new Types.ObjectId(scope.companyId);
-  const workspaceId = new Types.ObjectId(scope.workspaceId);
-  const expired = await VaultUpload.find({ companyId, workspaceId, expiresAt: { $lte: now } }).lean();
+  const expired = await VaultUpload.find({ companyId, expiresAt: { $lte: now } }).lean();
   for (const upload of expired) {
     const uploadId = String(upload._id);
     await removeUploadChunks(upload.storageRoot, uploadId, upload.expectedChunks);
-    const fileExists = await VaultFile.exists({ uploadId: upload._id, companyId, workspaceId });
+    const fileExists = await VaultFile.exists({ uploadId: upload._id, companyId });
     const deleted = await VaultUpload.deleteOne({
       _id: upload._id,
       companyId,
-      workspaceId,
       expiresAt: { $lte: now }
     });
     if (deleted.deletedCount && !fileExists) await releaseVaultBytes(scope, upload.sizeBytes);

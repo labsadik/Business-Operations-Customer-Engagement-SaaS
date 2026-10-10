@@ -20,7 +20,8 @@ import {
   Phone,
   Save,
   ShieldCheck,
-  UsersRound
+  UsersRound,
+  HardDrive
 } from "lucide-react";
 
 type ProfileData = {
@@ -46,9 +47,23 @@ type ProfileData = {
   owner: { name: string; email: string; image: string } | null;
 };
 
+type VaultUsageData = {
+  enabled: boolean;
+  usedBytes: number;
+  quotaBytes: number;
+  availableBytes: number;
+  usedItems: number;
+  maxItems: number;
+  maxFileBytes: number;
+  fileCount: number;
+  pendingUploadCount: number;
+  pendingUploadBytes: number;
+};
+
 type CompanyResponse = {
   company: ProfileData;
   currentPlan?: { vaultEnabled?: boolean };
+  vaultUsage?: VaultUsageData;
   memberCount: number;
   canPublish: boolean;
   featureLocked: boolean;
@@ -56,6 +71,19 @@ type CompanyResponse = {
 
 async function api<T>(url: string, init?: RequestInit) {
   return clientApi<T>(url, init);
+}
+
+function formatStorageBytes(value: number) {
+  if (!Number.isFinite(value) || value < 0) return "0 B";
+  if (value < 1024) return Math.round(value) + " B";
+  const units = ["KB", "MB", "GB", "TB"];
+  let scaled = value / 1024;
+  let index = 0;
+  while (scaled >= 1024 && index < units.length - 1) {
+    scaled /= 1024;
+    index += 1;
+  }
+  return (scaled >= 100 ? scaled.toFixed(0) : scaled >= 10 ? scaled.toFixed(1) : scaled.toFixed(2)) + " " + units[index];
 }
 
 export default function CompanyProfile({
@@ -68,6 +96,7 @@ export default function CompanyProfile({
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [memberCount, setMemberCount] = useState(0);
   const [vaultEnabled, setVaultEnabled] = useState(false);
+  const [vaultUsage, setVaultUsage] = useState<VaultUsageData | null>(null);
   const [canPublish, setCanPublish] = useState(false);
   const [featureLocked, setFeatureLocked] = useState(false);
   const [form, setForm] = useState<ProfileData | null>(null);
@@ -96,6 +125,7 @@ export default function CompanyProfile({
         setForm(data.company);
         setMemberCount(data.memberCount);
         setVaultEnabled(Boolean(data.currentPlan?.vaultEnabled));
+        setVaultUsage(data.vaultUsage ?? null);
         setCanPublish(data.canPublish);
         setFeatureLocked(data.featureLocked);
       } catch {
@@ -266,6 +296,51 @@ export default function CompanyProfile({
             </div>
           </div>
         </section>
+
+        {vaultUsage && (
+          <section className="mt-6 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-blue-50 text-blue-700">
+                  <HardDrive className="size-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold">Company Cloud Vault usage</h2>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Live totals from stored files and active upload reservations. Deleted files no longer count toward usage.
+                  </p>
+                </div>
+              </div>
+              {vaultUsage.enabled ? (
+                <Link href="/dashboard/vault" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-blue-700">
+                  Open company vault <ArrowLeft className="size-3.5 rotate-180" />
+                </Link>
+              ) : (
+                <span className="inline-flex w-fit rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">Not included in current plan</span>
+              )}
+            </div>
+            <div className="mt-6 grid gap-5 sm:grid-cols-3">
+              <div>
+                <p className="text-xs font-medium text-slate-500">Storage used</p>
+                <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">{formatStorageBytes(vaultUsage.usedBytes)}</p>
+                <p className="mt-1 text-xs text-slate-500">of {vaultUsage.enabled ? formatStorageBytes(vaultUsage.quotaBytes) : "no active quota"}</p>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="Cloud Vault storage used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={vaultUsage.quotaBytes > 0 ? Math.min(100, Math.round(vaultUsage.usedBytes / vaultUsage.quotaBytes * 100)) : 0}>
+                  <div className="h-full rounded-full bg-blue-600" style={{ width: (vaultUsage.quotaBytes > 0 ? Math.min(100, vaultUsage.usedBytes / vaultUsage.quotaBytes * 100) : 0) + "%" }} />
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-slate-500">Stored files and active uploads</p>
+                <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">{vaultUsage.usedItems.toLocaleString("en-IN")} <span className="text-sm font-medium text-slate-400">/ {vaultUsage.maxItems.toLocaleString("en-IN")}</span></p>
+                <p className="mt-1 text-xs text-slate-500">{vaultUsage.fileCount.toLocaleString("en-IN")} committed files · {vaultUsage.pendingUploadCount.toLocaleString("en-IN")} active uploads</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-slate-500">Available / file size limit</p>
+                <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">{formatStorageBytes(vaultUsage.availableBytes)}</p>
+                <p className="mt-1 text-xs text-slate-500">{vaultUsage.enabled ? formatStorageBytes(vaultUsage.maxFileBytes) + " maximum per file" : "Enable Cloud Vault on a plan to allow uploads"}</p>
+              </div>
+            </div>
+          </section>
+        )}
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,.6fr)]">
           <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">

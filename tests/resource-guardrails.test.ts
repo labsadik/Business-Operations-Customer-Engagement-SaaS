@@ -304,6 +304,36 @@ test("vault quota counter remains compatible with workspace-era records", () => 
   assert.ok(usageModel.includes("vaultUsageSchema.index({ companyId: 1, workspaceId: 1 }, { unique: true })"));
   assert.ok(storage.includes("const usageWorkspaceId = companyId"));
   assert.ok(storage.includes("VaultUsage.deleteMany({ companyId, workspaceId: { $ne: usageWorkspaceId } })"));
-  assert.ok(adminUsage.includes('String(row.workspaceId) === String(row.companyId)'));
+  assert.ok(adminUsage.includes("const usedBytes = (fileStats?.sizeBytes ?? 0) + (pendingStats?.sizeBytes ?? 0);"));
   assert.ok(adminUsage.includes("committedFiles"));
+});
+
+
+test("company vault uses the database company name plus immutable company ID for Bunny prefixes", () => {
+  const company = source("models/company.ts");
+  const storage = source("features/company-vault/server/vault-storage.ts");
+  const adminUsage = source("app/api/admin/vault-usage/route.ts");
+
+  assert.ok(company.includes("vaultStorageRoot"));
+  assert.ok(storage.includes("buildCompanyVaultRoot(company.name, String(company._id))"));
+  assert.ok(storage.includes('return "company-" + readable + "-" + companyId'));
+  assert.ok(storage.includes("counterVersion: 2"));
+  assert.ok(storage.includes("deleteVaultFileAndRelease"));
+  assert.ok(storage.includes("getVaultUsageSnapshot"));
+  assert.ok(adminUsage.includes("storagePrefix: company.vaultStorageRoot ?? buildCompanyVaultRoot(company.name, companyId)"));
+});
+
+test("company profile and drive thumbnails use live usage and labeled, private previews", () => {
+  const companyRoute = source("app/api/company/route.ts");
+  const profile = source("components/company-profile.tsx");
+  const drive = source("components/company-vault.tsx");
+  const fileRoute = source("app/api/vault/files/[fileId]/route.ts");
+
+  assert.ok(companyRoute.includes("getVaultUsageSnapshot"));
+  assert.ok(profile.includes("Company Cloud Vault usage"));
+  assert.ok(drive.includes("fileTypeLabel"));
+  assert.ok(drive.includes('loading="lazy"'));
+  assert.ok(drive.includes("<video"));
+  assert.ok(fileRoute.includes("Accept-Ranges"));
+  assert.ok(fileRoute.includes("deleteVaultFileAndRelease"));
 });
