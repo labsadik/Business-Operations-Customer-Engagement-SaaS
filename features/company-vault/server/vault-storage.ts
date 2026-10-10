@@ -350,7 +350,7 @@ export async function ensureVaultUsage(
     usage = await VaultUsage.findOne(filter).lean();
   }
 
-  if (!Number.isSafeInteger(usage?.usedItems))
+  if (!Number.isSafeInteger(usage?.usedItems)) {
     const [files, activeUploads] = await Promise.all([
       VaultFile.find({ companyId }).select("uploadId").lean(),
       VaultUpload.find({ companyId, status: { $in: ["OPEN", "COMPLETING"] } }).select("_id").lean()
