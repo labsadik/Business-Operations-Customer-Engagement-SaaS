@@ -13,7 +13,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ comp
     const visitorId = url.searchParams.get("visitorId") ?? "";
     if (!/^[a-zA-Z0-9_-]{16,100}$/.test(visitorId)) return jsonError("LIVE_CHAT_VISITOR_INVALID", 400);
     const context = await getPublicLiveChatContext(companySlug, siteOrigin, visitorId);
-    return jsonOk({
+    const response = jsonOk({
       company: { name: context.company.name, slug: context.company.slug },
       accessToken: context.accessToken,
       settings: {
@@ -29,6 +29,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ comp
       cooldownSeconds: context.entitlements.liveChatMessageCooldownSeconds,
       retentionDays: context.entitlements.liveChatRetentionDays
     });
+    response.headers.set("Cache-Control", "private, no-cache, no-store, max-age=0, must-revalidate");
+    return response;
   } catch (error) {
     const { code, status } = liveChatError(error, "PUBLIC_LIVE_CHAT_LOAD_FAILED");
     return jsonError(code, status);
