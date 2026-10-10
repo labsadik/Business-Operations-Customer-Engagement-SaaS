@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import {
   ArrowLeft,
+  ArrowDownToLine,
   ChevronRight,
+  Eye,
+  X,
   CloudUpload,
   File as FileIcon,
   FileImage,
@@ -22,10 +25,18 @@ import {
   RefreshCw
 } from "lucide-react";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
+import ConfirmDialog from "@/components/confirm-dialog";
 
 type FolderItem = { id: string; name: string; createdAt: string; updatedAt: string };
 type FileItem = { id: string; name: string; mimeType: string; sizeBytes: number; createdAt: string; updatedAt: string };
-type Usage = { usedBytes: number; quotaBytes: number; availableBytes: number };
+type Usage = {
+  usedBytes: number;
+  quotaBytes: number;
+  availableBytes: number;
+  usedItems: number;
+  maxItems: number;
+  maxFileBytes: number;
+};
 type VaultSnapshot = {
   companyName: string;
   currentFolder: { id: string; name: string } | null;
@@ -36,6 +47,8 @@ type VaultSnapshot = {
 };
 type ApiEnvelope<T> = { ok: boolean; data?: T; error?: string };
 type UploadStart = { uploadId: string; chunkSizeBytes: number; expectedChunks: number; expiresAt: string };
+type FolderDialog = { mode: "create" | "rename"; name: string; folderId?: string; originalName?: string };
+type ConfirmationTarget = { kind: "folder" | "file"; id: string; name: string };
 
 async function apiRequest<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { ...init, cache: "no-store" });
@@ -51,8 +64,10 @@ function explainError(code: string) {
     BUNNY_STORAGE_NOT_CONFIGURED: "Vault storage is not configured yet. Add the Bunny Storage Zone name and password to the server environment.",
     BUNNY_STORAGE_CONFIGURATION_INVALID: "The Bunny Storage endpoint must be a valid HTTPS URL.",
     BUNNY_STORAGE_REQUEST_FAILED: "Bunny Storage could not complete the request. Please try again.",
-    VAULT_STORAGE_LIMIT_REACHED: "This upload would exceed your company's storage limit.",
-    VAULT_FILE_TOO_LARGE: "This file is larger than the server-configured per-file upload limit.",
+    VAULT_STORAGE_LIMIT_REACHED: "This upload would exceed your company's plan storage quota.",
+    VAULT_ITEM_LIMIT_REACHED: "Your plan's maximum stored item count has been reached. Delete an item or contact your administrator.",
+    VAULT_FEATURE_NOT_INCLUDED: "Cloud vault is not included in this company's current plan. Ask your platform administrator to enable it on the plan.",
+    VAULT_FILE_TOO_LARGE: "This file exceeds the maximum file size for your company's plan.",
     FOLDER_ALREADY_EXISTS: "A folder with that name already exists here.",
     FOLDER_NOT_FOUND: "That folder no longer exists. Refresh the vault and try again.",
     FILE_NOT_FOUND: "That file no longer exists. Refresh the vault and try again.",
@@ -90,7 +105,12 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [progress, setProgress] = useState("");
+  const [uploadPercent, setUploadPercent] = useState(0);
   const [reloadVersion, setReloadVersion] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const [folderDialog, setFolderDialog] = useState<FolderDialog | null>(null);
+  const [confirmation, setConfirmation] = useState<ConfirmationTarget | null>(null);
+  const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -129,81 +149,99 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
     setFolderId(nextFolderId);
   };
 
-  const createFolder = async () => {
-    const value = window.prompt("Folder name");
-    if (value === null || !value.trim()) return;
+  const createFolder = () => {
+    setFolderDialog({ mode: "create", name: "" });
+    setError("");
+  };
+
+  const renameFolder = (folder: FolderItem) => {
+    setFolderDialog({ mode: "rename", folderId: folder.id, name: folder.name, originalName: folder.name });
+    setError("");
+  };
+
+  const saveFolderDialog = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!folderDialog || busy) return;
+    const name = folderDialog.name.trim();
+    if (!name) {
+      setError("Enter a folder name.");
+      return;
+    }
+    if (folderDialog.mode === "rename" && name === folderDialog.originalName) {
+      setFolderDialog(null);
+      return;
+    }
     setBusy(true);
     setError("");
     try {
-      await apiRequest("/api/vault/folders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: value, parentFolderId: folderId })
-      });
+      if (folderDialog.mode === "create") {
+        await apiRequest("/api/vault/folders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, parentFolderId: folderId })
+        });
+      } else {
+        await apiRequest("/api/vault/folders/" + encodeURIComponent(folderDialog.folderId || ""), {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name })
+        });
+      }
+      setFolderDialog(null);
       refresh();
     } catch (reason) {
-      setError(explainError(reason instanceof Error ? reason.message : "VAULT_FOLDER_CREATE_FAILED"));
+      setError(explainError(reason instanceof Error ? reason.message : "VAULT_FOLDER_SAVE_FAILED"));
     } finally {
       setBusy(false);
     }
   };
 
-  const renameFolder = async (folder: FolderItem) => {
-    const value = window.prompt("Rename folder", folder.name);
-    if (value === null || !value.trim() || value.trim() === folder.name) return;
+  const deleteFolder = (folder: FolderItem) => {
+    setConfirmation({ kind: "folder", id: folder.id, name: folder.name });
+  };
+
+  const deleteFile = (file: FileItem) => {
+    setConfirmation({ kind: "file", id: file.id, name: file.name });
+  };
+
+  const executeConfirmation = async () => {
+    if (!confirmation || busy) return;
+    const target = confirmation;
     setBusy(true);
     setError("");
     try {
-      await apiRequest("/api/vault/folders/" + encodeURIComponent(folder.id), {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: value })
-      });
+      if (target.kind === "folder") {
+        await apiRequest("/api/vault/folders/" + encodeURIComponent(target.id), { method: "DELETE" });
+      } else {
+        await apiRequest("/api/vault/files/" + encodeURIComponent(target.id), { method: "DELETE" });
+      }
+      setConfirmation(null);
+      if (previewFile?.id === target.id) setPreviewFile(null);
       refresh();
     } catch (reason) {
-      setError(explainError(reason instanceof Error ? reason.message : "VAULT_FOLDER_RENAME_FAILED"));
+      setError(explainError(reason instanceof Error ? reason.message : "VAULT_DELETE_FAILED"));
     } finally {
       setBusy(false);
     }
   };
 
-  const deleteFolder = async (folder: FolderItem) => {
-    const confirmed = window.confirm("Permanently delete “" + folder.name + "”, its subfolders, and every file inside them?");
-    if (!confirmed) return;
-    setBusy(true);
-    setError("");
-    try {
-      await apiRequest("/api/vault/folders/" + encodeURIComponent(folder.id), { method: "DELETE" });
-      refresh();
-    } catch (reason) {
-      setError(explainError(reason instanceof Error ? reason.message : "VAULT_FOLDER_DELETE_FAILED"));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const deleteFile = async (file: FileItem) => {
-    const confirmed = window.confirm("Permanently delete “" + file.name + "”?");
-    if (!confirmed) return;
-    setBusy(true);
-    setError("");
-    try {
-      await apiRequest("/api/vault/files/" + encodeURIComponent(file.id), { method: "DELETE" });
-      refresh();
-    } catch (reason) {
-      setError(explainError(reason instanceof Error ? reason.message : "VAULT_FILE_DELETE_FAILED"));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const uploadFiles = async (event: ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(event.currentTarget.files ?? []);
-    event.currentTarget.value = "";
+  const startUploads = async (selected: File[]) => {
     if (!selected.length) return;
+    if (selected.length > 25) {
+      setError("Upload up to 25 files at a time. You can start another batch immediately afterward.");
+      return;
+    }
+    if (snapshot && (snapshot.usage.usedBytes >= snapshot.usage.quotaBytes ||
+        snapshot.usage.usedItems >= snapshot.usage.maxItems)) {
+      setError(snapshot.usage.usedBytes >= snapshot.usage.quotaBytes
+        ? "Your company's storage quota is full. Delete files or ask your administrator to increase the plan's quota."
+        : "Your plan's maximum stored item count has been reached. Delete an item or ask your administrator to increase the plan limit.");
+      return;
+    }
 
     setBusy(true);
     setError("");
+    setUploadPercent(0);
     try {
       for (let fileIndex = 0; fileIndex < selected.length; fileIndex += 1) {
         const file = selected[fileIndex];
@@ -223,9 +261,10 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
           uploadId = upload.uploadId;
 
           for (let index = 0; index < upload.expectedChunks; index += 1) {
-            const start = index * upload.chunkSizeBytes;
-            const chunk = file.slice(start, Math.min(file.size, start + upload.chunkSizeBytes));
-            const percentage = Math.round(((index + 1) / upload.expectedChunks) * 100);
+            const chunkStart = index * upload.chunkSizeBytes;
+            const chunk = file.slice(chunkStart, Math.min(file.size, chunkStart + upload.chunkSizeBytes));
+            const percentage = Math.round(((fileIndex + (index + 1) / upload.expectedChunks) / selected.length) * 100);
+            setUploadPercent(percentage);
             setProgress("Uploading " + file.name + " — " + percentage + "%");
             await apiRequest("/api/vault/uploads/" + upload.uploadId + "/chunks/" + index, {
               method: "PUT",
@@ -234,7 +273,7 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
             });
           }
 
-          setProgress("Saving " + file.name + " to the company vault");
+          setProgress("Finalizing " + file.name + " in private storage");
           await apiRequest("/api/vault/uploads/" + upload.uploadId + "/complete", { method: "POST" });
           uploadId = null;
         } catch (reason) {
@@ -244,15 +283,22 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
           throw reason;
         }
       }
-      refresh();
+      setUploadPercent(100);
+      setProgress("Upload complete");
+      setReloadVersion((version) => version + 1);
     } catch (reason) {
       setError(explainError(reason instanceof Error ? reason.message : "VAULT_UPLOAD_FAILED"));
-      setLoading(true);
       setReloadVersion((version) => version + 1);
     } finally {
       setBusy(false);
-      setProgress("");
+      window.setTimeout(() => setProgress(""), 1200);
     }
+  };
+
+  const uploadFiles = (event: ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(event.currentTarget.files ?? []);
+    event.currentTarget.value = "";
+    void startUploads(selected);
   };
 
   const usedPercent = snapshot?.usage.quotaBytes
@@ -260,6 +306,10 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
     : 0;
   const canManage = currentRole === "COMPANY_ADMIN" || currentRole === "PLATFORM_ADMIN";
   const usedFiles = (snapshot?.folders.length ?? 0) + (snapshot?.files.length ?? 0);
+  const uploadBlocked = Boolean(snapshot && (
+    snapshot.usage.usedBytes >= snapshot.usage.quotaBytes ||
+    snapshot.usage.usedItems >= snapshot.usage.maxItems
+  ));
 
   return (
     <>
@@ -313,12 +363,28 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
                     <FolderPlus className="size-4" />
                     New folder
                   </button>
-                  <button type="button" disabled={busy || loading} onClick={() => inputRef.current?.click()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-3.5 py-2.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+                  <button type="button" disabled={busy || loading || uploadBlocked} onClick={() => inputRef.current?.click()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-3.5 py-2.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
                     {busy ? <LoaderCircle className="size-4 animate-spin" /> : <Upload className="size-4" />}
                     Upload files
                   </button>
                   <input ref={inputRef} type="file" multiple className="hidden" onChange={uploadFiles} aria-label="Choose files to upload" />
                 </div>
+              </div>
+
+              <div
+                onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
+                onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false); }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  setDragging(false);
+                  void startUploads(Array.from(event.dataTransfer.files));
+                }}
+                className={"mt-5 rounded-2xl border border-dashed px-4 py-4 text-center transition " + (dragging ? "border-blue-500 bg-blue-50" : uploadBlocked ? "border-slate-200 bg-slate-50" : "border-slate-300 bg-slate-50/70")}
+              >
+                <CloudUpload className={"mx-auto size-5 " + (dragging ? "text-blue-600" : "text-slate-400")} />
+                <p className="mt-2 text-xs font-semibold text-slate-700">{uploadBlocked ? "Upload limit reached" : dragging ? "Drop files to upload" : "Drag and drop files here"}</p>
+                <p className="mt-1 text-[11px] leading-5 text-slate-500">{snapshot ? formatBytes(snapshot.usage.maxFileBytes) + " maximum per file · " + Math.max(0, snapshot.usage.maxItems - snapshot.usage.usedItems).toLocaleString("en-IN") + " item slots available" : "Choose files from this device or drop them here"}</p>
+                {!uploadBlocked && <button type="button" disabled={busy || loading} onClick={() => inputRef.current?.click()} className="mt-2 text-xs font-semibold text-blue-700 underline underline-offset-2 disabled:opacity-50">Browse device</button>}
               </div>
 
               <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 text-sm">
@@ -342,6 +408,14 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
               </div>
 
               {progress && <p role="status" className="mt-3 rounded-xl bg-blue-50 px-3 py-2 text-xs font-medium text-blue-800">{progress}</p>}
+              {busy && (
+                <div className="mt-2" aria-label={"Upload progress " + uploadPercent + "%"} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={uploadPercent}>
+                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-full rounded-full bg-blue-600 transition-[width] duration-200" style={{ width: uploadPercent + "%" }} />
+                  </div>
+                  <p className="mt-1 text-right text-[11px] tabular-nums text-slate-500">{uploadPercent}%</p>
+                </div>
+              )}
 
               <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
                 <div className="grid grid-cols-[minmax(0,1fr)_100px_76px] gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 sm:grid-cols-[minmax(0,1fr)_150px_100px_86px]">
@@ -389,11 +463,12 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
                         <div key={file.id} className="grid grid-cols-[minmax(0,1fr)_100px_76px] items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_150px_100px_86px]">
                           <div className="flex min-w-0 items-center gap-3">
                             <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-700"><Icon className="size-4.5" /></div>
-                            <a href={"/api/vault/files/" + encodeURIComponent(file.id)} className="min-w-0 truncate text-sm font-medium text-slate-800 hover:text-blue-700" title={file.name}>{file.name}</a>
+                            <button type="button" onClick={() => setPreviewFile(file)} className="min-w-0 truncate text-left text-sm font-medium text-slate-800 hover:text-blue-700" title={"Preview " + file.name}>{file.name}</button>
                           </div>
                           <span className="hidden truncate text-xs text-slate-500 sm:block">{new Date(file.updatedAt).toLocaleDateString()}</span>
                           <span className="text-xs tabular-nums text-slate-500">{formatBytes(file.sizeBytes)}</span>
-                          <div className="flex justify-end">
+                          <div className="flex justify-end gap-1">
+                            <a href={"/api/vault/files/" + encodeURIComponent(file.id)} title="Download file" aria-label={"Download " + file.name} className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-blue-50 hover:text-blue-700"><ArrowDownToLine className="size-3.5" /></a>
                             <button type="button" disabled={busy} onClick={() => void deleteFile(file)} title="Delete file" aria-label={"Delete " + file.name} className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-40"><Trash2 className="size-3.5" /></button>
                           </div>
                         </div>
@@ -416,8 +491,12 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
                       <div className="h-full rounded-full bg-blue-600 transition-all" style={{ width: usedPercent + "%" }} />
                     </div>
                     <div className="mt-3 flex items-center justify-between gap-3 text-xs">
-                      <span className="text-slate-500">Available</span>
+                      <span className="text-slate-500">Available storage</span>
                       <span className="font-semibold tabular-nums text-slate-800">{formatBytes(snapshot.usage.availableBytes)}</span>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between gap-3 text-xs">
+                      <span className="text-slate-500">Stored items</span>
+                      <span className="font-semibold tabular-nums text-slate-800">{snapshot.usage.usedItems.toLocaleString("en-IN")} / {snapshot.usage.maxItems.toLocaleString("en-IN")}</span>
                     </div>
                   </>
                 ) : (
@@ -437,12 +516,84 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
                     <span key={label} className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-[11px] font-medium text-slate-600">{label}</span>
                   ))}
                 </div>
-                <p className="mt-3 text-xs leading-5 text-slate-500">Large files are sent in small chunks through the server, then assembled into the private Bunny Storage Zone.</p>
+                <p className="mt-3 text-xs leading-5 text-slate-500">Uploads are sequential 3 MiB chunks and are streamed into private Bunny storage without assembling the entire file in application memory. Image, video, PDF and plain-text previews load through the authenticated file route. Office files are downloadable and remain private.</p>
               </section>
             </aside>
           </section>
         </div>
       </main>
+      <ConfirmDialog
+        open={Boolean(confirmation)}
+        title={confirmation?.kind === "folder" ? "Delete folder and its contents?" : "Delete this file?"}
+        description={confirmation?.kind === "folder"
+          ? "This permanently removes “" + (confirmation?.name || "") + "”, all nested folders, and their files from the company's vault."
+          : "This permanently deletes “" + (confirmation?.name || "") + "” from the company's vault."}
+        confirmLabel={confirmation?.kind === "folder" ? "Delete folder" : "Delete file"}
+        destructive
+        busy={busy}
+        onCancel={() => { if (!busy) setConfirmation(null); }}
+        onConfirm={() => void executeConfirmation()}
+      />
+
+      {folderDialog && (
+        <div className="fixed inset-0 z-[90] grid place-items-center bg-slate-950/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="vault-folder-dialog-title" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setFolderDialog(null); }}>
+          <form onSubmit={(event) => void saveFolderDialog(event)} className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-5">
+              <div>
+                <h2 id="vault-folder-dialog-title" className="text-base font-semibold text-slate-950">{folderDialog.mode === "create" ? "Create folder" : "Rename folder"}</h2>
+                <p className="mt-1 text-xs leading-5 text-slate-500">Folders are stored as private metadata. Creating a folder does not write placeholder files to Bunny Storage.</p>
+              </div>
+              <button type="button" aria-label="Close folder dialog" disabled={busy} onClick={() => setFolderDialog(null)} className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 disabled:opacity-50"><X className="size-4" /></button>
+            </div>
+            <div className="p-5">
+              <label className="block text-xs font-semibold text-slate-700">
+                Folder name
+                <input autoFocus autoComplete="off" maxLength={100} value={folderDialog.name} onChange={(event) => setFolderDialog((current) => current ? { ...current, name: event.target.value } : current)} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10" placeholder="e.g. Contracts" />
+              </label>
+              {error && <p role="alert" className="mt-3 text-xs text-rose-700">{error}</p>}
+            </div>
+            <div className="flex flex-col-reverse gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:justify-end">
+              <button type="button" onClick={() => setFolderDialog(null)} disabled={busy} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-50">Cancel</button>
+              <button type="submit" disabled={busy || !folderDialog.name.trim()} className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">{busy ? "Saving…" : folderDialog.mode === "create" ? "Create folder" : "Save name"}</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {previewFile && (
+        <div className="fixed inset-0 z-[80] grid place-items-center bg-slate-950/65 p-3 backdrop-blur-sm sm:p-6" role="dialog" aria-modal="true" aria-labelledby="vault-preview-title" onMouseDown={(event) => { if (event.target === event.currentTarget) setPreviewFile(null); }}>
+          <section className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/15 bg-white shadow-2xl">
+            <header className="flex items-center justify-between gap-4 border-b border-slate-200 px-4 py-3 sm:px-6">
+              <div className="min-w-0">
+                <h2 id="vault-preview-title" className="truncate text-sm font-semibold text-slate-950">{previewFile.name}</h2>
+                <p className="mt-1 text-[11px] text-slate-500">{formatBytes(previewFile.sizeBytes)} · Preview uses your authenticated company session</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <a href={"/api/vault/files/" + encodeURIComponent(previewFile.id)} className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"><ArrowDownToLine className="size-3.5" /> Download</a>
+                <button type="button" aria-label="Close preview" onClick={() => setPreviewFile(null)} className="grid size-9 place-items-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50"><X className="size-4" /></button>
+              </div>
+            </header>
+            <div className="min-h-[45vh] flex-1 overflow-auto bg-slate-100 p-3 sm:p-5">
+              {previewFile.mimeType.startsWith("image/") && !previewFile.mimeType.includes("svg") ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={"/api/vault/files/" + encodeURIComponent(previewFile.id) + "?inline=1"} alt={previewFile.name} className="mx-auto max-h-[74vh] max-w-full rounded-xl object-contain" />
+              ) : previewFile.mimeType.startsWith("video/") && /^(video\/(mp4|webm|ogg))$/.test(previewFile.mimeType) ? (
+                <video controls preload="metadata" src={"/api/vault/files/" + encodeURIComponent(previewFile.id) + "?inline=1"} className="mx-auto max-h-[74vh] max-w-full rounded-xl" />
+              ) : /^(application\/pdf|text\/(plain|csv)|application\/json)$/.test(previewFile.mimeType) ? (
+                <iframe title={"Preview " + previewFile.name} sandbox="" src={"/api/vault/files/" + encodeURIComponent(previewFile.id) + "?inline=1"} className="h-[72vh] w-full rounded-xl border border-slate-200 bg-white" />
+              ) : (
+                <div className="grid min-h-[45vh] place-items-center">
+                  <div className="max-w-md text-center">
+                    <FileText className="mx-auto size-10 text-slate-400" />
+                    <p className="mt-3 text-sm font-semibold text-slate-800">Preview isn't available for this file type yet</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">The original file is still stored privately. Download it to open it in Word, Excel, PowerPoint, or the appropriate local app.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
     </>
   );
 }
