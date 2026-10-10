@@ -27,10 +27,10 @@ const stages = [
 export default function LandingWorkflowMockup() {
   const [stage, setStage] = useState<Stage>(0);
   const [decision, setDecision] = useState<RequestDecision>("pending");
+  const [selectedTime, setSelectedTime] = useState("11:30 AM");
 
   function acceptRequest() {
     setDecision("accepted");
-    setStage(2);
   }
 
   function declineRequest() {
@@ -118,16 +118,17 @@ export default function LandingWorkflowMockup() {
                     <button
                       type="button"
                       key={time}
-                      aria-pressed={index === 1}
+                      aria-pressed={selectedTime === time}
+                      onClick={() => setSelectedTime(time)}
                       className={
                         "rounded-xl border px-2 py-3 text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 " +
-                        (index === 1
+                        (selectedTime === time
                           ? "border-blue-600 bg-blue-600 text-white ring-2 ring-blue-200 ring-offset-2"
                           : "border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50")
                       }
                     >
                       <span className="block text-xs font-semibold">{time}</span>
-                      {index === 1 && <span className="mt-1 block text-[9px] font-medium text-blue-100">Selected</span>}
+                      {selectedTime === time && <span className="mt-1 block text-[9px] font-medium text-blue-100">Selected</span>}
                     </button>
                   ))}
                 </div>
@@ -166,7 +167,7 @@ export default function LandingWorkflowMockup() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-semibold text-slate-950">Client request received</p>
-                  <p className="mt-1 text-[11px] text-slate-500">Meridian Health · Oct 15 at 11:30 AM</p>
+                  <p className="mt-1 text-[11px] text-slate-500">Meridian Health · Oct 15 at {selectedTime}</p>
                 </div>
                 <Check className="size-4 shrink-0 text-emerald-600" />
               </div>
@@ -181,7 +182,7 @@ export default function LandingWorkflowMockup() {
                     <p className="mt-1 text-sm font-semibold text-slate-950">Sarah Jenkins</p>
                     <p className="mt-0.5 text-xs text-slate-600">Solutions Architect · Active</p>
                   </div>
-                  <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-800">
+                  <span className={"shrink-0 rounded-full border px-2 py-1 text-[10px] font-semibold " + (decision === "accepted" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-800")}>
                     {decision === "pending" ? "Awaiting response" : decision === "accepted" ? "Confirmed" : "Declined"}
                   </span>
                 </div>
@@ -254,7 +255,7 @@ export default function LandingWorkflowMockup() {
                   <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><Video className="size-5" /></span>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-slate-950">Product Architecture Review</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">Thursday, October 15 · 11:30 AM–12:00 PM</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">Thursday, October 15 · {selectedTime} · 30 minutes</p>
                     <p className="mt-1 text-xs text-slate-500">Sarah Jenkins with Morgan Ellis</p>
                   </div>
                 </div>
