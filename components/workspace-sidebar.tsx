@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigationLabels } from "@/components/navigation-labels-provider";
 import {
   Building2,
@@ -103,7 +103,7 @@ export default function WorkspaceSidebar({
     }
   };
 
-  const persistScrollPosition = (top?: number) => {
+  const persistScrollPosition = useCallback((top?: number) => {
     try {
       const scrollTop = top ?? navRef.current?.scrollTop ?? 0;
       sessionStorage.setItem(SIDEBAR_SCROLL_KEY, JSON.stringify({
@@ -113,7 +113,7 @@ export default function WorkspaceSidebar({
     } catch {
       // Scroll retention is progressive enhancement and must not block navigation.
     }
-  };
+  }, [companyName]);
 
   const handleNavScroll = (top: number) => {
     if (scrollPersistTimerRef.current) clearTimeout(scrollPersistTimerRef.current);
@@ -148,11 +148,11 @@ export default function WorkspaceSidebar({
       }
       persistScrollPosition(nav.scrollTop);
     };
-  }, [companyName]);
+  }, [companyName, persistScrollPosition]);
 
   useEffect(() => {
     const nav = navRef.current;
-    if (!nav) return;
+    if (!nav || nav.clientHeight === 0) return;
 
     const activeItem = nav.querySelector<HTMLElement>('[data-sidebar-active="true"]');
     if (!activeItem) return;
@@ -163,7 +163,7 @@ export default function WorkspaceSidebar({
       activeItem.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "auto" });
     }
     persistScrollPosition(nav.scrollTop);
-  }, [pathname, activePanel, activeSettingsSection, activeProfile, isTasks, isVault, canManage, taskManagementEnabled, vaultEnabled, companyName]);
+  }, [pathname, activePanel, activeSettingsSection, activeProfile, isTasks, isVault, canManage, taskManagementEnabled, vaultEnabled, companyName, persistScrollPosition]);
 
   const open = (panel: Panel, section?: "announcements") => {
     persistScrollPosition();
@@ -214,7 +214,7 @@ export default function WorkspaceSidebar({
     <>
       <aside className={`fixed inset-y-0 left-0 z-50 hidden flex-col border-r border-slate-200/90 bg-white transition-[width] duration-200 lg:flex ${collapsed ? "w-20" : "w-72"}`}>
         <div className={`border-b border-slate-200/80 ${collapsed ? "px-2 py-3" : "px-3.5 py-3.5"}`}>
-          <div className="flex items-center justify-between gap-2.5">
+          <div className={`flex items-center justify-between ${collapsed ? "gap-1" : "gap-2.5"}`}>
             <div className={`flex min-w-0 items-center ${collapsed ? "justify-center" : "gap-3"}`}>
               <div className={`grid shrink-0 place-items-center rounded-xl bg-slate-950 text-white shadow-sm ${collapsed ? "size-7" : "size-10 rounded-2xl"}`}>
                 <Building2 className={collapsed ? "size-4" : "size-5"} aria-hidden="true" />
