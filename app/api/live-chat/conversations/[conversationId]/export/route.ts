@@ -23,7 +23,7 @@ const TEXT = rgb(0.13, 0.17, 0.24);
 const MUTED = rgb(0.39, 0.44, 0.52);
 
 function safePdfText(value: string) {
-  return value.replace(/[\r\u0000-\u0009\u000B-\u001F\u007F]/g, " ").replace(/[^\x20-\xFF]/g, "?").trim();
+  return value.replace(/[\r\u0000-\u0009\u000B-\u001F\u007F]/g, " ").replace(/[^\x20-\xFF\n]/g, "?").trim();
 }
 
 function truncate(value: string, max: number) {
