@@ -431,3 +431,31 @@ test("vault listing and usage reads are bounded for very large tenants", () => {
   assert.ok(download.includes('"Cross-Origin-Resource-Policy": "same-origin"'));
   assert.ok(download.includes('request.headers.get("sec-fetch-site") === "cross-site"'));
 });
+
+
+test("invoice UI and one-page PDF resolve the full plan-specific feature entitlement snapshot", () => {
+  const invoiceModel = source("models/invoice.ts");
+  const paymentModel = source("models/payment.ts");
+  const invoicing = source("lib/invoicing.ts");
+  const resolver = source("lib/invoice-plan-snapshot.ts");
+  const invoicePage = source("app/billing/invoices/[invoiceId]/page.tsx");
+  const invoiceList = source("app/api/billing/invoices/route.ts");
+  const invoiceUi = source("components/invoice-document.tsx");
+  const pdf = source("app/api/billing/invoices/[invoiceId]/pdf/route.ts");
+
+  for (const field of ["taskManagementDailyLimit", "vaultEnabled", "vaultQuotaBytes", "vaultMaxFileBytes", "vaultMaxItems"]) {
+    assert.ok(invoiceModel.includes(field), "invoice snapshot persists " + field);
+    assert.ok(paymentModel.includes(field), "checkout snapshot persists " + field);
+    assert.ok(invoicing.includes(field), "invoice creation snapshots " + field);
+    assert.ok(resolver.includes(field), "legacy invoice resolver repairs " + field);
+  }
+
+  assert.ok(invoicePage.includes("resolveInvoicePlanSnapshot"));
+  assert.ok(invoiceList.includes("resolveInvoicePlanSnapshot"));
+  assert.ok(invoiceUi.includes('label="Task management"'));
+  assert.ok(invoiceUi.includes('label="Cloud Vault"'));
+  assert.ok(invoiceUi.includes('label="Task daily limit"'));
+  assert.ok(pdf.includes('"Task management: " + (planSnapshot.taskManagementEnabled ? "Included" : "Not included")'));
+  assert.ok(pdf.includes('"Cloud Vault: " + (planSnapshot.vaultEnabled ? "Included" : "Not included")'));
+  assert.equal((pdf.match(/pdfDoc\.addPage\(/g) ?? []).length, 1, "invoice PDF stays one page");
+});
