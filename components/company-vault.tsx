@@ -37,6 +37,7 @@ import {
 import WorkspaceSidebar from "@/components/workspace-sidebar";
 import { useWorkspaceSidebarState } from "@/components/use-workspace-sidebar-state";
 import ConfirmDialog from "@/components/confirm-dialog";
+import CustomPdfViewer from "@/components/custom-pdf-viewer";
 
 type FolderItem = { id: string; name: string; createdAt: string; updatedAt: string };
 type FileItem = { id: string; name: string; mimeType: string; sizeBytes: number; createdAt: string; updatedAt: string };
@@ -1107,7 +1108,14 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
                 <img src={"/api/vault/files/" + encodeURIComponent(previewFile.id) + "?inline=1"} alt={previewFile.name} draggable={false} referrerPolicy="no-referrer" onDragStart={(event) => event.preventDefault()} onContextMenu={(event) => event.preventDefault()} className="mx-auto max-h-[76vh] max-w-full rounded-xl object-contain shadow-sm" />
               ) : previewFile.mimeType.startsWith("video/") && /^(video\/(mp4|webm|ogg))$/.test(previewFile.mimeType) ? (
                 <video controls controlsList="nodownload noremoteplayback" disablePictureInPicture disableRemotePlayback draggable={false} onDragStart={(event) => event.preventDefault()} onContextMenu={(event) => event.preventDefault()} preload="metadata" src={"/api/vault/files/" + encodeURIComponent(previewFile.id) + "?inline=1"} className="mx-auto max-h-[76vh] max-w-full rounded-xl bg-slate-200 shadow-sm" />
-              ) : /^(application\/pdf|text\/(plain|csv)|application\/json)$/.test(previewFile.mimeType) ? (
+              ) : /^application\/pdf$/i.test(previewFile.mimeType) || previewFile.name.toLowerCase().endsWith(".pdf") ? (
+                <div className="h-[76vh] w-full overflow-hidden rounded-xl border border-slate-200 bg-white sm:h-[78vh]">
+                  <CustomPdfViewer
+                    src={"/api/vault/files/" + encodeURIComponent(previewFile.id) + "?inline=1"}
+                    fileName={previewFile.name}
+                  />
+                </div>
+              ) : /^(text\/(plain|csv)|application\/json)$/.test(previewFile.mimeType) ? (
                 <iframe title={"Preview " + previewFile.name} sandbox="" referrerPolicy="no-referrer" src={"/api/vault/files/" + encodeURIComponent(previewFile.id) + "?inline=1"} className="h-[76vh] w-full rounded-xl border border-slate-200 bg-white shadow-sm" />
               ) : (
                 <div className="grid min-h-[45vh] place-items-center p-5">
