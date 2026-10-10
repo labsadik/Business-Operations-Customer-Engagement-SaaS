@@ -11,6 +11,7 @@ import {
   CalendarDays,
   ClipboardList,
   CreditCard,
+  FolderOpen,
   LogOut,
   LifeBuoy,
   Megaphone,
@@ -60,6 +61,7 @@ export default function WorkspaceSidebar({
 
   const isDashboard = pathname === "/dashboard" && !activePanel;
   const isTasks = pathname === "/dashboard/tasks" || pathname.startsWith("/dashboard/tasks/");
+  const isVault = pathname === "/dashboard/vault";
   const active = (key: "dashboard" | Panel | "profile") => {
     if (key === "dashboard") return isDashboard;
     if (key === "profile") return activeProfile;
@@ -149,6 +151,12 @@ export default function WorkspaceSidebar({
               </Link>
             )}
 
+            <Link href={"/dashboard/vault" as Route} className={buttonClass(isVault)} title="Company vault">
+              <FolderOpen className={`size-4 ${iconClass(isVault)}`} />
+              <span className={collapsed ? "sr-only" : ""}>Company vault</span>
+              {isVault && !collapsed && <span className="ml-auto size-1.5 rounded-full bg-blue-600" />}
+            </Link>
+
             <button type="button" onClick={() => open("feedback")} className={buttonClass(active("feedback"))} title={labels.feedback}>
               <MessageSquareText className={`size-4 ${iconClass(active("feedback"))}`} />
               <span className={collapsed ? "sr-only" : ""}>{labels.feedback}</span>
@@ -227,6 +235,7 @@ export default function WorkspaceSidebar({
           <button type="button" onClick={() => open("meetings")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("meetings") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.meetings}</button>
           <button type="button" onClick={() => open("team")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("team") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.team}</button>
           {taskManagementEnabled && <Link href={"/dashboard/tasks" as Route} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${isTasks ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Tasks</Link>}
+          <Link href={"/dashboard/vault" as Route} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${isVault ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>Company vault</Link>
           <button type="button" onClick={() => open("feedback")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("feedback") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.feedback}</button>
           {canManage && <button type="button" onClick={() => open("settings", "announcements")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${activePanel === "settings" && activeSettingsSection === "announcements" ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.announcements}</button>}
           {canManage && <button type="button" onClick={() => open("billing")} className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold ${active("billing") ? "bg-blue-50 text-blue-700 ring-1 ring-blue-100" : "text-slate-600 hover:bg-slate-50"}`}>{labels.billing}</button>}

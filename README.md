@@ -182,3 +182,10 @@ Availability results are advisory and cached briefly to reduce repeated Google C
 Conventus has exactly four canonical application roles: `PLATFORM_ADMIN`, `COMPANY_ADMIN`, `EMPLOYEE`, and `CUSTOMER`. Company and workspace APIs enforce authorization server-side and require an explicit role allowlist plus an active membership in the requested company/workspace. `COMPANY_OWNER` is only recognized as a legacy database value so it can be migrated to `COMPANY_ADMIN`; it is not an application permission.
 
 Before deploying this role hardening to an existing database, back up the database and run `npm run roles:migrate` with the intended `MONGODB_URI`. The migration reports any user or membership records with unsupported role values and fails closed if any remain. Do not run it against the wrong database.
+
+
+## Company Vault (Bunny.net Storage)
+
+The company-scoped document vault is available at `/dashboard/vault`. It supports nested folders, folder rename/delete, multi-file uploads, authenticated file downloads, per-company storage usage/quota, and recursive folder deletion. Every API derives tenant scope from the authenticated company/workspace session.
+
+Configure the server-only variables `BUNNY_STORAGE_ZONE` and `BUNNY_STORAGE_PASSWORD`; optionally configure `BUNNY_STORAGE_ENDPOINT`, `BUNNY_VAULT_QUOTA_BYTES` (default 5 GiB per company), and `BUNNY_VAULT_MAX_FILE_BYTES` (default 100 MiB). Uploads are sent in 3 MiB chunks to avoid large request bodies, then the server assembles the file in Bunny Storage. The absolute per-file cap is 250 MiB because assembly currently uses server memory. Do not put Bunny credentials in any `NEXT_PUBLIC_*` variable. See [the Company Vault guide](./features/company-vault/README.md) for details.
