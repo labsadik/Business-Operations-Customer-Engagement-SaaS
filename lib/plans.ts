@@ -18,6 +18,14 @@ export type PlanEntitlements = {
   vaultQuotaBytes: number;
   vaultMaxFileBytes: number;
   vaultMaxItems: number;
+  liveChatEnabled: boolean;
+  liveChatMonthlyLimit: number;
+  liveChatCustomerLimit: number;
+  liveChatAgentLimit: number;
+  liveChatRetentionDays: number;
+  liveChatMessageCooldownSeconds: number;
+  liveChatPdfExportEnabled: boolean;
+  liveChatDeleteEnabled: boolean;
   validityDays: number;
   freeFeatureDays: number | null;
   requiresPayment: boolean;
@@ -40,6 +48,14 @@ export const PLANS: Record<PlanId, PlanEntitlements> = {
     vaultQuotaBytes: 5368709120,
     vaultMaxFileBytes: 104857600,
     vaultMaxItems: 1000,
+    liveChatEnabled: false,
+    liveChatMonthlyLimit: 1000,
+    liveChatCustomerLimit: 500,
+    liveChatAgentLimit: 5,
+    liveChatRetentionDays: 30,
+    liveChatMessageCooldownSeconds: 15,
+    liveChatPdfExportEnabled: true,
+    liveChatDeleteEnabled: true,
     validityDays: 30,
     freeFeatureDays: 14,
     requiresPayment: false
@@ -60,6 +76,14 @@ export const PLANS: Record<PlanId, PlanEntitlements> = {
     vaultQuotaBytes: 5368709120,
     vaultMaxFileBytes: 104857600,
     vaultMaxItems: 1000,
+    liveChatEnabled: false,
+    liveChatMonthlyLimit: 1000,
+    liveChatCustomerLimit: 500,
+    liveChatAgentLimit: 5,
+    liveChatRetentionDays: 30,
+    liveChatMessageCooldownSeconds: 15,
+    liveChatPdfExportEnabled: true,
+    liveChatDeleteEnabled: true,
     validityDays: 30,
     freeFeatureDays: null,
     requiresPayment: true
@@ -80,6 +104,14 @@ export const PLANS: Record<PlanId, PlanEntitlements> = {
     vaultQuotaBytes: 5368709120,
     vaultMaxFileBytes: 104857600,
     vaultMaxItems: 1000,
+    liveChatEnabled: false,
+    liveChatMonthlyLimit: 1000,
+    liveChatCustomerLimit: 500,
+    liveChatAgentLimit: 5,
+    liveChatRetentionDays: 30,
+    liveChatMessageCooldownSeconds: 15,
+    liveChatPdfExportEnabled: true,
+    liveChatDeleteEnabled: true,
     validityDays: 30,
     freeFeatureDays: null,
     requiresPayment: true
@@ -100,6 +132,14 @@ export const PLANS: Record<PlanId, PlanEntitlements> = {
     vaultQuotaBytes: 5368709120,
     vaultMaxFileBytes: 104857600,
     vaultMaxItems: 1000,
+    liveChatEnabled: false,
+    liveChatMonthlyLimit: 1000,
+    liveChatCustomerLimit: 500,
+    liveChatAgentLimit: 5,
+    liveChatRetentionDays: 30,
+    liveChatMessageCooldownSeconds: 15,
+    liveChatPdfExportEnabled: true,
+    liveChatDeleteEnabled: true,
     validityDays: 30,
     freeFeatureDays: null,
     requiresPayment: true
@@ -120,6 +160,14 @@ export const PLANS: Record<PlanId, PlanEntitlements> = {
     vaultQuotaBytes: 5368709120,
     vaultMaxFileBytes: 104857600,
     vaultMaxItems: 1000,
+    liveChatEnabled: false,
+    liveChatMonthlyLimit: 1000,
+    liveChatCustomerLimit: 500,
+    liveChatAgentLimit: 5,
+    liveChatRetentionDays: 30,
+    liveChatMessageCooldownSeconds: 15,
+    liveChatPdfExportEnabled: true,
+    liveChatDeleteEnabled: true,
     validityDays: 30,
     freeFeatureDays: null,
     requiresPayment: true

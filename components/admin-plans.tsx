@@ -45,6 +45,14 @@ type Plan = {
   vaultQuotaBytes: number;
   vaultMaxFileBytes: number;
   vaultMaxItems: number;
+  liveChatEnabled: boolean;
+  liveChatMonthlyLimit: number;
+  liveChatCustomerLimit: number;
+  liveChatAgentLimit: number;
+  liveChatRetentionDays: number;
+  liveChatMessageCooldownSeconds: number;
+  liveChatPdfExportEnabled: boolean;
+  liveChatDeleteEnabled: boolean;
   validityDays: number;
   freeFeatureDays: number | null;
   requiresPayment: boolean;
@@ -82,6 +90,14 @@ type Draft = {
   vaultQuotaUnit: "GB" | "TB";
   vaultMaxFileMiB: string;
   vaultMaxItems: string;
+  liveChatEnabled: boolean;
+  liveChatMonthlyLimit: string;
+  liveChatCustomerLimit: string;
+  liveChatAgentLimit: string;
+  liveChatRetentionDays: string;
+  liveChatMessageCooldownSeconds: string;
+  liveChatPdfExportEnabled: boolean;
+  liveChatDeleteEnabled: boolean;
   validityDays: string;
   freeFeatureDays: string;
 };
@@ -110,6 +126,14 @@ const emptyDraft: Draft = {
   vaultQuotaUnit: "GB",
   vaultMaxFileMiB: "100",
   vaultMaxItems: "1000",
+  liveChatEnabled: false,
+  liveChatMonthlyLimit: "1000",
+  liveChatCustomerLimit: "500",
+  liveChatAgentLimit: "5",
+  liveChatRetentionDays: "30",
+  liveChatMessageCooldownSeconds: "15",
+  liveChatPdfExportEnabled: true,
+  liveChatDeleteEnabled: true,
   validityDays: "30",
   freeFeatureDays: ""
 };
@@ -161,6 +185,14 @@ function toDraft(plan: Plan): Draft {
     vaultQuotaUnit: (plan.vaultQuotaBytes ?? 5368709120) >= 1024 ** 4 ? "TB" : "GB",
     vaultMaxFileMiB: String((plan.vaultMaxFileBytes ?? 104857600) / (1024 ** 2)),
     vaultMaxItems: String(plan.vaultMaxItems ?? 1000),
+    liveChatEnabled: Boolean(plan.liveChatEnabled),
+    liveChatMonthlyLimit: String(plan.liveChatMonthlyLimit ?? 1000),
+    liveChatCustomerLimit: String(plan.liveChatCustomerLimit ?? 500),
+    liveChatAgentLimit: String(plan.liveChatAgentLimit ?? 5),
+    liveChatRetentionDays: String(plan.liveChatRetentionDays ?? 30),
+    liveChatMessageCooldownSeconds: String(plan.liveChatMessageCooldownSeconds ?? 15),
+    liveChatPdfExportEnabled: plan.liveChatPdfExportEnabled !== false,
+    liveChatDeleteEnabled: plan.liveChatDeleteEnabled !== false,
     validityDays: String(plan.validityDays),
     freeFeatureDays: plan.freeFeatureDays == null ? "" : String(plan.freeFeatureDays)
   };
@@ -194,6 +226,14 @@ function draftPayload(draft: Draft) {
     vaultQuotaBytes: Math.round(parseNumber(draft.vaultQuotaAmount) * (draft.vaultQuotaUnit === "TB" ? 1024 ** 4 : 1024 ** 3)),
     vaultMaxFileBytes: Math.round(parseNumber(draft.vaultMaxFileMiB) * (1024 ** 2)),
     vaultMaxItems: parseNumber(draft.vaultMaxItems),
+    liveChatEnabled: draft.liveChatEnabled,
+    liveChatMonthlyLimit: parseNumber(draft.liveChatMonthlyLimit),
+    liveChatCustomerLimit: parseNumber(draft.liveChatCustomerLimit),
+    liveChatAgentLimit: parseNumber(draft.liveChatAgentLimit),
+    liveChatRetentionDays: parseNumber(draft.liveChatRetentionDays),
+    liveChatMessageCooldownSeconds: parseNumber(draft.liveChatMessageCooldownSeconds),
+    liveChatPdfExportEnabled: draft.liveChatPdfExportEnabled,
+    liveChatDeleteEnabled: draft.liveChatDeleteEnabled,
     validityDays: parseNumber(draft.validityDays),
     freeFeatureDays: draft.freeFeatureDays.trim() === "" ? null : parseNumber(draft.freeFeatureDays)
   };
@@ -352,6 +392,14 @@ export default function AdminPlans() {
       "vaultQuotaUnit",
       "vaultMaxFileMiB",
       "vaultMaxItems",
+      "liveChatEnabled",
+      "liveChatMonthlyLimit",
+      "liveChatCustomerLimit",
+      "liveChatAgentLimit",
+      "liveChatRetentionDays",
+      "liveChatMessageCooldownSeconds",
+      "liveChatPdfExportEnabled",
+      "liveChatDeleteEnabled",
       "validityDays",
       "freeFeatureDays"
     ].some((key) => nextDraft[key as keyof Draft] !== original[key as keyof Draft]);
@@ -668,6 +716,15 @@ export default function AdminPlans() {
                     </p>
                   </div>
 
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-3">
+                    <p className="text-[10px] uppercase tracking-[0.11em] text-slate-400">Live Chat</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-800">
+                      {item.liveChatEnabled
+                        ? `${item.liveChatMonthlyLimit.toLocaleString("en-IN")} chats/month · ${item.liveChatCustomerLimit.toLocaleString("en-IN")} customers · ${item.liveChatRetentionDays}d retention · ${item.liveChatMessageCooldownSeconds}s cooldown`
+                        : "Not included"}
+                    </p>
+                  </div>
+
                   <div className="flex flex-wrap gap-2 text-[10px] text-slate-500">
                     <span className="rounded-full border border-slate-200 px-2.5 py-1">{item.activeSubscriptionCount} active subscriptions</span>
                     <span className="rounded-full border border-slate-200 px-2.5 py-1">{item.paymentCount} payment records</span>
@@ -895,6 +952,23 @@ export default function AdminPlans() {
                           </div>
                         )}
                       </div>
+                      <div className="mt-5 border-t border-slate-200 pt-4">
+                        <Toggle label="Live Chat widget & customer conversations" value={draft.liveChatEnabled} onChange={(value) => setDraft((current) => ({ ...current, liveChatEnabled: value }))} />
+                        {draft.liveChatEnabled && (
+                          <div className="mt-4 space-y-4">
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <Field label="Chats per month" type="number" min="1" step="1" value={draft.liveChatMonthlyLimit} onChange={(value) => setDraft((current) => ({ ...current, liveChatMonthlyLimit: value }))} />
+                              <Field label="Unique customers per month" type="number" min="1" step="1" value={draft.liveChatCustomerLimit} onChange={(value) => setDraft((current) => ({ ...current, liveChatCustomerLimit: value }))} />
+                              <Field label="Employee agents allowed" type="number" min="1" step="1" value={draft.liveChatAgentLimit} onChange={(value) => setDraft((current) => ({ ...current, liveChatAgentLimit: value }))} />
+                              <Field label="Auto-delete history after (days)" type="number" min="1" step="1" value={draft.liveChatRetentionDays} onChange={(value) => setDraft((current) => ({ ...current, liveChatRetentionDays: value }))} />
+                              <Field label="Message cooldown (seconds)" type="number" min="15" max="600" step="1" value={draft.liveChatMessageCooldownSeconds} onChange={(value) => setDraft((current) => ({ ...current, liveChatMessageCooldownSeconds: value }))} />
+                            </div>
+                            <Toggle label="Allow formatted PDF chat exports" value={draft.liveChatPdfExportEnabled} onChange={(value) => setDraft((current) => ({ ...current, liveChatPdfExportEnabled: value }))} />
+                            <Toggle label="Allow company members to delete chats" value={draft.liveChatDeleteEnabled} onChange={(value) => setDraft((current) => ({ ...current, liveChatDeleteEnabled: value }))} />
+                            <p className="text-[11px] leading-5 text-slate-500">Spam protection is always enabled. Every customer message is checked on the server; the cooldown is atomically enforced. Expired conversations and messages are removed by the retention job and MongoDB TTL indexes.</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-3">
                       <Info title="Payment" text="Payment requirement is derived from price: INR 0 is non-payable; positive price uses the existing Razorpay flow." />
@@ -940,6 +1014,7 @@ function Field({
   disabled,
   type = "text",
   min,
+  max,
   step,
   placeholder
 }: {
@@ -949,6 +1024,7 @@ function Field({
   disabled?: boolean;
   type?: string;
   min?: string;
+  max?: string;
   step?: string;
   placeholder?: string;
 }) {
@@ -959,6 +1035,7 @@ function Field({
         type={type}
         value={value}
         min={min}
+        max={max}
         step={step}
         placeholder={placeholder}
         disabled={disabled}

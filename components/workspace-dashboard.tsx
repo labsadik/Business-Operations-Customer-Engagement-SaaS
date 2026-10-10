@@ -80,6 +80,14 @@ type DashboardPlan = {
   vaultQuotaBytes: number;
   vaultMaxFileBytes: number;
   vaultMaxItems: number;
+  liveChatEnabled?: boolean;
+  liveChatMonthlyLimit?: number;
+  liveChatCustomerLimit?: number;
+  liveChatAgentLimit?: number;
+  liveChatRetentionDays?: number;
+  liveChatMessageCooldownSeconds?: number;
+  liveChatPdfExportEnabled?: boolean;
+  liveChatDeleteEnabled?: boolean;
   validityDays: number;
   freeFeatureDays: number | null;
   requiresPayment: boolean;
@@ -1317,6 +1325,7 @@ export default function WorkspaceDashboard({
         companyName={data.company.name}
         taskManagementEnabled={Boolean(data.currentPlan.taskManagementEnabled)}
         vaultEnabled={Boolean(data.currentPlan.vaultEnabled)}
+        liveChatEnabled={Boolean(data.currentPlan.liveChatEnabled)}
         canManage={canManage}
         adminManaged={adminManaged}
         collapsed={sidebarCollapsed}

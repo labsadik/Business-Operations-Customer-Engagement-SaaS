@@ -34,7 +34,9 @@ export async function resolveInvoicePlanSnapshot(input: {
     "id", "name", "priceInr", "maxWorkspaces", "maxCompanies", "maxEmployees",
     "monthlyMeetingLimit", "maxMeetingDurationMinutes", "maxConcurrentMeetings",
     "taskManagementEnabled", "taskManagementDailyLimit", "vaultEnabled",
-    "vaultQuotaBytes", "vaultMaxFileBytes", "vaultMaxItems", "validityDays",
+    "vaultQuotaBytes", "vaultMaxFileBytes", "vaultMaxItems",
+    "liveChatEnabled", "liveChatMonthlyLimit", "liveChatCustomerLimit", "liveChatAgentLimit",
+    "liveChatRetentionDays", "liveChatMessageCooldownSeconds", "liveChatPdfExportEnabled", "liveChatDeleteEnabled", "validityDays",
     "freeFeatureDays", "requiresPayment"
   ];
   const needsLegacyRepair = !storedSnapshot ||
@@ -97,6 +99,14 @@ export async function resolveInvoicePlanSnapshot(input: {
     vaultQuotaBytes: pick("vaultQuotaBytes", 0),
     vaultMaxFileBytes: pick("vaultMaxFileBytes", 0),
     vaultMaxItems: pick("vaultMaxItems", 0),
+    liveChatEnabled: pick("liveChatEnabled", false),
+    liveChatMonthlyLimit: pick("liveChatMonthlyLimit", 1000),
+    liveChatCustomerLimit: pick("liveChatCustomerLimit", 500),
+    liveChatAgentLimit: pick("liveChatAgentLimit", 5),
+    liveChatRetentionDays: pick("liveChatRetentionDays", 30),
+    liveChatMessageCooldownSeconds: pick("liveChatMessageCooldownSeconds", 15),
+    liveChatPdfExportEnabled: pick("liveChatPdfExportEnabled", true),
+    liveChatDeleteEnabled: pick("liveChatDeleteEnabled", true),
     validityDays: pick("validityDays", 30),
     freeFeatureDays: pick("freeFeatureDays", null),
     requiresPayment: pick("requiresPayment", false)

@@ -35,6 +35,14 @@ export type PlanDraftInput = {
   vaultQuotaBytes?: unknown;
   vaultMaxFileBytes?: unknown;
   vaultMaxItems?: unknown;
+  liveChatEnabled?: unknown;
+  liveChatMonthlyLimit?: unknown;
+  liveChatCustomerLimit?: unknown;
+  liveChatAgentLimit?: unknown;
+  liveChatRetentionDays?: unknown;
+  liveChatMessageCooldownSeconds?: unknown;
+  liveChatPdfExportEnabled?: unknown;
+  liveChatDeleteEnabled?: unknown;
   validityDays: unknown;
   freeFeatureDays?: unknown;
 };
@@ -231,6 +239,15 @@ export function validatePlanDraft(input: PlanDraftInput) {
     ? 1000
     : assertIntegerRange(input.vaultMaxItems, "vault_max_items", 1, 10000000);
 
+  const liveChatEnabled = input.liveChatEnabled == null ? false : assertBoolean(input.liveChatEnabled, "live_chat_enabled");
+  const liveChatMonthlyLimit = input.liveChatMonthlyLimit === undefined ? 1000 : assertIntegerRange(input.liveChatMonthlyLimit, "live_chat_monthly_limit", 1, 10000000);
+  const liveChatCustomerLimit = input.liveChatCustomerLimit === undefined ? 500 : assertIntegerRange(input.liveChatCustomerLimit, "live_chat_customer_limit", 1, 10000000);
+  const liveChatAgentLimit = input.liveChatAgentLimit === undefined ? 5 : assertIntegerRange(input.liveChatAgentLimit, "live_chat_agent_limit", 1, 1000);
+  const liveChatRetentionDays = input.liveChatRetentionDays === undefined ? 30 : assertIntegerRange(input.liveChatRetentionDays, "live_chat_retention_days", 1, 3650);
+  const liveChatMessageCooldownSeconds = input.liveChatMessageCooldownSeconds === undefined ? 15 : assertIntegerRange(input.liveChatMessageCooldownSeconds, "live_chat_message_cooldown_seconds", 15, 600);
+  const liveChatPdfExportEnabled = input.liveChatPdfExportEnabled == null ? true : assertBoolean(input.liveChatPdfExportEnabled, "live_chat_pdf_export_enabled");
+  const liveChatDeleteEnabled = input.liveChatDeleteEnabled == null ? true : assertBoolean(input.liveChatDeleteEnabled, "live_chat_delete_enabled");
+
   const validityDays = assertIntegerRange(
     input.validityDays,
     "validity_days",
@@ -274,6 +291,14 @@ export function validatePlanDraft(input: PlanDraftInput) {
     vaultQuotaBytes,
     vaultMaxFileBytes,
     vaultMaxItems,
+    liveChatEnabled,
+    liveChatMonthlyLimit,
+    liveChatCustomerLimit,
+    liveChatAgentLimit,
+    liveChatRetentionDays,
+    liveChatMessageCooldownSeconds,
+    liveChatPdfExportEnabled,
+    liveChatDeleteEnabled,
     validityDays,
     freeFeatureDays,
     requiresPayment: priceInr > 0,

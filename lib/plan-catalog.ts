@@ -87,6 +87,14 @@ export function createEntitlementSnapshot(plan: PlanEntitlements): PlanEntitleme
     vaultQuotaBytes: (plan as Partial<PlanEntitlements>).vaultQuotaBytes ?? 5368709120,
     vaultMaxFileBytes: (plan as Partial<PlanEntitlements>).vaultMaxFileBytes ?? 104857600,
     vaultMaxItems: (plan as Partial<PlanEntitlements>).vaultMaxItems ?? 1000,
+    liveChatEnabled: Boolean((plan as Partial<PlanEntitlements>).liveChatEnabled),
+    liveChatMonthlyLimit: (plan as Partial<PlanEntitlements>).liveChatMonthlyLimit ?? 1000,
+    liveChatCustomerLimit: (plan as Partial<PlanEntitlements>).liveChatCustomerLimit ?? 500,
+    liveChatAgentLimit: (plan as Partial<PlanEntitlements>).liveChatAgentLimit ?? 5,
+    liveChatRetentionDays: (plan as Partial<PlanEntitlements>).liveChatRetentionDays ?? 30,
+    liveChatMessageCooldownSeconds: (plan as Partial<PlanEntitlements>).liveChatMessageCooldownSeconds ?? 15,
+    liveChatPdfExportEnabled: (plan as Partial<PlanEntitlements>).liveChatPdfExportEnabled !== false,
+    liveChatDeleteEnabled: (plan as Partial<PlanEntitlements>).liveChatDeleteEnabled !== false,
     validityDays: plan.validityDays,
     freeFeatureDays: plan.freeFeatureDays,
     requiresPayment: plan.requiresPayment
@@ -126,6 +134,14 @@ export function isValidEntitlementSnapshot(value: unknown): value is PlanEntitle
     (item.vaultQuotaBytes === undefined || isPositiveSafeInteger(item.vaultQuotaBytes)) &&
     (item.vaultMaxFileBytes === undefined || isPositiveSafeInteger(item.vaultMaxFileBytes)) &&
     (item.vaultMaxItems === undefined || isPositiveSafeInteger(item.vaultMaxItems)) &&
+    (item.liveChatEnabled === undefined || typeof item.liveChatEnabled === "boolean") &&
+    (item.liveChatMonthlyLimit === undefined || isPositiveSafeInteger(item.liveChatMonthlyLimit)) &&
+    (item.liveChatCustomerLimit === undefined || isPositiveSafeInteger(item.liveChatCustomerLimit)) &&
+    (item.liveChatAgentLimit === undefined || isPositiveSafeInteger(item.liveChatAgentLimit)) &&
+    (item.liveChatRetentionDays === undefined || isPositiveSafeInteger(item.liveChatRetentionDays)) &&
+    (item.liveChatMessageCooldownSeconds === undefined || isPositiveSafeInteger(item.liveChatMessageCooldownSeconds)) &&
+    (item.liveChatPdfExportEnabled === undefined || typeof item.liveChatPdfExportEnabled === "boolean") &&
+    (item.liveChatDeleteEnabled === undefined || typeof item.liveChatDeleteEnabled === "boolean") &&
     isPositiveSafeInteger(item.validityDays) &&
     (
       item.freeFeatureDays === null ||
@@ -159,6 +175,14 @@ export function serializeManagedPlan(doc: any): ManagedPlan {
     vaultQuotaBytes: Number(doc.vaultQuotaBytes ?? 5368709120),
     vaultMaxFileBytes: Number(doc.vaultMaxFileBytes ?? 104857600),
     vaultMaxItems: Number(doc.vaultMaxItems ?? 1000),
+    liveChatEnabled: Boolean(doc.liveChatEnabled),
+    liveChatMonthlyLimit: Number(doc.liveChatMonthlyLimit ?? 1000),
+    liveChatCustomerLimit: Number(doc.liveChatCustomerLimit ?? 500),
+    liveChatAgentLimit: Number(doc.liveChatAgentLimit ?? 5),
+    liveChatRetentionDays: Number(doc.liveChatRetentionDays ?? 30),
+    liveChatMessageCooldownSeconds: Number(doc.liveChatMessageCooldownSeconds ?? 15),
+    liveChatPdfExportEnabled: doc.liveChatPdfExportEnabled !== false,
+    liveChatDeleteEnabled: doc.liveChatDeleteEnabled !== false,
     validityDays: Number(doc.validityDays),
     freeFeatureDays: doc.freeFeatureDays == null ? null : Number(doc.freeFeatureDays),
     requiresPayment: Boolean(doc.requiresPayment),
@@ -248,6 +272,14 @@ async function seedLegacyPlans() {
             vaultQuotaBytes: 5368709120,
             vaultMaxFileBytes: 104857600,
             vaultMaxItems: 1000,
+            liveChatEnabled: false,
+            liveChatMonthlyLimit: 1000,
+            liveChatCustomerLimit: 500,
+            liveChatAgentLimit: 5,
+            liveChatRetentionDays: 30,
+            liveChatMessageCooldownSeconds: 15,
+            liveChatPdfExportEnabled: true,
+            liveChatDeleteEnabled: true,
             validityDays: plan.validityDays,
             freeFeatureDays: plan.freeFeatureDays,
             requiresPayment: plan.requiresPayment,
