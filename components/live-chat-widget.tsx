@@ -396,7 +396,7 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
                 return <div className={`mt-1 flex items-center gap-1.5 text-[11px] ${headerSecondaryClass}`}>
                   {agent?.senderAvatar ? <img src={agent.senderAvatar} alt="" referrerPolicy="no-referrer" className="size-4 rounded-full border border-white/40 object-cover" /> : null}
                   <span className="truncate">Chatting with {agentName}</span>
-                  <span className={`relative ml-0.5 inline-flex size-2 rounded-full ${config.settings.offlineMode ? "bg-slate-300" : "bg-emerald-300"}`}>{!config.settings.offlineMode && <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-300 opacity-60" />}</span>
+                  <span className={`relative ml-0.5 inline-flex size-2 rounded-full ${config.settings.offlineMode ? "bg-slate-300" : "bg-emerald-300"}`}>{!config.settings.offlineMode && <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-300 opacity-60 motion-reduce:animate-none" />}</span>
                   <span className="text-[10px]">{config.settings.offlineMode ? "Offline" : "Online"}</span>
                 </div>;
               })() : <p className={`mt-1 text-[11px] ${headerSecondaryClass}`}>{config.settings.offlineMode ? "Offline · Leave a message" : config.company.name + " · Usually replies promptly"}</p>}
