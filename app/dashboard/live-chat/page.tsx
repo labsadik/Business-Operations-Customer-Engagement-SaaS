@@ -27,9 +27,17 @@ export default async function LiveChatPage() {
     role: session.role
   }).select("_id").lean();
   if (!membership) redirect("/login?error=workspace_access_revoked");
-  const company = await Company.findById(session.companyId).select("_id").lean();
+  const company = await Company.findById(session.companyId).select("_id name").lean();
   if (!company) redirect("/dashboard");
   const entitlements = await getCompanyEntitlements(String(company._id));
   if (!entitlements.liveChatEnabled) redirect("/dashboard?notice=live_chat_not_included");
-  return <LiveChatDashboard canManageSettings={session.role === "COMPANY_ADMIN"} />;
+  return (
+    <LiveChatDashboard
+      canManageSettings={session.role === "COMPANY_ADMIN"}
+      companyName={company.name}
+      taskManagementEnabled={Boolean(entitlements.taskManagementEnabled)}
+      vaultEnabled={Boolean(entitlements.vaultEnabled)}
+      sessionRole={session.role}
+    />
+  );
 }

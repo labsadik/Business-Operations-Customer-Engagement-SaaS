@@ -20,6 +20,7 @@
   frame.title = "Live Chat";
   frame.setAttribute("aria-label", "Live Chat");
   frame.setAttribute("allow", "clipboard-write");
+  frame.setAttribute("sandbox", "allow-scripts allow-forms allow-same-origin allow-popups");
   frame.setAttribute("loading", "eager");
   frame.setAttribute("scrolling", "no");
   frame.referrerPolicy = "strict-origin-when-cross-origin";
@@ -46,7 +47,8 @@
     if (!frame.contentWindow) return;
     frame.contentWindow.postMessage({
       type: "conventus-live-chat-init",
-      siteOrigin: window.location.origin
+      siteOrigin: window.location.origin,
+      siteUrl: window.location.href
     }, scriptUrl.origin);
   }
 

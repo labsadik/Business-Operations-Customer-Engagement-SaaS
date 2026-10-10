@@ -5,8 +5,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   MessageCircle, Settings2, Download, Trash2, Send, RefreshCw, Copy, CheckCircle2,
   Check, LoaderCircle, Palette, ShieldCheck, UsersRound, MessageSquareText,
-  Clock3, AlertCircle, Code2, X
+  Clock3, AlertCircle, Code2, X, Info, Search as SearchIcon, ChevronLeft, MapPin, Laptop2, Globe2, UserRound
 } from "lucide-react";
+import WorkspaceSidebar from "@/components/workspace-sidebar";
+import { useWorkspaceSidebarState } from "@/components/use-workspace-sidebar-state";
 
 type ApiEnvelope<T> = { ok: boolean; data?: T; error?: string; details?: unknown };
 type Conversation = {
@@ -20,8 +22,19 @@ type Conversation = {
   nextCustomerMessageAt: string | null;
   expiresAt: string;
   createdAt: string;
+  geoCountry: string;
+  geoCity: string;
+  geoRegion: string;
+  ipDisplay: string;
+  browser: string;
+  os: string;
+  deviceType: "DESKTOP" | "MOBILE" | "TABLET";
+  referrer: string;
+  assignedAgentId: string | null;
+  unreadAgentCount: number;
+  lastMessagePreview: string;
 };
-type ChatMessage = { id: string; senderType: "CUSTOMER" | "AGENT"; senderUserId?: string | null; body: string; createdAt: string };
+type ChatMessage = { id: string; senderType: "CUSTOMER" | "AGENT"; senderUserId?: string | null; senderName?: string; senderAvatar?: string; pending?: boolean; body: string; createdAt: string };
 type Usage = {
   monthlyChats: number;
   uniqueCustomers: number;
@@ -44,6 +57,7 @@ type ChatSettings = {
   collectName: boolean;
   collectEmail: boolean;
   collectPhone: boolean;
+  offlineMode: boolean;
   allowedDomains: string[];
 };
 type SettingsPayload = {
@@ -69,6 +83,26 @@ function formatDate(value: string) {
   return new Date(value).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
 }
 
+function countryFlag(code: string) {
+  const normalized = code.toUpperCase();
+  if (!/^[A-Z]{2}$/.test(normalized)) return "🌐";
+  return String.fromCodePoint(...normalized.split("").map((character) => character.charCodeAt(0) + 127397));
+}
+
+function countryName(code: string) {
+  if (!/^[A-Z]{2}$/.test(code.toUpperCase())) return code || "Unknown";
+  try { return new Intl.DisplayNames(["en"], { type: "region" }).of(code.toUpperCase()) || code; }
+  catch { return code.toUpperCase(); }
+}
+
+function elapsedDuration(value: string) {
+  const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
+  if (seconds < 60) return seconds + " seconds";
+  if (seconds < 3600) return Math.floor(seconds / 60) + " minutes";
+  if (seconds < 86400) return Math.floor(seconds / 3600) + " hours";
+  return Math.floor(seconds / 86400) + " days";
+}
+
 function inputClass() {
   return "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
 }
@@ -80,7 +114,23 @@ function SettingToggle({ label, description, checked, onChange }: { label: strin
   </label>;
 }
 
-export default function LiveChatDashboard({ canManageSettings = true }: { canManageSettings?: boolean }) {
+export default function LiveChatDashboard({
+  canManageSettings = true,
+  companyName,
+  taskManagementEnabled = false,
+  vaultEnabled = false,
+  sessionRole = "EMPLOYEE"
+}: {
+  canManageSettings?: boolean;
+  companyName: string;
+  taskManagementEnabled?: boolean;
+  vaultEnabled?: boolean;
+  sessionRole?: string;
+}) {
+  const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useWorkspaceSidebarState();
+  const [conversationTab, setConversationTab] = useState<"OPEN" | "UNASSIGNED" | "CLOSED">("OPEN");
+  const [conversationSearch, setConversationSearch] = useState("");
+  const [userDetailsOpen, setUserDetailsOpen] = useState(false);
   const [tab, setTab] = useState<"inbox" | "settings">("inbox");
   const [items, setItems] = useState<Conversation[]>([]);
   const [usage, setUsage] = useState<Usage | null>(null);
@@ -101,6 +151,20 @@ export default function LiveChatDashboard({ canManageSettings = true }: { canMan
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const selected = useMemo(() => items.find((item) => item.id === selectedId) ?? null, [items, selectedId]);
+  const visibleItems = useMemo(() => {
+    const query = conversationSearch.trim().toLocaleLowerCase();
+    return items.filter((item) => {
+      const inTab = conversationTab === "CLOSED"
+        ? item.status === "CLOSED"
+        : conversationTab === "UNASSIGNED"
+          ? item.status === "OPEN" && !item.assignedAgentId
+          : item.status === "OPEN";
+      if (!inTab) return false;
+      if (!query) return true;
+      return [item.customerName, item.customerEmail, item.customerPhone, item.geoCountry, countryName(item.geoCountry), item.geoCity, item.geoRegion, item.lastMessagePreview]
+        .some((value) => value?.toLocaleLowerCase().includes(query));
+    });
+  }, [items, conversationTab, conversationSearch]);
 
   const loadInbox = useCallback(async (quiet = false) => {
     if (!quiet) setRefreshing(true);
@@ -109,7 +173,7 @@ export default function LiveChatDashboard({ canManageSettings = true }: { canMan
       setItems(data.items);
       setUsage(data.usage);
       setError("");
-      setSelectedId((current) => current && data.items.some((item) => item.id === current) ? current : data.items[0]?.id ?? "");
+      setSelectedId((current) => current && data.items.some((item) => item.id === current) ? current : "");
     } catch (cause) {
       setError((cause as Error & { code?: string }).code ?? (cause as Error).message);
     } finally {
@@ -141,29 +205,27 @@ export default function LiveChatDashboard({ canManageSettings = true }: { canMan
   }, []);
 
   useEffect(() => {
-    // Initial authenticated reads synchronize this view with the API after mount.
+    // Load the inbox and settings once; changing selection must not refetch settings.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadInbox();
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadSettings();
-    const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") {
-        void loadInbox(true);
-        if (selectedId && tab === "inbox") void loadMessages(selectedId, true);
-      }
-    }, 3000);
-    const visible = () => {
-      if (document.visibilityState === "visible") {
-        void loadInbox(true);
-        if (selectedId && tab === "inbox") void loadMessages(selectedId, true);
-      }
+  }, [loadInbox, loadSettings]);
+
+  useEffect(() => {
+    const pollInterval = selectedId && tab === "inbox" ? 3000 : 12000;
+    const poll = () => {
+      if (document.hidden) return;
+      void loadInbox(true);
+      if (selectedId && tab === "inbox") void loadMessages(selectedId, true);
     };
-    document.addEventListener("visibilitychange", visible);
+    const timer = window.setInterval(poll, pollInterval);
+    document.addEventListener("visibilitychange", poll);
     return () => {
       window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", visible);
+      document.removeEventListener("visibilitychange", poll);
     };
-  }, [loadInbox, loadSettings, loadMessages, selectedId, tab]);
+  }, [loadInbox, loadMessages, selectedId, tab]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -198,15 +260,29 @@ export default function LiveChatDashboard({ canManageSettings = true }: { canMan
   const sendReply = async () => {
     const body = reply.trim();
     if (!body || body.length > 2000 || !selectedId || sending) return;
+    const targetId = selectedId;
+    const optimisticId = "optimistic-" + Date.now().toString(36);
+    const optimistic: ChatMessage = {
+      id: optimisticId,
+      senderType: "AGENT",
+      senderName: "You",
+      body,
+      createdAt: new Date().toISOString(),
+      pending: true
+    };
+    setMessages((current) => [...current, optimistic]);
+    setReply("");
     setSending(true);
     setError("");
     try {
-      await api<{ message: ChatMessage }>(`/api/live-chat/conversations/${encodeURIComponent(selectedId)}/messages`, {
+      const result = await api<{ message: ChatMessage }>(`/api/live-chat/conversations/${encodeURIComponent(targetId)}/messages`, {
         method: "POST", body: JSON.stringify({ body })
       });
-      setReply("");
-      await Promise.all([loadMessages(selectedId, true), loadInbox(true)]);
+      setMessages((current) => current.map((message) => message.id === optimisticId ? { ...result.message, senderName: "You" } : message));
+      await Promise.all([loadMessages(targetId, true), loadInbox(true)]);
     } catch (cause) {
+      setMessages((current) => current.filter((message) => message.id !== optimisticId));
+      setReply(body);
       setError((cause as Error & { code?: string }).code ?? (cause as Error).message);
     } finally {
       setSending(false);
@@ -265,12 +341,59 @@ export default function LiveChatDashboard({ canManageSettings = true }: { canMan
     }
   };
 
-  if (loading) return <div className="grid min-h-[420px] place-items-center rounded-3xl border border-slate-200 bg-white"><LoaderCircle className="size-6 animate-spin text-blue-600" /></div>;
+  if (loading) return (
+    <>
+      <WorkspaceSidebar
+        companyName={companyName}
+        taskManagementEnabled={taskManagementEnabled}
+        vaultEnabled={vaultEnabled}
+        liveChatEnabled
+        canManage={canManageSettings}
+        adminManaged={sessionRole === "PLATFORM_ADMIN"}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={toggleSidebar}
+      />
+      <main className={`relative min-h-screen bg-slate-50 transition-all duration-300 ${sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"}`}>
+        <div className="grid min-h-screen place-items-center p-5"><div className="grid min-h-[420px] w-full max-w-[1600px] place-items-center rounded-3xl border border-slate-200 bg-white"><LoaderCircle className="size-6 animate-spin text-blue-600" /></div></div>
+      </main>
+    </>
+  );
   if ((error === "LIVE_CHAT_NOT_INCLUDED" || error === "FORBIDDEN") && !usage) {
-    return <div className="rounded-3xl border border-amber-200 bg-white p-8"><AlertCircle className="size-6 text-amber-600" /><h2 className="mt-3 text-lg font-semibold text-slate-900">Live Chat is not available</h2><p className="mt-1 max-w-xl text-sm leading-6 text-slate-600">Your current plan may not include Live Chat, or your account cannot access this workspace. A platform administrator can enable the feature in Admin → Plans.</p><Link href="/dashboard" className="mt-4 inline-flex rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white">Back to workspace</Link></div>;
+    return (
+      <>
+        <WorkspaceSidebar
+        companyName={companyName}
+        taskManagementEnabled={taskManagementEnabled}
+        vaultEnabled={vaultEnabled}
+        liveChatEnabled
+        canManage={canManageSettings}
+        adminManaged={sessionRole === "PLATFORM_ADMIN"}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={toggleSidebar}
+      />
+        <main className={`relative min-h-screen bg-slate-50 transition-all duration-300 ${sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"}`}>
+          <div className="mx-auto max-w-[1600px] p-5 sm:p-7">
+            <div className="rounded-3xl border border-amber-200 bg-white p-8"><AlertCircle className="size-6 text-amber-600" /><h2 className="mt-3 text-lg font-semibold text-slate-900">Live Chat is not available</h2><p className="mt-1 max-w-xl text-sm leading-6 text-slate-600">Your current plan may not include Live Chat, or your account cannot access this workspace. A platform administrator can enable the feature in Admin → Plans.</p><Link href="/dashboard" className="mt-4 inline-flex rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white">Back to workspace</Link></div>
+          </div>
+        </main>
+      </>
+    );
   }
 
-  return <div className="space-y-5">
+  return (
+    <>
+      <WorkspaceSidebar
+        companyName={companyName}
+        taskManagementEnabled={taskManagementEnabled}
+        vaultEnabled={vaultEnabled}
+        liveChatEnabled
+        canManage={canManageSettings}
+        adminManaged={sessionRole === "PLATFORM_ADMIN"}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={toggleSidebar}
+      />
+      <main className={`relative min-h-screen bg-slate-50 transition-all duration-300 ${sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"}`}>
+        <div className="space-y-5">
     <div className="flex flex-col justify-between gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:p-6">
       <div><div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-700"><MessageCircle className="size-3.5" /> Website messaging</div><h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Live Chat</h1><p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">Manage website conversations, customize the visitor widget, and control retention.</p></div>
       <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-1">
@@ -292,29 +415,42 @@ export default function LiveChatDashboard({ canManageSettings = true }: { canMan
 
     {tab === "inbox" ? <div className="grid min-h-[580px] gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
       <section className={`overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm ${selectedId ? "hidden lg:block" : ""}`}>
-        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4"><div><h2 className="text-sm font-semibold text-slate-900">Conversations</h2><p className="mt-1 text-xs text-slate-500">Newest activity first</p></div><button onClick={() => void loadInbox()} disabled={refreshing} aria-label="Refresh conversations" className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 disabled:opacity-50"><RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} /></button></div>
+        <div className="space-y-3 border-b border-slate-100 px-4 py-4">
+          <div className="flex items-center justify-between gap-2"><div><h2 className="text-sm font-semibold text-slate-900">Conversations</h2><p className="mt-1 text-xs text-slate-500">Recent visitor activity</p></div><button onClick={() => void loadInbox()} disabled={refreshing} aria-label="Refresh conversations" className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 disabled:opacity-50"><RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} /></button></div>
+          <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Conversation status">
+            {(["OPEN", "UNASSIGNED", "CLOSED"] as const).map((status) => <button key={status} type="button" role="tab" aria-selected={conversationTab === status} onClick={() => setConversationTab(status)} className={`rounded-lg px-1.5 py-2 text-[10px] font-semibold transition ${conversationTab === status ? "bg-white text-blue-700 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}>{status === "OPEN" ? "Open" : status === "UNASSIGNED" ? "Unassigned" : "Closed"}</button>)}
+          </div>
+          <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-slate-400 focus-within:border-blue-400"><SearchIcon className="size-4 shrink-0" /><input value={conversationSearch} onChange={(event) => setConversationSearch(event.target.value)} placeholder="Search name, email, location, message" className="min-w-0 w-full bg-transparent text-xs text-slate-800 outline-none placeholder:text-slate-400" /></label>
+        </div>
         <div className="max-h-[660px] divide-y divide-slate-100 overflow-y-auto">
-          {items.map((item) => <button key={item.id} onClick={() => setSelectedId(item.id)} className={`block w-full px-4 py-4 text-left transition ${selectedId === item.id ? "bg-blue-50/70" : "hover:bg-slate-50"}`}>
-            <div className="flex items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-full bg-blue-50 text-sm font-semibold text-blue-700">{item.customerName.slice(0,1).toUpperCase() || "A"}</span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><span className="truncate text-sm font-semibold text-slate-900">{item.customerName || "Anonymous customer"}</span><span className="shrink-0 text-[10px] text-slate-400">{new Date(item.lastMessageAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span></span><span className="mt-1 block truncate text-xs text-slate-500">{item.customerEmail || item.customerPhone || "Anonymous visitor"}</span><span className="mt-2 flex items-center gap-2 text-[10px] text-slate-500"><MessageCircle className="size-3" /> {item.messageCount} messages <span>·</span> Expires {new Date(item.expiresAt).toLocaleDateString()}</span></span></div>
+          {visibleItems.map((item) => <button key={item.id} onClick={() => setSelectedId(item.id)} className={`block w-full px-4 py-4 text-left transition ${selectedId === item.id ? "bg-blue-50/70" : "hover:bg-slate-50"}`}>
+            <div className="flex items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-full bg-blue-50 text-sm font-semibold text-blue-700">{item.customerName.slice(0,1).toUpperCase() || "A"}</span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><span className="truncate text-sm font-semibold text-slate-900">{item.customerName || "Anonymous customer"}</span><span className="flex shrink-0 items-center gap-1.5"><span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${item.status === "CLOSED" ? "bg-slate-100 text-slate-500" : item.assignedAgentId ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{item.status === "CLOSED" ? "Closed" : item.assignedAgentId ? "Open" : "Unassigned"}</span><span className="text-[10px] text-slate-400">{new Date(item.lastMessageAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span></span></span><span className="mt-1 block truncate text-xs text-slate-500">{item.customerEmail || item.customerPhone || "Anonymous visitor"}</span><span className="mt-2 flex items-center gap-1.5 text-[10px] text-slate-500"><span>{countryFlag(item.geoCountry)}</span><span className="truncate">{item.geoCity || countryName(item.geoCountry) || "Unknown location"}</span><span>·</span><MessageCircle className="size-3" /> {item.messageCount}{item.unreadAgentCount > 0 && <span className="ml-auto grid min-w-5 place-items-center rounded-full bg-blue-600 px-1.5 py-0.5 font-bold text-white">{item.unreadAgentCount}</span>}</span><span className="mt-1 block truncate text-xs text-slate-500">{item.lastMessagePreview || "No messages yet"}</span></span></div>
           </button>)}
-          {items.length === 0 && <div className="px-5 py-12 text-center"><MessageCircle className="mx-auto size-7 text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-800">No chats yet</p><p className="mx-auto mt-1 max-w-[220px] text-xs leading-5 text-slate-500">Enable the widget in Settings and add the embed code to your website.</p>{canManageSettings && <button onClick={() => setTab("settings")} className="mt-4 text-xs font-semibold text-blue-700">Configure widget →</button>}</div>}
+          {visibleItems.length === 0 && <div className="px-5 py-12 text-center"><MessageCircle className="mx-auto size-7 text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-800">{conversationSearch ? "No matching conversations" : conversationTab === "CLOSED" ? "No closed chats" : conversationTab === "UNASSIGNED" ? "No unassigned chats" : "No open chats"}</p><p className="mx-auto mt-1 max-w-[220px] text-xs leading-5 text-slate-500">Conversations matching this view will appear here.</p>{canManageSettings && <button onClick={() => setTab("settings")} className="mt-4 text-xs font-semibold text-blue-700">Configure widget →</button>}</div>}
         </div>
       </section>
 
       <section className={`flex min-h-[580px] min-w-0 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm ${!selectedId ? "hidden lg:flex" : ""}`}>
         {selected ? <>
-          <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-4 sm:px-5"><button onClick={() => setSelectedId("")} className="rounded-lg border border-slate-200 p-2 text-slate-600 lg:hidden" aria-label="Back to conversations"><MessageCircle className="size-4" /></button><span className="grid size-10 shrink-0 place-items-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">{selected.customerName.slice(0,1).toUpperCase() || "A"}</span><div className="min-w-0 flex-1"><h2 className="truncate text-sm font-semibold text-slate-900">{selected.customerName}</h2><p className="truncate text-xs text-slate-500">{selected.customerEmail || selected.customerPhone || "Anonymous customer"}</p></div><div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-4 sm:px-5"><button onClick={() => setSelectedId("")} className="rounded-lg border border-slate-200 p-2 text-slate-600 lg:hidden" aria-label="Back to conversations"><ChevronLeft className="size-4" /></button><span className="grid size-10 shrink-0 place-items-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">{selected.customerName.slice(0,1).toUpperCase() || "A"}</span><div className="min-w-0 flex-1"><h2 className="truncate text-sm font-semibold text-slate-900">{selected.customerName}</h2><p className="truncate text-xs text-slate-500">{selected.customerEmail || selected.customerPhone || "Anonymous customer"}{selected.geoCity || selected.geoCountry ? " · " + countryFlag(selected.geoCountry) + " " + [selected.geoCity, countryName(selected.geoCountry)].filter(Boolean).join(", ") : ""}</p></div><div className="flex items-center gap-1.5">
+            <button onClick={() => setUserDetailsOpen(true)} title="Visitor details" aria-label="Visitor details" className="rounded-xl border border-slate-200 p-2.5 text-slate-600 hover:bg-slate-50"><Info className="size-4" /></button>
             {selected.status === "OPEN" && <button onClick={() => void closeConversation(selected)} title="Close conversation" aria-label="Close conversation" className="rounded-xl border border-emerald-200 p-2.5 text-emerald-700 hover:bg-emerald-50"><CheckCircle2 className="size-4" /></button>}
             {usage?.pdfExportEnabled && <button onClick={() => void exportConversation(selected)} title="Export formatted PDF" aria-label="Export chat as PDF" className="rounded-xl border border-slate-200 p-2.5 text-slate-600 hover:bg-slate-50"><Download className="size-4" /></button>}
             {usage?.deleteEnabled && <button onClick={() => void deleteConversation(selected)} title="Permanently delete chat" aria-label="Delete chat" className="rounded-xl border border-rose-200 p-2.5 text-rose-600 hover:bg-rose-50"><Trash2 className="size-4" /></button>}
           </div></div>
           <div className="flex-1 space-y-3 overflow-y-auto bg-[#fbfbfd] px-4 py-5 sm:px-6">
             <p className="mx-auto mb-4 w-fit rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[10px] text-slate-500">Conversation started {formatDate(selected.createdAt)}</p>
-            {messages.map((message) => <div key={message.id} className={`flex ${message.senderType === "AGENT" ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] rounded-2xl px-4 py-3 shadow-sm ${message.senderType === "AGENT" ? "rounded-br-md bg-blue-600 text-white" : "rounded-bl-md border border-slate-200 bg-white text-slate-800"}`}><p className="mb-1.5 text-[10px] font-semibold opacity-70">{message.senderType === "AGENT" ? "Your team" : selected.customerName || "Customer"}</p><p className="whitespace-pre-wrap break-words text-sm leading-6">{message.body}</p><time className="mt-1.5 block text-right text-[9px] opacity-60">{formatDate(message.createdAt)}</time></div></div>)}
+            {messages.map((message) => <div key={message.id} className={`flex items-end gap-2 ${message.senderType === "AGENT" ? "justify-end" : "justify-start"}`}>
+              {message.senderType === "CUSTOMER" && <span className="grid size-7 shrink-0 place-items-center rounded-full bg-slate-200 text-[10px] font-semibold text-slate-700">{selected.customerName.slice(0, 1).toUpperCase() || "V"}</span>}
+              <div className={`max-w-[88%] rounded-2xl px-4 py-3 shadow-sm ${message.senderType === "AGENT" ? "rounded-br-md bg-blue-600 text-white" : "rounded-bl-md border border-slate-200 bg-slate-100 text-slate-900"} ${message.pending ? "opacity-70" : ""}`}>
+                <p className="mb-1.5 text-[10px] font-semibold opacity-70">{message.senderType === "AGENT" ? message.senderName || "Your team" : selected.customerName || "Customer"}</p><p className="whitespace-pre-wrap break-words text-sm leading-6">{message.body}</p><time className="mt-1.5 block text-right text-[9px] opacity-60">{message.pending ? "Sending…" : formatDate(message.createdAt)}</time>
+              </div>
+              {message.senderType === "AGENT" && message.senderAvatar && <img src={message.senderAvatar} alt="" referrerPolicy="no-referrer" className="mb-1 size-7 shrink-0 rounded-full object-cover" />}
+            </div>)}
             {messages.length === 0 && <p className="py-10 text-center text-xs text-slate-400">No messages to display.</p>}
           </div>
           {selected.status === "CLOSED" ? <div className="border-t border-slate-100 bg-slate-50 px-4 py-4 text-center text-xs text-slate-500">This conversation is closed. It remains available in history until the retention period expires.</div> : <form className="border-t border-slate-100 p-3 sm:p-4" onSubmit={(event) => { event.preventDefault(); void sendReply(); }}>
-            <div className="flex items-end gap-2"><textarea rows={2} maxLength={2000} value={reply} onChange={(event) => setReply(event.target.value)} placeholder="Reply to this customer…" className="max-h-28 min-h-12 flex-1 resize-none rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /><button disabled={sending || !reply.trim()} type="submit" className="grid size-12 shrink-0 place-items-center rounded-xl bg-blue-600 text-white shadow-sm hover:bg-blue-700 disabled:opacity-50" aria-label="Send reply">{sending ? <LoaderCircle className="size-4 animate-spin" /> : <Send className="size-4" />}</button></div>
+            <div className="flex items-end gap-2"><textarea rows={1} maxLength={2000} value={reply} onChange={(event) => { setReply(event.target.value); event.currentTarget.style.height = "auto"; event.currentTarget.style.height = Math.min(event.currentTarget.scrollHeight, 112) + "px"; }} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void sendReply(); } }} placeholder="Reply to this customer… (Enter to send · Shift+Enter for a new line)" className="max-h-28 min-h-12 flex-1 resize-none overflow-y-auto rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /><button disabled={sending || !reply.trim()} type="submit" className="grid size-12 shrink-0 place-items-center rounded-xl bg-blue-600 text-white shadow-sm hover:bg-blue-700 disabled:opacity-50" aria-label="Send reply">{sending ? <LoaderCircle className="size-4 animate-spin" /> : <Send className="size-4" />}</button></div>
             <p className="mt-2 text-[10px] text-slate-400">Visitor messages are subject to the server-enforced {usage?.cooldownSeconds ?? 15}-second cooldown.</p>
           </form>}
         </> : <div className="grid flex-1 place-items-center p-8 text-center"><div><MessageCircle className="mx-auto size-8 text-slate-300" /><h2 className="mt-3 text-sm font-semibold text-slate-800">Select a conversation</h2><p className="mt-1 text-xs text-slate-500">Choose a customer from the inbox to view and reply.</p></div></div>}
@@ -337,6 +473,7 @@ export default function LiveChatDashboard({ canManageSettings = true }: { canMan
           <SettingToggle label="Require email" checked={settings.collectEmail} onChange={(value) => setSettings({ ...settings, collectEmail: value })} />
           <SettingToggle label="Require phone" checked={settings.collectPhone} onChange={(value) => setSettings({ ...settings, collectPhone: value })} />
         </div></div>
+        <div className="mb-5 border-t border-slate-100 pt-5"><SettingToggle label="Offline mode" description="Shows visitors that your team is offline while still allowing them to leave a message in the inbox." checked={settings.offlineMode} onChange={(value) => setSettings({ ...settings, offlineMode: value })} /></div>
         <div className="border-t border-slate-100 pt-5"><label className="block text-xs font-semibold text-slate-700">Allowed website domains<textarea value={domainsText} onChange={(event) => setDomainsText(event.target.value)} rows={3} placeholder={companyWebsiteUrl || "www.example.com"} className={inputClass()} /></label><p className="mt-2 text-[11px] leading-5 text-slate-500">Enter exact hostnames, one per line. Example: example.com and help.example.com. Requests from other websites are blocked by the server.</p></div>
         <div className="mt-6 flex flex-col-reverse gap-2 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between"><span className="text-[11px] leading-5 text-slate-500">Server-enforced: {usage?.cooldownSeconds ?? 15}s cooldown · {usage?.retentionDays ?? 30}-day data retention</span><button onClick={() => void saveSettings()} disabled={!canManageSettings || savingSettings} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">{savingSettings ? <LoaderCircle className="size-4 animate-spin" /> : <Check className="size-4" />} Save settings</button></div>
       </section>}
@@ -372,7 +509,7 @@ export default function LiveChatDashboard({ canManageSettings = true }: { canMan
             ) : (
               <section aria-label="Live chat widget preview" className={`absolute bottom-3 z-10 flex h-[350px] w-[300px] max-w-[calc(100%_-_24px)] flex-col overflow-hidden rounded-2xl border shadow-2xl ${settings.position === "LEFT" ? "left-3" : "right-3"} ${settings.theme === "DARK" ? "border-slate-700 bg-slate-950 text-slate-100" : "border-slate-200 bg-white text-slate-950"}`}>
                 <header className="flex shrink-0 items-start gap-2 px-3 py-3 text-white" style={{ backgroundColor: settings.primaryColor }}>
-                  <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">{settings.title || "Chat with us"}</p><p className="mt-1 text-[10px] text-white/80">Your company · Usually replies promptly</p></div>
+                  <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">{settings.title || "Chat with us"}</p><p className="mt-1 text-[10px] text-white/80">{settings.offlineMode ? "Offline · Leave a message" : "Online · Usually replies promptly"}</p></div>
                   <button type="button" aria-label="Close chat preview" onClick={() => setPreviewOpen(false)} className="rounded-md p-1 hover:bg-white/15"><X className="size-4" /></button>
                 </header>
                 <div className="min-h-0 flex-1 overflow-hidden p-3">
@@ -394,5 +531,20 @@ export default function LiveChatDashboard({ canManageSettings = true }: { canMan
         <section className="rounded-3xl border border-blue-100 bg-blue-50/60 p-5"><div className="flex items-center gap-2"><ShieldCheck className="size-4 text-blue-700" /><h2 className="text-sm font-semibold text-slate-900">Security & performance</h2></div><div className="mt-3 space-y-3 text-xs leading-5 text-slate-600"><p><strong className="text-slate-800">Spam protection stays on.</strong> The server atomically enforces message cooldowns, validates text, and limits rapid conversation creation.</p><p><strong className="text-slate-800">Tenant isolated.</strong> Every inbox/message query is scoped to your company and workspace. Agent roles and feature entitlements are checked on the server.</p><p><strong className="text-slate-800">Auto deletion.</strong> Chat messages expire individually; the daily retention job removes expired conversations in batches.</p><p><strong className="text-slate-800">Plan limits.</strong> {usage?.monthlyChats ?? 0} / {usage?.monthlyChatLimit ?? 0} monthly chats and {usage?.uniqueCustomers ?? 0} / {usage?.customerLimit ?? 0} unique visitors used.</p></div></section>
       </aside>
     </div>}
-  </div>;
+        </div>
+        {userDetailsOpen && selected && <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/45 p-0 backdrop-blur-sm sm:items-center sm:p-5" role="presentation" onClick={() => setUserDetailsOpen(false)}>
+          <section role="dialog" aria-modal="true" aria-labelledby="visitor-details-title" className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl border border-slate-200 bg-white p-5 shadow-2xl sm:rounded-3xl sm:p-7" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4"><div><div className="flex items-center gap-2 text-xs font-semibold text-blue-700"><UserRound className="size-4" /> Visitor profile</div><h2 id="visitor-details-title" className="mt-2 text-xl font-semibold tracking-tight text-slate-950">{selected.customerName.startsWith("Visitor #") && !selected.customerEmail && !selected.customerPhone ? "Anonymous Visitor" : selected.customerName}</h2><p className="mt-1 text-xs text-slate-500">{selected.geoCity || "Unknown city"}{selected.geoCountry ? ", " + countryName(selected.geoCountry) : ""}</p></div><button type="button" onClick={() => setUserDetailsOpen(false)} aria-label="Close visitor details" className="rounded-xl border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"><X className="size-4" /></button></div>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <section className="rounded-2xl border border-slate-200 p-4"><h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500"><UserRound className="size-4" /> Contact</h3><dl className="mt-3 space-y-3 text-sm"><div><dt className="text-[10px] text-slate-400">Name</dt><dd className="mt-0.5 break-words font-medium text-slate-800">{selected.customerName.startsWith("Visitor #") && !selected.customerEmail && !selected.customerPhone ? "Anonymous Visitor" : selected.customerName || "Anonymous Visitor"}</dd></div><div><dt className="text-[10px] text-slate-400">Email</dt><dd className="mt-0.5 break-words text-slate-700">{selected.customerEmail || "Not provided"}</dd></div><div><dt className="text-[10px] text-slate-400">Phone</dt><dd className="mt-0.5 break-words text-slate-700">{selected.customerPhone || "Not provided"}</dd></div></dl></section>
+              <section className="rounded-2xl border border-slate-200 p-4"><h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500"><MapPin className="size-4" /> Location</h3><dl className="mt-3 space-y-3 text-sm"><div><dt className="text-[10px] text-slate-400">Country</dt><dd className="mt-0.5 text-slate-700">{countryFlag(selected.geoCountry)} {countryName(selected.geoCountry)}</dd></div><div><dt className="text-[10px] text-slate-400">Region / State</dt><dd className="mt-0.5 text-slate-700">{selected.geoRegion || "Unavailable"}</dd></div><div><dt className="text-[10px] text-slate-400">City</dt><dd className="mt-0.5 text-slate-700">{selected.geoCity || "Unavailable"}</dd></div><div><dt className="text-[10px] text-slate-400">IP address</dt><dd className="mt-0.5 break-words font-mono text-xs text-slate-700">{selected.ipDisplay || "Unavailable"}</dd></div></dl></section>
+              <section className="rounded-2xl border border-slate-200 p-4"><h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500"><Laptop2 className="size-4" /> Device</h3><dl className="mt-3 space-y-3 text-sm"><div><dt className="text-[10px] text-slate-400">Operating system</dt><dd className="mt-0.5 text-slate-700">{selected.os || "Unknown"}</dd></div><div><dt className="text-[10px] text-slate-400">Browser</dt><dd className="mt-0.5 text-slate-700">{selected.browser || "Unknown"}</dd></div><div><dt className="text-[10px] text-slate-400">Device type</dt><dd className="mt-0.5 text-slate-700">{selected.deviceType === "MOBILE" ? "Mobile" : selected.deviceType === "TABLET" ? "Tablet" : "Desktop"}</dd></div></dl></section>
+              <section className="rounded-2xl border border-slate-200 p-4"><h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500"><Globe2 className="size-4" /> Activity</h3><dl className="mt-3 space-y-3 text-sm"><div><dt className="text-[10px] text-slate-400">Initial page / referrer</dt><dd className="mt-0.5 break-all text-xs text-slate-700">{selected.referrer || "Unavailable"}</dd></div><div><dt className="text-[10px] text-slate-400">Messages</dt><dd className="mt-0.5 text-slate-700">{selected.messageCount}</dd></div><div><dt className="text-[10px] text-slate-400">Started</dt><dd className="mt-0.5 text-slate-700">{formatDate(selected.createdAt)}</dd></div><div><dt className="text-[10px] text-slate-400">Elapsed</dt><dd className="mt-0.5 text-slate-700">{elapsedDuration(selected.createdAt)}</dd></div></dl></section>
+            </div>
+            <div className="mt-5 flex justify-end"><button type="button" onClick={() => setUserDetailsOpen(false)} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Done</button></div>
+          </section>
+        </div>}
+      </main>
+    </>
+  );
 }

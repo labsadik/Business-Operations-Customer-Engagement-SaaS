@@ -12,6 +12,7 @@ const liveChatSettingsSchema = new Schema({
   collectName: { type: Boolean, default: false },
   collectEmail: { type: Boolean, default: false },
   collectPhone: { type: Boolean, default: false },
+  offlineMode: { type: Boolean, default: false },
   allowedDomains: { type: [String], default: [] }
 }, { timestamps: true });
 

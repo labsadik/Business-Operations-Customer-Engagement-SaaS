@@ -9,11 +9,22 @@ const liveChatConversationSchema = new Schema({
   customerName: { type: String, default: "", trim: true, maxlength: 120 },
   customerEmail: { type: String, default: "", trim: true, lowercase: true, maxlength: 254 },
   customerPhone: { type: String, default: "", trim: true, maxlength: 40 },
+  geoCountry: { type: String, default: "", maxlength: 80 },
+  geoCity: { type: String, default: "", maxlength: 120 },
+  geoRegion: { type: String, default: "", maxlength: 120 },
+  ipDisplay: { type: String, default: "", maxlength: 64 },
+  browser: { type: String, default: "", maxlength: 100 },
+  os: { type: String, default: "", maxlength: 100 },
+  deviceType: { type: String, enum: ["DESKTOP", "MOBILE", "TABLET"], default: "DESKTOP" },
+  referrer: { type: String, default: "", maxlength: 1024 },
+  assignedAgentId: { type: Schema.Types.ObjectId, ref: "User", default: null, index: true },
+  unreadAgentCount: { type: Number, default: 0, min: 0 },
+  lastMessagePreview: { type: String, default: "", maxlength: 240 },
   status: { type: String, enum: ["OPEN", "CLOSED"], default: "OPEN", index: true },
   messageCount: { type: Number, default: 0, min: 0 },
   lastMessageAt: { type: Date, required: true, default: Date.now, index: true },
   nextCustomerMessageAt: { type: Date, default: null },
-  expiresAt: { type: Date, required: true, index: true }
+  expiresAt: { type: Date, required: true }
 }, { timestamps: true });
 
 liveChatConversationSchema.index({ companyId: 1, workspaceId: 1, lastMessageAt: -1, _id: -1 });

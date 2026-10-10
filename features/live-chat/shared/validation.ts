@@ -11,6 +11,7 @@ export type LiveChatSettingsDraft = {
   collectName: boolean;
   collectEmail: boolean;
   collectPhone: boolean;
+  offlineMode: boolean;
   allowedDomains: string[];
 };
 
@@ -78,6 +79,7 @@ export function validateLiveChatSettingsDraft(input: Record<string, unknown>): L
     collectName: bool("collectName", false),
     collectEmail: bool("collectEmail", false),
     collectPhone: bool("collectPhone", false),
+    offlineMode: bool("offlineMode", false),
     allowedDomains: normalizeDomainList(input.allowedDomains)
   };
 }

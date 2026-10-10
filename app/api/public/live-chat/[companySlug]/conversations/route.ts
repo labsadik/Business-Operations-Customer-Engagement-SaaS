@@ -3,7 +3,7 @@ import { getMongo } from "@/lib/mongodb";
 import { jsonError, jsonOk } from "@/lib/http";
 import { withRedisLock } from "@/lib/redis-lock";
 import {
-  addRetentionDays, currentPeriodKey, getPublicLiveChatContext, liveChatError,
+  addRetentionDays, assertWidgetApiOrigin, currentPeriodKey, getPublicLiveChatContext, liveChatError,
   monthlyCustomerHash, monthlyCustomerKeyExpiry, requestIpHash, usageExpiry, visitorHash, readLiveChatJson, verifyPublicWidgetToken
 } from "@/lib/live-chat";
 import { LiveChatConversation } from "@/models/live-chat-conversation";
@@ -14,21 +14,87 @@ import { validateContact } from "@/features/live-chat/shared/validation";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+
+function cleanHeader(value: string | null, maxLength: number) {
+  if (!value) return "";
+  let decoded = value;
+  try { decoded = decodeURIComponent(value); } catch { /* header may not be URL encoded */ }
+  return decoded.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, maxLength);
+}
+
+function parseUserAgent(userAgent: string) {
+  const ua = userAgent.slice(0, 1000);
+  const edge = ua.match(/Edg\/([\d.]+)/i);
+  const opera = ua.match(/OPR\/([\d.]+)/i);
+  const chrome = ua.match(/(?:Chrome|CriOS)\/([\d.]+)/i);
+  const firefox = ua.match(/Firefox\/([\d.]+)/i);
+  const safari = ua.match(/Version\/([\d.]+).*Safari/i);
+  const browser = edge ? "Microsoft Edge " + edge[1] :
+    opera ? "Opera " + opera[1] :
+    chrome ? "Chrome " + chrome[1] :
+    firefox ? "Firefox " + firefox[1] :
+    safari ? "Safari " + safari[1] :
+    /Safari/i.test(ua) ? "Safari" : "Unknown";
+  const os =
+    /Windows NT 10/i.test(ua) ? "Windows 10/11" :
+    /Windows NT/i.test(ua) ? "Windows" :
+    /Android/i.test(ua) ? "Android" :
+    /iPhone|iPad|iPod/i.test(ua) ? "iOS" :
+    /Mac OS X|Macintosh/i.test(ua) ? "macOS" :
+    /Linux/i.test(ua) ? "Linux" : "Unknown";
+  const deviceType = /iPad|Tablet/i.test(ua) ? "TABLET" : /Mobi|Android|iPhone|iPod/i.test(ua) ? "MOBILE" : "DESKTOP";
+  return { browser: browser.slice(0, 100), os, deviceType };
+}
+
+function visitorTelemetry(request: Request, body: Record<string, unknown>, siteOrigin: string, visitorId: string) {
+  const countryCode = cleanHeader(request.headers.get("cf-ipcountry") ?? request.headers.get("x-vercel-ip-country"), 2).toUpperCase();
+  const geoCountry = /^[A-Z]{2}$/.test(countryCode) && countryCode !== "XX" ? countryCode : "";
+  const geoCity = cleanHeader(request.headers.get("cf-ipcity") ?? request.headers.get("x-vercel-ip-city"), 120);
+  const geoRegion = cleanHeader(request.headers.get("cf-region") ?? request.headers.get("x-vercel-ip-country-region"), 120);
+  const forwardedIp = request.headers.get("cf-connecting-ip") ?? request.headers.get("x-vercel-forwarded-for") ?? request.headers.get("x-real-ip") ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "";
+  const ipDisplay = cleanHeader(forwardedIp, 64);
+  const { browser, os, deviceType } = parseUserAgent(request.headers.get("user-agent") ?? "");
+  let referrer = typeof body.referrer === "string" ? body.referrer : "";
+  if (!referrer) referrer = request.headers.get("referer") ?? "";
+  try {
+    const target = new URL(referrer);
+    const site = new URL(siteOrigin);
+    if (!["http:", "https:"].includes(target.protocol) || target.origin !== site.origin) referrer = "";
+    else {
+      target.username = "";
+      target.password = "";
+      target.search = "";
+      target.hash = "";
+      referrer = target.toString().slice(0, 1024);
+    }
+  } catch {
+    referrer = "";
+  }
+  const flag = /^[A-Z]{2}$/.test(geoCountry)
+    ? String.fromCodePoint(...geoCountry.split("").map((char) => char.charCodeAt(0) + 127397))
+    : "🌐";
+  const location = [geoCity, geoCountry].filter(Boolean).join(", ");
+  const visitorLabel = ("Visitor #" + visitorId.slice(0, 5).toUpperCase() + " · " + flag + (location ? " " + location : "")).slice(0, 120);
+  return { geoCountry, geoCity, geoRegion, ipDisplay, browser, os, deviceType, referrer, visitorLabel };
+}
+
 function isDuplicateKey(error: unknown) {
   return Boolean(error && typeof error === "object" && "code" in error && (error as { code?: unknown }).code === 11000);
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ companySlug: string }> }) {
   try {
+    assertWidgetApiOrigin(request);
     const { companySlug } = await params;
     const body = await readLiveChatJson(request);
     const visitorId = typeof body.visitorId === "string" ? body.visitorId : "";
     if (!/^[a-zA-Z0-9_-]{16,100}$/.test(visitorId)) return jsonError("LIVE_CHAT_VISITOR_INVALID", 400);
     const siteOrigin = typeof body.siteOrigin === "string" ? body.siteOrigin : "";
-    const claims = verifyPublicWidgetToken(request.headers.get("x-conventus-live-chat-token"), companySlug, siteOrigin);
-    const context = await getPublicLiveChatContext(companySlug, siteOrigin);
+    const claims = verifyPublicWidgetToken(request.headers.get("x-conventus-live-chat-token"), companySlug, siteOrigin, Date.now(), visitorId);
+    const context = await getPublicLiveChatContext(companySlug, siteOrigin, visitorId);
     if (claims.companyId !== String(context.company._id) || claims.workspaceId !== String(context.workspace._id)) return jsonError("LIVE_CHAT_TOKEN_INVALID", 401);
     const contact = validateContact(body.contact, context.settings);
+    const telemetry = visitorTelemetry(request, body, siteOrigin, visitorId);
     await getMongo();
 
     const companyId = new Types.ObjectId(String(context.company._id));
@@ -114,9 +180,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ com
           visitorKeyHash,
           ipHash,
           originHost: (() => { try { return new URL(siteOrigin).host.slice(0, 255); } catch { return ""; } })(),
-          customerName: contact.name,
+          customerName: contact.name || telemetry.visitorLabel,
           customerEmail: contact.email,
           customerPhone: contact.phone,
+          geoCountry: telemetry.geoCountry,
+          geoCity: telemetry.geoCity,
+          geoRegion: telemetry.geoRegion,
+          ipDisplay: telemetry.ipDisplay,
+          browser: telemetry.browser,
+          os: telemetry.os,
+          deviceType: telemetry.deviceType,
+          referrer: telemetry.referrer,
+          assignedAgentId: null,
+          unreadAgentCount: 0,
+          lastMessagePreview: "",
           status: "OPEN",
           messageCount: 0,
           lastMessageAt: now,
