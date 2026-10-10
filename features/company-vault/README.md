@@ -18,7 +18,7 @@ Restart/redeploy the application after adding environment variables. Existing co
 
 ## Storage layout
 
-The Bunny Storage Zone stores each tenant beneath a root similar to acme-labs-65f..., formed from the company's slug and immutable MongoDB company ID. This keeps company names readable while preventing slug collisions. The root contains a hidden .conventus-vault marker, and folder objects are stored under stable ID-based paths, with a hidden marker for each folder. Stable folder IDs let users rename folders without moving every stored file. The UI shows company-defined folder names from tenant-scoped MongoDB metadata.
+The Bunny Storage Zone stores each tenant beneath a root similar to acme-labs-65f..., formed from the company's slug and immutable MongoDB company ID. This keeps company names readable while preventing slug collisions. The root contains a hidden .conventus-vault marker. Each physical folder path uses a readable, sanitized folder-name slug plus its immutable folder ID, nested beneath its parent's storage path, with a hidden marker for each folder. The stable ID prevents name collisions and lets users rename a folder in the UI without moving every stored file; the Bunny path retains the original slug after a rename. The UI shows current folder names from tenant-scoped MongoDB metadata.
 
 The browser never receives the Storage Zone password. It starts an upload through the authenticated API, sends 3 MiB chunks to server routes, and asks the server to assemble the completed file into Bunny Storage. Downloads are proxied by an authenticated route; the response uses attachment disposition and nosniff headers. Folder and file deletion removes the associated Bunny objects and tenant-scoped MongoDB metadata.
 

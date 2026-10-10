@@ -8,6 +8,7 @@ import {
   cleanupExpiredVaultUploads,
   companyVaultRoot,
   getTenantFolder,
+  vaultFolderSegment,
   requireVaultScope,
   vaultErrorResponse
 } from "@/features/company-vault/server/vault-storage";
@@ -41,9 +42,10 @@ export async function POST(request: Request) {
     const parent = rawParentId ? await getTenantFolder(scope, String(rawParentId)) : null;
     const folderId = new Types.ObjectId();
     const storageRoot = companyVaultRoot(scope);
+    const folderSegment = vaultFolderSegment(name, String(folderId));
     const storageKey = parent
-      ? parent.storageKey + "/" + String(folderId)
-      : storageRoot + "/folders/" + String(folderId);
+      ? parent.storageKey + "/" + folderSegment
+      : storageRoot + "/" + folderSegment;
 
     const folder = new VaultFolder({
       _id: folderId,

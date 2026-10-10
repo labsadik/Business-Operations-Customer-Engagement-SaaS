@@ -244,9 +244,13 @@ test("company vault APIs stay tenant-scoped and Bunny secrets remain server-only
   const downloads = source("app/api/vault/files/[fileId]/route.ts");
   const folderModel = source("models/vault-folder.ts");
   const fileModel = source("models/vault-file.ts");
+  const folderCreate = source("app/api/vault/folders/route.ts");
 
   assert.ok(storage.includes("requireCompanyMember("));
   assert.ok(storage.includes("headers: Record<string, string> = { AccessKey: config.password }"));
+  assert.ok(storage.includes("vaultFolderSegment"));
+  assert.ok(folderCreate.includes('parent.storageKey + "/" + folderSegment'));
+  assert.ok(folderCreate.includes('storageRoot + "/" + folderSegment'));
   assert.doesNotMatch(browser, /BUNNY_STORAGE_PASSWORD|AccessKey/);
   assert.ok(downloads.includes('"Content-Disposition": downloadDisposition(file.originalName)'));
   assert.ok(downloads.includes('"X-Content-Type-Options": "nosniff"'));

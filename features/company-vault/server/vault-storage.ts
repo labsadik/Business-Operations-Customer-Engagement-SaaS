@@ -77,6 +77,17 @@ export function companyVaultRoot(scope: Pick<VaultScope, "companyId" | "companyS
   return slug + "-" + scope.companyId;
 }
 
+export function vaultFolderSegment(name: string, folderId: string) {
+  const readable = name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60) || "folder";
+  return readable + "-" + folderId;
+}
+
 export function safeVaultFilename(name: string) {
   const leaf = name.split(/[\\/]/).pop() ?? "";
   const clean = leaf
