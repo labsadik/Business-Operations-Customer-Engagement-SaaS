@@ -258,7 +258,7 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
           timer = undefined;
           return;
         }
-        await loadMessages(true);
+        await loadMessagesRef.current(true);
         schedule();
       }, recentlyActive ? 3000 : 12000);
     };
