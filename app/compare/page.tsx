@@ -17,8 +17,6 @@ import {
   MinusCircle,
   ShieldCheck,
   Sparkles,
-  UsersRound,
-  Video,
   WalletCards,
   Workflow,
   XCircle
@@ -110,6 +108,13 @@ const comparisonGroups: ComparisonGroup[] = [
         cal: no(),
         drive: yes("File preview available"),
         jira: partial("Attachment preview depends on file type")
+      },
+      {
+        feature: "Reduced third-party storage sync handoffs",
+        conventus: yes("Vault and workspace use the same company scope"),
+        cal: no("Separate file storage is still needed"),
+        drive: partial("Drive remains a separate storage workspace"),
+        jira: partial("Attachments remain part of a separate task workspace")
       },
       {
         feature: "Shared company scope across bookings, tasks & files",
@@ -263,6 +268,24 @@ export default function ComparePage() {
           <div className="flex items-center gap-2">
             <CountrySelector className="[&_button]:h-9 [&_button]:px-2.5 [&_button]:text-xs" />
             <Link href="/login" className="inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Sign in</Link>
+            <details className="group relative md:hidden">
+              <summary className="grid size-10 cursor-pointer list-none place-items-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+                <span className="sr-only">Open navigation</span>
+                <span className="relative flex size-4 flex-col items-center justify-center gap-1" aria-hidden="true">
+                  <span className="h-0.5 w-4 rounded-full bg-slate-700 transition-all group-open:translate-y-1.5 group-open:rotate-45" />
+                  <span className="h-0.5 w-4 rounded-full bg-slate-700 transition-all group-open:opacity-0" />
+                  <span className="h-0.5 w-4 rounded-full bg-slate-700 transition-all group-open:-translate-y-1.5 group-open:-rotate-45" />
+                </span>
+              </summary>
+              <div className="absolute right-0 top-12 z-50 w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+                <div className="grid gap-1">
+                  <Link href="/" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Home</Link>
+                  <Link href="/#features" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Features</Link>
+                  <Link href="/#pricing" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Pricing</Link>
+                  <Link href="/compare" aria-current="page" className="rounded-xl bg-blue-50 px-3 py-2.5 text-sm font-semibold text-blue-700">Compare</Link>
+                </div>
+              </div>
+            </details>
           </div>
         </div>
       </header>
