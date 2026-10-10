@@ -55,9 +55,6 @@ type VaultUsageData = {
   usedItems: number;
   maxItems: number;
   maxFileBytes: number;
-  fileCount: number;
-  pendingUploadCount: number;
-  pendingUploadBytes: number;
 };
 
 type CompanyResponse = {
@@ -331,7 +328,7 @@ export default function CompanyProfile({
               <div>
                 <p className="text-xs font-medium text-slate-500">Stored files and active uploads</p>
                 <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">{vaultUsage.usedItems.toLocaleString("en-IN")} <span className="text-sm font-medium text-slate-400">/ {vaultUsage.maxItems.toLocaleString("en-IN")}</span></p>
-                <p className="mt-1 text-xs text-slate-500">{vaultUsage.fileCount.toLocaleString("en-IN")} committed files · {vaultUsage.pendingUploadCount.toLocaleString("en-IN")} active uploads</p>
+                <p className="mt-1 text-xs text-slate-500">{vaultUsage.usedItems.toLocaleString("en-IN")} stored and in-progress items</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-slate-500">Available / file size limit</p>
