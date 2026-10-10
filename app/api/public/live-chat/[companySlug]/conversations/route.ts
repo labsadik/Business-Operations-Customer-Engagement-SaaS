@@ -19,17 +19,21 @@ function cleanHeader(value: string | null, maxLength: number) {
   if (!value) return "";
   let decoded = value;
   try { decoded = decodeURIComponent(value); } catch { /* header may not be URL encoded */ }
-  return decoded.replace(/[\\u0000-\\u001f\\u007f]/g, "").trim().slice(0, maxLength);
+  return decoded.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, maxLength);
 }
 
 function parseUserAgent(userAgent: string) {
   const ua = userAgent.slice(0, 1000);
-  const browser =
-    ua.match(/Edg\\/([\\d.]+)/i) ? "Microsoft Edge " + ua.match(/Edg\\/([\\d.]+)/i)![1] :
-    ua.match(/OPR\\/([\\d.]+)/i) ? "Opera " + ua.match(/OPR\\/([\\d.]+)/i)![1] :
-    ua.match(/(?:Chrome|CriOS)\\/([\\d.]+)/i) ? "Chrome " + ua.match(/(?:Chrome|CriOS)\\/([\\d.]+)/i)![1] :
-    ua.match(/Firefox\\/([\\d.]+)/i) ? "Firefox " + ua.match(/Firefox\\/([\\d.]+)/i)![1] :
-    ua.match(/Version\\/([\\d.]+).*Safari/i) ? "Safari " + ua.match(/Version\\/([\\d.]+).*Safari/i)![1] :
+  const edge = ua.match(/Edg\/([\d.]+)/i);
+  const opera = ua.match(/OPR\/([\d.]+)/i);
+  const chrome = ua.match(/(?:Chrome|CriOS)\/([\d.]+)/i);
+  const firefox = ua.match(/Firefox\/([\d.]+)/i);
+  const safari = ua.match(/Version\/([\d.]+).*Safari/i);
+  const browser = edge ? "Microsoft Edge " + edge[1] :
+    opera ? "Opera " + opera[1] :
+    chrome ? "Chrome " + chrome[1] :
+    firefox ? "Firefox " + firefox[1] :
+    safari ? "Safari " + safari[1] :
     /Safari/i.test(ua) ? "Safari" : "Unknown";
   const os =
     /Windows NT 10/i.test(ua) ? "Windows 10/11" :
@@ -69,8 +73,8 @@ function visitorTelemetry(request: Request, body: Record<string, unknown>, siteO
   const flag = /^[A-Z]{2}$/.test(geoCountry)
     ? String.fromCodePoint(...geoCountry.split("").map((char) => char.charCodeAt(0) + 127397))
     : "🌐";
-  const visitorLabel = ("Visitor #" + visitorId.slice(0, 5).toUpperCase() + " · " + flag + " " +
-    [geoCity, geoCountry].filter(Boolean).join(", ")).slice(0, 120);
+  const location = [geoCity, geoCountry].filter(Boolean).join(", ");
+  const visitorLabel = ("Visitor #" + visitorId.slice(0, 5).toUpperCase() + " · " + flag + (location ? " " + location : "")).slice(0, 120);
   return { geoCountry, geoCity, geoRegion, ipDisplay, browser, os, deviceType, referrer, visitorLabel };
 }
 
