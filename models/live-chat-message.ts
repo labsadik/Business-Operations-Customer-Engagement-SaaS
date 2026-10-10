@@ -7,7 +7,7 @@ const liveChatMessageSchema = new Schema({
   senderType: { type: String, enum: ["CUSTOMER", "AGENT"], required: true },
   senderUserId: { type: Schema.Types.ObjectId, ref: "User", default: null },
   body: { type: String, required: true, trim: true, maxlength: 2000 },
-  expiresAt: { type: Date, required: true, index: true }
+  expiresAt: { type: Date, required: true }
 }, { timestamps: true });
 
 liveChatMessageSchema.index({ conversationId: 1, createdAt: 1, _id: 1 });
