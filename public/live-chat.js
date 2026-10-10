@@ -26,13 +26,14 @@
   frame.referrerPolicy = "strict-origin-when-cross-origin";
   frame.style.position = "fixed";
   frame.style.display = "block";
-  frame.style.bottom = "16px";
-  frame.style.left = initialPosition === "left" ? "16px" : "auto";
-  frame.style.right = initialPosition === "right" ? "16px" : "auto";
-  frame.style.width = "76px";
-  frame.style.height = "76px";
-  frame.style.maxWidth = "calc(100vw - 32px)";
-  frame.style.maxHeight = "calc(100vh - 32px)";
+  frame.style.bottom = "10px";
+  frame.style.left = initialPosition === "left" ? "10px" : "auto";
+  frame.style.right = initialPosition === "right" ? "10px" : "auto";
+  // Default launcher is 60px with 6px breathing room on each side.
+  frame.style.width = "72px";
+  frame.style.height = "72px";
+  frame.style.maxWidth = "calc(100vw - 20px)";
+  frame.style.maxHeight = "calc(100vh - 20px)";
   frame.style.margin = "0";
   frame.style.padding = "0";
   frame.style.border = "0";
@@ -40,8 +41,20 @@
   frame.style.zIndex = "2147483000";
   frame.style.overflow = "hidden";
   frame.style.colorScheme = "normal";
-  frame.style.transition = "width 120ms ease, height 120ms ease";
-  frame.style.borderRadius = "18px";
+  frame.style.transition = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ? "none"
+    : "width 120ms ease, height 120ms ease";
+  frame.style.borderRadius = "50%";
+
+  var lastResizeData = {
+    open: false,
+    width: 380,
+    height: 620,
+    position: initialPosition,
+    launcherSize: 60,
+    launcherShape: "CIRCLE",
+    panelRadius: 18
+  };
 
   function sendInit() {
     if (!frame.contentWindow) return;
@@ -53,19 +66,33 @@
   }
 
   function resizeFrame(data) {
-    var isLeft = data.position === "left" || (!data.position && initialPosition === "left");
+    lastResizeData = Object.assign({}, lastResizeData, data);
+    var state = lastResizeData;
+    var isLeft = state.position === "left" || (!state.position && initialPosition === "left");
     frame.style.left = isLeft ? "16px" : "auto";
     frame.style.right = isLeft ? "auto" : "16px";
-    if (data.open) {
-      var maxWidth = Math.max(260, window.innerWidth - 32);
-      var maxHeight = Math.max(260, window.innerHeight - 32);
-      frame.style.width = Math.min(Number(data.width) || 380, maxWidth) + "px";
-      frame.style.height = Math.min(Number(data.height) || 620, maxHeight) + "px";
+
+    if (state.open) {
+      var maxWidth = Math.max(1, window.innerWidth - 32);
+      var maxHeight = Math.max(1, window.innerHeight - 32);
+      frame.style.bottom = "16px";
+      frame.style.maxWidth = maxWidth + "px";
+      frame.style.maxHeight = maxHeight + "px";
+      frame.style.width = Math.min(Number(state.width) || 380, maxWidth) + "px";
+      frame.style.height = Math.min(Number(state.height) || 620, maxHeight) + "px";
+      frame.style.borderRadius = Math.min(28, Math.max(8, Number(state.panelRadius) || 18)) + "px";
     } else {
-      frame.style.width = "76px";
-      frame.style.height = "76px";
+      var launcherSize = Math.min(80, Math.max(52, Number(state.launcherSize) || 60));
+      var launcherFrameSize = launcherSize + 12;
+      var availableWidth = Math.max(1, window.innerWidth - 20);
+      var availableHeight = Math.max(1, window.innerHeight - 20);
+      frame.style.bottom = "10px";
+      frame.style.maxWidth = availableWidth + "px";
+      frame.style.maxHeight = availableHeight + "px";
+      frame.style.width = Math.min(launcherFrameSize, availableWidth) + "px";
+      frame.style.height = Math.min(launcherFrameSize, availableHeight) + "px";
+      frame.style.borderRadius = state.launcherShape === "ROUNDED" ? "18px" : "50%";
     }
-    frame.style.borderRadius = "18px";
   }
 
   // Register listeners before adding the iframe so a fast load/ready message
@@ -88,8 +115,10 @@
   frame.addEventListener("load", sendInit);
 
   window.addEventListener("resize", function () {
-    if (parseInt(frame.style.width, 10) > 100) {
-      resizeFrame({ open: true, width: 380, height: 620, position: frame.style.left === "16px" ? "left" : "right" });
+    if (lastResizeData.open) {
+      resizeFrame({ open: true, width: 380, height: 620, position: lastResizeData.position });
+    } else {
+      resizeFrame({ open: false, position: lastResizeData.position });
     }
   }, { passive: true });
 
