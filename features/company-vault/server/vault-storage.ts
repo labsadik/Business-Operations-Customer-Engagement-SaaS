@@ -410,10 +410,11 @@ export async function releaseVaultBytes(scope: Pick<VaultScope, "companyId">, by
 }
 
 export async function deleteVaultFileAndRelease(
-  scope: Pick<VaultScope, "companyId">,
-  file: { _id: Types.ObjectId; workspaceId: Types.ObjectId; sizeBytes: number }
+  scope: Pick<VaultScope, "companyId" | "workspaceId">,
+  file: { _id: Types.ObjectId; sizeBytes: number }
 ) {
   const companyId = new Types.ObjectId(scope.companyId);
+  const workspaceId = new Types.ObjectId(scope.workspaceId);
   const db = await getMongo();
   const session = await db.startSession();
   let deletedCount = 0;
@@ -422,7 +423,7 @@ export async function deleteVaultFileAndRelease(
       const deleted = await VaultFile.deleteOne({
         _id: file._id,
         companyId,
-        workspaceId: file.workspaceId
+        workspaceId
       }, { session });
       if (!deleted.deletedCount) return;
       deletedCount = deleted.deletedCount;
