@@ -517,7 +517,6 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
                                   disableRemotePlayback
                                   onDragStart={(event) => event.preventDefault()}
                                   onContextMenu={(event) => event.preventDefault()}
-                                  referrerPolicy="no-referrer"
                                   tabIndex={-1}
                                   aria-hidden="true"
                                   onLoadedData={(event) => {
@@ -654,7 +653,7 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={"/api/vault/files/" + encodeURIComponent(previewFile.id) + "?inline=1"} alt={previewFile.name} draggable={false} referrerPolicy="no-referrer" onDragStart={(event) => event.preventDefault()} onContextMenu={(event) => event.preventDefault()} className="mx-auto max-h-[74vh] max-w-full select-none rounded-xl object-contain" />
               ) : previewFile.mimeType.startsWith("video/") && /^(video\/(mp4|webm|ogg))$/.test(previewFile.mimeType) ? (
-                <video controls controlsList="nodownload noremoteplayback" disablePictureInPicture disableRemotePlayback draggable={false} referrerPolicy="no-referrer" onDragStart={(event) => event.preventDefault()} onContextMenu={(event) => event.preventDefault()} preload="metadata" src={"/api/vault/files/" + encodeURIComponent(previewFile.id) + "?inline=1"} className="mx-auto max-h-[74vh] max-w-full rounded-xl" />
+                <video controls controlsList="nodownload noremoteplayback" disablePictureInPicture disableRemotePlayback draggable={false} onDragStart={(event) => event.preventDefault()} onContextMenu={(event) => event.preventDefault()} preload="metadata" src={"/api/vault/files/" + encodeURIComponent(previewFile.id) + "?inline=1"} className="mx-auto max-h-[74vh] max-w-full rounded-xl" />
               ) : /^(application\/pdf|text\/(plain|csv)|application\/json)$/.test(previewFile.mimeType) ? (
                 <iframe title={"Preview " + previewFile.name} sandbox="" referrerPolicy="no-referrer" src={"/api/vault/files/" + encodeURIComponent(previewFile.id) + "?inline=1"} className="h-[72vh] w-full rounded-xl border border-slate-200 bg-white" />
               ) : (
