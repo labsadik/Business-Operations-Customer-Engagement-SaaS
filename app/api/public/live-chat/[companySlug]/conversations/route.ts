@@ -47,11 +47,11 @@ function parseUserAgent(userAgent: string) {
 }
 
 function visitorTelemetry(request: Request, body: Record<string, unknown>, siteOrigin: string, visitorId: string) {
-  const countryCode = cleanHeader(request.headers.get("cf-ipcountry"), 2).toUpperCase();
+  const countryCode = cleanHeader(request.headers.get("cf-ipcountry") ?? request.headers.get("x-vercel-ip-country"), 2).toUpperCase();
   const geoCountry = /^[A-Z]{2}$/.test(countryCode) && countryCode !== "XX" ? countryCode : "";
-  const geoCity = cleanHeader(request.headers.get("cf-ipcity"), 120);
-  const geoRegion = cleanHeader(request.headers.get("cf-region"), 120);
-  const forwardedIp = request.headers.get("cf-connecting-ip") ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "";
+  const geoCity = cleanHeader(request.headers.get("cf-ipcity") ?? request.headers.get("x-vercel-ip-city"), 120);
+  const geoRegion = cleanHeader(request.headers.get("cf-region") ?? request.headers.get("x-vercel-ip-country-region"), 120);
+  const forwardedIp = request.headers.get("cf-connecting-ip") ?? request.headers.get("x-vercel-forwarded-for") ?? request.headers.get("x-real-ip") ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "";
   const ipDisplay = cleanHeader(forwardedIp, 64);
   const { browser, os, deviceType } = parseUserAgent(request.headers.get("user-agent") ?? "");
   let referrer = typeof body.referrer === "string" ? body.referrer : "";
