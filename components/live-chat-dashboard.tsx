@@ -216,8 +216,24 @@ export default function LiveChatDashboard({
       event.preventDefault();
       event.returnValue = "";
     };
+    const confirmAppNavigation = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      if (!(event.target instanceof Element)) return;
+      const link = event.target.closest("a[href]");
+      if (!(link instanceof HTMLAnchorElement) || link.target === "_blank" || link.hasAttribute("download")) return;
+      const target = new URL(link.href, window.location.href);
+      if (target.origin === window.location.origin && target.pathname === window.location.pathname) return;
+      if (!window.confirm("You have unsaved Live Chat appearance changes. Leave this page and discard them?")) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    };
     window.addEventListener("beforeunload", warnBeforeLeave);
-    return () => window.removeEventListener("beforeunload", warnBeforeLeave);
+    document.addEventListener("click", confirmAppNavigation, true);
+    return () => {
+      window.removeEventListener("beforeunload", warnBeforeLeave);
+      document.removeEventListener("click", confirmAppNavigation, true);
+    };
   }, [hasUnsavedSettings]);
 
   const selected = useMemo(() => items.find((item) => item.id === selectedId) ?? null, [items, selectedId]);
