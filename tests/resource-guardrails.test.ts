@@ -487,3 +487,39 @@ test("company dashboard navigation stays consistent, collapsible, branded, and e
   assert.ok(vaultPage.includes("taskManagementEnabled={Boolean(entitlements.taskManagementEnabled)}"));
   assert.ok(profile.includes("taskManagementEnabled={taskManagementEnabled}"));
 });
+
+
+test("enterprise workspace sidebar groups navigation, aligns the toggle, and retains scroll context", () => {
+  const sidebar = source("components/workspace-sidebar.tsx");
+  const skeleton = source("components/route-loading.tsx");
+  const dashboard = source("components/workspace-dashboard.tsx");
+  const profilePage = source("app/dashboard/company-profile/page.tsx");
+  const profile = source("components/company-profile.tsx");
+
+  assert.ok(sidebar.includes('className={`flex items-center justify-between ${collapsed ? "gap-1" : "gap-2.5"}`}'));
+  assert.ok(sidebar.includes('className="grid size-8 shrink-0 place-items-center'));
+  assert.ok(sidebar.includes('aria-label="Core Workspace"'));
+  assert.ok(sidebar.includes('aria-label="Workspace Tools"'));
+  assert.ok(sidebar.includes('aria-label="Workspace Management"'));
+  assert.ok(sidebar.includes('aria-label="Help & Support"'));
+  assert.ok(sidebar.includes('aria-label="Mobile company workspace navigation"'));
+  assert.ok(sidebar.includes("sessionStorage.setItem(SIDEBAR_SCROLL_KEY"));
+  assert.ok(sidebar.includes("ref={attachNavRef}"));
+  assert.ok(sidebar.includes('scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" })'));
+  assert.ok(sidebar.includes("data-sidebar-active={isSettings ? \"true\" : \"false\"}"));
+  assert.ok(sidebar.includes("onOpenPanel"));
+  assert.ok(sidebar.includes("router.push(`/dashboard?${query.toString()}`)"));
+  assert.ok(sidebar.includes("onNavigateOverview"));
+  assert.ok(!sidebar.includes("/api/auth/logout"));
+  assert.ok(!sidebar.includes("Sign out"));
+  assert.ok(!sidebar.includes("LogOut"));
+
+  assert.ok(skeleton.includes('min-h-[68px] items-center justify-between gap-2.5'));
+  assert.ok(skeleton.includes('className="size-8 shrink-0 rounded-lg"'));
+  assert.ok(skeleton.includes("Array.from({ length: 4 }"));
+  assert.ok(dashboard.includes("useWorkspaceSidebarState"));
+  assert.ok(dashboard.includes("onToggleCollapsed={toggleSidebar}"));
+  assert.ok(profilePage.includes("<CompanyProfile"));
+  assert.ok(profile.includes("WorkspaceSidebar"));
+  assert.ok(profile.includes("onToggleCollapsed={toggleSidebar}"));
+});
