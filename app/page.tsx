@@ -317,6 +317,7 @@ export default async function Home() {
             <a href="#pricing" className="rounded-lg px-1.5 py-2 transition hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Pricing</a>
             <a href="#faq" className="rounded-lg px-1.5 py-2 transition hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">FAQ</a>
             <Link href="/compare" className="rounded-lg px-1.5 py-2 transition hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Compare</Link>
+            <Link href="/docs" className="rounded-lg px-1.5 py-2 transition hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Docs</Link>
           </nav>
 
           <div className="flex items-center gap-2">
@@ -341,6 +342,7 @@ export default async function Home() {
                   <a href="#pricing" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Pricing</a>
                   <a href="#faq" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">FAQ</a>
                   <Link href="/compare" className="rounded-xl px-3 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50">Compare Conventus</Link>
+                  <Link href="/docs" className="rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Documentation</Link>
                   <div className="my-1 border-t border-slate-200" />
                   <Link href="/login" className="rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Sign in</Link>
                   <Link href="/dashboard" className="rounded-xl px-3 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50">Open workspace</Link>
@@ -568,10 +570,11 @@ export default async function Home() {
             <p className="mt-4 max-w-sm text-xs leading-5 text-slate-500">Client booking, team routing, task delegation, private files, and enterprise operations in one company workspace.</p>
           </div>
 
-          <div className="grid gap-8 sm:grid-cols-4">
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
             <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Product</p><div className="mt-3 grid gap-2.5"><a href="#how-it-works" className="rounded-lg py-1 hover:text-blue-700">How it works</a><a href="#features" className="rounded-lg py-1 hover:text-blue-700">Features</a><a href="#pricing" className="rounded-lg py-1 hover:text-blue-700">Pricing</a><a href="#faq" className="rounded-lg py-1 hover:text-blue-700">FAQ</a><Link href="/compare" className="rounded-lg py-1 hover:text-blue-700">Conventus vs Cal.com &amp; Jira</Link></div></div>
             <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Workspace</p><div className="mt-3 grid gap-2.5"><Link href="/dashboard" className="rounded-lg py-1 hover:text-blue-700">Open dashboard</Link><Link href="/dashboard/tasks" className="rounded-lg py-1 hover:text-blue-700">Team tasks</Link><Link href="/dashboard/vault" className="rounded-lg py-1 hover:text-blue-700">Company vault</Link></div></div>
             <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Account & legal</p><div className="mt-3 grid gap-2.5"><Link href="/login" className="rounded-lg py-1 hover:text-blue-700">Sign in</Link><Link href="/terms" className="rounded-lg py-1 hover:text-blue-700">Terms</Link><Link href="/privacy" className="rounded-lg py-1 hover:text-blue-700">Privacy</Link></div></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Resources</p><div className="mt-3 grid gap-2.5"><Link href="/docs" className="rounded-lg py-1 hover:text-blue-700">Documentation</Link><Link href="/docs#scheduling" className="rounded-lg py-1 hover:text-blue-700">Client scheduling</Link><Link href="/docs#tasks" className="rounded-lg py-1 hover:text-blue-700">Task management</Link><Link href="/docs#vault" className="rounded-lg py-1 hover:text-blue-700">Company Vault</Link><Link href="/docs#live-chat" className="rounded-lg py-1 hover:text-blue-700">Live Chat</Link></div></div>
             <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Preferences</p><div className="mt-3"><CookieSettingsButton className="rounded-lg py-1 text-slate-500 hover:text-blue-700" aria-label="Open cookie settings">Cookie settings</CookieSettingsButton></div></div>
           </div>
         </div>
