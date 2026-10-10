@@ -1,7 +1,6 @@
 import { getMongo } from "@/lib/mongodb";
 import { Invoice } from "@/models/invoice";
-import { Payment } from "@/models/payment";
-import { getPlan } from "@/lib/plans";
+import { resolveInvoicePlanSnapshot } from "@/lib/invoice-plan-snapshot";
 import { getSession } from "@/lib/session";
 import { Membership } from "@/models/membership";
 import { jsonError, jsonOk } from "@/lib/http";
@@ -46,39 +45,44 @@ export async function GET() {
     ? subscription.planId
     : null;
 
-  return jsonOk(invoices.map((invoice) => {
-    const currentPlan = getPlan(invoice.planId);
-    const planSnapshot = invoice.planSnapshot ?? (currentPlan ? {
-      name: currentPlan.name,
-      priceInr: currentPlan.priceInr,
-      maxEmployees: currentPlan.maxEmployees,
-      monthlyMeetingLimit: currentPlan.monthlyMeetingLimit,
-      maxMeetingDurationMinutes: currentPlan.maxMeetingDurationMinutes,
-      maxConcurrentMeetings: currentPlan.maxConcurrentMeetings,
-      validityDays: currentPlan.validityDays,
-      freeFeatureDays: currentPlan.freeFeatureDays
-    } : {
-      name: invoice.planId,
-      priceInr: invoice.amount / 100,
-      maxEmployees: 0,
-      monthlyMeetingLimit: 0,
-      maxMeetingDurationMinutes: 0,
-      maxConcurrentMeetings: 0,
-      validityDays: 30
+  const response = await Promise.all(invoices.map(async (invoice) => {
+    const planSnapshot = await resolveInvoicePlanSnapshot({
+      companyId: invoice.companyId,
+      paymentId: invoice.paymentId,
+      planId: invoice.planId,
+      planSnapshot: invoice.planSnapshot
     });
-
     const billingPeriod = resolveInvoiceBillingPeriod({
       issuedAt: invoice.issuedAt,
       billingPeriodStart: invoice.billingPeriodStart,
       billingPeriodEnd: invoice.billingPeriodEnd,
-      validityDays: planSnapshot.validityDays ?? currentPlan?.validityDays ?? 30
+      validityDays: planSnapshot?.validityDays ?? 30
     });
 
     return {
       id: String(invoice._id),
       invoiceNumber: invoice.invoiceNumber,
       planId: invoice.planId,
-      planSnapshot,
+      planSnapshot: planSnapshot ?? {
+        id: invoice.planId,
+        name: invoice.planId,
+        priceInr: invoice.amount / 100,
+        maxWorkspaces: 0,
+        maxCompanies: 0,
+        maxEmployees: 0,
+        monthlyMeetingLimit: 0,
+        maxMeetingDurationMinutes: 0,
+        maxConcurrentMeetings: 0,
+        taskManagementEnabled: false,
+        taskManagementDailyLimit: null,
+        vaultEnabled: false,
+        vaultQuotaBytes: 0,
+        vaultMaxFileBytes: 0,
+        vaultMaxItems: 0,
+        validityDays: 30,
+        freeFeatureDays: null,
+        requiresPayment: false
+      },
       source: invoice.source ?? "PAID",
       providerOrderId: invoice.providerOrderId,
       providerPaymentId: invoice.providerPaymentId,
@@ -98,4 +102,6 @@ export async function GET() {
       )
     };
   }));
+
+  return jsonOk(response);
 }

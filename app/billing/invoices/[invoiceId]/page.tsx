@@ -6,7 +6,7 @@ import { getMongo } from "@/lib/mongodb";
 import { getSession } from "@/lib/session";
 import { ensureInvoicesForCapturedPayments } from "@/lib/billing";
 import { Invoice } from "@/models/invoice";
-import { getPlan } from "@/lib/plans";
+import { resolveInvoicePlanSnapshot } from "@/lib/invoice-plan-snapshot";
 import { calculateInvoiceTax, resolveInvoiceBillingPeriod } from "@/lib/invoicing";
 import { platformLegalProfile } from "@/lib/platform";
 import { getCompanySubscription } from "@/lib/plans-server";
@@ -36,8 +36,12 @@ export default async function InvoicePage({
 
   if (!invoice) notFound();
 
-  const fallbackPlan = getPlan(invoice.planId);
-  const plan = invoice.planSnapshot ?? fallbackPlan;
+  const plan = await resolveInvoicePlanSnapshot({
+    companyId: invoice.companyId,
+    paymentId: invoice.paymentId,
+    planId: invoice.planId,
+    planSnapshot: invoice.planSnapshot
+  });
   if (!plan) notFound();
   const billingPeriod = resolveInvoiceBillingPeriod({
     issuedAt: invoice.issuedAt,
@@ -84,6 +88,14 @@ export default async function InvoicePage({
       monthlyMeetingLimit: plan.monthlyMeetingLimit,
       maxMeetingDurationMinutes: plan.maxMeetingDurationMinutes,
       maxConcurrentMeetings: plan.maxConcurrentMeetings,
+      maxWorkspaces: plan.maxWorkspaces,
+      maxCompanies: plan.maxCompanies,
+      taskManagementEnabled: plan.taskManagementEnabled,
+      taskManagementDailyLimit: plan.taskManagementDailyLimit,
+      vaultEnabled: plan.vaultEnabled,
+      vaultQuotaBytes: plan.vaultQuotaBytes,
+      vaultMaxFileBytes: plan.vaultMaxFileBytes,
+      vaultMaxItems: plan.vaultMaxItems,
       validityDays: plan.validityDays,
       freeFeatureDays: plan.freeFeatureDays
     },

@@ -47,6 +47,11 @@ const invoiceSchema = new Schema(
       maxMeetingDurationMinutes: { type: Number, required: true, default: 0 },
       maxConcurrentMeetings: { type: Number, required: true, default: 0 },
       taskManagementEnabled: { type: Boolean, required: true, default: false },
+      taskManagementDailyLimit: { type: Number, min: 1 },
+      vaultEnabled: { type: Boolean },
+      vaultQuotaBytes: { type: Number, min: 1 },
+      vaultMaxFileBytes: { type: Number, min: 1 },
+      vaultMaxItems: { type: Number, min: 1 },
       validityDays: { type: Number, required: true, default: 30 },
       freeFeatureDays: { type: Number, default: null },
       requiresPayment: { type: Boolean, required: true, default: false }

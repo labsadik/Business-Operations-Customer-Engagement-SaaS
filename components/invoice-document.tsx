@@ -19,6 +19,14 @@ export type InvoiceDocumentData = {
     monthlyMeetingLimit: number;
     maxMeetingDurationMinutes: number;
     maxConcurrentMeetings: number;
+    maxWorkspaces: number;
+    maxCompanies: number;
+    taskManagementEnabled: boolean;
+    taskManagementDailyLimit: number | null;
+    vaultEnabled: boolean;
+    vaultQuotaBytes: number;
+    vaultMaxFileBytes: number;
+    vaultMaxItems: number;
     validityDays?: number;
     freeFeatureDays?: number | null;
   };
@@ -80,6 +88,19 @@ function money(minor: number, currency: string) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(minor / 100);
+}
+
+function formatBytes(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB", "PB"];
+  let amount = value;
+  let index = 0;
+  while (amount >= 1024 && index < units.length - 1) {
+    amount /= 1024;
+    index += 1;
+  }
+  const formatted = amount >= 100 || index === 0 ? amount.toFixed(0) : amount >= 10 ? amount.toFixed(1) : amount.toFixed(2);
+  return formatted + " " + units[index];
 }
 
 function addressLines(address: InvoiceDocumentData["merchant"]["address"]) {
@@ -348,12 +369,23 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentD
                   <span className="text-[11px] font-medium text-slate-400">{invoice.plan.name}</span>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                  <Entitlement label="Workspaces" value={String(invoice.plan.maxWorkspaces)} />
+                  <Entitlement label="Companies" value={String(invoice.plan.maxCompanies)} />
                   <Entitlement label="Employees" value={String(invoice.plan.maxEmployees)} />
                   <Entitlement label="Meetings / month" value={String(invoice.plan.monthlyMeetingLimit)} />
                   <Entitlement label="Max duration" value={invoice.plan.maxMeetingDurationMinutes + " min"} />
-                  <Entitlement label="Concurrent" value={String(invoice.plan.maxConcurrentMeetings)} />
+                  <Entitlement label="Concurrent meetings" value={String(invoice.plan.maxConcurrentMeetings)} />
                   <Entitlement label="Validity" value={(invoice.plan.validityDays ?? 30) + " days"} />
-                  <Entitlement label="Free feature" value={invoice.plan.freeFeatureDays ? invoice.plan.freeFeatureDays + " days" : "Not included"} />
+                  <Entitlement label="Task management" value={invoice.plan.taskManagementEnabled ? "Included" : "Not included"} />
+                  <Entitlement
+                    label="Task daily limit"
+                    value={!invoice.plan.taskManagementEnabled ? "—" : invoice.plan.taskManagementDailyLimit == null ? "No daily cap" : invoice.plan.taskManagementDailyLimit + " tasks / day"}
+                  />
+                  <Entitlement label="Cloud Vault" value={invoice.plan.vaultEnabled ? "Included" : "Not included"} />
+                  <Entitlement label="Vault storage" value={invoice.plan.vaultEnabled ? formatBytes(invoice.plan.vaultQuotaBytes) : "Not included"} />
+                  <Entitlement label="Max vault file" value={invoice.plan.vaultEnabled ? formatBytes(invoice.plan.vaultMaxFileBytes) : "Not included"} />
+                  <Entitlement label="Vault item limit" value={invoice.plan.vaultEnabled ? invoice.plan.vaultMaxItems.toLocaleString("en-IN") : "Not included"} />
+                  <Entitlement label="Free feature window" value={invoice.plan.freeFeatureDays ? invoice.plan.freeFeatureDays + " days" : "Not included"} />
                 </div>
               </div>
             </div>

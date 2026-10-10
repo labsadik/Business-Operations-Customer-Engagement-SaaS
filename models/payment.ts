@@ -38,6 +38,11 @@ const paymentSchema = new Schema(
       maxMeetingDurationMinutes: { type: Number, min: 1 },
       maxConcurrentMeetings: { type: Number, min: 1 },
       taskManagementEnabled: { type: Boolean, default: false },
+      taskManagementDailyLimit: { type: Number, min: 1 },
+      vaultEnabled: { type: Boolean },
+      vaultQuotaBytes: { type: Number, min: 1 },
+      vaultMaxFileBytes: { type: Number, min: 1 },
+      vaultMaxItems: { type: Number, min: 1 },
       validityDays: { type: Number, min: 1 },
       freeFeatureDays: { type: Number, min: 0, default: null },
       requiresPayment: { type: Boolean }

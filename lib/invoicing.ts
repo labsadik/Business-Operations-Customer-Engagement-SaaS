@@ -209,6 +209,11 @@ export async function buildInvoiceSnapshots(input: {
       maxMeetingDurationMinutes: input.plan.maxMeetingDurationMinutes,
       maxConcurrentMeetings: input.plan.maxConcurrentMeetings,
       taskManagementEnabled: Boolean(input.plan.taskManagementEnabled),
+      taskManagementDailyLimit: input.plan.taskManagementDailyLimit,
+      vaultEnabled: Boolean(input.plan.vaultEnabled),
+      vaultQuotaBytes: input.plan.vaultQuotaBytes,
+      vaultMaxFileBytes: input.plan.vaultMaxFileBytes,
+      vaultMaxItems: input.plan.vaultMaxItems,
       validityDays: input.plan.validityDays,
       freeFeatureDays: input.plan.freeFeatureDays,
       requiresPayment: input.plan.requiresPayment
