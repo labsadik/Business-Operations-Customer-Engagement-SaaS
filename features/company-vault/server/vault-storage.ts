@@ -454,8 +454,7 @@ export async function deleteVaultFileAndRelease(
 }
 
 export async function getVaultUsageSnapshot(
-  scope: Pick<VaultScope, "companyId" | "vaultQuotaBytes" | "vaultMaxItems" | "vaultMaxFileBytes">,
-  includeDetails = false
+  scope: Pick<VaultScope, "companyId" | "vaultQuotaBytes" | "vaultMaxItems" | "vaultMaxFileBytes">
 ) {
   const companyId = new Types.ObjectId(scope.companyId);
   const usageFilter = { companyId, workspaceId: companyId };
@@ -463,9 +462,9 @@ export async function getVaultUsageSnapshot(
     .select("usedBytes usedItems counterVersion")
     .lean();
 
-  // The normal vault listing is O(1): use the atomic quota ledger rather than
-  // aggregating every file and active upload on every folder navigation.
-  // Expensive reconciliation only runs for missing/stale legacy counters.
+  // Routine reads are O(1): use the atomic quota ledger instead of aggregating
+  // every file and active upload on every folder navigation or profile request.
+  // Reconciliation scans only run when the versioned ledger is missing or stale.
   if (
     !usage ||
     usage.counterVersion !== 2 ||
@@ -481,49 +480,13 @@ export async function getVaultUsageSnapshot(
 
   const usedBytes = Math.max(0, usage.usedBytes ?? 0);
   const usedItems = Math.max(0, usage.usedItems ?? 0);
-  const base = {
+  return {
     usedBytes,
     quotaBytes: scope.vaultQuotaBytes,
     availableBytes: Math.max(0, scope.vaultQuotaBytes - usedBytes),
     usedItems,
     maxItems: scope.vaultMaxItems,
     maxFileBytes: scope.vaultMaxFileBytes
-  };
-
-  if (!includeDetails) return base;
-
-  // Only the company profile asks for the committed-vs-pending breakdown.
-  // Keep this diagnostic aggregate off the hot file-list/download paths.
-  const [fileRows, pendingRows] = await Promise.all([
-    VaultFile.aggregate<{ count: number; sizeBytes: number }>([
-      { $match: { companyId } },
-      { $group: { _id: null, count: { $sum: 1 }, sizeBytes: { $sum: { $ifNull: ["$storageSizeBytes", "$sizeBytes"] } } } }
-    ]),
-    VaultUpload.aggregate<{ count: number; sizeBytes: number }>([
-      {
-        $match: {
-          companyId,
-          status: { $in: ["OPEN", "COMPLETING"] },
-          expiresAt: { $gt: new Date() }
-        }
-      },
-      {
-        $lookup: {
-          from: VaultFile.collection.name,
-          localField: "_id",
-          foreignField: "uploadId",
-          as: "committedFiles"
-        }
-      },
-      { $match: { $expr: { $eq: [{ $size: "$committedFiles" }, 0] } } },
-      { $group: { _id: null, count: { $sum: 1 }, sizeBytes: { $sum: "$sizeBytes" } } }
-    ])
-  ]);
-  return {
-    ...base,
-    fileCount: fileRows[0]?.count ?? 0,
-    pendingUploadCount: pendingRows[0]?.count ?? 0,
-    pendingUploadBytes: pendingRows[0]?.sizeBytes ?? 0
   };
 }
 
