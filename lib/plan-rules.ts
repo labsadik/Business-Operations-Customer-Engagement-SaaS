@@ -31,6 +31,10 @@ export type PlanDraftInput = {
   maxConcurrentMeetings: unknown;
   taskManagementEnabled?: unknown;
   taskManagementDailyLimit?: unknown;
+  vaultEnabled?: unknown;
+  vaultQuotaBytes?: unknown;
+  vaultMaxFileBytes?: unknown;
+  vaultMaxItems?: unknown;
   validityDays: unknown;
   freeFeatureDays?: unknown;
 };
@@ -214,6 +218,19 @@ export function validatePlanDraft(input: PlanDraftInput) {
             1000000
           );
 
+  const vaultEnabled = input.vaultEnabled == null
+    ? false
+    : assertBoolean(input.vaultEnabled, "vault_enabled");
+  const vaultQuotaBytes = input.vaultQuotaBytes === undefined
+    ? 5368709120
+    : assertIntegerRange(input.vaultQuotaBytes, "vault_quota_bytes", 1048576, Number.MAX_SAFE_INTEGER);
+  const vaultMaxFileBytes = input.vaultMaxFileBytes === undefined
+    ? 104857600
+    : assertIntegerRange(input.vaultMaxFileBytes, "vault_max_file_bytes", 1048576, 262144000);
+  const vaultMaxItems = input.vaultMaxItems === undefined
+    ? 1000
+    : assertIntegerRange(input.vaultMaxItems, "vault_max_items", 1, 10000000);
+
   const validityDays = assertIntegerRange(
     input.validityDays,
     "validity_days",
@@ -253,6 +270,10 @@ export function validatePlanDraft(input: PlanDraftInput) {
     maxConcurrentMeetings,
     taskManagementEnabled,
     taskManagementDailyLimit,
+    vaultEnabled,
+    vaultQuotaBytes,
+    vaultMaxFileBytes,
+    vaultMaxItems,
     validityDays,
     freeFeatureDays,
     requiresPayment: priceInr > 0,

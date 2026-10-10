@@ -28,6 +28,7 @@ type Panel = "meetings" | "team" | "settings" | "billing" | "feedback" | "suppor
 type WorkspaceSidebarProps = {
   companyName: string;
   taskManagementEnabled?: boolean;
+  vaultEnabled?: boolean;
   canManage?: boolean;
   adminManaged?: boolean;
   activePanel?: Panel | null;
@@ -45,6 +46,7 @@ const primaryItems = [
 
 export default function WorkspaceSidebar({
   taskManagementEnabled = false,
+  vaultEnabled = false,
   canManage = false,
   adminManaged = false,
   activePanel = null,
@@ -151,11 +153,13 @@ export default function WorkspaceSidebar({
               </Link>
             )}
 
-            <Link href={"/dashboard/vault" as Route} className={buttonClass(isVault)} title="Company vault">
-              <FolderOpen className={`size-4 ${iconClass(isVault)}`} />
-              <span className={collapsed ? "sr-only" : ""}>Company vault</span>
-              {isVault && !collapsed && <span className="ml-auto size-1.5 rounded-full bg-blue-600" />}
-            </Link>
+            {vaultEnabled && (
+              <Link href={"/dashboard/vault" as Route} className={buttonClass(isVault)} title="Company vault">
+                <FolderOpen className={`size-4 ${iconClass(isVault)}`} />
+                <span className={collapsed ? "sr-only" : ""}>Company vault</span>
+                {isVault && !collapsed && <span className="ml-auto size-1.5 rounded-full bg-blue-600" />}
+              </Link>
+            )}
 
             <button type="button" onClick={() => open("feedback")} className={buttonClass(active("feedback"))} title={labels.feedback}>
               <MessageSquareText className={`size-4 ${iconClass(active("feedback"))}`} />

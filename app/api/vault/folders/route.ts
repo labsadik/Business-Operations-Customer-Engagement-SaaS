@@ -4,7 +4,7 @@ import { assertSameOrigin } from "@/lib/security";
 import { jsonOk } from "@/lib/http";
 import { VaultFolder } from "@/models/vault-folder";
 import {
-  bunnyEnsureMarker,
+  bunnyDelete,
   cleanupExpiredVaultUploads,
   companyVaultRoot,
   getTenantFolder,
@@ -65,17 +65,9 @@ export async function POST(request: Request) {
       throw error;
     }
 
-    try {
-      await bunnyEnsureMarker(storageRoot + "/.conventus-vault", "Conventus private company vault marker.");
-      await bunnyEnsureMarker(storageKey + "/.conventus-folder", "Conventus private folder marker.");
-    } catch (error) {
-      await VaultFolder.deleteOne({
-        _id: folder._id,
-        companyId: new Types.ObjectId(scope.companyId),
-        workspaceId: new Types.ObjectId(scope.workspaceId)
-      });
-      throw error;
-    }
+    // Bunny Storage has no directory objects: the folder is represented by
+    // metadata only, preventing marker files from appearing in the user's drive.
+    await bunnyDelete(storageRoot + "/.conventus-vault").catch(() => undefined);
 
     return jsonOk({
       id: String(folder._id),

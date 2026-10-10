@@ -75,6 +75,10 @@ type DashboardPlan = {
   maxConcurrentMeetings: number;
   taskManagementEnabled?: boolean;
   taskManagementDailyLimit?: number | null;
+  vaultEnabled: boolean;
+  vaultQuotaBytes: number;
+  vaultMaxFileBytes: number;
+  vaultMaxItems: number;
   validityDays: number;
   freeFeatureDays: number | null;
   requiresPayment: boolean;
@@ -1310,6 +1314,7 @@ export default function WorkspaceDashboard({
       <WorkspaceSidebar
         companyName={data.company.name}
         taskManagementEnabled={Boolean(data.currentPlan.taskManagementEnabled)}
+        vaultEnabled={Boolean(data.currentPlan.vaultEnabled)}
         canManage={canManage}
         adminManaged={adminManaged}
         activePanel={activeModal}

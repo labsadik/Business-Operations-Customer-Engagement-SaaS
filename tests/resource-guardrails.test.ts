@@ -252,7 +252,7 @@ test("company vault APIs stay tenant-scoped and Bunny secrets remain server-only
   assert.ok(folderCreate.includes('parent.storageKey + "/" + folderSegment'));
   assert.ok(folderCreate.includes('storageRoot + "/" + folderSegment'));
   assert.doesNotMatch(browser, /BUNNY_STORAGE_PASSWORD|AccessKey/);
-  assert.ok(downloads.includes('"Content-Disposition": downloadDisposition(file.originalName)'));
+  assert.ok(downloads.includes('"Content-Disposition": downloadDisposition(file.originalName, inline)'));
   assert.ok(downloads.includes('"X-Content-Type-Options": "nosniff"'));
   assert.ok(downloads.includes('"Cache-Control": "private, no-store"'));
   assert.match(folderModel, /companyId:[\s\S]*?immutable: true/);
@@ -262,4 +262,48 @@ test("company vault APIs stay tenant-scoped and Bunny secrets remain server-only
 
   const listing = source("app/api/vault/route.ts");
   assert.doesNotMatch(listing, /cleanupExpiredVaultUploads|bunnyEnsureMarker/);
+});
+
+
+
+test("vault limits follow company plan entitlement, avoid Bunny folder marker writes, and stream completed files", () => {
+  const storage = source("features/company-vault/server/vault-storage.ts");
+  const createFolder = source("app/api/vault/folders/route.ts");
+  const complete = source("app/api/vault/uploads/[uploadId]/complete/route.ts");
+  const plans = source("lib/plan-catalog.ts");
+  const planSchema = source("models/plan.ts");
+  const profile = source("components/company-profile.tsx");
+  const vaultUi = source("components/company-vault.tsx");
+  const sidebar = source("components/workspace-sidebar.tsx");
+
+  assert.ok(storage.includes("getCompanyEntitlements"));
+  assert.ok(storage.includes("VAULT_FEATURE_NOT_INCLUDED"));
+  assert.ok(storage.includes("scope.vaultQuotaBytes"));
+  assert.ok(storage.includes("scope.vaultMaxItems"));
+  assert.ok(storage.includes("usedItems: 1"));
+  assert.ok(storage.includes("bunnyPutStream"));
+  assert.ok(planSchema.includes("vaultEnabled"));
+  assert.ok(plans.includes("vaultQuotaBytes"));
+  assert.doesNotMatch(createFolder, /bunnyEnsureMarker|\.conventus-folder/);
+  assert.ok(complete.includes("streamVaultParts("));
+  assert.ok(complete.includes("if (finalStorageKey)"));
+  assert.doesNotMatch(complete, /Buffer\.concat|bunnyReadBuffer/);
+  assert.doesNotMatch(profile, /body:\s*JSON\.stringify\(\{[\s\S]*slug:\s*form\.slug/);
+  assert.doesNotMatch(vaultUi, /window\.(?:prompt|confirm|alert)\s*\(/);
+  assert.ok(vaultUi.includes('role="progressbar"'));
+  assert.ok(vaultUi.includes("onDrop="));
+  assert.ok(sidebar.includes("{vaultEnabled && ("));
+});
+
+
+test("vault quota counter remains compatible with workspace-era records", () => {
+  const usageModel = source("models/vault-usage.ts");
+  const storage = source("features/company-vault/server/vault-storage.ts");
+  const adminUsage = source("app/api/admin/vault-usage/route.ts");
+
+  assert.ok(usageModel.includes("vaultUsageSchema.index({ companyId: 1, workspaceId: 1 }, { unique: true })"));
+  assert.ok(storage.includes("const usageWorkspaceId = companyId"));
+  assert.ok(storage.includes("VaultUsage.deleteMany({ companyId, workspaceId: { $ne: usageWorkspaceId } })"));
+  assert.ok(adminUsage.includes('String(row.workspaceId) === String(row.companyId)'));
+  assert.ok(adminUsage.includes("committedFiles"));
 });

@@ -25,10 +25,26 @@ type PublicPlan = {
   maxConcurrentMeetings: number;
   taskManagementEnabled: boolean;
   taskManagementDailyLimit: number | null;
+  vaultEnabled: boolean;
+  vaultQuotaBytes: number;
+  vaultMaxFileBytes: number;
+  vaultMaxItems: number;
   validityDays: number;
   freeFeatureDays: number | null;
   requiresPayment: boolean;
 };
+
+function storageLimitLabel(bytes: number) {
+  const units = [
+    { size: 1024 ** 4, label: "TB" },
+    { size: 1024 ** 3, label: "GB" },
+    { size: 1024 ** 2, label: "MiB" },
+    { size: 1024, label: "KiB" }
+  ];
+  const unit = units.find((candidate) => bytes >= candidate.size) ?? { size: 1, label: "B" };
+  const value = bytes / unit.size;
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(value) + " " + unit.label;
+}
 
 function money(value: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -214,6 +230,20 @@ export default function LandingPricingCarousel({ plans }: { plans: PublicPlan[] 
                     <span>{item}</span>
                   </div>
                 ))}
+                <div className="flex items-center gap-2 text-sm text-slate-700">
+                  {plan.vaultEnabled ? (
+                    <Check className="size-4 shrink-0 text-blue-600" aria-hidden="true" />
+                  ) : (
+                    <X className="size-4 shrink-0 text-slate-400" aria-hidden="true" />
+                  )}
+                  <span>
+                    Cloud vault
+                    {plan.vaultEnabled
+                      ? " (" + storageLimitLabel(plan.vaultQuotaBytes) + "; " + storageLimitLabel(plan.vaultMaxFileBytes) + "/file; " + plan.vaultMaxItems.toLocaleString("en-IN") + " files)"
+                      : " (not included)"}
+                  </span>
+                  <span className="sr-only">{plan.vaultEnabled ? "Included" : "Not included"}</span>
+                </div>
                 <div className="flex items-center gap-2 text-sm text-slate-700">
                   {plan.taskManagementEnabled ? (
                     <Check className="size-4 shrink-0 text-blue-600" aria-hidden="true" />

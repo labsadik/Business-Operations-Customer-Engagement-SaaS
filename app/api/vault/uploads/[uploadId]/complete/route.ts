@@ -7,13 +7,12 @@ import { VaultFolder } from "@/models/vault-folder";
 import { VaultUpload } from "@/models/vault-upload";
 import {
   bunnyDelete,
-  bunnyPut,
-  bunnyReadBuffer,
+  bunnyPutStream,
+  streamVaultParts,
   getUploadExpiry,
   removeUploadChunks,
   requireVaultScope,
   safeVaultFilename,
-  uploadChunkKey,
   vaultErrorResponse
 } from "@/features/company-vault/server/vault-storage";
 
@@ -50,7 +49,6 @@ export async function POST(
 ) {
   let claimedUpload: UploadRecord | null = null;
   let finalStorageKey = "";
-  let finalStored = false;
   let fileSaved = false;
   let completedFile: CompletedFile | null = null;
 
@@ -114,16 +112,6 @@ export async function POST(
     if (!claimed) throw new Error("UPLOAD_ALREADY_COMPLETING");
     claimedUpload = claimed as unknown as UploadRecord;
 
-    const chunks: Buffer[] = [];
-    let totalBytes = 0;
-    for (let index = 0; index < claimedUpload.expectedChunks; index += 1) {
-      const part = await bunnyReadBuffer(uploadChunkKey(claimedUpload.storageRoot, uploadId, index));
-      chunks.push(part);
-      totalBytes += part.length;
-    }
-    if (totalBytes !== claimedUpload.sizeBytes) throw new Error("INVALID_CHUNK_SIZE");
-
-    const bytes = Buffer.concat(chunks, totalBytes);
     const file = new VaultFile({
       companyId: claimedUpload.companyId,
       workspaceId: claimedUpload.workspaceId,
@@ -138,8 +126,17 @@ export async function POST(
     file.storageKey = claimedUpload.storageBaseKey + "/" + String(file._id) + "-" + safeVaultFilename(claimedUpload.originalName);
     finalStorageKey = file.storageKey;
 
-    await bunnyPut(finalStorageKey, bytes, claimedUpload.mimeType);
-    finalStored = true;
+    await bunnyPutStream(
+      finalStorageKey,
+      streamVaultParts(
+        claimedUpload.storageRoot,
+        uploadId,
+        claimedUpload.expectedChunks,
+        claimedUpload.sizeBytes
+      ),
+      claimedUpload.sizeBytes,
+      claimedUpload.mimeType
+    );
     await file.save();
     fileSaved = true;
     completedFile = {
@@ -177,7 +174,8 @@ export async function POST(
       return jsonOk(completedFile, 201);
     }
 
-    if (finalStored && finalStorageKey) {
+    // Delete even a partially written object if Bunny rejected the streaming PUT.
+    if (finalStorageKey) {
       await bunnyDelete(finalStorageKey).catch(() => undefined);
     }
     if (claimedUpload) {

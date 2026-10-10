@@ -48,6 +48,7 @@ type ProfileData = {
 
 type CompanyResponse = {
   company: ProfileData;
+  currentPlan?: { vaultEnabled?: boolean };
   memberCount: number;
   canPublish: boolean;
   featureLocked: boolean;
@@ -66,6 +67,7 @@ export default function CompanyProfile({
 }) {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [memberCount, setMemberCount] = useState(0);
+  const [vaultEnabled, setVaultEnabled] = useState(false);
   const [canPublish, setCanPublish] = useState(false);
   const [featureLocked, setFeatureLocked] = useState(false);
   const [form, setForm] = useState<ProfileData | null>(null);
@@ -93,6 +95,7 @@ export default function CompanyProfile({
         setProfile(data.company);
         setForm(data.company);
         setMemberCount(data.memberCount);
+        setVaultEnabled(Boolean(data.currentPlan?.vaultEnabled));
         setCanPublish(data.canPublish);
         setFeatureLocked(data.featureLocked);
       } catch {
@@ -177,7 +180,6 @@ export default function CompanyProfile({
         method: "PATCH",
         body: JSON.stringify({
           name: form.name,
-          slug: form.slug,
           email: form.email,
           phone: form.phone,
           logoUrl: form.logoUrl,
@@ -206,12 +208,11 @@ export default function CompanyProfile({
     return <WorkspaceLoadError onRetry={() => void load()} />;
   }
 
-  const slugChanged = form.slug !== profile.slug;
-
   return (
     <main className="min-h-screen bg-[#faf9f1] text-slate-950">
       <WorkspaceSidebar
         companyName={form.name}
+        vaultEnabled={vaultEnabled}
         canManage
         activeProfile
       />
@@ -307,9 +308,9 @@ export default function CompanyProfile({
               </label>
 
               <label className="grid gap-2 text-sm font-semibold text-slate-800">
-                Public slug *
-                <input value={form.slug} onChange={(e) => setField("slug", e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm outline-none focus:border-blue-500" />
-                <span className="text-[11px] font-normal text-slate-400">/{form.slug}</span>
+                Public booking URL
+                <input value={"/" + form.slug} readOnly aria-readonly="true" className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-500 outline-none" />
+                <span className="text-[11px] font-normal text-slate-400">Public page address is separate from the company name and is not changed when saving the name.</span>
               </label>
 
               <label className="grid gap-2 text-sm font-semibold text-slate-800 sm:col-span-2">
@@ -398,15 +399,7 @@ export default function CompanyProfile({
               onPublishRequest={() => setPublishConfirmationOpen(true)}
             />
 
-            {slugChanged && (
-              <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-700">Slug change</p>
-                <p className="mt-2 text-sm font-semibold text-amber-950">Save the company profile to apply the new public URL.</p>
-                <p className="mt-1 text-xs leading-5 text-amber-800">
-                  The current live page remains /{profile.slug}. After saving, the page URL will become /{form.slug}.
-                </p>
-              </section>
-            )}
+
 
             <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-center gap-3">

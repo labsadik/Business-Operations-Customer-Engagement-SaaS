@@ -110,6 +110,7 @@ export async function DELETE(
       if (deleted.deletedCount) await releaseVaultBytes(scope, file.sizeBytes);
     }
 
+    // Clean marker files written by older vault builds; new folders never create them.
     for (const item of [...descendants].reverse()) {
       await bunnyDelete(item.storageKey + "/.conventus-folder");
     }

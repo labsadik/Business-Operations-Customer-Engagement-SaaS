@@ -3,10 +3,9 @@ import { getMongo } from "@/lib/mongodb";
 import { jsonOk } from "@/lib/http";
 import { VaultFolder } from "@/models/vault-folder";
 import { VaultFile } from "@/models/vault-file";
-import { VaultUsage } from "@/models/vault-usage";
 import {
   getTenantFolder,
-  getVaultDefaultQuotaBytes,
+  ensureVaultUsage,
   requireVaultScope,
   vaultErrorResponse
 } from "@/features/company-vault/server/vault-storage";
@@ -34,7 +33,7 @@ export async function GET(request: Request) {
         .sort({ originalName: 1, _id: 1 })
         .select("_id originalName mimeType sizeBytes createdAt updatedAt")
         .lean(),
-      VaultUsage.findOne({ companyId, workspaceId }).select("usedBytes quotaBytes").lean()
+      ensureVaultUsage(scope)
     ]);
 
     const breadcrumbs: { id: string; name: string }[] = [];
@@ -48,7 +47,8 @@ export async function GET(request: Request) {
     }
 
     const usedBytes = usage?.usedBytes ?? 0;
-    const quotaBytes = usage?.quotaBytes ?? getVaultDefaultQuotaBytes();
+    const quotaBytes = scope.vaultQuotaBytes;
+    const usedItems = usage?.usedItems ?? 0;
 
     return jsonOk({
       companyName: scope.companyName,
@@ -71,7 +71,10 @@ export async function GET(request: Request) {
       usage: {
         usedBytes,
         quotaBytes,
-        availableBytes: Math.max(0, quotaBytes - usedBytes)
+        availableBytes: Math.max(0, quotaBytes - usedBytes),
+        usedItems,
+        maxItems: scope.vaultMaxItems,
+        maxFileBytes: scope.vaultMaxFileBytes
       }
     });
   } catch (error) {

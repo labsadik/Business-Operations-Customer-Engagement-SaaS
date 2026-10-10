@@ -3,6 +3,7 @@ import { getMongo } from "@/lib/mongodb";
 import { getSession } from "@/lib/session";
 import { Company } from "@/models/company";
 import { Membership } from "@/models/membership";
+import { getCompanyEntitlements } from "@/lib/plans-server";
 import CompanyVault from "@/components/company-vault";
 
 export const dynamic = "force-dynamic";
@@ -36,6 +37,8 @@ export default async function CompanyVaultPage() {
     ? await Company.findById(session.companyId).select("_id name").lean()
     : null;
   if (!company) redirect("/dashboard");
+  const entitlements = await getCompanyEntitlements(String(company._id));
+  if (!entitlements.vaultEnabled) redirect("/dashboard");
 
   return <CompanyVault companyName={company.name} currentRole={session.role} />;
 }

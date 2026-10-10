@@ -57,6 +57,10 @@ export async function POST(request: Request) {
       maxConcurrentMeetings: body.maxConcurrentMeetings,
       taskManagementEnabled: body.taskManagementEnabled ?? false,
       taskManagementDailyLimit: body.taskManagementDailyLimit === undefined ? 10 : body.taskManagementDailyLimit,
+      vaultEnabled: body.vaultEnabled ?? false,
+      vaultQuotaBytes: body.vaultQuotaBytes === undefined ? 5368709120 : body.vaultQuotaBytes,
+      vaultMaxFileBytes: body.vaultMaxFileBytes === undefined ? 104857600 : body.vaultMaxFileBytes,
+      vaultMaxItems: body.vaultMaxItems === undefined ? 1000 : body.vaultMaxItems,
       validityDays: body.validityDays,
       freeFeatureDays: body.freeFeatureDays ?? null
     });
@@ -86,6 +90,10 @@ export async function POST(request: Request) {
       maxConcurrentMeetings: draft.maxConcurrentMeetings,
       taskManagementEnabled: draft.taskManagementEnabled,
       taskManagementDailyLimit: draft.taskManagementDailyLimit,
+      vaultEnabled: draft.vaultEnabled,
+      vaultQuotaBytes: draft.vaultQuotaBytes,
+      vaultMaxFileBytes: draft.vaultMaxFileBytes,
+      vaultMaxItems: draft.vaultMaxItems,
       validityDays: draft.validityDays,
       freeFeatureDays: draft.freeFeatureDays,
       requiresPayment: draft.requiresPayment,
