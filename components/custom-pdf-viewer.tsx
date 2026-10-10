@@ -47,6 +47,7 @@ export default function CustomPdfViewer({ src, fileName }: CustomPdfViewerProps)
   const [loadingDocument, setLoadingDocument] = useState(true);
   const [loadingPage, setLoadingPage] = useState(false);
   const [error, setError] = useState("");
+  const [retryToken, setRetryToken] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -92,7 +93,7 @@ export default function CustomPdfViewer({ src, fileName }: CustomPdfViewerProps)
       active = false;
       if (loadingTask) void loadingTask.destroy().catch(() => undefined);
     };
-  }, [src]);
+  }, [src, retryToken]);
 
   useEffect(() => {
     const frame = pageFrameRef.current;
@@ -261,7 +262,7 @@ export default function CustomPdfViewer({ src, fileName }: CustomPdfViewerProps)
             <a href={src.replace("?inline=1", "")} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3.5 py-2.5 text-xs font-semibold text-white transition hover:bg-blue-700">
               <Download className="size-3.5" /> Download original
             </a>
-            <button type="button" onClick={() => { setError(""); setLoadingDocument(true); setDocumentProxy(null); }} className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800">
+            <button type="button" onClick={() => setRetryToken((value) => value + 1)} className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800">
               <RotateCcw className="size-3.5" /> Retry preview
             </button>
           </div>
