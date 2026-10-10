@@ -241,6 +241,9 @@ export async function ensureVaultUsage(
   let usage = await VaultUsage.findOne(filter).lean();
 
   if (!usage) {
+    // Clear expired reservations before measuring tenant usage. This runs only
+    // during first-use migration, not on every vault listing request.
+    await cleanupExpiredVaultUploads(scope);
     // During the transition from the earlier workspace-based counter, treat
     // persisted file/upload metadata as authoritative and collapse old counters
     // only after the company-wide row has been created.

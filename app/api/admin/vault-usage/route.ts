@@ -29,7 +29,13 @@ export async function GET() {
         { $group: { _id: "$companyId", count: { $sum: 1 }, sizeBytes: { $sum: "$sizeBytes" } } }
       ]),
       VaultUpload.aggregate<{ _id: unknown; count: number; sizeBytes: number }>([
-        { $match: { companyId: { $in: companyIds }, status: { $in: ["OPEN", "COMPLETING"] } } },
+        {
+          $match: {
+            companyId: { $in: companyIds },
+            status: { $in: ["OPEN", "COMPLETING"] },
+            expiresAt: { $gt: new Date() }
+          }
+        },
         {
           $lookup: {
             from: VaultFile.collection.name,
