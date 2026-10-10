@@ -53,13 +53,6 @@ export default function CustomPdfViewer({ src, fileName }: CustomPdfViewerProps)
     let active = true;
     let loadingTask: { destroy: () => Promise<void> } | null = null;
 
-    setLoadingDocument(true);
-    setLoadingPage(false);
-    setDocumentProxy(null);
-    setPageCount(0);
-    setPageNumber(1);
-    setError("");
-
     const loadDocument = async () => {
       try {
         // Keep PDF.js out of the server render and load it only when a PDF is opened.
@@ -263,7 +256,7 @@ export default function CustomPdfViewer({ src, fileName }: CustomPdfViewerProps)
             <a href={src.replace("?inline=1", "")} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3.5 py-2.5 text-xs font-semibold text-white transition hover:bg-blue-700">
               <Download className="size-3.5" /> Download original
             </a>
-            <button type="button" onClick={() => setRetryToken((value) => value + 1)} className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800">
+            <button type="button" onClick={() => { setLoadingDocument(true); setLoadingPage(false); setDocumentProxy(null); setPageCount(0); setPageNumber(1); setError(""); setRetryToken((value) => value + 1); }} className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800">
               <RotateCcw className="size-3.5" /> Retry preview
             </button>
           </div>
