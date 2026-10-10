@@ -305,13 +305,17 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
     try {
       for (let fileIndex = 0; fileIndex < selected.length; fileIndex += 1) {
         const file = selected[fileIndex];
-        setProgress("Preparing " + file.name + " (" + (fileIndex + 1) + " of " + selected.length + ")");
+        const mayCompress = shouldTryLosslessCompression(file) && typeof CompressionStream !== "undefined";
+        setProgress((mayCompress ? "Optimizing text/data locally" : "Preparing upload") +
+          " · " + file.name + " (" + (fileIndex + 1) + " of " + selected.length + ")");
         let uploadId: string | null = null;
         try {
           const prepared = await prepareLosslessUpload(file);
           const payload = prepared.blob;
           if (prepared.contentEncoding === "gzip") {
-            setProgress("Losslessly compressing " + file.name + " · " + formatBytes(file.size) + " → " + formatBytes(payload.size));
+            setProgress("Lossless compression ready · " + file.name + " · " + formatBytes(file.size) + " → " + formatBytes(payload.size));
+          } else if (mayCompress) {
+            setProgress("Compression not beneficial; uploading original bytes · " + file.name);
           }
           const upload = await apiRequest<UploadStart>("/api/vault/uploads", {
             method: "POST",
@@ -330,14 +334,19 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
           for (let index = 0; index < upload.expectedChunks; index += 1) {
             const chunkStart = index * upload.chunkSizeBytes;
             const chunk = payload.slice(chunkStart, Math.min(payload.size, chunkStart + upload.chunkSizeBytes));
-            const percentage = Math.round(((fileIndex + (index + 1) / upload.expectedChunks) / selected.length) * 100);
-            setUploadPercent(percentage);
-            setProgress("Uploading " + file.name + " — " + percentage + "%");
+            const percentage = Math.min(99, Math.floor(
+              ((fileIndex + (index + 1) / upload.expectedChunks) / selected.length) * 100
+            ));
+            setProgress("Uploading " + file.name + " · waiting for Bunny confirmation");
             await apiRequest("/api/vault/uploads/" + upload.uploadId + "/chunks/" + index, {
               method: "PUT",
               headers: { "Content-Type": "application/octet-stream" },
               body: chunk
             });
+            // A chunk counts as uploaded only after Bunny returned success. Reserve
+            // 100% for final-object confirmation and the committed VaultFile record.
+            setUploadPercent(percentage);
+            setProgress("Bunny confirmed " + percentage + "% · " + file.name);
           }
 
           setProgress("Finalizing " + file.name + " in private storage");
@@ -351,7 +360,7 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
         }
       }
       setUploadPercent(100);
-      setProgress("Upload complete");
+      setProgress("Upload complete · Bunny confirmed all files");
       setReloadVersion((version) => version + 1);
     } catch (reason) {
       setError(explainError(reason instanceof Error ? reason.message : "VAULT_UPLOAD_FAILED"));
