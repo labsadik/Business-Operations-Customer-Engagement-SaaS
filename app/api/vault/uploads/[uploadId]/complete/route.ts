@@ -7,14 +7,12 @@ import { VaultFolder } from "@/models/vault-folder";
 import { VaultUpload } from "@/models/vault-upload";
 import {
   bunnyDelete,
-  bunnyPut,
   bunnyPutStream,
   streamVaultParts,
   getUploadExpiry,
   removeUploadChunks,
   requireVaultScope,
   safeVaultFilename,
-  uploadChunkKey,
   vaultErrorResponse
 } from "@/features/company-vault/server/vault-storage";
 
