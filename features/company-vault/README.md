@@ -12,6 +12,8 @@ Set these variables in the server environment (for example, Vercel Project Setti
 - **BUNNY_VAULT_QUOTA_BYTES**: default per-company quota in bytes for newly initialized vaults. Default: 5 GiB. The quota is persisted in MongoDB on first use.
 - **BUNNY_VAULT_MAX_FILE_BYTES**: maximum size for an individual upload. Default: 100 MiB; the implementation caps this at 250 MiB because completion assembles chunks in server memory.
 
+Use a dedicated Storage Zone for private Conventus vault data, and do not connect it to a publicly reachable Pull Zone. Bunny explains that Storage Zone files are not publicly reachable on their own; a Pull Zone is what serves them over HTTP. Linking this zone to a public Pull Zone would bypass the application's authenticated download route unless you separately enforce token/access controls at the CDN layer. Keep vault downloads proxied through Conventus.
+
 Restart/redeploy the application after adding environment variables. Existing company quotas are stored in MongoDB and will not automatically change when the default quota variable changes.
 
 ## Storage layout

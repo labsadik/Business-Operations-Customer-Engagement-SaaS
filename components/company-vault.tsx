@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import {
   ArrowLeft,
   ChevronRight,
@@ -93,24 +93,30 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
   const [reloadVersion, setReloadVersion] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    const url = folderId ? "/api/vault?folderId=" + encodeURIComponent(folderId) : "/api/vault";
-    try {
-      const result = await apiRequest<VaultSnapshot>(url);
-      setSnapshot(result);
-    } catch (reason) {
-      setError(explainError(reason instanceof Error ? reason.message : "VAULT_REQUEST_FAILED"));
-      setSnapshot(null);
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      const url = folderId ? "/api/vault?folderId=" + encodeURIComponent(folderId) : "/api/vault";
+      try {
+        const result = await apiRequest<VaultSnapshot>(url);
+        if (!active) return;
+        setSnapshot(result);
+      } catch (reason) {
+        if (!active) return;
+        setError(explainError(reason instanceof Error ? reason.message : "VAULT_REQUEST_FAILED"));
+        setSnapshot(null);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void load();
+    return () => { active = false; };
   }, [folderId, reloadVersion]);
 
-  useEffect(() => { void load(); }, [load]);
-
-  const refresh = () => setReloadVersion((version) => version + 1);
+  const refresh = () => {
+    setLoading(true);
+    setReloadVersion((version) => version + 1);
+  };
 
   const createFolder = async () => {
     const value = window.prompt("Folder name");
@@ -304,13 +310,13 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
               </div>
 
               <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 text-sm">
-                <button type="button" onClick={() => setFolderId(null)} className="font-semibold text-blue-700 hover:text-blue-900">Vault</button>
+                <button type="button" onClick={() => { setLoading(true); setFolderId(null); }} className="font-semibold text-blue-700 hover:text-blue-900">Vault</button>
                 {(snapshot?.breadcrumbs ?? []).map((item, index) => (
                   <span key={item.id} className="inline-flex items-center gap-2">
                     <ChevronRight className="size-3.5 text-slate-400" />
                     <button
                       type="button"
-                      onClick={() => setFolderId(item.id)}
+                      onClick={() => { setLoading(true); setFolderId(item.id); }}
                       className={index === (snapshot?.breadcrumbs.length ?? 0) - 1 ? "max-w-48 truncate font-semibold text-slate-900" : "max-w-48 truncate text-slate-500 hover:text-blue-700"}
                     >
                       {item.name}
@@ -352,7 +358,7 @@ export default function CompanyVault({ companyName, currentRole }: { companyName
                   <>
                     {snapshot.folders.map((folder) => (
                       <div key={folder.id} className="grid grid-cols-[minmax(0,1fr)_100px_76px] items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_150px_100px_86px]">
-                        <button type="button" onClick={() => setFolderId(folder.id)} className="flex min-w-0 items-center gap-3 text-left">
+                        <button type="button" onClick={() => { setLoading(true); setFolderId(folder.id); }} className="flex min-w-0 items-center gap-3 text-left">
                           <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-600"><Folder className="size-4.5" /></div>
                           <span className="min-w-0 truncate text-sm font-semibold text-slate-800 hover:text-blue-700">{folder.name}</span>
                         </button>
