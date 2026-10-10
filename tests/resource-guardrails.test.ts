@@ -556,7 +556,7 @@ test("Cloud Vault PDF previews use the first-party page-by-page canvas viewer", 
   assert.ok(vault.includes("<CustomPdfViewer"));
   assert.ok(vault.includes('previewFile.name.toLowerCase().endsWith(".pdf")'));
   assert.ok(vault.includes('"/api/vault/files/" + encodeURIComponent(previewFile.id) + "?inline=1"'));
-  assert.ok(viewer.includes('import("pdfjs-dist/build/pdf.mjs")'));
+  assert.ok(viewer.includes('import("pdfjs-dist")'));
   assert.ok(viewer.includes('new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url)'));
   assert.ok(viewer.includes('aria-label="Previous PDF page"'));
   assert.ok(viewer.includes('aria-label="Next PDF page"'));
