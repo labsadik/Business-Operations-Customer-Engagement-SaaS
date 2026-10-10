@@ -19,5 +19,6 @@ const vaultFileSchema = new Schema(
 );
 
 vaultFileSchema.index({ companyId: 1, workspaceId: 1, folderId: 1, createdAt: -1, _id: -1 });
+vaultFileSchema.index({ companyId: 1, workspaceId: 1, folderId: 1, originalName: 1, _id: 1 });
 
 export const VaultFile = models.VaultFile ?? model("VaultFile", vaultFileSchema);
