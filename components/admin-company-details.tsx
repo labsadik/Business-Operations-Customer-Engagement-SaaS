@@ -284,15 +284,14 @@ export default function AdminCompanyDetailsView({ company }: { company: AdminCom
               <h2 className="mt-2 text-base font-semibold">Subscription details</h2>
             </div>
             <div className="border-b border-slate-200 px-6 py-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <span className={"inline-flex rounded-full px-3 py-1.5 text-xs font-semibold " + (company.planSuspended ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700")}>
-                    {company.planSuspended ? "Plan access suspended" : "Plan access active"}
-                  </span>
-                  {company.planSuspendedAt && <p className="mt-2 text-[11px] text-slate-500">Suspended {dateLabel(company.planSuspendedAt, true)}</p>}
-                </div>
-                <AdminCompanyPlanSuspensionButton companyId={company.id} suspended={company.planSuspended} />
-              </div>
+              <AdminCompanyPlanSuspensionButton
+                companyId={company.id}
+                suspended={company.planSuspended}
+                suspendedAt={company.planSuspendedAt}
+                expired={company.planExpired}
+                expiredAt={company.planExpiredAt}
+                expiryTestActive={company.planExpiryTestActive}
+              />
             </div>
             <div className="grid gap-3 p-6 sm:grid-cols-3">
               <div className="rounded-2xl bg-blue-50 p-4"><p className="text-[10px] uppercase tracking-[0.12em] text-blue-600">Current plan</p><p className="mt-2 text-lg font-semibold text-slate-950">{company.planName}</p></div>
