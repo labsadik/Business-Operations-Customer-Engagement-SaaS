@@ -802,7 +802,7 @@ export default function WorkspaceDashboard({
     let inFlight = false;
 
     async function syncPlanAccess() {
-      if (disposed || inFlight || document.visibilityState !== "visible") return;
+      if (disposed || inFlight || !dataLoadedRef.current || document.visibilityState !== "visible") return;
       inFlight = true;
       try {
         const response = await fetch("/api/company/plan-access", {
