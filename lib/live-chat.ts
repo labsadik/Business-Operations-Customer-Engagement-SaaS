@@ -1,7 +1,7 @@
 import { Types } from "mongoose";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { getMongo } from "@/lib/mongodb";
-import { getCompanyEntitlements, assertCompanyPlanNotSuspended } from "@/lib/plans-server";
+import { getCompanyEntitlements, assertCompanyPlanNotSuspended, isCompanyPlanSuspended } from "@/lib/plans-server";
 import { requireCompanyMember } from "@/lib/authz";
 import { Company } from "@/models/company";
 import { Workspace } from "@/models/workspace";
@@ -33,8 +33,8 @@ export async function requireLiveChatScope(options: { allowSuspendedRead?: boole
     getCompanyEntitlements(session.companyId)
   ]);
   if (!company || !workspace) throw new Error("FORBIDDEN");
-  if (company.planSuspended && !options.allowSuspendedRead && session.role !== "PLATFORM_ADMIN") {
-    throw new Error("PLAN_SUSPENDED");
+  if (!options.allowSuspendedRead && session.role !== "PLATFORM_ADMIN") {
+    await assertCompanyPlanNotSuspended(session.companyId);
   }
   if (!entitlements.liveChatEnabled) throw new Error("LIVE_CHAT_NOT_INCLUDED");
 
@@ -196,7 +196,7 @@ export async function getPublicLiveChatContext(companySlug: string, siteOrigin: 
   await getMongo();
   const company = await Company.findOne({ slug: companySlug.toLowerCase() }).select("_id name slug websiteUrl planSuspended").lean();
   if (!company) throw new Error("COMPANY_NOT_FOUND");
-  if (company.planSuspended) throw new Error("PLAN_SUSPENDED");
+  if (await isCompanyPlanSuspended(String(company._id))) throw new Error("PLAN_SUSPENDED");
   const workspace = await Workspace.findOne({ companyId: company._id, active: true }).select("_id companyId").sort({ createdAt: 1 }).lean();
   if (!workspace) throw new Error("COMPANY_NOT_CONFIGURED");
   const entitlements = await getCompanyEntitlements(String(company._id));
