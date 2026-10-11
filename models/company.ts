@@ -22,6 +22,11 @@ const companySchema = new Schema(
     planSuspended: { type: Boolean, default: false, index: true },
     planSuspendedAt: { type: Date },
     planSuspendedByUserId: { type: Schema.Types.ObjectId, ref: "User" },
+    planExpired: { type: Boolean, default: false, index: true },
+    planExpiredAt: { type: Date },
+    planExpiredByUserId: { type: Schema.Types.ObjectId, ref: "User" },
+    planExpiryTestActive: { type: Boolean, default: false },
+    planExpiryTestPreviousPeriodEnd: { type: Date },
     // Initialized from the real company name and immutable database ID on first vault access.
     vaultStorageRoot: { type: String, trim: true, maxlength: 140 },
     ownerUserId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true }
