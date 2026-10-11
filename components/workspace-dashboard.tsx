@@ -798,6 +798,51 @@ export default function WorkspaceDashboard({
   }, []);
 
   useEffect(() => {
+    let disposed = false;
+    let inFlight = false;
+
+    async function syncPlanAccess() {
+      if (disposed || inFlight || document.visibilityState !== "visible") return;
+      inFlight = true;
+      try {
+        const response = await fetch("/api/company/plan-access", {
+          method: "GET",
+          credentials: "same-origin",
+          cache: "no-store"
+        });
+        if (!response.ok) return;
+        const status = await response.json() as {
+          planSuspended: boolean;
+          planExpired: boolean;
+        };
+        if (disposed) return;
+        setData((current) => current ? {
+          ...current,
+          company: {
+            ...current.company,
+            planSuspended: Boolean(status.planSuspended),
+            planExpired: Boolean(status.planExpired)
+          }
+        } : current);
+      } catch {
+        // Keep the last known status during short network interruptions.
+      } finally {
+        inFlight = false;
+      }
+    }
+
+    void syncPlanAccess();
+    const poll = window.setInterval(() => void syncPlanAccess(), 8_000);
+    const onVisible = () => void syncPlanAccess();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      disposed = true;
+      window.clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
+
+  useEffect(() => {
     // Schedule initial work outside the effect body; shared GET deduplication and
     // refreshAll's guard prevent duplicate backend reads during Strict Mode mounts.
     const initialLoad = window.setTimeout(() => void refreshAll(), 0);
