@@ -164,19 +164,21 @@ async function ensureSubscription(companyId: string) {
   if (subscription.currentPeriodEnd.getTime() <= now.getTime()) {
     const currentPlan = await resolvePlanEntitlementsForSubscription(subscription);
     const accessState = await Company.findById(companyId)
-      .select("planExpired planExpiryTestActive")
+      .select("planExpired planExpiryTestActive planAccessExpiresAt")
       .lean();
 
-    // A paid plan expiry is a read-only lock, not a silent switch to free access.
+    // Paid and admin-granted access never silently rolls into a fresh free period.
     // Keeping the expired subscription also keeps its history visible to admins.
-    if (currentPlan.requiresPayment || accessState?.planExpiryTestActive) {
+    if (["PAID", "ADMIN_GRANTED"].includes(subscription.source) || accessState?.planExpiryTestActive) {
       if (!accessState?.planExpired) {
         await Company.updateOne(
           { _id: companyId, planExpired: { $ne: true } },
           {
             $set: {
               planExpired: true,
-              planExpiredAt: accessState?.planExpiryTestActive ? now : subscription.currentPeriodEnd
+              planExpiredAt: accessState?.planExpiryTestActive
+                ? now
+                : accessState?.planAccessExpiresAt ?? subscription.currentPeriodEnd
             }
           }
         );
