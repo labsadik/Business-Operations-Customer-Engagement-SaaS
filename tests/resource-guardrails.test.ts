@@ -564,3 +564,14 @@ test("Cloud Vault PDF previews use the first-party page-by-page canvas viewer", 
   assert.ok(viewer.includes("canvasContext: context"));
   assert.ok(viewer.includes("Fit width"));
 });
+
+test("landing pricing is rendered from fresh server data, not cached marketing HTML", () => {
+  const landing = source("app/page.tsx");
+  const config = source("next.config.ts");
+
+  assert.ok(landing.includes('export const dynamic = "force-dynamic";'));
+  assert.ok(landing.includes('export const runtime = "nodejs";'));
+  assert.ok(landing.includes("const plans = await listPublicPlans();"));
+  assert.match(config, /source: "\/",\s*headers: \[noStore\]/);
+  assert.doesNotMatch(config, /source: "\/",\s*headers: \[publicLongCache\]/);
+});

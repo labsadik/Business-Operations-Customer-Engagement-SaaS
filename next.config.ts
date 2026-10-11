@@ -42,7 +42,7 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/",
-        headers: [publicLongCache]
+        headers: [noStore]
       },
       {
         source: "/embed/feedback/:companySlug",

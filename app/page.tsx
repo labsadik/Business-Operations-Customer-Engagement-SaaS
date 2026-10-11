@@ -29,6 +29,9 @@ import PlatformAnnouncementBanner from "@/components/platform-announcement-banne
 import CountrySelector from "@/components/country-selector";
 import LandingWorkflowMockup from "@/components/landing-workflow-mockup";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const howItWorks = [
   {
     number: "01",
