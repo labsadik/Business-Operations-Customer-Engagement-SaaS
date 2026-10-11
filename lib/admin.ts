@@ -110,6 +110,9 @@ export type AdminCompanyDetails = AdminCompanyListItem & {
   alternativePlanId: string | null;
   planSuspended: boolean;
   planSuspendedAt: Date | null;
+  planExpired: boolean;
+  planExpiredAt: Date | null;
+  planExpiryTestActive: boolean;
   vaultUsage: AdminVaultUsageItem;
   vaultFolderCount: number;
   vaultFiles: Array<{
@@ -551,6 +554,9 @@ export async function getAdminCompanyDetails(companyId: string) {
     ...baseRow,
     planSuspended: Boolean(company.planSuspended),
     planSuspendedAt: company.planSuspendedAt ?? null,
+    planExpired: Boolean(company.planExpired),
+    planExpiredAt: company.planExpiredAt ?? null,
+    planExpiryTestActive: Boolean(company.planExpiryTestActive),
     vaultUsage,
     vaultFolderCount,
     vaultFiles,
