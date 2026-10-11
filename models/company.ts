@@ -22,6 +22,7 @@ const companySchema = new Schema(
     planSuspended: { type: Boolean, default: false, index: true },
     planSuspendedAt: { type: Date },
     planSuspendedByUserId: { type: Schema.Types.ObjectId, ref: "User" },
+    planAccessExpiresAt: { type: Date, default: null },
     planExpired: { type: Boolean, default: false, index: true },
     planExpiredAt: { type: Date },
     planExpiredByUserId: { type: Schema.Types.ObjectId, ref: "User" },
