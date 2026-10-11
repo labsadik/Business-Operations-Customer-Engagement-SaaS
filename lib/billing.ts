@@ -285,13 +285,23 @@ export async function activatePaidPlan(paymentId: string) {
           { session: tx }
         );
 
-        // Only an applied, verified paid plan clears manual suspension. A
-        // replayed callback for an old payment must not undo a later suspension.
+        // Only an applied, verified paid plan clears access locks. A replayed
+        // callback for an old payment must not undo a later admin suspension.
         await Company.updateOne(
           { _id: captured.companyId },
           {
-            $set: { planSuspended: false },
-            $unset: { planSuspendedAt: "", planSuspendedByUserId: "" }
+            $set: {
+              planSuspended: false,
+              planExpired: false,
+              planExpiryTestActive: false
+            },
+            $unset: {
+              planSuspendedAt: "",
+              planSuspendedByUserId: "",
+              planExpiredAt: "",
+              planExpiredByUserId: "",
+              planExpiryTestPreviousPeriodEnd: ""
+            }
           },
           { session: tx }
         );
@@ -430,6 +440,20 @@ export async function grantCompanyPlan(
   await Workspace.updateOne({ companyId }, { $set: { planId } });
 
   if (!subscription) throw new Error("SUBSCRIPTION_GRANT_FAILED");
+
+  // An admin-granted plan clears expiration/test state, but does not override
+  // a separate manual suspension decision.
+  await Company.updateOne(
+    { _id: companyId },
+    {
+      $set: { planExpired: false, planExpiryTestActive: false },
+      $unset: {
+        planExpiredAt: "",
+        planExpiredByUserId: "",
+        planExpiryTestPreviousPeriodEnd: ""
+      }
+    }
+  );
 
   await createOrUpdateAccessInvoice({
     company,
