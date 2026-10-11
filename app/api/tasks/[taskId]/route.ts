@@ -23,7 +23,7 @@ export async function GET(
 ) {
   try {
     const scope = await requireTaskScope();
-    await assertTaskFeatureAccess(scope);
+    await assertTaskFeatureAccess(scope, { allowSuspendedRead: true });
     await getMongo();
     const { taskId } = await params;
     if (!Types.ObjectId.isValid(taskId)) return jsonError("INVALID_TASK_ID", 400);

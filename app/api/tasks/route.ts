@@ -25,7 +25,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   try {
     const scope = await requireTaskScope();
-    const entitlements = await assertTaskFeatureAccess(scope);
+    const entitlements = await assertTaskFeatureAccess(scope, { allowSuspendedRead: true });
     const dailyLimit: number | null = scope.isPlatformAdmin
       ? null
       : "taskManagementDailyLimit" in entitlements

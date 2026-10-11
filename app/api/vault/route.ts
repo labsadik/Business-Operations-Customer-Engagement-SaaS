@@ -40,7 +40,7 @@ function encodeCursor(name: string, id: Types.ObjectId) {
 
 export async function GET(request: Request) {
   try {
-    const scope = await requireVaultScope();
+    const scope = await requireVaultScope({ allowSuspendedRead: true });
     await getMongo();
     const url = new URL(request.url);
     const requestedFolderId = url.searchParams.get("folderId");

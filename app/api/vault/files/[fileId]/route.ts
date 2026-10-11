@@ -30,7 +30,7 @@ export async function GET(
 ) {
   try {
     if (request.headers.get("sec-fetch-site") === "cross-site") throw new Error("FORBIDDEN");
-    const scope = await requireVaultScope();
+    const scope = await requireVaultScope({ allowSuspendedRead: true });
     await getMongo();
     const { fileId } = await params;
     if (!Types.ObjectId.isValid(fileId)) throw new Error("INVALID_FILE_ID");
