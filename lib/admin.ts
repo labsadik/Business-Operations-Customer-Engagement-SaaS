@@ -549,14 +549,21 @@ export async function getAdminCompanyDetails(companyId: string) {
   const alternativePlanId = currentPlan
     ? adminPlans.find((plan) => plan.id !== currentPlan.id && !plan.archivedAt)?.id ?? null
     : adminPlans.find((plan) => !plan.archivedAt)?.id ?? null;
+  const subscriptionPeriodExpired = Boolean(
+    subscription &&
+    ["PAID", "ADMIN_GRANTED"].includes(subscription.source) &&
+    subscription.currentPeriodEnd.getTime() <= Date.now()
+  );
+  const displayedExpiredAt = company.planExpiredAt ??
+    (subscriptionPeriodExpired ? subscription?.currentPeriodEnd : null);
 
   return {
     ...baseRow,
     periodEnd: company.planExpiryTestActive ? (company.planExpiredAt ?? baseRow.periodEnd) : baseRow.periodEnd,
     planSuspended: Boolean(company.planSuspended),
     planSuspendedAt: company.planSuspendedAt ?? null,
-    planExpired: Boolean(company.planExpired),
-    planExpiredAt: company.planExpiredAt ?? null,
+    planExpired: Boolean(company.planExpired || subscriptionPeriodExpired),
+    planExpiredAt: displayedExpiredAt,
     planExpiryTestActive: Boolean(company.planExpiryTestActive),
     vaultUsage,
     vaultFolderCount,
