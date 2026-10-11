@@ -9,7 +9,7 @@ import { VaultUsage } from "@/models/vault-usage";
 import { VaultUpload } from "@/models/vault-upload";
 import { VaultFile } from "@/models/vault-file";
 import { jsonError } from "@/lib/http";
-import { getCompanyEntitlements } from "@/lib/plans-server";
+import { assertCompanyPlanNotSuspended, getCompanyEntitlements } from "@/lib/plans-server";
 
 export const VAULT_CHUNK_SIZE_BYTES = 3 * 1024 * 1024;
 const DEFAULT_QUOTA_BYTES = 5 * 1024 * 1024 * 1024;
@@ -67,8 +67,8 @@ export async function requireVaultScope(options: { allowSuspendedRead?: boolean 
     Workspace.findOne({ _id: workspaceId, companyId, active: true }).select("_id").lean()
   ]);
   if (!company || !workspace) throw new Error("WORKSPACE_NOT_FOUND");
-  if (company.planSuspended && !options.allowSuspendedRead && session.role !== "PLATFORM_ADMIN") {
-    throw new Error("PLAN_SUSPENDED");
+  if (!options.allowSuspendedRead && session.role !== "PLATFORM_ADMIN") {
+    await assertCompanyPlanNotSuspended(String(companyId));
   }
 
   // Persist a human-readable name + immutable ID once. A later company rename
