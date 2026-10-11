@@ -4,7 +4,7 @@ import { MeetingType } from "@/models/meeting-type";
 import { Workspace } from "@/models/workspace";
 import { getAvailableSlots } from "@/lib/public-availability";
 import { jsonError, jsonOk } from "@/lib/http";
-import { getCompanyEntitlements } from "@/lib/plans-server";
+import { getCompanyEntitlements, isCompanyPlanSuspended } from "@/lib/plans-server";
 import { resolveMeetingDuration } from "@/lib/plans";
 import { getSession } from "@/lib/session";
 import { Types } from "mongoose";
@@ -44,7 +44,7 @@ export async function GET(
   }).lean();
 
   if (!company) return jsonError("COMPANY_NOT_FOUND", 404);
-  if (company.planSuspended) return jsonError("PLAN_SUSPENDED", 423);
+  if (await isCompanyPlanSuspended(String(company._id))) return jsonError("PLAN_SUSPENDED", 423);
 
   const workspace = await Workspace.findOne({
     companyId: company._id,
