@@ -284,6 +284,17 @@ export async function activatePaidPlan(paymentId: string) {
           { $set: { planId: plan.id } },
           { session: tx }
         );
+
+        // Only an applied, verified paid plan clears manual suspension. A
+        // replayed callback for an old payment must not undo a later suspension.
+        await Company.updateOne(
+          { _id: captured.companyId },
+          {
+            $set: { planSuspended: false },
+            $unset: { planSuspendedAt: "", planSuspendedByUserId: "" }
+          },
+          { session: tx }
+        );
       }
 
       const taxSnapshot: InvoiceTaxSnapshot = {

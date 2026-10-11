@@ -106,6 +106,7 @@ type CompanyData = {
     taxId: string;
     address: Address;
     publicBookingEnabled: boolean;
+    planSuspended: boolean;
     profileComplete: boolean;
     owner: { name: string; email: string; image: string } | null;
   };
@@ -1336,6 +1337,19 @@ export default function WorkspaceDashboard({
         onNavigateOverview={closeFeedbackModal}
       />
       <div className={sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"}>
+      {data.company.planSuspended && (
+        <div className="mx-auto max-w-7xl px-5 pt-4 sm:px-6 lg:px-8" role="alert">
+          <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-amber-950">Plan access is suspended</p>
+              <p className="mt-1 text-xs leading-5 text-amber-800">Your workspace and existing information remain visible, but plan features are read-only until you purchase a plan successfully or your platform administrator restores access.</p>
+            </div>
+            <Link href="/dashboard?panel=billing" className="inline-flex shrink-0 items-center justify-center rounded-xl bg-amber-950 px-4 py-2.5 text-xs font-semibold text-white hover:bg-amber-900">
+              View plans
+            </Link>
+          </div>
+        </div>
+      )}
       <header className="sticky top-0 z-40 border-b border-slate-200/90 bg-[#faf9f1]/95 backdrop-blur-xl">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
           <div className="min-w-0">
