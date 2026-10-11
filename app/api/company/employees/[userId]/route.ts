@@ -12,6 +12,7 @@ import { GoogleAccount } from "@/models/google-account";
 import { Session } from "@/models/session";
 import { Types } from "mongoose";
 import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
+import { isCompanyPlanSuspended } from "@/lib/plans-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,6 +26,9 @@ export async function PATCH(
     const { session } = await requireCompanyMember(["COMPANY_ADMIN",
     "PLATFORM_ADMIN"
   ]);
+    if (session.role !== "PLATFORM_ADMIN" && await isCompanyPlanSuspended(session.companyId!)) {
+      return jsonError("PLAN_SUSPENDED", 423);
+    }
     await getMongo();
     const { userId } = await params;
     if (!Types.ObjectId.isValid(userId)) return jsonError("INVALID_EMPLOYEE_ID", 400);
@@ -89,6 +93,9 @@ export async function DELETE(
     const { session } = await requireCompanyMember(["COMPANY_ADMIN",
     "PLATFORM_ADMIN"
   ]);
+    if (session.role !== "PLATFORM_ADMIN" && await isCompanyPlanSuspended(session.companyId!)) {
+      return jsonError("PLAN_SUSPENDED", 423);
+    }
     await getMongo();
     const { userId } = await params;
 

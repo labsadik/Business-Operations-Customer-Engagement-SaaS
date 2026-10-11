@@ -6,6 +6,7 @@ import { LiveChatConversation } from "@/models/live-chat-conversation";
 import { LiveChatMessage } from "@/models/live-chat-message";
 import { User } from "@/models/user";
 import { validateChatMessage } from "@/features/live-chat/shared/validation";
+import { assertCompanyPlanNotSuspended } from "@/lib/plans-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -75,6 +76,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ com
     const body = await readLiveChatJson(request);
     const message = validateChatMessage(body.body);
     const scope = await publicConversation(request, companySlug, conversationId);
+    await assertCompanyPlanNotSuspended(scope.claims.companyId);
     const now = new Date();
     const { getCompanyEntitlements } = await import("@/lib/plans-server");
     const entitlements = await getCompanyEntitlements(scope.claims.companyId);

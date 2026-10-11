@@ -5,6 +5,7 @@ import { Membership } from "@/models/membership";
 import { jsonError, jsonOk } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
 import { Types } from "mongoose";
+import { isCompanyPlanSuspended } from "@/lib/plans-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -67,6 +68,7 @@ export async function POST(request: Request) {
   assertSameOrigin(request);
   try {
     const session = await requireManager();
+    if (session.role !== "PLATFORM_ADMIN" && await isCompanyPlanSuspended(session.companyId!)) return jsonError("PLAN_SUSPENDED", 423);
     const body = await request.json().catch(() => null) as {
       title?: string;
       message?: string;
@@ -116,6 +118,7 @@ export async function PATCH(request: Request) {
   assertSameOrigin(request);
   try {
     const session = await requireManager();
+    if (session.role !== "PLATFORM_ADMIN" && await isCompanyPlanSuspended(session.companyId!)) return jsonError("PLAN_SUSPENDED", 423);
     const body = await request.json().catch(() => null) as {
       id?: string;
       title?: string;
@@ -172,6 +175,7 @@ export async function DELETE(request: Request) {
   assertSameOrigin(request);
   try {
     const session = await requireManager();
+    if (session.role !== "PLATFORM_ADMIN" && await isCompanyPlanSuspended(session.companyId!)) return jsonError("PLAN_SUSPENDED", 423);
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id") ?? "";
 

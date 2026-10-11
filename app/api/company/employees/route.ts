@@ -8,6 +8,7 @@ import { GoogleAccount } from "@/models/google-account";
 import { Invitation } from "@/models/invitation";
 import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
 import { getPublicOriginString } from "@/lib/public-origin";
+import { isCompanyPlanSuspended } from "@/lib/plans-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -58,6 +59,9 @@ export async function POST(request: Request) {
     const { session } = await requireCompanyMember(["COMPANY_ADMIN",
     "PLATFORM_ADMIN"
   ]);
+    if (session.role !== "PLATFORM_ADMIN" && await isCompanyPlanSuspended(session.companyId!)) {
+      return jsonError("PLAN_SUSPENDED", 423);
+    }
     await getMongo();
 
     const body = await request.json().catch(() => null) as { email?: string } | null;

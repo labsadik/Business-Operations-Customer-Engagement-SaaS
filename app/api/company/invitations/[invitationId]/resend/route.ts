@@ -7,6 +7,7 @@ import { assertSameOrigin } from "@/lib/security";
 import { randomToken, sha256 } from "@/lib/security";
 import { Types } from "mongoose";
 import { getPublicOriginString } from "@/lib/public-origin";
+import { isCompanyPlanSuspended } from "@/lib/plans-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,6 +35,7 @@ export async function POST(
       if (!membership) return jsonError("FORBIDDEN", 403);
     }
 
+    if (session.role !== "PLATFORM_ADMIN" && await isCompanyPlanSuspended(session.companyId)) return jsonError("PLAN_SUSPENDED", 423);
     const { invitationId } = await params;
     if (!Types.ObjectId.isValid(invitationId)) return jsonError("INVALID_INVITATION_ID", 400);
 
