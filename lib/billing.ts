@@ -293,7 +293,8 @@ export async function activatePaidPlan(paymentId: string) {
             $set: {
               planSuspended: false,
               planExpired: false,
-              planExpiryTestActive: false
+              planExpiryTestActive: false,
+              planAccessExpiresAt: periodEnd
             },
             $unset: {
               planSuspendedAt: "",
@@ -445,7 +446,11 @@ export async function grantCompanyPlan(
   await Company.updateOne(
     { _id: companyId },
     {
-      $set: { planExpired: false, planExpiryTestActive: false },
+      $set: {
+        planExpired: false,
+        planExpiryTestActive: false,
+        planAccessExpiresAt: periodEnd
+      },
       $unset: {
         planExpiredAt: "",
         planExpiredByUserId: ""
