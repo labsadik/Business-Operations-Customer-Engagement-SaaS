@@ -599,6 +599,7 @@ test("company plan suspension is admin-controlled, server-enforced, and restored
   const expiryApi = source("app/api/admin/companies/[companyId]/plan-expiry-test/route.ts");
   const suspensionButton = source("components/admin-company-plan-suspension-button.tsx");
   const plans = source("lib/plans-server.ts");
+  const companyAccessApi = source("app/api/company/plan-access/route.ts");
   const workspace = source("components/workspace-dashboard.tsx");
   const billing = source("lib/billing.ts");
   const tasks = source("features/task-management/server/task-authorization.ts");
@@ -620,6 +621,10 @@ test("company plan suspension is admin-controlled, server-enforced, and restored
   assert.ok(expiryApi.includes("PLAN_EXPIRY_TEST_RESTORED"));
   assert.ok(plans.includes('throw new Error("PLAN_SUSPENDED")'));
   assert.ok(plans.includes("planAccessExpiresAt"));
+  assert.ok(companyAccessApi.includes("isCompanyPlanSuspended(session.companyId)"));
+  assert.ok(companyAccessApi.includes("planExpiryTestActive"));
+  assert.ok(workspace.includes('fetch("/api/company/plan-access"'));
+  assert.ok(workspace.includes("window.setInterval(() => void syncPlanAccess(), 8_000)"));
   assert.ok(workspace.includes("Your workspace and existing information remain visible"));
   assert.ok(workspace.includes('data.company.planExpired ? "Your plan has expired" : "Plan access is suspended"'));
   assert.ok(tasks.includes("allowSuspendedRead"));
