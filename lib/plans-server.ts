@@ -41,7 +41,7 @@ function paymentEntitlementSnapshot(payment: any): PlanEntitlements | null {
  * change historical paid access.
  */
 export async function reconcileLatestPaidAccess(companyId: string) {
-  const [subscription, latestPayment, company] = await Promise.all([
+  const [subscription, latestPayment] = await Promise.all([
     Subscription.findOne({ companyId }).lean(),
     Payment.findOne({
       companyId,
@@ -51,13 +51,9 @@ export async function reconcileLatestPaidAccess(companyId: string) {
       paidAt: { $exists: true, $ne: null }
     })
       .sort({ paidAt: -1, activatedAt: -1, createdAt: -1 })
-      .lean(),
-    Company.findById(companyId).select("planExpiryTestActive").lean()
+      .lean()
   ]);
 
-  // The expiry-test tool deliberately moves the period end into the past.
-  // Do not repair that state from the last captured payment while the test is active.
-  if (company?.planExpiryTestActive) return subscription;
   if (!latestPayment) return subscription;
 
   const plan =
@@ -117,10 +113,16 @@ export async function reconcileLatestPaidAccess(companyId: string) {
       { upsert: true, returnDocument: "after" }
     );
 
-    await Workspace.updateOne(
-      { companyId },
-      { $set: { planId: plan.id } }
-    );
+    await Promise.all([
+      Workspace.updateOne(
+        { companyId },
+        { $set: { planId: plan.id } }
+      ),
+      Company.updateOne(
+        { _id: companyId },
+        { $set: { planAccessExpiresAt: periodEnd } }
+      )
+    ]);
   }
 
   return Subscription.findOne({ companyId });
@@ -264,29 +266,85 @@ export async function getCompanyEntitlements(companyId: string): Promise<PlanEnt
 export async function isCompanyPlanSuspended(companyId: string) {
   await getMongo();
   const company = await Company.findById(companyId)
-    .select("planSuspended planExpired planExpiryTestActive")
+    .select("planSuspended planExpired planExpiryTestActive planAccessExpiresAt")
     .lean();
 
   if (!company) return false;
   if (company.planSuspended || company.planExpired || company.planExpiryTestActive) return true;
 
-  // Catch the exact first request after a paid/admin-granted period ends, before
-  // any entitlement read can reconcile the tenant to a different plan.
+  const now = Date.now();
+  if (company.planAccessExpiresAt) {
+    if (company.planAccessExpiresAt.getTime() > now) return false;
+    await Company.updateOne(
+      { _id: companyId, planExpired: { $ne: true } },
+      { $set: { planExpired: true, planExpiredAt: company.planAccessExpiresAt } }
+    );
+    return true;
+  }
+  // A stored null means this tenant is known to be on the free plan. An absent
+  // field is a legacy record that needs one-time expiry backfill.
+  if (company.planAccessExpiresAt === null) return false;
+
   const subscription = await Subscription.findOne({ companyId })
-    .select("source currentPeriodEnd")
+    .select("source planId currentPeriodEnd")
     .lean();
-  const expiredPaidPeriod = Boolean(
-    subscription &&
-    ["PAID", "ADMIN_GRANTED"].includes(subscription.source) &&
-    subscription.currentPeriodEnd.getTime() <= Date.now()
-  );
-  if (!expiredPaidPeriod) return false;
+
+  if (subscription && ["PAID", "ADMIN_GRANTED"].includes(subscription.source)) {
+    const expiresAt = subscription.currentPeriodEnd;
+    const expired = expiresAt.getTime() <= now;
+    await Company.updateOne(
+      { _id: companyId, planAccessExpiresAt: { $exists: false } },
+      {
+        $set: {
+          planAccessExpiresAt: expiresAt,
+          ...(expired ? { planExpired: true, planExpiredAt: expiresAt } : {})
+        }
+      }
+    );
+    return expired;
+  }
+
+  // Some legacy tenants were already downgraded to free by the previous expiry
+  // behavior. Recover the last paid period once so they do not regain features.
+  const latestPayment = await Payment.findOne({
+    companyId,
+    merchantAccount: "CONVENTUS",
+    status: "CAPTURED",
+    providerPaymentId: { $exists: true, $ne: "" },
+    paidAt: { $exists: true, $ne: null }
+  }).sort({ paidAt: -1, activatedAt: -1, createdAt: -1 }).lean();
+
+  if (latestPayment) {
+    const plan =
+      paymentEntitlementSnapshot(latestPayment) ??
+      await getManagedPlan(latestPayment.planId, { includeArchived: true });
+    if (plan?.requiresPayment) {
+      const periodStart = new Date(
+        latestPayment.paidAt ??
+        latestPayment.activatedAt ??
+        latestPayment.createdAt ??
+        new Date()
+      );
+      const expiresAt = addValidityDays(periodStart, plan.validityDays);
+      const expired = expiresAt.getTime() <= now;
+      await Company.updateOne(
+        { _id: companyId, planAccessExpiresAt: { $exists: false } },
+        {
+          $set: {
+            planAccessExpiresAt: expiresAt,
+            ...(expired ? { planExpired: true, planExpiredAt: expiresAt } : {})
+          }
+        }
+      );
+      return expired;
+    }
+  }
 
   await Company.updateOne(
-    { _id: companyId, planExpired: { $ne: true } },
-    { $set: { planExpired: true, planExpiredAt: subscription!.currentPeriodEnd } }
+    { _id: companyId, planAccessExpiresAt: { $exists: false } },
+    { $set: { planAccessExpiresAt: null } }
   );
-  return true;
+  return false;
 }
 
 export async function assertCompanyPlanNotSuspended(companyId: string) {
