@@ -65,6 +65,9 @@ function profilePayload(company: {
   taxId?: string;
   publicBookingEnabled: boolean;
   planSuspended?: boolean;
+  planExpired?: boolean;
+  planExpiredAt?: Date;
+  planExpiryTestActive?: boolean;
 }, owner?: { name?: string; email?: string; image?: string }) {
   const email = company.email ?? "";
   const phone = company.phone ?? "";
@@ -88,6 +91,8 @@ function profilePayload(company: {
     taxId: company.taxId ?? "",
     publicBookingEnabled: company.publicBookingEnabled,
     planSuspended: Boolean(company.planSuspended),
+    planExpired: Boolean(company.planExpired),
+    planExpiredAt: company.planExpiredAt ?? null,
     profileComplete: Boolean(company.name && isValidEmail(email) && phone.length >= 8),
     owner: owner
       ? { name: owner.name ?? "", email: owner.email ?? "", image: owner.image ?? "" }
@@ -248,7 +253,22 @@ export async function GET() {
   const featureLocked = Boolean(freeFeatureEndsAt && freeFeatureEndsAt.getTime() <= Date.now());
 
   return jsonOk({
-    company: profilePayload(company, owner ?? undefined),
+    company: profilePayload({
+      ...company,
+      planExpired: Boolean(
+        company.planExpired ||
+        (
+          ["PAID", "ADMIN_GRANTED"].includes(subscription.source) &&
+          subscription.currentPeriodEnd.getTime() <= Date.now()
+        )
+      ),
+      planExpiredAt: company.planExpiredAt ??
+        (["PAID", "ADMIN_GRANTED"].includes(subscription.source) &&
+          subscription.currentPeriodEnd.getTime() <= Date.now()
+          ? subscription.currentPeriodEnd
+          : undefined),
+      planExpiryTestActive: Boolean(company.planExpiryTestActive)
+    }, owner ?? undefined),
     workspace: workspace
       ? {
           id: String(workspace._id),
