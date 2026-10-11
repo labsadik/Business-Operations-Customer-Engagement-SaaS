@@ -552,6 +552,7 @@ export async function getAdminCompanyDetails(companyId: string) {
 
   return {
     ...baseRow,
+    periodEnd: company.planExpiryTestActive ? (company.planExpiredAt ?? baseRow.periodEnd) : baseRow.periodEnd,
     planSuspended: Boolean(company.planSuspended),
     planSuspendedAt: company.planSuspendedAt ?? null,
     planExpired: Boolean(company.planExpired),
