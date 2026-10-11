@@ -608,7 +608,7 @@ test("company plan suspension is admin-controlled, server-enforced, and restored
   const liveChat = source("lib/live-chat.ts");
 
   assert.ok(company.includes('planSuspended: { type: Boolean, default: false, index: true }'));
-  assert.ok(company.includes('planAccessExpiresAt: { type: Date, default: null }'));
+  assert.ok(company.includes('planAccessExpiresAt: { type: Date }'));
   assert.ok(company.includes('planExpired: { type: Boolean, default: false, index: true }'));
   assert.ok(adminPage.includes("<AdminCompanyPlanSuspensionButton"));
   assert.ok(suspensionButton.includes('JSON.stringify({ suspended: next })'));
