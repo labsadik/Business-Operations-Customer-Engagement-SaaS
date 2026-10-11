@@ -4,7 +4,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 function source(path: string) {
-  return readFileSync(resolve(process.cwd(), path), "utf8");
+  // Normalize checkout line endings so multi-line source assertions work on Windows and Linux.
+  return readFileSync(resolve(process.cwd(), path), "utf8").replace(/\r\n/g, "\n");
 }
 
 test("live views throttle API polling and pause background work", () => {
