@@ -596,6 +596,7 @@ test("company plan suspension is admin-controlled, server-enforced, and restored
   const company = source("models/company.ts");
   const adminPage = source("components/admin-company-details.tsx");
   const suspensionApi = source("app/api/admin/companies/[companyId]/plan-suspension/route.ts");
+  const expiryApi = source("app/api/admin/companies/[companyId]/plan-expiry-test/route.ts");
   const suspensionButton = source("components/admin-company-plan-suspension-button.tsx");
   const plans = source("lib/plans-server.ts");
   const workspace = source("components/workspace-dashboard.tsx");
@@ -606,18 +607,27 @@ test("company plan suspension is admin-controlled, server-enforced, and restored
   const liveChat = source("lib/live-chat.ts");
 
   assert.ok(company.includes('planSuspended: { type: Boolean, default: false, index: true }'));
+  assert.ok(company.includes('planAccessExpiresAt: { type: Date, default: null }'));
+  assert.ok(company.includes('planExpired: { type: Boolean, default: false, index: true }'));
   assert.ok(adminPage.includes("<AdminCompanyPlanSuspensionButton"));
-  assert.ok(adminPage.includes("Plan access suspended"));
-  assert.ok(suspensionButton.includes('JSON.stringify({ suspended: !suspended })'));
+  assert.ok(suspensionButton.includes('JSON.stringify({ suspended: next })'));
+  assert.ok(suspensionButton.includes("setIsSuspended(next)"));
   assert.ok(suspensionApi.includes("requirePlatformAdmin()"));
   assert.ok(suspensionApi.includes('action: body.suspended ? "PLAN_SUSPENDED" : "PLAN_RESUMED"'));
+  assert.ok(expiryApi.includes("requirePlatformAdmin()"));
+  assert.ok(expiryApi.includes('action: "PLAN_EXPIRY_TEST_STARTED"'));
+  assert.ok(expiryApi.includes("billingPeriodPreserved: true"));
+  assert.ok(expiryApi.includes("PLAN_EXPIRY_TEST_RESTORED"));
   assert.ok(plans.includes('throw new Error("PLAN_SUSPENDED")'));
+  assert.ok(plans.includes("planAccessExpiresAt"));
   assert.ok(workspace.includes("Your workspace and existing information remain visible"));
+  assert.ok(workspace.includes('data.company.planExpired ? "Your plan has expired" : "Plan access is suspended"'));
   assert.ok(tasks.includes("allowSuspendedRead"));
   assert.ok(vault.includes("allowSuspendedRead"));
   assert.ok(booking.includes('code === "PLAN_SUSPENDED" ? 423'));
   assert.ok(liveChat.includes("PLAN_SUSPENDED"));
-  assert.ok(billing.includes("// Only an applied, verified paid plan clears manual suspension."));
-  assert.ok(billing.includes('$set: { planSuspended: false }'));
+  assert.ok(billing.includes("// Only an applied, verified paid plan clears access locks."));
+  assert.ok(billing.includes("planAccessExpiresAt: periodEnd"));
+  assert.ok(billing.includes("planExpiryTestActive: false"));
 });
 
