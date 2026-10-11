@@ -555,7 +555,7 @@ export async function getAdminCompanyDetails(companyId: string) {
     subscription.currentPeriodEnd.getTime() <= Date.now()
   );
   const displayedExpiredAt = company.planExpiredAt ??
-    (subscriptionPeriodExpired ? subscription?.currentPeriodEnd : null);
+    (subscriptionPeriodExpired && subscription ? subscription.currentPeriodEnd : null);
 
   return {
     ...baseRow,
