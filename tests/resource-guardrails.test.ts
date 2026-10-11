@@ -591,3 +591,33 @@ test("billing checkout renders the selected server plan and its configured entit
   assert.ok(button.includes('if (checkoutData.planId !== planId)'));
   assert.ok(button.includes('"Plan ID": checkoutData.planId'));
 });
+
+test("company plan suspension is admin-controlled, server-enforced, and restored by an applied paid plan", () => {
+  const company = source("models/company.ts");
+  const adminPage = source("components/admin-company-details.tsx");
+  const suspensionApi = source("app/api/admin/companies/[companyId]/plan-suspension/route.ts");
+  const suspensionButton = source("components/admin-company-plan-suspension-button.tsx");
+  const plans = source("lib/plans-server.ts");
+  const workspace = source("components/workspace-dashboard.tsx");
+  const billing = source("lib/billing.ts");
+  const tasks = source("features/task-management/server/task-authorization.ts");
+  const vault = source("features/company-vault/server/vault-storage.ts");
+  const booking = source("app/api/public/[companySlug]/bookings/route.ts");
+  const liveChat = source("lib/live-chat.ts");
+
+  assert.ok(company.includes('planSuspended: { type: Boolean, default: false, index: true }'));
+  assert.ok(adminPage.includes("<AdminCompanyPlanSuspensionButton"));
+  assert.ok(adminPage.includes("Plan access suspended"));
+  assert.ok(suspensionButton.includes('JSON.stringify({ suspended: !suspended })'));
+  assert.ok(suspensionApi.includes("requirePlatformAdmin()"));
+  assert.ok(suspensionApi.includes('action: body.suspended ? "PLAN_SUSPENDED" : "PLAN_RESUMED"'));
+  assert.ok(plans.includes('throw new Error("PLAN_SUSPENDED")'));
+  assert.ok(workspace.includes("Your workspace and existing information remain visible"));
+  assert.ok(tasks.includes("allowSuspendedRead"));
+  assert.ok(vault.includes("allowSuspendedRead"));
+  assert.ok(booking.includes('code === "PLAN_SUSPENDED" ? 423'));
+  assert.ok(liveChat.includes("PLAN_SUSPENDED"));
+  assert.ok(billing.includes("// Only an applied, verified paid plan clears manual suspension."));
+  assert.ok(billing.includes('$set: { planSuspended: false }'));
+});
+
