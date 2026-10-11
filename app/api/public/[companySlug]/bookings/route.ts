@@ -210,7 +210,7 @@ export async function POST(
   } catch (error) {
     const code =
       error instanceof Error ? error.message : "BOOKING_CREATE_FAILED";
-    const status = [
+    const status = code === "PLAN_SUSPENDED" ? 423 : [
       "NO_EMPLOYEE_AVAILABLE",
       "CONCURRENT_MEETING_LIMIT",
       "MONTHLY_MEETING_LIMIT",

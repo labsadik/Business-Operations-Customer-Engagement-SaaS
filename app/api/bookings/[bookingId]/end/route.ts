@@ -7,6 +7,7 @@ import { withRedisLock } from "@/lib/redis-lock";
 import { jsonError, jsonOk } from "@/lib/http";
 import { recordBookingActivity } from "@/lib/booking-history";
 import { assertSameOrigin } from "@/lib/security";
+import { isCompanyPlanSuspended } from "@/lib/plans-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,6 +36,7 @@ export async function POST(
   }
 
   if (!session.companyId) return jsonError("COMPANY_NOT_CONFIGURED", 403);
+  if (await isCompanyPlanSuspended(session.companyId)) return jsonError("PLAN_SUSPENDED", 423);
 
   await getMongo();
   const { bookingId } = await params;
@@ -149,6 +151,7 @@ export async function POST(
   } catch (error) {
     const code = error instanceof Error ? error.message : "MEETING_END_FAILED";
     const status =
+      code === "PLAN_SUSPENDED" ? 423 :
       code === "MEETING_NOT_FOUND" ? 404 :
       ["FORBIDDEN", "MEETING_ALREADY_ENDED", "MEETING_NOT_READY", "BOOKING_NOT_ACTIVE"].includes(code)
         ? 409

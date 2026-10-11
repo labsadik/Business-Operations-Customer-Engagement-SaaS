@@ -7,6 +7,7 @@ import { bookingJsonError, bookingErrorCode } from "@/lib/booking-errors";
 import { recordBookingActivity, releaseMeetingUsage } from "@/lib/booking-history";
 import { assertSameOrigin } from "@/lib/security";
 import { classifyDecline } from "@/lib/booking-action-policy";
+import { isCompanyPlanSuspended } from "@/lib/plans-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -63,6 +64,9 @@ export async function POST(
 
   if (!session.companyId) {
     return bookingJsonError("COMPANY_NOT_CONFIGURED", 403);
+  }
+  if (await isCompanyPlanSuspended(session.companyId)) {
+    return bookingJsonError("PLAN_SUSPENDED", 423);
   }
 
   await getMongo();

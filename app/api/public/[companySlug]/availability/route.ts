@@ -44,6 +44,7 @@ export async function GET(
   }).lean();
 
   if (!company) return jsonError("COMPANY_NOT_FOUND", 404);
+  if (company.planSuspended) return jsonError("PLAN_SUSPENDED", 423);
 
   const workspace = await Workspace.findOne({
     companyId: company._id,
