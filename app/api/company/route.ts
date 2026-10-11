@@ -64,6 +64,7 @@ function profilePayload(company: {
   address?: CompanyAddress;
   taxId?: string;
   publicBookingEnabled: boolean;
+  planSuspended?: boolean;
 }, owner?: { name?: string; email?: string; image?: string }) {
   const email = company.email ?? "";
   const phone = company.phone ?? "";
@@ -86,6 +87,7 @@ function profilePayload(company: {
     },
     taxId: company.taxId ?? "",
     publicBookingEnabled: company.publicBookingEnabled,
+    planSuspended: Boolean(company.planSuspended),
     profileComplete: Boolean(company.name && isValidEmail(email) && phone.length >= 8),
     owner: owner
       ? { name: owner.name ?? "", email: owner.email ?? "", image: owner.image ?? "" }

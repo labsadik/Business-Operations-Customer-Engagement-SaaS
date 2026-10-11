@@ -19,6 +19,9 @@ const companySchema = new Schema(
     },
     taxId: { type: String, trim: true, maxlength: 80 },
     publicBookingEnabled: { type: Boolean, default: false, index: true },
+    planSuspended: { type: Boolean, default: false, index: true },
+    planSuspendedAt: { type: Date },
+    planSuspendedByUserId: { type: Schema.Types.ObjectId, ref: "User" },
     // Initialized from the real company name and immutable database ID on first vault access.
     vaultStorageRoot: { type: String, trim: true, maxlength: 140 },
     ownerUserId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true }

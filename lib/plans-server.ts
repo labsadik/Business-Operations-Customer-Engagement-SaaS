@@ -9,6 +9,7 @@ import { Subscription } from "@/models/subscription";
 import { Payment } from "@/models/payment";
 import { Workspace } from "@/models/workspace";
 import { getMongo } from "@/lib/mongodb";
+import { Company } from "@/models/company";
 
 const FREE_USAGE_LIMIT_DAYS = 14;
 
@@ -235,7 +236,18 @@ export async function getCompanyEntitlements(companyId: string): Promise<PlanEnt
       };
 }
 
+export async function isCompanyPlanSuspended(companyId: string) {
+  await getMongo();
+  const company = await Company.findById(companyId).select("planSuspended").lean();
+  return Boolean(company?.planSuspended);
+}
+
+export async function assertCompanyPlanNotSuspended(companyId: string) {
+  if (await isCompanyPlanSuspended(companyId)) throw new Error("PLAN_SUSPENDED");
+}
+
 export async function assertFeatureAccess(companyId: string) {
+  await assertCompanyPlanNotSuspended(companyId);
   const plan = await getCompanyEntitlements(companyId);
   const subscription = await getCompanySubscription(companyId);
 

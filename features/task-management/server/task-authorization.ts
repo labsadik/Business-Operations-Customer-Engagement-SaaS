@@ -1,7 +1,7 @@
 import { Types } from "mongoose";
 import { getMongo } from "@/lib/mongodb";
 import { requireCompanyMember } from "@/lib/authz";
-import { getCompanyEntitlements } from "@/lib/plans-server";
+import { getCompanyEntitlements, assertCompanyPlanNotSuspended } from "@/lib/plans-server";
 import { Membership } from "@/models/membership";
 import { User } from "@/models/user";
 import { Workspace } from "@/models/workspace";
@@ -57,7 +57,14 @@ export async function requireTaskScope(): Promise<TaskScope> {
   };
 }
 
-export async function assertTaskFeatureAccess(scope: TaskScope) {
+export async function assertTaskFeatureAccess(
+  scope: TaskScope,
+  options: { allowSuspendedRead?: boolean } = {}
+) {
+  // Keep read-only dashboard views available while blocking feature mutations.
+  if (!scope.isPlatformAdmin && !options.allowSuspendedRead) {
+    await assertCompanyPlanNotSuspended(scope.companyId);
+  }
   // A platform administrator can inspect/manage records via the explicitly
   // protected admin surface even when the tenant's plan does not include Tasks.
   if (scope.isPlatformAdmin) return { taskManagementEnabled: true };

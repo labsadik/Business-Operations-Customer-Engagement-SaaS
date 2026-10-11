@@ -5,7 +5,7 @@ const platformAuditEventSchema = new Schema(
     actorUserId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     entityType: {
       type: String,
-      enum: ["PLATFORM_ANNOUNCEMENT", "FEEDBACK", "SUPPORT_TICKET", "PLAN"],
+      enum: ["PLATFORM_ANNOUNCEMENT", "FEEDBACK", "SUPPORT_TICKET", "PLAN", "COMPANY"],
       required: true,
       index: true
     },

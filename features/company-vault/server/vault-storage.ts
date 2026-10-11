@@ -51,7 +51,7 @@ export function getUploadExpiry() {
   return new Date(Date.now() + UPLOAD_LIFETIME_MS);
 }
 
-export async function requireVaultScope(): Promise<VaultScope> {
+export async function requireVaultScope(options: { allowSuspendedRead?: boolean } = {}): Promise<VaultScope> {
   await getMongo();
   const result = await requireCompanyMember(["COMPANY_ADMIN", "EMPLOYEE", "PLATFORM_ADMIN"]);
   const session = result.session;
@@ -63,10 +63,13 @@ export async function requireVaultScope(): Promise<VaultScope> {
   const companyId = new Types.ObjectId(session.companyId);
   const workspaceId = new Types.ObjectId(session.workspaceId);
   const [company, workspace] = await Promise.all([
-    Company.findOne({ _id: companyId }).select("_id name slug vaultStorageRoot").lean(),
+    Company.findOne({ _id: companyId }).select("_id name slug vaultStorageRoot planSuspended").lean(),
     Workspace.findOne({ _id: workspaceId, companyId, active: true }).select("_id").lean()
   ]);
   if (!company || !workspace) throw new Error("WORKSPACE_NOT_FOUND");
+  if (company.planSuspended && !options.allowSuspendedRead && session.role !== "PLATFORM_ADMIN") {
+    throw new Error("PLAN_SUSPENDED");
+  }
 
   // Persist a human-readable name + immutable ID once. A later company rename
   // never changes the storage prefix and therefore cannot orphan existing files.
@@ -582,6 +585,7 @@ export function vaultErrorResponse(error: unknown, fallback = "VAULT_REQUEST_FAI
     VAULT_STORAGE_LIMIT_REACHED: 413,
     VAULT_ITEM_LIMIT_REACHED: 413,
     VAULT_FEATURE_NOT_INCLUDED: 403,
+    PLAN_SUSPENDED: 423,
     VAULT_FILE_TOO_LARGE: 413,
     BUNNY_STORAGE_NOT_CONFIGURED: 503,
     BUNNY_STORAGE_CONFIGURATION_INVALID: 503,
