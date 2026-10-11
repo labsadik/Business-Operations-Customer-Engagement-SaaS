@@ -274,18 +274,19 @@ export async function isCompanyPlanSuspended(companyId: string) {
   if (!company) return false;
   if (company.planSuspended || company.planExpired || company.planExpiryTestActive) return true;
 
+  const storedAccessExpiry = company.planAccessExpiresAt as Date | null | undefined;
   const now = Date.now();
-  if (company.planAccessExpiresAt) {
-    if (company.planAccessExpiresAt.getTime() > now) return false;
+  if (storedAccessExpiry) {
+    if (storedAccessExpiry.getTime() > now) return false;
     await Company.updateOne(
       { _id: companyId, planExpired: { $ne: true } },
-      { $set: { planExpired: true, planExpiredAt: company.planAccessExpiresAt } }
+      { $set: { planExpired: true, planExpiredAt: storedAccessExpiry } }
     );
     return true;
   }
   // A stored null means this tenant is known to be on the free plan. An absent
   // field is a legacy record that needs one-time expiry backfill.
-  if (company.planAccessExpiresAt === null) return false;
+  if (storedAccessExpiry === null) return false;
 
   const subscription = await Subscription.findOne({ companyId })
     .select("source planId currentPeriodEnd")
