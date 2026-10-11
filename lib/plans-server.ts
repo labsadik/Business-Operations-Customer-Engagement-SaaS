@@ -41,7 +41,7 @@ function paymentEntitlementSnapshot(payment: any): PlanEntitlements | null {
  * change historical paid access.
  */
 export async function reconcileLatestPaidAccess(companyId: string) {
-  const [subscription, latestPayment] = await Promise.all([
+  const [subscription, latestPayment, company] = await Promise.all([
     Subscription.findOne({ companyId }).lean(),
     Payment.findOne({
       companyId,
@@ -51,9 +51,13 @@ export async function reconcileLatestPaidAccess(companyId: string) {
       paidAt: { $exists: true, $ne: null }
     })
       .sort({ paidAt: -1, activatedAt: -1, createdAt: -1 })
-      .lean()
+      .lean(),
+    Company.findById(companyId).select("planExpiryTestActive").lean()
   ]);
 
+  // The expiry-test tool deliberately moves the period end into the past.
+  // Do not repair that state from the last captured payment while the test is active.
+  if (company?.planExpiryTestActive) return subscription;
   if (!latestPayment) return subscription;
 
   const plan =
@@ -157,6 +161,27 @@ async function ensureSubscription(companyId: string) {
   const now = new Date();
   if (subscription.currentPeriodEnd.getTime() <= now.getTime()) {
     const currentPlan = await resolvePlanEntitlementsForSubscription(subscription);
+    const accessState = await Company.findById(companyId)
+      .select("planExpired planExpiryTestActive")
+      .lean();
+
+    // A paid plan expiry is a read-only lock, not a silent switch to free access.
+    // Keeping the expired subscription also keeps its history visible to admins.
+    if (currentPlan.requiresPayment || accessState?.planExpiryTestActive) {
+      if (!accessState?.planExpired) {
+        await Company.updateOne(
+          { _id: companyId, planExpired: { $ne: true } },
+          {
+            $set: {
+              planExpired: true,
+              planExpiredAt: accessState?.planExpiryTestActive ? now : subscription.currentPeriodEnd
+            }
+          }
+        );
+      }
+      return subscription;
+    }
+
     const nextPlan = currentPlan.requiresPayment
       ? await getManagedPlan("free", { includeArchived: true })
       : currentPlan;
@@ -238,8 +263,30 @@ export async function getCompanyEntitlements(companyId: string): Promise<PlanEnt
 
 export async function isCompanyPlanSuspended(companyId: string) {
   await getMongo();
-  const company = await Company.findById(companyId).select("planSuspended").lean();
-  return Boolean(company?.planSuspended);
+  const company = await Company.findById(companyId)
+    .select("planSuspended planExpired planExpiryTestActive")
+    .lean();
+
+  if (!company) return false;
+  if (company.planSuspended || company.planExpired || company.planExpiryTestActive) return true;
+
+  // Catch the exact first request after a paid/admin-granted period ends, before
+  // any entitlement read can reconcile the tenant to a different plan.
+  const subscription = await Subscription.findOne({ companyId })
+    .select("source currentPeriodEnd")
+    .lean();
+  const expiredPaidPeriod = Boolean(
+    subscription &&
+    ["PAID", "ADMIN_GRANTED"].includes(subscription.source) &&
+    subscription.currentPeriodEnd.getTime() <= Date.now()
+  );
+  if (!expiredPaidPeriod) return false;
+
+  await Company.updateOne(
+    { _id: companyId, planExpired: { $ne: true } },
+    { $set: { planExpired: true, planExpiredAt: subscription!.currentPeriodEnd } }
+  );
+  return true;
 }
 
 export async function assertCompanyPlanNotSuspended(companyId: string) {
