@@ -37,6 +37,17 @@ function dateLabel(value: Date) {
   }).format(value);
 }
 
+function storageLimitLabel(bytes: number) {
+  const units = [
+    { size: 1024 ** 4, label: "TB" },
+    { size: 1024 ** 3, label: "GB" },
+    { size: 1024 ** 2, label: "MB" },
+    { size: 1024, label: "KB" }
+  ];
+  const unit = units.find((candidate) => bytes >= candidate.size) ?? { size: 1, label: "B" };
+  return new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(bytes / unit.size) + " " + unit.label;
+}
+
 export default async function BillingCheckoutPage({
   searchParams
 }: {
@@ -173,11 +184,24 @@ export default async function BillingCheckoutPage({
             <div className="border-b border-slate-200 px-6 py-6 sm:px-8">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-blue-700">
-                  {plan.name}
+                  Selected plan
+                </span>
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
+                  Plan ID: {plan.id}
                 </span>
                 <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
-                  {plan.validityDays} days
+                  {plan.validityDays}-day billing period
                 </span>
+                {plan.popular && (
+                  <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-700">
+                    Popular
+                  </span>
+                )}
+                {plan.recommended && (
+                  <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-700">
+                    Recommended
+                  </span>
+                )}
                 {isCurrentPlan && (
                   <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700">
                     Current plan · renewal
@@ -188,8 +212,13 @@ export default async function BillingCheckoutPage({
               <h2 className="mt-4 text-2xl font-semibold tracking-tight">
                 {plan.name} subscription
               </h2>
+              {plan.description && (
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                  {plan.description}
+                </p>
+              )}
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                Plan access is enforced server-side from the active subscription record. Successful payment activates one complete {plan.validityDays}-day billing period.
+                You selected <span className="font-semibold text-slate-700">{plan.name}</span> ({plan.id}). These details are loaded from the current server-side plan configuration. Successful payment activates one complete {plan.validityDays}-day billing period.
               </p>
             </div>
 
@@ -232,6 +261,8 @@ export default async function BillingCheckoutPage({
 
             <div className="grid gap-3 p-6 sm:grid-cols-2 sm:p-8">
               {[
+                ["Workspaces", String(plan.maxWorkspaces)],
+                ["Companies", String(plan.maxCompanies)],
                 ["Employees", String(plan.maxEmployees)],
                 ["Meetings / month", String(plan.monthlyMeetingLimit)],
                 ["Max meeting duration", plan.maxMeetingDurationMinutes + " minutes"],
@@ -250,6 +281,68 @@ export default async function BillingCheckoutPage({
                 </div>
               ))}
             </div>
+
+            <section className="border-t border-slate-200 px-6 py-6 sm:px-8">
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-slate-950">Included features and limits</h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  These limits match the selected plan and the configuration used to calculate this checkout.
+                </p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <p className="text-xs font-semibold text-slate-900">Task management</p>
+                  <p className={"mt-2 text-xs font-semibold " + (plan.taskManagementEnabled ? "text-emerald-700" : "text-slate-500")}>
+                    {plan.taskManagementEnabled ? "Included" : "Not included"}
+                  </p>
+                  <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                    {plan.taskManagementEnabled
+                      ? plan.taskManagementDailyLimit === null
+                        ? "Unlimited task assignments per day"
+                        : plan.taskManagementDailyLimit + " task assignments per day"
+                      : "Task creation and assignment are not enabled on this plan."}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <p className="text-xs font-semibold text-slate-900">Cloud vault</p>
+                  <p className={"mt-2 text-xs font-semibold " + (plan.vaultEnabled ? "text-emerald-700" : "text-slate-500")}>
+                    {plan.vaultEnabled ? "Included" : "Not included"}
+                  </p>
+                  {plan.vaultEnabled ? (
+                    <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                      {storageLimitLabel(plan.vaultQuotaBytes)} storage · {storageLimitLabel(plan.vaultMaxFileBytes)} max per file · {plan.vaultMaxItems.toLocaleString("en-IN")} stored items
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-[11px] leading-5 text-slate-500">Private company file storage is not enabled on this plan.</p>
+                  )}
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <p className="text-xs font-semibold text-slate-900">Live Chat</p>
+                  <p className={"mt-2 text-xs font-semibold " + (plan.liveChatEnabled ? "text-emerald-700" : "text-slate-500")}>
+                    {plan.liveChatEnabled ? "Included" : "Not included"}
+                  </p>
+                  {plan.liveChatEnabled ? (
+                    <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                      {plan.liveChatMonthlyLimit.toLocaleString("en-IN")} chats/month · {plan.liveChatCustomerLimit.toLocaleString("en-IN")} unique customers/month · {plan.liveChatAgentLimit.toLocaleString("en-IN")} agents · {plan.liveChatRetentionDays}-day history · {plan.liveChatMessageCooldownSeconds}-second message cooldown
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-[11px] leading-5 text-slate-500">Website chat and customer conversations are not enabled on this plan.</p>
+                  )}
+                  {plan.liveChatEnabled && (
+                    <p className="mt-2 text-[10px] leading-4 text-slate-500">
+                      PDF exports: {plan.liveChatPdfExportEnabled ? "enabled" : "disabled"} · Company chat deletion: {plan.liveChatDeleteEnabled ? "enabled" : "disabled"}
+                    </p>
+                  )}
+                </div>
+              </div>
+              {plan.freeFeatureDays !== null && (
+                <p className="mt-4 text-[11px] leading-5 text-slate-500">
+                  Free feature window: {plan.freeFeatureDays} days within the {plan.validityDays}-day plan period.
+                </p>
+              )}
+            </section>
 
             <div className="border-t border-slate-200 px-6 py-6 sm:px-8">
               <div className="grid gap-4 sm:grid-cols-2">

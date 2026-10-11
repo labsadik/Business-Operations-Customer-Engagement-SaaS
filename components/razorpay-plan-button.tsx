@@ -142,6 +142,7 @@ export default function RazorpayPlanButton({
         currency: string;
         orderId: string;
         merchant?: { name?: string };
+        planId: string;
         planName?: string;
         customer?: { name?: string; email?: string; phone?: string };
         pricing?: {
@@ -153,6 +154,10 @@ export default function RazorpayPlanButton({
           discountAmount?: number;
         };
       };
+
+      if (checkoutData.planId !== planId) {
+        throw new Error("CHECKOUT_PLAN_MISMATCH");
+      }
 
       await ensureRazorpayLoaded();
 
@@ -176,6 +181,8 @@ export default function RazorpayPlanButton({
           contact: checkoutData.customer?.phone
         },
         notes: checkoutData.pricing ? {
+          "Selected plan": checkoutData.planName || displayName,
+          "Plan ID": checkoutData.planId,
           "Base price": money(checkoutData.pricing.baseAmount, checkoutData.currency),
           "Discount": money(checkoutData.pricing.discountAmount ?? 0, checkoutData.currency),
           "GST": checkoutData.pricing.gstAmount > 0

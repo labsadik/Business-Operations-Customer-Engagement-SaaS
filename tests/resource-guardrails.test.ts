@@ -575,3 +575,19 @@ test("landing pricing is rendered from fresh server data, not cached marketing H
   assert.match(config, /source: "\/",\s*headers: \[noStore\]/);
   assert.doesNotMatch(config, /source: "\/",\s*headers: \[publicLongCache\]/);
 });
+
+test("billing checkout renders the selected server plan and its configured entitlements", () => {
+  const checkout = source("app/billing/checkout/page.tsx");
+  const button = source("components/razorpay-plan-button.tsx");
+
+  assert.ok(checkout.includes('plan = await getPlanForCheckout(planId);'));
+  assert.ok(checkout.includes("Plan ID: {plan.id}"));
+  assert.ok(checkout.includes("{plan.description}"));
+  assert.ok(checkout.includes('["Workspaces", String(plan.maxWorkspaces)]'));
+  assert.ok(checkout.includes('["Companies", String(plan.maxCompanies)]'));
+  assert.ok(checkout.includes("plan.taskManagementEnabled"));
+  assert.ok(checkout.includes("plan.vaultEnabled"));
+  assert.ok(checkout.includes("plan.liveChatEnabled"));
+  assert.ok(button.includes('if (checkoutData.planId !== planId)'));
+  assert.ok(button.includes('"Plan ID": checkoutData.planId'));
+});
