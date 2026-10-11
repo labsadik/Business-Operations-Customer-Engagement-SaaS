@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
-    const scope = await requireLiveChatScope();
+    const scope = await requireLiveChatScope({ allowSuspendedRead: true });
     const settings = await getOrCreateLiveChatSettings(scope.companyId, scope.workspaceId);
     const origin = new URL(request.url).origin;
     const position = String(settings?.position ?? "RIGHT").toLowerCase();

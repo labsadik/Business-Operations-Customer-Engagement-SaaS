@@ -1,7 +1,7 @@
 import { Types } from "mongoose";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { getMongo } from "@/lib/mongodb";
-import { getCompanyEntitlements } from "@/lib/plans-server";
+import { getCompanyEntitlements, assertCompanyPlanNotSuspended } from "@/lib/plans-server";
 import { requireCompanyMember } from "@/lib/authz";
 import { Company } from "@/models/company";
 import { Workspace } from "@/models/workspace";
@@ -20,7 +20,7 @@ export type LiveChatScope = {
   entitlements: Awaited<ReturnType<typeof getCompanyEntitlements>>;
 };
 
-export async function requireLiveChatScope(): Promise<LiveChatScope> {
+export async function requireLiveChatScope(options: { allowSuspendedRead?: boolean } = {}): Promise<LiveChatScope> {
   const { session } = await requireCompanyMember();
   await getMongo();
   if (!session.companyId || !session.workspaceId ||
@@ -28,11 +28,14 @@ export async function requireLiveChatScope(): Promise<LiveChatScope> {
     throw new Error("COMPANY_NOT_CONFIGURED");
   }
   const [company, workspace, entitlements] = await Promise.all([
-    Company.findById(session.companyId).select("_id name slug websiteUrl").lean(),
+    Company.findById(session.companyId).select("_id name slug websiteUrl planSuspended").lean(),
     Workspace.findOne({ _id: session.workspaceId, companyId: session.companyId, active: true }).select("_id companyId name timezone").lean(),
     getCompanyEntitlements(session.companyId)
   ]);
   if (!company || !workspace) throw new Error("FORBIDDEN");
+  if (company.planSuspended && !options.allowSuspendedRead && session.role !== "PLATFORM_ADMIN") {
+    throw new Error("PLAN_SUSPENDED");
+  }
   if (!entitlements.liveChatEnabled) throw new Error("LIVE_CHAT_NOT_INCLUDED");
 
   if (session.role === "EMPLOYEE") {
@@ -191,8 +194,9 @@ export function assertWidgetApiOrigin(request: Request) {
 
 export async function getPublicLiveChatContext(companySlug: string, siteOrigin: string, visitorId?: string) {
   await getMongo();
-  const company = await Company.findOne({ slug: companySlug.toLowerCase() }).select("_id name slug websiteUrl").lean();
+  const company = await Company.findOne({ slug: companySlug.toLowerCase() }).select("_id name slug websiteUrl planSuspended").lean();
   if (!company) throw new Error("COMPANY_NOT_FOUND");
+  if (company.planSuspended) throw new Error("PLAN_SUSPENDED");
   const workspace = await Workspace.findOne({ companyId: company._id, active: true }).select("_id companyId").sort({ createdAt: 1 }).lean();
   if (!workspace) throw new Error("COMPANY_NOT_CONFIGURED");
   const entitlements = await getCompanyEntitlements(String(company._id));
@@ -225,6 +229,7 @@ export function liveChatError(error: unknown, fallback: string) {
     code === "LIVE_CHAT_TOKEN_INVALID" || code === "LIVE_CHAT_TOKEN_EXPIRED" ? 401 :
     code === "LIVE_CHAT_MESSAGE_RETRY" || code === "LIVE_CHAT_CONVERSATION_ALREADY_OPEN" ? 409 :
     code === "COMPANY_NOT_CONFIGURED" ? 403 :
+    code === "PLAN_SUSPENDED" ? 423 :
     code === "LIVE_CHAT_MESSAGE_COOLDOWN" || code === "LIVE_CHAT_RATE_LIMITED" || code === "LIVE_CHAT_AGENT_LIMIT_REACHED" ? 429 :
     code === "LIVE_CHAT_MONTHLY_LIMIT_REACHED" || code === "LIVE_CHAT_CUSTOMER_LIMIT_REACHED" ? 429 :
     code === "LIVE_CHAT_DELETE_NOT_INCLUDED" || code === "LIVE_CHAT_EXPORT_NOT_INCLUDED" ? 403 :

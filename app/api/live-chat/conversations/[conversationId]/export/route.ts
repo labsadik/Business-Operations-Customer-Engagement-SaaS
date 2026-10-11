@@ -149,7 +149,7 @@ function initials(value: string) {
 
 export async function GET(request: Request, { params }: { params: Promise<{ conversationId: string }> }) {
   try {
-    const scope = await requireLiveChatScope();
+    const scope = await requireLiveChatScope({ allowSuspendedRead: true });
     if (!scope.entitlements.liveChatPdfExportEnabled) return jsonError("LIVE_CHAT_EXPORT_NOT_INCLUDED", 403);
     const { conversationId } = await params;
     if (!Types.ObjectId.isValid(conversationId)) return jsonError("LIVE_CHAT_CONVERSATION_NOT_FOUND", 404);

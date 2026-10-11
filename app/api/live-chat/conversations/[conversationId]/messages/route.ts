@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ conversationId: string }> }) {
   try {
-    const scope = await requireLiveChatScope();
+    const scope = await requireLiveChatScope({ allowSuspendedRead: true });
     const { conversationId } = await params;
     if (!Types.ObjectId.isValid(conversationId)) return jsonError("LIVE_CHAT_CONVERSATION_NOT_FOUND", 404);
     await getMongo();

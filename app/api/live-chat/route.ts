@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const scope = await requireLiveChatScope();
+    const scope = await requireLiveChatScope({ allowSuspendedRead: true });
     await getMongo();
     const now = new Date();
     const tenant = { companyId: new Types.ObjectId(scope.companyId), workspaceId: new Types.ObjectId(scope.workspaceId) };
