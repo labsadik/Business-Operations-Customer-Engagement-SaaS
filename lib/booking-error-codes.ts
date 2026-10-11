@@ -33,7 +33,7 @@ const FRIENDLY_MESSAGES: Record<string, string> = {
   UNAUTHENTICATED: "Please sign in again to respond to this meeting request.",
   FORBIDDEN: "You do not have permission to respond to this meeting request.",
   COMPANY_NOT_CONFIGURED: "Your workspace company is not configured correctly.",
-  PLAN_SUSPENDED: "Your company plan is suspended. Ask your administrator to restore access or purchase a plan to resume features.",
+  PLAN_SUSPENDED: "Your company plan is suspended or expired. Purchase a plan or ask your platform administrator to restore access.",
   GOOGLE_API_400: "Google Calendar rejected the meeting request. Please check the connected calendar settings.",
   GOOGLE_API_401: "Google Calendar authentication needs to be refreshed.",
   GOOGLE_API_403: "The connected Google account does not have the required Calendar permission.",
