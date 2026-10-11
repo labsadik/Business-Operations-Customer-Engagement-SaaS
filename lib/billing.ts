@@ -299,8 +299,7 @@ export async function activatePaidPlan(paymentId: string) {
               planSuspendedAt: "",
               planSuspendedByUserId: "",
               planExpiredAt: "",
-              planExpiredByUserId: "",
-              planExpiryTestPreviousPeriodEnd: ""
+              planExpiredByUserId: ""
             }
           },
           { session: tx }
@@ -449,8 +448,7 @@ export async function grantCompanyPlan(
       $set: { planExpired: false, planExpiryTestActive: false },
       $unset: {
         planExpiredAt: "",
-        planExpiredByUserId: "",
-        planExpiryTestPreviousPeriodEnd: ""
+        planExpiredByUserId: ""
       }
     }
   );
