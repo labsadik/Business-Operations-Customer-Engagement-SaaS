@@ -65,3 +65,21 @@ test("workspace and profile boot reads start immediately and use shared request 
   assert.match(profile, /void load\(\)/);
   assert.match(clientApi, /pendingApiReads/);
 });
+
+
+test("Live Chat remains in the shared sidebar across workspace routes", async () => {
+  const [taskPage, taskDashboard, vaultPage, vault, profile] = await Promise.all([
+    read("app/dashboard/tasks/page.tsx"),
+    read("features/task-management/components/task-management-dashboard.tsx"),
+    read("app/dashboard/vault/page.tsx"),
+    read("components/company-vault.tsx"),
+    read("components/company-profile.tsx")
+  ]);
+
+  assert.match(taskPage, /liveChatEnabled=\{Boolean\(plan\.liveChatEnabled\)\}/);
+  assert.match(taskDashboard, /liveChatEnabled=\{liveChatEnabled\}/);
+  assert.match(vaultPage, /liveChatEnabled=\{Boolean\(entitlements\.liveChatEnabled\)\}/);
+  assert.match(vault, /liveChatEnabled=\{liveChatEnabled\}/);
+  assert.match(profile, /setLiveChatEnabled\(Boolean\(data\.currentPlan\?\.liveChatEnabled\)\)/);
+  assert.match(profile, /liveChatEnabled=\{liveChatEnabled\}/);
+});

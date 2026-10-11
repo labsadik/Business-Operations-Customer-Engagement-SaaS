@@ -158,6 +158,7 @@ export default async function CompanyVaultPage({ searchParams }: PageProps) {
       companyName={company.name}
       currentRole={session.role}
       taskManagementEnabled={Boolean(entitlements.taskManagementEnabled)}
+      liveChatEnabled={Boolean(entitlements.liveChatEnabled)}
       initialSnapshot={initialSnapshot}
     />
   );

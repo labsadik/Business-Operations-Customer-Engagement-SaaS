@@ -101,6 +101,7 @@ type TaskPageProps = {
   currentRole: string;
   taskManagementEnabled: boolean;
   vaultEnabled: boolean;
+  liveChatEnabled: boolean;
 };
 
 const MANAGER_ROLES = ["COMPANY_ADMIN", "PLATFORM_ADMIN"];
@@ -183,7 +184,8 @@ export default function TaskManagementDashboard({
   userId,
   currentRole,
   taskManagementEnabled,
-  vaultEnabled
+  vaultEnabled,
+  liveChatEnabled
 }: TaskPageProps) {
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [dailyUsage, setDailyUsage] = useState<TaskDailyUsage>({
@@ -684,6 +686,7 @@ export default function TaskManagementDashboard({
         companyName={companyName}
         taskManagementEnabled={taskManagementEnabled}
         vaultEnabled={vaultEnabled}
+        liveChatEnabled={liveChatEnabled}
         canManage={canManage}
         adminManaged={currentRole === "PLATFORM_ADMIN"}
         collapsed={sidebarCollapsed}

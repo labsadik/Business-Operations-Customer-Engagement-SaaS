@@ -60,7 +60,7 @@ type VaultUsageData = {
 
 type CompanyResponse = {
   company: ProfileData;
-  currentPlan?: { taskManagementEnabled?: boolean; vaultEnabled?: boolean };
+  currentPlan?: { taskManagementEnabled?: boolean; vaultEnabled?: boolean; liveChatEnabled?: boolean };
   vaultUsage?: VaultUsageData;
   memberCount: number;
   canPublish: boolean;
@@ -95,6 +95,7 @@ export default function CompanyProfile({
   const [memberCount, setMemberCount] = useState(0);
   const [taskManagementEnabled, setTaskManagementEnabled] = useState(false);
   const [vaultEnabled, setVaultEnabled] = useState(false);
+  const [liveChatEnabled, setLiveChatEnabled] = useState(false);
   const [vaultUsage, setVaultUsage] = useState<VaultUsageData | null>(null);
   const [canPublish, setCanPublish] = useState(false);
   const [featureLocked, setFeatureLocked] = useState(false);
@@ -126,6 +127,7 @@ export default function CompanyProfile({
         setMemberCount(data.memberCount);
         setTaskManagementEnabled(Boolean(data.currentPlan?.taskManagementEnabled));
         setVaultEnabled(Boolean(data.currentPlan?.vaultEnabled));
+        setLiveChatEnabled(Boolean(data.currentPlan?.liveChatEnabled));
         setVaultUsage(data.vaultUsage ?? null);
         setCanPublish(data.canPublish);
         setFeatureLocked(data.featureLocked);
@@ -245,6 +247,7 @@ export default function CompanyProfile({
         companyName={form.name}
         taskManagementEnabled={taskManagementEnabled}
         vaultEnabled={vaultEnabled}
+        liveChatEnabled={liveChatEnabled}
         canManage
         activeProfile
         collapsed={sidebarCollapsed}

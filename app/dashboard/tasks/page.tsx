@@ -51,6 +51,7 @@ export default async function TaskManagementPage() {
       currentRole={session.role}
       taskManagementEnabled={Boolean(plan.taskManagementEnabled)}
       vaultEnabled={Boolean(plan.vaultEnabled)}
+      liveChatEnabled={Boolean(plan.liveChatEnabled)}
     />
   );
 }
