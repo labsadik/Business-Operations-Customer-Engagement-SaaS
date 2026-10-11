@@ -107,6 +107,7 @@ type CompanyData = {
     address: Address;
     publicBookingEnabled: boolean;
     planSuspended: boolean;
+    planExpired: boolean;
     profileComplete: boolean;
     owner: { name: string; email: string; image: string } | null;
   };
@@ -1337,12 +1338,16 @@ export default function WorkspaceDashboard({
         onNavigateOverview={closeFeedbackModal}
       />
       <div className={sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"}>
-      {data.company.planSuspended && (
+      {(data.company.planSuspended || data.company.planExpired) && (
         <div className="mx-auto max-w-7xl px-5 pt-4 sm:px-6 lg:px-8" role="alert">
           <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm font-semibold text-amber-950">Plan access is suspended</p>
-              <p className="mt-1 text-xs leading-5 text-amber-800">Your workspace and existing information remain visible, but plan features are read-only until you purchase a plan successfully or your platform administrator restores access.</p>
+              <p className="text-sm font-semibold text-amber-950">
+                {data.company.planExpired ? "Your plan has expired" : "Plan access is suspended"}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-amber-800">
+                Your workspace and existing information remain visible, but plan features are read-only. Purchase a plan to restore access.
+              </p>
             </div>
             <Link href="/dashboard?panel=billing" className="inline-flex shrink-0 items-center justify-center rounded-xl bg-amber-950 px-4 py-2.5 text-xs font-semibold text-white hover:bg-amber-900">
               View plans
