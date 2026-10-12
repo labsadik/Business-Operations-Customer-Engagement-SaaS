@@ -1,5 +1,6 @@
 import { Schema, model, models } from "mongoose";
 import { planEntitlementSnapshotSchema } from "@/models/plan-entitlement-snapshot";
+import { BILLING_SOURCES } from "@/types/domain";
 
 const subscriptionSchema = new Schema(
   {
@@ -11,7 +12,7 @@ const subscriptionSchema = new Schema(
     monthlyMeetingsUsed: { type: Number, default: 0, min: 0 },
     source: {
       type: String,
-      enum: ["FREE", "PAID", "ADMIN_GRANTED"],
+      enum: [...BILLING_SOURCES],
       default: "FREE",
       index: true
     },

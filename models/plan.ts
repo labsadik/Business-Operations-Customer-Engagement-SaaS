@@ -1,4 +1,5 @@
 import { Schema, model, models } from "mongoose";
+import { PLAN_DISCOUNT_TYPES, PLAN_STATUSES } from "@/lib/plan-rules";
 
 const planSchema = new Schema(
   {
@@ -16,7 +17,7 @@ const planSchema = new Schema(
     description: { type: String, default: "", trim: true, maxlength: 1200 },
     status: {
       type: String,
-      enum: ["PUBLIC", "COMING_SOON", "PRIVATE"],
+      enum: [...PLAN_STATUSES],
       default: "PRIVATE",
       index: true
     },
@@ -25,7 +26,7 @@ const planSchema = new Schema(
     priceInr: { type: Number, required: true, min: 0, max: 10000000 },
     discountType: {
       type: String,
-      enum: ["NONE", "PERCENTAGE", "FIXED_AMOUNT"],
+      enum: [...PLAN_DISCOUNT_TYPES],
       default: "NONE"
     },
     discountValue: { type: Number, default: 0, min: 0, max: 10000000 },

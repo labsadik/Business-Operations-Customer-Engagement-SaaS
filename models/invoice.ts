@@ -1,6 +1,8 @@
 import { Schema, model, models } from "mongoose";
 import { createAddressSchema } from "@/models/address-schema";
 import { planEntitlementSnapshotSchema } from "@/models/plan-entitlement-snapshot";
+import { PLAN_DISCOUNT_TYPES } from "@/lib/plan-rules";
+import { BILLING_SOURCES } from "@/types/domain";
 
 const addressSchema = createAddressSchema();
 
@@ -10,7 +12,7 @@ const invoiceSchema = new Schema(
     paymentId: { type: Schema.Types.ObjectId, ref: "Payment", unique: true, sparse: true, index: true },
     source: {
       type: String,
-      enum: ["PAID", "FREE", "ADMIN_GRANTED"],
+      enum: [...BILLING_SOURCES],
       required: true,
       default: "PAID",
       index: true
@@ -25,7 +27,7 @@ const invoiceSchema = new Schema(
     billingPeriodStart: { type: Date },
     billingPeriodEnd: { type: Date },
     serviceDescription: { type: String, required: true, default: "Conventus monthly scheduling service" },
-    discountType: { type: String, enum: ["NONE", "PERCENTAGE", "FIXED_AMOUNT"], default: "NONE" },
+    discountType: { type: String, enum: [...PLAN_DISCOUNT_TYPES], default: "NONE" },
     discountValue: { type: Number, min: 0, default: 0 },
     discountAmount: { type: Number, min: 0, default: 0 },
     planSnapshot: { type: planEntitlementSnapshotSchema, required: true },

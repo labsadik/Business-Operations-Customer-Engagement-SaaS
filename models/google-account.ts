@@ -1,4 +1,5 @@
 import { Schema, model, models } from "mongoose";
+import { GOOGLE_CONNECTION_STATUSES } from "@/types/domain";
 
 const googleAccountSchema = new Schema(
   {
@@ -10,7 +11,7 @@ const googleAccountSchema = new Schema(
     scopes: [{ type: String }],
     status: {
       type: String,
-      enum: ["CONNECTED", "REAUTH_REQUIRED", "DISCONNECTED"],
+      enum: [...GOOGLE_CONNECTION_STATUSES],
       default: "CONNECTED",
       index: true
     },

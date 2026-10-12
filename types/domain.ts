@@ -7,13 +7,17 @@ export type CompanyMemberRole = (typeof COMPANY_MEMBER_ROLES)[number];
 export const EMPLOYMENT_STATUSES = ["ACTIVE", "ON_LEAVE", "INACTIVE"] as const;
 export type EmploymentStatus = (typeof EMPLOYMENT_STATUSES)[number];
 
+export const BILLING_SOURCES = ["FREE", "PAID", "ADMIN_GRANTED"] as const;
+export type BillingSource = (typeof BILLING_SOURCES)[number];
+
 export const RESTORABLE_USER_ROLES = ["COMPANY_ADMIN", "EMPLOYEE", "CUSTOMER"] as const;
 
 export function isUserRole(value: unknown): value is UserRole {
   return typeof value === "string" && (USER_ROLES as readonly string[]).includes(value);
 }
 
-export type GoogleConnectionStatus = "CONNECTED" | "REAUTH_REQUIRED" | "DISCONNECTED";
+export const GOOGLE_CONNECTION_STATUSES = ["CONNECTED", "REAUTH_REQUIRED", "DISCONNECTED"] as const;
+export type GoogleConnectionStatus = (typeof GOOGLE_CONNECTION_STATUSES)[number];
 
 export type BookingRequestRecord = {
   id: string;

@@ -1,4 +1,5 @@
 import { Schema, model, models } from "mongoose";
+import { TASK_NOTIFICATION_TYPES } from "@/features/task-management/shared/constants";
 
 const taskNotificationSchema = new Schema(
   {
@@ -9,14 +10,7 @@ const taskNotificationSchema = new Schema(
     actorUserId: { type: Schema.Types.ObjectId, ref: "User", required: true, immutable: true },
     type: {
       type: String,
-      enum: [
-        "TASK_ASSIGNMENT_CONFIRMED",
-        "TASK_ASSIGNED",
-        "TASK_UNASSIGNED",
-        "TASK_STATUS_CHANGED",
-        "TASK_COMPLETED",
-        "TASK_UPDATED"
-      ],
+      enum: [...TASK_NOTIFICATION_TYPES],
       required: true,
       index: true
     },

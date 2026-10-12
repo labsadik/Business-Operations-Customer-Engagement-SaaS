@@ -775,3 +775,37 @@ test("platform user role changes share the canonical platform audit model", () =
   assert.ok(migration.includes("--drop-legacy"));
   assert.equal(packageJson.scripts["audit-events:migrate"], "node scripts/migrate-admin-audit-events.mjs");
 });
+
+test("Mongoose model enums use canonical shared constants instead of copied lists", () => {
+  const domain = source("types/domain.ts");
+  const taskConstants = source("features/task-management/shared/constants.ts");
+  const bookingState = source("lib/booking-state.ts");
+  const planRules = source("lib/plan-rules.ts");
+  const taskModel = source("models/task.ts");
+  const assignmentModel = source("models/task-assignment.ts");
+  const notificationModel = source("models/task-notification.ts");
+  const bookingModel = source("models/booking-request.ts");
+  const planModel = source("models/plan.ts");
+  const paymentModel = source("models/payment.ts");
+  const invoiceModel = source("models/invoice.ts");
+  const subscriptionModel = source("models/subscription.ts");
+  const googleModel = source("models/google-account.ts");
+
+  assert.ok(taskModel.includes("enum: [...TASK_PRIORITIES]"));
+  assert.ok(taskModel.includes("enum: [...TASK_STATUSES]"));
+  assert.ok(assignmentModel.includes("enum: [...TASK_STATUSES]"));
+  assert.ok(notificationModel.includes("enum: [...TASK_NOTIFICATION_TYPES]"));
+  assert.ok(bookingModel.includes("enum: [...BOOKING_STATUSES]"));
+  assert.ok(planModel.includes("enum: [...PLAN_STATUSES]"));
+  assert.ok(planModel.includes("enum: [...PLAN_DISCOUNT_TYPES]"));
+  assert.ok(paymentModel.includes("enum: [...PLAN_DISCOUNT_TYPES]"));
+  assert.ok(invoiceModel.includes("enum: [...PLAN_DISCOUNT_TYPES]"));
+  assert.ok(invoiceModel.includes("enum: [...BILLING_SOURCES]"));
+  assert.ok(subscriptionModel.includes("enum: [...BILLING_SOURCES]"));
+  assert.ok(googleModel.includes("enum: [...GOOGLE_CONNECTION_STATUSES]"));
+  assert.ok(domain.includes("BILLING_SOURCES"));
+  assert.ok(domain.includes("GOOGLE_CONNECTION_STATUSES"));
+  assert.ok(taskConstants.includes("TASK_NOTIFICATION_TYPES"));
+  assert.ok(bookingState.includes("BOOKING_STATUSES"));
+  assert.ok(planRules.includes("PLAN_DISCOUNT_TYPES"));
+});

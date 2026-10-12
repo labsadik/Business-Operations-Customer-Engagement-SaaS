@@ -1,4 +1,5 @@
 import { Schema, model, models } from "mongoose";
+import { BOOKING_STATUSES } from "@/lib/booking-state";
 
 const bookingRequestSchema = new Schema(
   {
@@ -11,19 +12,7 @@ const bookingRequestSchema = new Schema(
     requestedDurationMinutes: { type: Number, required: true, min: 1, max: 240 },
     status: {
       type: String,
-      enum: [
-        "REQUESTED",
-        "ASSIGNED",
-        "CREATING_MEETING",
-        "CONFIRMED",
-        "IN_PROGRESS",
-        "COMPLETED",
-        "DECLINED",
-        "RETRYING",
-        "EXPIRED",
-        "CANCELLED",
-        "FAILED"
-      ],
+      enum: [...BOOKING_STATUSES],
       default: "REQUESTED",
       index: true
     },

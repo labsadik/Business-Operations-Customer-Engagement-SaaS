@@ -1,4 +1,5 @@
 import { Schema, model, models } from "mongoose";
+import { TASK_STATUSES } from "@/features/task-management/shared/constants";
 
 const taskAssignmentSchema = new Schema(
   {
@@ -38,7 +39,7 @@ const taskAssignmentSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["TODO", "IN_PROGRESS", "BLOCKED", "IN_REVIEW", "COMPLETED", "CANCELLED"],
+      enum: [...TASK_STATUSES],
       default: "TODO",
       required: true,
       index: true

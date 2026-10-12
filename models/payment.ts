@@ -1,5 +1,6 @@
 import { Schema, model, models } from "mongoose";
 import { planEntitlementSnapshotSchema } from "@/models/plan-entitlement-snapshot";
+import { PLAN_DISCOUNT_TYPES } from "@/lib/plan-rules";
 
 const paymentSchema = new Schema(
   {
@@ -24,7 +25,7 @@ const paymentSchema = new Schema(
     activatedAt: { type: Date, index: true },
     failureReason: { type: String, maxlength: 500 },
     planRevision: { type: Number, min: 1 },
-    discountType: { type: String, enum: ["NONE", "PERCENTAGE", "FIXED_AMOUNT"], default: "NONE" },
+    discountType: { type: String, enum: [...PLAN_DISCOUNT_TYPES], default: "NONE" },
     discountValue: { type: Number, min: 0, default: 0 },
     discountAmount: { type: Number, min: 0, default: 0 },
     checkoutPlanSnapshot: { type: planEntitlementSnapshotSchema },
