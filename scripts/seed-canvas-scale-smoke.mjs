@@ -26,8 +26,6 @@ const companyBatchSize = 200;
 const bulkBatchSize = 1000;
 const ObjectId = mongoose.Types.ObjectId;
 const now = new Date();
-const subscriptionEnd = new Date(now);
-subscriptionEnd.setDate(subscriptionEnd.getDate() + PLANS.elite.validityDays);
 
 const sha256 = (value) => crypto.createHash("sha256").update("canvas-scale-smoke-v1:" + value).digest("hex");
 const objectId = (key) => new ObjectId(sha256(key).slice(0, 24));
@@ -135,9 +133,38 @@ function planRow(identifier, sortOrder) {
   };
 }
 
-function entitlementSnapshot() {
-  // Elite allows a 50-member tenant without making the smoke fixtures exceed the plan limit.
-  return { ...PLANS.elite };
+function entitlementSnapshotFromDocument(doc) {
+  // Use the persisted Elite plan when it is customized; fill legacy gaps from the built-in contract.
+  const fallback = PLANS.elite;
+  const numeric = (key) => Number.isFinite(Number(doc[key])) ? Number(doc[key]) : fallback[key];
+  return {
+    id: doc.identifier || fallback.id,
+    name: doc.name || fallback.name,
+    priceInr: numeric("priceInr"),
+    maxWorkspaces: numeric("maxWorkspaces"),
+    maxCompanies: numeric("maxCompanies"),
+    maxEmployees: numeric("maxEmployees"),
+    monthlyMeetingLimit: numeric("monthlyMeetingLimit"),
+    maxMeetingDurationMinutes: numeric("maxMeetingDurationMinutes"),
+    maxConcurrentMeetings: numeric("maxConcurrentMeetings"),
+    taskManagementEnabled: typeof doc.taskManagementEnabled === "boolean" ? doc.taskManagementEnabled : fallback.taskManagementEnabled,
+    taskManagementDailyLimit: doc.taskManagementDailyLimit === null ? null : numeric("taskManagementDailyLimit"),
+    vaultEnabled: typeof doc.vaultEnabled === "boolean" ? doc.vaultEnabled : fallback.vaultEnabled,
+    vaultQuotaBytes: numeric("vaultQuotaBytes"),
+    vaultMaxFileBytes: numeric("vaultMaxFileBytes"),
+    vaultMaxItems: numeric("vaultMaxItems"),
+    liveChatEnabled: typeof doc.liveChatEnabled === "boolean" ? doc.liveChatEnabled : fallback.liveChatEnabled,
+    liveChatMonthlyLimit: numeric("liveChatMonthlyLimit"),
+    liveChatCustomerLimit: numeric("liveChatCustomerLimit"),
+    liveChatAgentLimit: numeric("liveChatAgentLimit"),
+    liveChatRetentionDays: numeric("liveChatRetentionDays"),
+    liveChatMessageCooldownSeconds: numeric("liveChatMessageCooldownSeconds"),
+    liveChatPdfExportEnabled: typeof doc.liveChatPdfExportEnabled === "boolean" ? doc.liveChatPdfExportEnabled : fallback.liveChatPdfExportEnabled,
+    liveChatDeleteEnabled: typeof doc.liveChatDeleteEnabled === "boolean" ? doc.liveChatDeleteEnabled : fallback.liveChatDeleteEnabled,
+    validityDays: numeric("validityDays"),
+    freeFeatureDays: doc.freeFeatureDays == null ? fallback.freeFeatureDays : Number(doc.freeFeatureDays),
+    requiresPayment: typeof doc.requiresPayment === "boolean" ? doc.requiresPayment : fallback.requiresPayment
+  };
 }
 
 await mongoose.connect(uri, {
@@ -174,6 +201,16 @@ try {
     PLAN_IDS.map((id, index) => planRow(id, index))
   );
 
+  const freePlan = await collection("plans").findOne({ identifier: "free" });
+  if (!freePlan || freePlan.status !== "PUBLIC" || freePlan.requiresPayment || Number(freePlan.priceInr) > 0) {
+    throw new Error("FREE_PLAN_NOT_CONFIGURED: verify the persisted Free plan is PUBLIC, zero-price, and does not require payment.");
+  }
+  const elitePlan = await collection("plans").findOne({ identifier: "elite" });
+  if (!elitePlan) throw new Error("ELITE_PLAN_NOT_CONFIGURED");
+  const snapshot = entitlementSnapshotFromDocument(elitePlan);
+  const subscriptionEnd = new Date(now);
+  subscriptionEnd.setDate(subscriptionEnd.getDate() + snapshot.validityDays);
+
   let companiesProcessed = 0;
   let usersProcessed = 0;
   let membershipsProcessed = 0;
@@ -181,8 +218,6 @@ try {
   let subscriptionsProcessed = 0;
   let meetingTypesProcessed = 0;
   let availabilityRulesProcessed = 0;
-
-  const snapshot = entitlementSnapshot();
 
   for (let offset = 1; offset <= companyCount; offset += companyBatchSize) {
     const end = Math.min(companyCount, offset + companyBatchSize - 1);
