@@ -7,7 +7,7 @@ substitutions:
   _REPOSITORY: canvas
   _IMAGE: canvas-web
   _SERVICE: canvas-web
-  _NEXT_PUBLIC_APP_URL: https://canvas.example.com
+  _NEXT_PUBLIC_APP_URL: https://canvas.algoquit.com
   _NEXT_PUBLIC_APP_NAME: Canvas
   _NEXT_PUBLIC_COMPANY_NAME: AlgoQuit
   _NEXT_PUBLIC_SENTRY_DSN: ""

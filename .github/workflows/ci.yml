@@ -1,4 +1,4 @@
-name: Conventus CI
+name: Canvas CI
 
 on:
   push:

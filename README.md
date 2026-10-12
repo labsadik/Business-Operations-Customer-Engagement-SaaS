@@ -96,7 +96,7 @@ Queue tuning, Redis upgrade when required, database scaling, caching, load testi
 
 ## Billing with Razorpay
 
-Conventus connects the Free, Starter, Elite, Pro, and Plus plan entitlements to Razorpay Checkout. Paid plans add the GST rate configured in MongoDB to the trusted base plan price before the Razorpay order is created. The server creates the Razorpay order from the trusted plan definition, validates the returned signature, confirms the payment is captured, and then activates the paid plan for one month. Razorpay webhook events are also accepted at `/api/webhooks/razorpay` for server-side reconciliation. Razorpay recommends server-side order creation, signature validation, payment-status verification, and HMAC validation for webhooks. citeturn731333search0turn318613search5
+Canvas connects the Free, Starter, Elite, Pro, and Plus plan entitlements to Razorpay Checkout. Paid plans add the GST rate configured in MongoDB to the trusted base plan price before the Razorpay order is created. The server creates the Razorpay order from the trusted plan definition, validates the returned signature, confirms the payment is captured, and then activates the paid plan for one month. Razorpay webhook events are also accepted at `/api/webhooks/razorpay` for server-side reconciliation. Razorpay recommends server-side order creation, signature validation, payment-status verification, and HMAC validation for webhooks. citeturn731333search0turn318613search5
 
 Required environment variables:
 
@@ -108,7 +108,7 @@ RAZORPAY_WEBHOOK_SECRET=
 
 Platform legal/tax details are stored in the MongoDB `PlatformSettings` singleton and managed from `/admin/platform-settings`. New invoices snapshot the legal merchant identity and GST treatment at capture time; completed invoice snapshots are not silently rewritten later.
 
-The runtime environment only contains service/application credentials. The platform legal name, website, billing email, phone, tax ID, GSTIN, SAC code, registered address, and GST treatment are database data. The Conventus brand mark is bundled locally as /favicon.svg and is used by the favicon, landing page, admin console, public scheduling shell, dashboard billing UI, and invoices/PDFs.
+The runtime environment only contains service/application credentials. The platform legal name, website, billing email, phone, tax ID, GSTIN, SAC code, registered address, and GST treatment are database data. The Canvas brand mark is bundled locally as /favicon.svg and is used by the favicon, landing page, admin console, public scheduling shell, dashboard billing UI, and invoices/PDFs.
 
 For local development use Razorpay Test Mode credentials. For a production deployment, configure the Live Mode credentials as server-side environment secrets and configure the Razorpay webhook URL as:
 
@@ -134,18 +134,18 @@ After that, the platform admin can use `/admin/access` to grant or revoke `PLATF
 
 ## Platform-owned billing
 
-Tenant companies are the **customers/billing subjects**. Payments are created with the Conventus Razorpay credentials and merchant identity, so the funds are collected by the Conventus merchant account rather than a tenant's own payment account.
+Tenant companies are the **customers/billing subjects**. Payments for Canvas use AlgoQuit's Razorpay credentials and merchant identity. Funds are collected by the AlgoQuit merchant account, not a tenant's own payment account.
 
 The payment flow is:
-- The signed-in company owner/admin chooses a trusted Conventus plan.
-- The server creates the Razorpay order using the server-side plan price and Conventus merchant metadata.
-- Razorpay Checkout displays **Conventus** as the merchant and the paying company as the prefilled customer.
+- The signed-in company owner/admin chooses a trusted Canvas plan.
+- The server creates the Razorpay order using the server-side plan price and AlgoQuit merchant metadata.
+- Razorpay Checkout displays **AlgoQuit** as the merchant and the paying company as the prefilled customer.
 - Signature, order, amount, currency, and captured status are verified server-side.
 - Webhook reconciliation can safely retry, including successful retries after a failed payment attempt.
 - Payment activation, invoice creation, subscription changes, and workspace plan state are idempotent.
-- The successful result page is `/billing/result` and is company-scoped; it shows Conventus merchant branding plus the paying company's name, short description, and logo.
+- The successful result page is `/billing/result` and is company-scoped; it shows AlgoQuit merchant branding plus the paying company's name, short description, and logo.
 
-For the Razorpay account itself, the legal merchant/business identity, settlement account, checkout branding, and statement descriptor must also be configured in the Conventus-owned Razorpay account. Application code cannot change the Razorpay account holder or settlement account.
+For the Razorpay account itself, the legal merchant/business identity, settlement account, checkout branding, and statement descriptor must also be configured in the Canvas-owned Razorpay account. Application code cannot change the Razorpay account holder or settlement account.
 ## Task management module (feature-gated)
 
 Task Management is a separate feature module within the existing Next.js application. UI pages live under `app/dashboard/tasks` and `components/task-management`; route handlers live under `app/api/tasks`; business logic lives under `features/task-management/server`; MongoDB documents live under `models/task*`.
@@ -180,7 +180,7 @@ The demo environment reference is intentionally documented in `.env.example.md`;
 
 ## Public embedded feedback
 
-Company owners and administrators can open `/dashboard?panel=feedback`, select **Public embed**, and copy a company-specific iframe snippet for another website. Visitors need no Conventus account; the embedded form requires name, email, phone, a 1–5 star rating, and a written review. Public embed API and UI boundaries are documented in [`features/public-feedback/README.md`](./features/public-feedback/README.md). New submissions stay private until a company owner or administrator publishes them. The public widget receives only approved display fields, never the reviewer's email or phone.
+Company owners and administrators can open `/dashboard?panel=feedback`, select **Public embed**, and copy a company-specific iframe snippet for another website. Visitors need no Canvas account; the embedded form requires name, email, phone, a 1–5 star rating, and a written review. Public embed API and UI boundaries are documented in [`features/public-feedback/README.md`](./features/public-feedback/README.md). New submissions stay private until a company owner or administrator publishes them. The public widget receives only approved display fields, never the reviewer's email or phone.
 
 Application action sounds are enabled automatically. Since browsers restrict audio before the first user gesture, the root sound handler attempts to unlock audio on the first normal click, tap, or key press; employees do not need a separate sound setting.
 
@@ -202,7 +202,7 @@ MongoDB remains the source of truth. Redis holds only short-lived coordination k
 
 Current Redis usage:
 
-- `conventus:availability:v1:<companyId>:<date>:<duration>:<buffers>:<capacity>` — serialized availability results with a 75-second Redis TTL. Booking submission rechecks capacity and eligibility, so this cache is advisory only.
+- `canvas:availability:v1:<companyId>:<date>:<duration>:<buffers>:<capacity>` — serialized availability results with a 75-second Redis TTL. Booking submission rechecks capacity and eligibility, so this cache is advisory only.
 - `booking:create:*`, `booking:accept:*`, `booking:respond:*`, `meeting:end:*`, `meeting:finalize:*` and `booking:sweep:*` — short-lived distributed locks that protect state transitions and overlapping maintenance work.
 - `live-chat:create:<companyId>` — a short-lived lock to prevent concurrent creation of duplicate open conversations for the same company.
 
@@ -215,7 +215,7 @@ Task lists, dashboard data, admin reports and live-chat transcripts are not curr
 
 ## Canonical access roles
 
-Conventus has exactly four canonical application roles: `PLATFORM_ADMIN`, `COMPANY_ADMIN`, `EMPLOYEE`, and `CUSTOMER`. Company and workspace APIs enforce authorization server-side and require an explicit role allowlist plus an active membership in the requested company/workspace. `COMPANY_OWNER` is only recognized as a legacy database value so it can be migrated to `COMPANY_ADMIN`; it is not an application permission.
+Canvas has exactly four canonical application roles: `PLATFORM_ADMIN`, `COMPANY_ADMIN`, `EMPLOYEE`, and `CUSTOMER`. Company and workspace APIs enforce authorization server-side and require an explicit role allowlist plus an active membership in the requested company/workspace. `COMPANY_OWNER` is only recognized as a legacy database value so it can be migrated to `COMPANY_ADMIN`; it is not an application permission.
 
 Before deploying this role hardening to an existing database, back up the database and run `npm run roles:migrate` with the intended `MONGODB_URI`. The migration reports any user or membership records with unsupported role values and fails closed if any remain. Do not run it against the wrong database.
 

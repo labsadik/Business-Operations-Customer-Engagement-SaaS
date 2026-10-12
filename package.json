@@ -1,8 +1,8 @@
 {
-  "name": "conventus",
+  "name": "canvas",
   "version": "0.1.0",
   "private": true,
-  "description": "Conventus - real-time customer meeting scheduling for teams.",
+  "description": "Canvas by AlgoQuit — company scheduling and collaboration workspace.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
