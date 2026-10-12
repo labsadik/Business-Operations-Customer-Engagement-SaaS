@@ -4,11 +4,15 @@ import { Company } from "@/models/company";
 import { Workspace } from "@/models/workspace";
 import { Membership } from "@/models/membership";
 import { isUserRole, type UserRole } from "@/types/domain";
+import { assertCompanyPlanNotSuspended } from "@/lib/plans-server";
 
 const COMPANY_MEMBER_ROLE_VALUES = ["COMPANY_ADMIN", "EMPLOYEE"] as const;
 
 /** Enforce tenant membership on the server; admins must be explicitly allowlisted. */
-export async function requireCompanyMember(roles: readonly UserRole[] = COMPANY_MEMBER_ROLE_VALUES) {
+export async function requireCompanyMember(
+  roles: readonly UserRole[] = COMPANY_MEMBER_ROLE_VALUES,
+  options: { allowPlanLocked?: boolean } = {}
+) {
   const session = await getSession();
   if (!session) throw new Error("UNAUTHENTICATED");
   if (!isUserRole(session.role) || !roles.includes(session.role)) throw new Error("FORBIDDEN");
@@ -36,6 +40,7 @@ export async function requireCompanyMember(roles: readonly UserRole[] = COMPANY_
     role: session.role
   }).lean();
   if (!membership) throw new Error("FORBIDDEN");
+  if (!options.allowPlanLocked) await assertCompanyPlanNotSuspended(session.companyId);
   return { session, membership };
 }
 

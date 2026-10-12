@@ -12,7 +12,7 @@ export async function GET() {
       "COMPANY_ADMIN",
       "EMPLOYEE",
       "PLATFORM_ADMIN"
-    ]);
+    ], { allowPlanLocked: true });
     if (!session.companyId) return jsonError("COMPANY_NOT_CONFIGURED", 403);
 
     await getMongo();

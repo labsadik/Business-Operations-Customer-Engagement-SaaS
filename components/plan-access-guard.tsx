@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CalendarClock, ShieldAlert } from "lucide-react";
 
@@ -20,6 +20,8 @@ type PlanAccessGuardProps = {
   initialState: PlanAccessState | null;
   canManageBilling: boolean;
   bypass?: boolean;
+  /** Only the dashboard-layout instance owns the global expiry warning. */
+  globalGate?: boolean;
   children?: ReactNode;
 };
 
@@ -44,11 +46,29 @@ export default function PlanAccessGuard({
   initialState,
   canManageBilling,
   bypass = false,
+  globalGate = false,
   children
 }: PlanAccessGuardProps) {
   const router = useRouter();
   const [state, setState] = useState<PlanAccessState | null>(initialState);
   const [warningDismissed, setWarningDismissed] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [supportSubject, setSupportSubject] = useState(() =>
+    initialState?.reason === "SUSPENDED"
+      ? "Plan suspension review"
+      : initialState?.reason === "INACTIVE"
+        ? "Inactive subscription review"
+        : "Plan expiry and renewal access"
+  );
+  const [supportDescription, setSupportDescription] = useState(() => [
+    `Access issue: ${initialState?.reason ?? "UNKNOWN"}.`,
+    `Plan expiry date: ${formatDate(initialState?.planExpiredAt ?? initialState?.planAccessExpiresAt)}.`,
+    "Please review this company’s access status and explain the next steps.",
+    "Additional details: "
+  ].join("\\n"));
+  const [supportSaving, setSupportSaving] = useState(false);
+  const [supportError, setSupportError] = useState("");
+  const [supportTicketNumber, setSupportTicketNumber] = useState("");
   const [nowMs, setNowMs] = useState<number | null>(null);
   const lockedRef = useRef(Boolean(initialState?.locked));
 
@@ -123,7 +143,33 @@ export default function PlanAccessGuard({
     daysRemaining !== null &&
     daysRemaining >= 0 &&
     daysRemaining <= 7;
-  const showExpiryWarning = !bypass && expiringSoon && !warningDismissed;
+  const showExpiryWarning = globalGate && !bypass && expiringSoon && !warningDismissed;
+
+  async function submitSupportTicket(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (supportSaving) return;
+    setSupportSaving(true);
+    setSupportError("");
+    setSupportTicketNumber("");
+    try {
+      const response = await fetch("/api/company/support-tickets", {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ subject: supportSubject, description: supportDescription })
+      });
+      const envelope = await response.json().catch(() => null) as ApiEnvelope<{ id?: string }> | null;
+      if (!response.ok || !envelope?.ok || !envelope.data?.id) {
+        throw new Error(envelope?.error || "SUPPORT_TICKET_CREATE_FAILED");
+      }
+      setSupportTicketNumber("SUP-" + envelope.data.id.slice(-8).toUpperCase());
+    } catch (error) {
+      setSupportError(error instanceof Error ? error.message : "SUPPORT_TICKET_CREATE_FAILED");
+    } finally {
+      setSupportSaving(false);
+    }
+  }
 
   if (locked) {
     const suspended = state?.reason === "SUSPENDED" || state?.planSuspended;
@@ -165,7 +211,7 @@ export default function PlanAccessGuard({
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             {canManageBilling ? (
               <Link
-                href="/dashboard?panel=billing"
+                href="/billing/renew"
                 className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800"
               >
                 {suspended ? "Review plan options" : "Renew plan"}
@@ -179,15 +225,58 @@ export default function PlanAccessGuard({
                 Ask your company administrator to renew the plan.
               </p>
             )}
-            <Link
-              href="/dashboard"
+            <button
+              type="button"
+              onClick={() => setSupportOpen((open) => !open)}
               className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
             >
-              Overview
-            </Link>
+              {supportOpen ? "Close support form" : "Contact support"}
+            </button>
           </div>
+          {supportOpen && (
+            <form onSubmit={submitSupportTicket} className="mt-5 space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">Report this access problem</h2>
+                <p className="mt-1 text-xs leading-5 text-slate-500">Your request goes to the platform support inbox. Include what happened and what you need help with; support remains available while the dashboard is locked.</p>
+              </div>
+              <label className="block text-xs font-semibold text-slate-700">
+                Issue subject
+                <input
+                  required
+                  maxLength={120}
+                  value={supportSubject}
+                  onChange={(event) => setSupportSubject(event.target.value)}
+                  className="mt-1.5 block min-h-10 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-normal outline-none focus:border-slate-500"
+                />
+              </label>
+              <label className="block text-xs font-semibold text-slate-700">
+                Describe the problem
+                <textarea
+                  required
+                  maxLength={2000}
+                  rows={5}
+                  value={supportDescription}
+                  onChange={(event) => setSupportDescription(event.target.value)}
+                  className="mt-1.5 block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-normal leading-5 outline-none focus:border-slate-500"
+                />
+              </label>
+              {supportError && <p role="alert" className="text-xs font-medium text-rose-700">{supportError}</p>}
+              {supportTicketNumber && (
+                <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs leading-5 text-emerald-900">
+                  Support request {supportTicketNumber} was submitted. The team can review the account status and the details you provided.
+                </p>
+              )}
+              <button
+                type="submit"
+                disabled={supportSaving || !supportSubject.trim() || !supportDescription.trim()}
+                className="inline-flex min-h-10 items-center justify-center rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {supportSaving ? "Sending request…" : "Send request to support"}
+              </button>
+            </form>
+          )}
           <p className="mt-5 text-xs leading-5 text-slate-400">
-            Access status is checked with the server automatically. This screen will update after an administrator restores access or a renewal is confirmed.
+            Access status is checked with the server automatically. This screen updates after a confirmed renewal or administrator action. A successful payment does not override a separate platform suspension.
           </p>
         </section>
       </main>
@@ -220,7 +309,7 @@ export default function PlanAccessGuard({
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               {canManageBilling ? (
                 <Link
-                  href="/dashboard?panel=billing"
+                  href="/billing/renew"
                   className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800"
                 >
                   Review plans and renew

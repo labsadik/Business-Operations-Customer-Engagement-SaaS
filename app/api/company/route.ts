@@ -19,6 +19,7 @@ import { TaskAssignment } from "@/models/task-assignment";
 import { TaskDailyUsage } from "@/models/task-daily-usage";
 import { getTodayIso } from "@/lib/timezone";
 import { getVaultUsageSnapshot } from "@/features/company-vault/server/vault-storage";
+import { assertCompanyPlanNotSuspended } from "@/lib/plans-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -130,6 +131,16 @@ export async function GET() {
   await getMongo();
   const company = await getScopedCompany(session);
   if (!company) return jsonOk(null);
+  if (session.role !== "PLATFORM_ADMIN") {
+    try {
+      await assertCompanyPlanNotSuspended(String(company._id));
+    } catch (error) {
+      if (error instanceof Error && error.message === "PLAN_SUSPENDED") {
+        return jsonError("PLAN_SUSPENDED", 423);
+      }
+      throw error;
+    }
+  }
 
   const subscriptionPromise = import("@/lib/plans-server").then(({ getCompanySubscription }) =>
     getCompanySubscription(String(company._id))

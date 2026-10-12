@@ -84,7 +84,7 @@ export default async function BillingCheckoutPage({
     if (!planId) throw new Error("PLAN_NOT_FOUND");
     plan = await getPlanForCheckout(planId);
   } catch {
-    redirect("/dashboard?panel=billing&billingError=PLAN_NOT_AVAILABLE");
+    redirect("/billing/renew?billingError=PLAN_NOT_AVAILABLE");
   }
 
   const [company, subscription, taxConfig] = await Promise.all([
@@ -140,7 +140,7 @@ export default async function BillingCheckoutPage({
           </Link>
 
           <Link
-            href="/dashboard?panel=billing"
+            href="/billing/renew"
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-950"
           >
             <ArrowLeft className="size-3.5" />
@@ -171,7 +171,7 @@ export default async function BillingCheckoutPage({
               </p>
             </div>
             <Link
-              href="/dashboard/company-profile"
+              href={"/billing/company-profile?plan=" + encodeURIComponent(plan.id)}
               className="inline-flex shrink-0 items-center justify-center rounded-xl bg-amber-950 px-3.5 py-2.5 text-xs font-semibold text-white"
             >
               Complete profile
