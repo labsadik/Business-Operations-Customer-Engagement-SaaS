@@ -949,7 +949,7 @@ test("runtime and scripts use the environment-selected Mongo database and bootst
   assert.ok(mongo.includes('process.env.MONGODB_DB_NAME?.trim() || "Canvas"'));
   assert.ok(envHelper.includes('process.env.MONGODB_DB_NAME?.trim() || "Canvas"'));
   assert.ok(envExample.includes("MONGODB_DB_NAME=canvas_test"));
-  assert.ok(envExample.includes("Production can use MONGODB_DB_NAME=Canvas"));
+  assert.ok(envExample.includes("new deployments default to the Canvas database name"));
   assert.ok(planCatalog.includes("Plan.collection.updateOne("));
   assert.ok(planCatalog.includes("FREE_PLAN_BOOTSTRAP_FAILED"));
   assert.ok(planCatalog.includes('throw new Error("FREE_PLAN_NOT_CONFIGURED")'));
