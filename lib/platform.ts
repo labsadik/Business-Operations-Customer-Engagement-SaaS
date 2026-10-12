@@ -2,9 +2,11 @@ import { getMongo } from "@/lib/mongodb";
 import { PlatformSettings } from "@/models/platform-settings";
 import { getPublicOriginString, getSafeWebsiteUrl } from "@/lib/public-origin";
 
+export const PLATFORM_COMPANY_NAME = process.env.NEXT_PUBLIC_COMPANY_NAME?.trim() || "AlgoQuit";
+
 export const PLATFORM_BRAND = {
-  name: process.env.NEXT_PUBLIC_APP_NAME?.trim() || "Conventus",
-  description: "Company scheduling infrastructure for customer meetings.",
+  name: process.env.NEXT_PUBLIC_APP_NAME?.trim() || "Canvas",
+  description: "Canvas by AlgoQuit brings scheduling, team tasks, private files, and client communication into one workspace.",
   logoPath: "/favicon.svg"
 } as const;
 
@@ -55,7 +57,7 @@ export async function getPlatformSettings() {
     {
       $setOnInsert: {
         key: "default",
-        legalName: PLATFORM_BRAND.name,
+        legalName: PLATFORM_COMPANY_NAME,
         description: PLATFORM_BRAND.description,
         websiteUrl: defaultWebsiteUrl(),
         logoUrl: PLATFORM_BRAND.logoPath
@@ -74,7 +76,7 @@ export async function platformLegalProfile(): Promise<PlatformLegalProfile> {
   const fallbackWebsite = configuredWebsite || defaultWebsiteUrl();
 
   return {
-    legalName: settings.legalName?.trim() || PLATFORM_BRAND.name,
+    legalName: settings.legalName?.trim() || PLATFORM_COMPANY_NAME,
     description: settings.description?.trim() || PLATFORM_BRAND.description,
     websiteUrl: fallbackWebsite,
     email: emailValue(settings.billingEmail?.trim() || ""),

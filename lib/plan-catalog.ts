@@ -61,7 +61,10 @@ const LEGACY_DESCRIPTIONS: Record<string, string> = {
   plus: "The highest standard capacity in the current Conventus catalog."
 };
 
-const seedPromiseState: { promise: Promise<void> | null } = { promise: null };
+const seedPromiseState: { promise: Promise<void> | null; databaseKey: string | null } = {
+  promise: null,
+  databaseKey: null
+};
 
 function identifierFrom(value: unknown) {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
@@ -323,18 +326,34 @@ async function seedLegacyPlans() {
 }
 
 export async function ensurePlanCatalog() {
+  // The app can switch databases through MONGODB_DB_NAME. Do not reuse a
+  // resolved seed promise from a different database in a warm Node process.
+  const databaseKey = [
+    process.env.MONGODB_URI?.trim() ?? "",
+    process.env.MONGODB_DB_NAME?.trim() || "Conventus"
+  ].join("::");
+
+  if (seedPromiseState.databaseKey !== databaseKey) {
+    seedPromiseState.promise = null;
+    seedPromiseState.databaseKey = databaseKey;
+  }
+
   if (!seedPromiseState.promise) {
-    seedPromiseState.promise = (async () => {
+    const seedPromise = (async () => {
       await getMongo();
       await seedLegacyPlans();
 
       // Company/workspace provisioning requires a persisted Free plan.
       const freePlan = await Plan.findOne({ identifier: "free" }).select({ _id: 1 }).lean();
       if (!freePlan) throw new Error("FREE_PLAN_NOT_CONFIGURED");
-    })().catch((error) => {
-      seedPromiseState.promise = null;
+    })();
+    const wrappedPromise = seedPromise.catch((error) => {
+      if (seedPromiseState.databaseKey === databaseKey) {
+        seedPromiseState.promise = null;
+      }
       throw error;
     });
+    seedPromiseState.promise = wrappedPromise;
   }
   await seedPromiseState.promise;
 }

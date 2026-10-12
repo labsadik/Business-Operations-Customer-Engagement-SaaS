@@ -10,8 +10,8 @@ const platformSettingsSchema = new Schema(
       index: true,
       default: "default"
     },
-    legalName: { type: String, required: true, trim: true, maxlength: 200, default: "Conventus" },
-    description: { type: String, trim: true, maxlength: 1200, default: "Company scheduling infrastructure for customer meetings." },
+    legalName: { type: String, required: true, trim: true, maxlength: 200, default: "AlgoQuit" },
+    description: { type: String, trim: true, maxlength: 1200, default: "Canvas by AlgoQuit brings scheduling, team tasks, private files, and client communication into one workspace." },
     websiteUrl: { type: String, trim: true, maxlength: 500, default: "" },
     billingEmail: { type: String, trim: true, lowercase: true, maxlength: 254, default: "" },
     phone: { type: String, trim: true, maxlength: 32, default: "" },

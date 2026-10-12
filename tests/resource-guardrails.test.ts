@@ -833,15 +833,28 @@ test("MongoDB database name is environment-configured and Free plan seeding is v
     "scripts/migrate-roles.mjs",
     "scripts/migrate-membership-profile-fields.mjs",
     "scripts/migrate-task-assignees.mjs",
-    "scripts/migrate-admin-audit-events.mjs"
+    "scripts/migrate-admin-audit-events.mjs",
+    "scripts/seed-canvas-demo.mjs"
   ].map(source);
+  const envHelper = source("scripts/lib/env.mjs");
+  const demoSeed = source("scripts/seed-canvas-demo.mjs");
 
   assert.ok(mongo.includes('process.env.MONGODB_DB_NAME?.trim() || "Conventus"'));
-  assert.ok(envExample.includes("MONGODB_DB_NAME=Conventus"));
-  assert.ok(envDocs.includes("MONGODB_DB_NAME=Conventus"));
-  assert.ok(scripts.every((script) => script.includes("process.env.MONGODB_DB_NAME?.trim()")));
+  assert.ok(envHelper.includes('process.env.MONGODB_DB_NAME?.trim() || "Conventus"'));
+  assert.ok(envExample.includes("MONGODB_DB_NAME=canvas_test"));
+  assert.ok(envDocs.includes("MONGODB_DB_NAME=canvas_test"));
+  assert.ok(envExample.includes("NEXT_PUBLIC_APP_NAME=Canvas"));
+  assert.ok(envExample.includes("NEXT_PUBLIC_COMPANY_NAME=AlgoQuit"));
+  assert.ok(scripts.every((script) => script.includes("mongoDatabaseName()")));
   assert.ok(scripts.every((script) => !script.includes('dbName: "Conventus"')));
+  assert.ok(demoSeed.includes('EXPECTED_TEST_DATABASE = "canvas_test"'));
+  assert.ok(demoSeed.includes("for (let ei = 1; ei <= 49; ei += 1)"));
+  assert.ok(demoSeed.includes("const platformToken"));
+  assert.ok(demoSeed.includes('"vaultfiles"'));
+  assert.ok(demoSeed.includes("Canvas by AlgoQuit"));
+  assert.equal(JSON.parse(source("package.json")).scripts["seed:demo"], "node --experimental-strip-types scripts/seed-canvas-demo.mjs");
 
+  assert.ok(planCatalog.includes("seedPromiseState.databaseKey !== databaseKey"));
   assert.ok(planCatalog.includes("function seedPlanDocument"));
   assert.ok(planCatalog.includes("function isDuplicateKeyError"));
   assert.ok(planCatalog.includes('id === "free" ? "FREE_PLAN_NOT_CONFIGURED"'));

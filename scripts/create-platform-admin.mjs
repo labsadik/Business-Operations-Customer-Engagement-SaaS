@@ -1,38 +1,8 @@
-import fs from "node:fs";
-import path from "node:path";
 import mongoose from "mongoose";
+import { loadLocalEnv, mongoDatabaseName } from "./lib/env.mjs";
 
-function loadEnvFile(filePath) {
-  if (!fs.existsSync(filePath)) return;
-  const source = fs.readFileSync(filePath, "utf8").replace(/^\uFEFF/, "");
-
-  for (const rawLine of source.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith("#")) continue;
-
-    const match = line.match(/^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
-    if (!match) continue;
-
-    const key = match[1];
-    let value = match[2].trim();
-
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-
-    if (process.env[key] === undefined) {
-      process.env[key] = value;
-    }
-  }
-}
-
-// The Next.js runtime loads .env.local automatically. This standalone CLI
-// loads the same local files so npm run admin:create works from PowerShell.
-loadEnvFile(path.resolve(".env.local"));
-loadEnvFile(path.resolve(".env"));
+// Load local environment files for the standalone CLI.
+loadLocalEnv();
 
 const email = process.argv[2]?.trim().toLowerCase();
 const name = process.argv.slice(3).join(" ").trim();
@@ -49,7 +19,7 @@ if (!uri) {
   process.exit(1);
 }
 
-const databaseName = process.env.MONGODB_DB_NAME?.trim() || "Conventus";
+const databaseName = mongoDatabaseName();
 await mongoose.connect(uri, { dbName: databaseName });
 
 const db = mongoose.connection.db;

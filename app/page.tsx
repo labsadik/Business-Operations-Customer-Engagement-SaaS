@@ -134,8 +134,8 @@ const features = [
 
 const faqs = [
   {
-    question: "What is Conventus?",
-    answer: "Conventus brings public client booking, employee routing and acceptance, meeting coordination, team tasks, private company files, billing, and announcements into one company workspace."
+    question: "What is Canvas?",
+    answer: "Canvas by AlgoQuit brings public client booking, employee routing and acceptance, meeting coordination, team tasks, private company files, billing, and announcements into one company workspace."
   },
   {
     question: "Do clients need to sign in?",
@@ -164,7 +164,7 @@ function FeaturePreview({ kind }: { kind: FeatureKind }) {
         <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
             <span className="grid size-7 place-items-center rounded-lg bg-blue-600 text-white"><CalendarDays className="size-3.5" /></span>
-            <div><p className="text-[10px] font-bold text-slate-900">Meridian Health</p><p className="text-[9px] text-slate-500">meridian.conventus.com</p></div>
+            <div><p className="text-[10px] font-bold text-slate-900">Meridian Health</p><p className="text-[9px] text-slate-500">meridian.canvas.test</p></div>
           </div>
           <span className="rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-semibold text-emerald-700">Verified</span>
         </div>
@@ -311,7 +311,7 @@ export default async function Home() {
             <span className="grid size-10 place-items-center overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               <Image src="/favicon.svg" alt="" width={40} height={40} className="size-full object-contain" />
             </span>
-            <span className="text-sm font-bold tracking-tight text-slate-950">Conventus</span>
+            <span className="text-sm font-bold tracking-tight text-slate-950">Canvas by AlgoQuit</span>
           </Link>
 
           <nav aria-label="Main navigation" className="hidden items-center gap-6 text-sm font-medium text-slate-600 lg:flex">
@@ -344,7 +344,7 @@ export default async function Home() {
                   <a href="#features" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Features</a>
                   <a href="#pricing" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Pricing</a>
                   <a href="#faq" className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">FAQ</a>
-                  <Link href="/compare" className="rounded-xl px-3 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50">Compare Conventus</Link>
+                  <Link href="/compare" className="rounded-xl px-3 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50">Compare Canvas</Link>
                   <Link href="/docs" className="rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Documentation</Link>
                   <div className="my-1 border-t border-slate-200" />
                   <Link href="/login" className="rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Sign in</Link>
@@ -371,7 +371,7 @@ export default async function Home() {
               </h1>
 
               <p className="mt-6 max-w-xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
-                Conventus unites customer booking pages, intelligent employee routing, team task delegation, and private cloud file storage into one cohesive company workspace.
+                Canvas unites customer booking pages, intelligent employee routing, team task delegation, and private cloud file storage into one cohesive company workspace.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -415,7 +415,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <section aria-label="Compare Conventus" className="border-b border-slate-200/90 bg-white">
+      <section aria-label="Compare Canvas" className="border-b border-slate-200/90 bg-white">
         <div className="mx-auto max-w-7xl px-5 py-3 sm:px-6 lg:px-8">
           <Link href="/compare" className="group flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200/80 bg-amber-50/70 px-4 py-3 transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md sm:px-5">
             <span className="flex items-center gap-2 text-sm font-semibold text-slate-800"><span className="grid size-8 shrink-0 place-items-center rounded-xl bg-white text-blue-700"><Layers3 className="size-4" /></span>Consolidate 3 tools in 1 <span className="hidden font-normal text-slate-600 sm:inline">— See how we compare</span></span>
@@ -459,7 +459,7 @@ export default async function Home() {
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Built for enterprise operations</p>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">One workspace. Six connected capabilities.</h2>
             </div>
-            <p className="max-w-xl text-sm leading-6 text-slate-600">Explore realistic previews of the booking, routing, collaboration, file, finance, and announcement workflows built into Conventus.</p>
+            <p className="max-w-xl text-sm leading-6 text-slate-600">Explore realistic previews of the booking, routing, collaboration, file, finance, and announcement workflows built into Canvas.</p>
           </div>
 
           <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -512,7 +512,7 @@ export default async function Home() {
           <div className="max-w-2xl">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Pricing</p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Choose capacity, not complexity.</h2>
-            <p className="mt-4 text-base leading-7 text-slate-600">Compare plans using the current Conventus configuration. Prices are shown in INR, with validity and usage limits taken from the live public plan catalog.</p>
+            <p className="mt-4 text-base leading-7 text-slate-600">Compare plans using the current Canvas configuration. Prices are shown in INR, with validity and usage limits taken from the live public plan catalog.</p>
           </div>
 
           <LandingPricingCarousel plans={plans} />
@@ -550,7 +550,7 @@ export default async function Home() {
           <div className="overflow-hidden rounded-3xl border border-blue-200/80 bg-white p-6 shadow-[0_20px_60px_rgba(37,99,235,0.08)] sm:p-9 lg:p-12">
             <div className="flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between">
               <div className="max-w-2xl">
-                <p className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-blue-700"><CalendarCheck2 className="size-3.5" /> Start with Conventus</p>
+                <p className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-blue-700"><CalendarCheck2 className="size-3.5" /> Start with Canvas</p>
                 <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Give every client request a clear next step.</h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">Bring bookings, accepted meetings, team tasks, private files, and operational updates into one cohesive company workspace.</p>
               </div>
@@ -568,13 +568,13 @@ export default async function Home() {
           <div>
             <div className="flex items-center gap-3 font-semibold text-slate-950">
               <span className="grid size-9 place-items-center overflow-hidden rounded-xl border border-slate-200 bg-white"><Image src="/favicon.svg" alt="" width={36} height={36} className="size-full object-contain" /></span>
-              <span>Conventus</span>
+              <span>Canvas by AlgoQuit</span>
             </div>
             <p className="mt-4 max-w-sm text-xs leading-5 text-slate-500">Client booking, team routing, task delegation, private files, and enterprise operations in one company workspace.</p>
           </div>
 
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
-            <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Product</p><div className="mt-3 grid gap-2.5"><a href="#how-it-works" className="rounded-lg py-1 hover:text-blue-700">How it works</a><a href="#features" className="rounded-lg py-1 hover:text-blue-700">Features</a><a href="#pricing" className="rounded-lg py-1 hover:text-blue-700">Pricing</a><a href="#faq" className="rounded-lg py-1 hover:text-blue-700">FAQ</a><Link href="/compare" className="rounded-lg py-1 hover:text-blue-700">Conventus vs Cal.com &amp; Jira</Link></div></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Product</p><div className="mt-3 grid gap-2.5"><a href="#how-it-works" className="rounded-lg py-1 hover:text-blue-700">How it works</a><a href="#features" className="rounded-lg py-1 hover:text-blue-700">Features</a><a href="#pricing" className="rounded-lg py-1 hover:text-blue-700">Pricing</a><a href="#faq" className="rounded-lg py-1 hover:text-blue-700">FAQ</a><Link href="/compare" className="rounded-lg py-1 hover:text-blue-700">Canvas vs Cal.com &amp; Jira</Link></div></div>
             <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Workspace</p><div className="mt-3 grid gap-2.5"><Link href="/dashboard" className="rounded-lg py-1 hover:text-blue-700">Open dashboard</Link><Link href="/dashboard/tasks" className="rounded-lg py-1 hover:text-blue-700">Team tasks</Link><Link href="/dashboard/vault" className="rounded-lg py-1 hover:text-blue-700">Company vault</Link></div></div>
             <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Account & legal</p><div className="mt-3 grid gap-2.5"><Link href="/login" className="rounded-lg py-1 hover:text-blue-700">Sign in</Link><Link href="/terms" className="rounded-lg py-1 hover:text-blue-700">Terms</Link><Link href="/privacy" className="rounded-lg py-1 hover:text-blue-700">Privacy</Link></div></div>
             <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Resources</p><div className="mt-3 grid gap-2.5"><Link href="/docs" className="rounded-lg py-1 hover:text-blue-700">Documentation</Link><Link href="/docs#scheduling" className="rounded-lg py-1 hover:text-blue-700">Client scheduling</Link><Link href="/docs#tasks" className="rounded-lg py-1 hover:text-blue-700">Task management</Link><Link href="/docs#vault" className="rounded-lg py-1 hover:text-blue-700">Company Vault</Link><Link href="/docs#live-chat" className="rounded-lg py-1 hover:text-blue-700">Live Chat</Link></div></div>

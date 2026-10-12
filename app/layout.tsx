@@ -12,12 +12,12 @@ const publicOrigin = getConfiguredPublicOrigin() ?? undefined;
 
 export const metadata: Metadata = {
   title: {
-    default: "Conventus — Connect. Schedule. Meet.",
-    template: "%s — Conventus"
+    default: "Canvas by AlgoQuit — Connect. Schedule. Meet.",
+    template: "%s — Canvas by AlgoQuit"
   },
   description:
-    "Conventus helps companies let customers request meetings and automatically route them to available employees.",
-  applicationName: "Conventus",
+    "Canvas by AlgoQuit helps teams coordinate customer meetings, employees, tasks, private files, billing, and client communication.",
+  applicationName: "Canvas",
   keywords: ["meeting scheduling", "Google Meet", "Google Calendar", "customer booking", "team scheduling"],
   ...(publicOrigin ? { metadataBase: publicOrigin } : {}),
   robots: { index: true, follow: true },
