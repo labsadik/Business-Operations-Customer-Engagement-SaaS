@@ -5,6 +5,7 @@ import { User } from "@/models/user";
 import { AvailabilityRule } from "@/models/availability-rule";
 import { assertSameOrigin } from "@/lib/security";
 import { jsonError, jsonOk } from "@/lib/http";
+import { isCompanyPlanSuspended } from "@/lib/plans-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,6 +40,7 @@ export async function GET() {
   }
 
   if (!session.companyId) return jsonError("COMPANY_NOT_CONFIGURED", 400);
+  if (await isCompanyPlanSuspended(session.companyId)) return jsonError("PLAN_SUSPENDED", 423);
   const [membership, workAvailability] = await Promise.all([
     Membership.findOne({
       companyId: session.companyId,
@@ -126,6 +128,7 @@ export async function PATCH(request: Request) {
     }
 
     if (!session.companyId || !session.workspaceId) return jsonError("COMPANY_NOT_CONFIGURED", 400);
+    if (await isCompanyPlanSuspended(session.companyId)) return jsonError("PLAN_SUSPENDED", 423);
     const membership = await Membership.findOneAndUpdate(
       {
         companyId: session.companyId,
@@ -146,6 +149,6 @@ export async function PATCH(request: Request) {
     });
   } catch (error) {
     const code = error instanceof Error ? error.message : "PROFILE_UPDATE_FAILED";
-    return jsonError(code, code === "CSRF_ORIGIN_INVALID" ? 403 : 400);
+    return jsonError(code, code === "CSRF_ORIGIN_INVALID" ? 403 : code === "PLAN_SUSPENDED" ? 423 : 400);
   }
 }

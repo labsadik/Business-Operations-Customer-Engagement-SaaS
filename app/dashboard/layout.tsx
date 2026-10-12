@@ -21,7 +21,7 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
 
   // Unscoped company administrators need to finish initial company setup.
   if (session.role === "COMPANY_ADMIN" && !session.companyId) return children;
-  if (!["COMPANY_ADMIN", "EMPLOYEE"].includes(session.role)) {
+  if (session.role !== "EMPLOYEE" && session.role !== "COMPANY_ADMIN") {
     redirect("/?error=workspace_access_required");
   }
   if (!session.companyId || !session.workspaceId) {

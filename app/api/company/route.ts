@@ -19,7 +19,7 @@ import { TaskAssignment } from "@/models/task-assignment";
 import { TaskDailyUsage } from "@/models/task-daily-usage";
 import { getTodayIso } from "@/lib/timezone";
 import { getVaultUsageSnapshot } from "@/features/company-vault/server/vault-storage";
-import { assertCompanyPlanNotSuspended } from "@/lib/plans-server";
+import { assertCompanyPlanNotSuspended, isCompanyPlanSuspended } from "@/lib/plans-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -505,6 +505,9 @@ export async function PATCH(request: Request) {
     role: { $in: ["COMPANY_ADMIN"] }
   }).lean();
   if (!membership && session.role !== "PLATFORM_ADMIN") return jsonError("FORBIDDEN", 403);
+  if (session.role !== "PLATFORM_ADMIN" && await isCompanyPlanSuspended(session.companyId)) {
+    return jsonError("PLAN_SUSPENDED", 423);
+  }
 
   const body = await request.json().catch(() => null) as {
     publicBookingEnabled?: boolean;

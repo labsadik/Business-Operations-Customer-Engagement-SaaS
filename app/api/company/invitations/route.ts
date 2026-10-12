@@ -3,6 +3,7 @@ import { getSession } from "@/lib/session";
 import { Membership } from "@/models/membership";
 import { Invitation } from "@/models/invitation";
 import { jsonError, jsonOk } from "@/lib/http";
+import { isCompanyPlanSuspended } from "@/lib/plans-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,6 +26,7 @@ async function requireManager() {
   }).lean();
 
   if (!membership) throw new Error("FORBIDDEN");
+  if (await isCompanyPlanSuspended(session.companyId)) throw new Error("PLAN_SUSPENDED");
   return session;
 }
 
@@ -51,7 +53,7 @@ export async function GET() {
     })));
   } catch (error) {
     const code = error instanceof Error ? error.message : "INVITATION_LIST_FAILED";
-    const status = code === "UNAUTHENTICATED" ? 401 : code === "FORBIDDEN" ? 403 : 500;
+    const status = code === "UNAUTHENTICATED" ? 401 : code === "FORBIDDEN" ? 403 : code === "PLAN_SUSPENDED" ? 423 : 500;
     return jsonError(code, status);
   }
 }

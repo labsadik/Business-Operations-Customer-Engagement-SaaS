@@ -3,6 +3,7 @@ import { PlatformAnnouncement } from "@/models/platform-announcement";
 import { getSession } from "@/lib/session";
 import { jsonError, jsonOk } from "@/lib/http";
 import { companyPlatformAnnouncementFilter } from "@/lib/platform-announcement-query";
+import { isCompanyPlanSuspended } from "@/lib/plans-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +17,9 @@ export async function GET() {
     }
     if (!["COMPANY_ADMIN", "EMPLOYEE", "PLATFORM_ADMIN"].includes(session.role)) {
       return jsonError("FORBIDDEN", 403);
+    }
+    if (session.role !== "PLATFORM_ADMIN" && await isCompanyPlanSuspended(session.companyId)) {
+      return jsonError("PLAN_SUSPENDED", 423);
     }
 
     const announcements = await PlatformAnnouncement.find(
@@ -36,6 +40,6 @@ export async function GET() {
     })));
   } catch (error) {
     const code = error instanceof Error ? error.message : "PLATFORM_ANNOUNCEMENT_READ_FAILED";
-    return jsonError(code, code === "UNAUTHENTICATED" ? 401 : code === "FORBIDDEN" ? 403 : 500);
+    return jsonError(code, code === "UNAUTHENTICATED" ? 401 : code === "FORBIDDEN" ? 403 : code === "PLAN_SUSPENDED" ? 423 : 500);
   }
 }

@@ -8,6 +8,7 @@ import { getSession } from "@/lib/session";
 import { withRedisLock } from "@/lib/redis-lock";
 import { assertSameOrigin } from "@/lib/security";
 import { jsonError, jsonOk } from "@/lib/http";
+import { isCompanyPlanSuspended } from "@/lib/plans-server";
 import {
   canSeeCompanyPlatformFeedback,
   isValidFeedbackStatusTransition,
@@ -47,6 +48,7 @@ async function requireCompanyFeedbackViewer() {
   }).select("_id companyId workspaceId").lean();
 
   if (!membership) throw new Error("FORBIDDEN");
+  if (await isCompanyPlanSuspended(session.companyId)) throw new Error("PLAN_SUSPENDED");
   return session;
 }
 
@@ -77,6 +79,7 @@ async function requireCompanyFeedbackMember() {
   }).select("_id").lean();
 
   if (!workspace) throw new Error("FORBIDDEN");
+  if (await isCompanyPlanSuspended(session.companyId)) throw new Error("PLAN_SUSPENDED");
 
   return {
     session,
@@ -149,7 +152,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     const code = error instanceof Error ? error.message : "FEEDBACK_LIST_FAILED";
-    return jsonError(code, code === "UNAUTHENTICATED" ? 401 : code === "FORBIDDEN" ? 403 : 500);
+    return jsonError(code, code === "UNAUTHENTICATED" ? 401 : code === "FORBIDDEN" ? 403 : code === "PLAN_SUSPENDED" ? 423 : 500);
   }
 }
 
@@ -198,6 +201,7 @@ export async function POST(request: Request) {
       code === "CSRF_ORIGIN_INVALID" ? 403 :
       code === "UNAUTHENTICATED" ? 401 :
       code === "FORBIDDEN" ? 403 :
+      code === "PLAN_SUSPENDED" ? 423 :
       code === "FEEDBACK_COOLDOWN_ACTIVE" ? 429 :
       code.includes("INVALID") || code.includes("TOO_LONG") ? 400 : 500;
 
@@ -228,7 +232,7 @@ export async function PATCH(request: Request) {
     return jsonOk({ id: String(item._id), reviewStatus: item.reviewStatus });
   } catch (error) {
     const code = error instanceof Error ? error.message : "FEEDBACK_STATUS_UPDATE_FAILED";
-    const status = code === "CSRF_ORIGIN_INVALID" ? 403 : code === "UNAUTHENTICATED" ? 401 : code === "FORBIDDEN" ? 403 : code === "FEEDBACK_NOT_FOUND" ? 404 : 400;
+    const status = code === "CSRF_ORIGIN_INVALID" ? 403 : code === "UNAUTHENTICATED" ? 401 : code === "FORBIDDEN" ? 403 : code === "PLAN_SUSPENDED" ? 423 : code === "FEEDBACK_NOT_FOUND" ? 404 : 400;
     return jsonError(code, status);
   }
 }

@@ -28,6 +28,7 @@ async function requireManager() {
   }).lean();
 
   if (!membership) throw new Error("FORBIDDEN");
+  if (await isCompanyPlanSuspended(session.companyId)) throw new Error("PLAN_SUSPENDED");
   return session;
 }
 
@@ -59,7 +60,7 @@ export async function GET() {
     return jsonOk(announcements.map(serialize));
   } catch (error) {
     const code = error instanceof Error ? error.message : "ANNOUNCEMENT_FAILED";
-    const status = code === "UNAUTHENTICATED" ? 401 : code === "FORBIDDEN" ? 403 : 500;
+    const status = code === "UNAUTHENTICATED" ? 401 : code === "FORBIDDEN" ? 403 : code === "PLAN_SUSPENDED" ? 423 : 500;
     return jsonError(code, status);
   }
 }
@@ -109,7 +110,7 @@ export async function POST(request: Request) {
     }
   } catch (error) {
     const code = error instanceof Error ? error.message : "ANNOUNCEMENT_CREATE_FAILED";
-    const status = code === "UNAUTHENTICATED" ? 401 : code === "FORBIDDEN" ? 403 : 500;
+    const status = code === "UNAUTHENTICATED" ? 401 : code === "FORBIDDEN" ? 403 : code === "PLAN_SUSPENDED" ? 423 : 500;
     return jsonError(code, status);
   }
 }
@@ -166,7 +167,7 @@ export async function PATCH(request: Request) {
     return jsonOk(serialize(announcement));
   } catch (error) {
     const code = error instanceof Error ? error.message : "ANNOUNCEMENT_UPDATE_FAILED";
-    const status = code === "UNAUTHENTICATED" ? 401 : code === "FORBIDDEN" ? 403 : 500;
+    const status = code === "UNAUTHENTICATED" ? 401 : code === "FORBIDDEN" ? 403 : code === "PLAN_SUSPENDED" ? 423 : 500;
     return jsonError(code, status);
   }
 }
@@ -190,7 +191,7 @@ export async function DELETE(request: Request) {
     return jsonOk({ id, deleted: true });
   } catch (error) {
     const code = error instanceof Error ? error.message : "ANNOUNCEMENT_DELETE_FAILED";
-    const status = code === "UNAUTHENTICATED" ? 401 : code === "FORBIDDEN" ? 403 : 500;
+    const status = code === "UNAUTHENTICATED" ? 401 : code === "FORBIDDEN" ? 403 : code === "PLAN_SUSPENDED" ? 423 : 500;
     return jsonError(code, status);
   }
 }
