@@ -7,7 +7,7 @@ import { AlertTriangle, CalendarClock, ShieldAlert } from "lucide-react";
 
 type PlanAccessState = {
   locked: boolean;
-  reason: "ACTIVE" | "SUSPENDED" | "EXPIRED";
+  reason: "ACTIVE" | "SUSPENDED" | "EXPIRED" | "INACTIVE";
   planSuspended: boolean;
   planExpired: boolean;
   planExpiryTestActive: boolean;
@@ -142,11 +142,15 @@ export default function PlanAccessGuard({
             Company plan access
           </p>
           <h1 id="plan-access-title" className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
-            {suspended ? "Plan access is suspended" : "Your plan has expired"}
+            {suspended ? "Plan access is suspended" : state?.reason === "INACTIVE" ? "Your plan is not active" : "Your plan has expired"}
           </h1>
           {suspended ? (
             <p className="mt-3 text-sm leading-6 text-slate-600">
               A platform administrator has suspended this company’s plan. Task Management, Cloud Vault, Live Chat, and other protected features remain locked until the administrator restores access. Paying for a renewal does not override a separate administrative suspension.
+            </p>
+          ) : state?.reason === "INACTIVE" ? (
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              This subscription is not currently active, even though its recorded service date may be in the future. Protected features stay locked until the subscription is active again. The company administrator should review renewal options or ask the platform administrator to check the subscription status.
             </p>
           ) : (
             <p className="mt-3 text-sm leading-6 text-slate-600">

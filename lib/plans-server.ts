@@ -268,7 +268,7 @@ export async function getCompanyEntitlements(companyId: string): Promise<PlanEnt
 
 export type CompanyPlanAccessState = {
   locked: boolean;
-  reason: "ACTIVE" | "SUSPENDED" | "EXPIRED";
+  reason: "ACTIVE" | "SUSPENDED" | "EXPIRED" | "INACTIVE";
   planSuspended: boolean;
   planExpired: boolean;
   planExpiryTestActive: boolean;
@@ -301,7 +301,7 @@ export async function isCompanyPlanSuspended(companyId: string) {
     const periodEnd = subscription.currentPeriodEnd;
     const periodEndMs = periodEnd?.getTime?.() ?? 0;
 
-    if (periodEndMs > now) {
+    if (periodEndMs > now && subscription.status === "ACTIVE") {
       const needsRepair = company.planExpired ||
         !storedAccessExpiry ||
         storedAccessExpiry.getTime() !== periodEndMs;
@@ -329,6 +329,12 @@ export async function isCompanyPlanSuspended(companyId: string) {
         if (repaired.matchedCount === 0) return true;
       }
       return false;
+    }
+
+    if (periodEndMs > now && subscription.status !== "ACTIVE") {
+      // A future date alone cannot unlock a past-due or cancelled subscription.
+      // Keep this distinct from natural expiry so the UI can offer clear renewal guidance.
+      return true;
     }
 
     await Company.updateOne(
@@ -411,19 +417,42 @@ export async function isCompanyPlanSuspended(companyId: string) {
 
 export async function getCompanyPlanAccessState(companyId: string): Promise<CompanyPlanAccessState | null> {
   const locked = await isCompanyPlanSuspended(companyId);
-  const company = await Company.findById(companyId)
-    .select("planSuspended planExpired planExpiryTestActive planAccessExpiresAt planSuspendedAt planExpiredAt")
-    .lean();
+  const [company, subscription] = await Promise.all([
+    Company.findById(companyId)
+      .select("planSuspended planExpired planExpiryTestActive planAccessExpiresAt planSuspendedAt planExpiredAt")
+      .lean(),
+    Subscription.findOne({ companyId }).select("status source currentPeriodEnd").lean()
+  ]);
 
   if (!company) return null;
 
+  const now = Date.now();
   const planSuspended = Boolean(company.planSuspended);
+  const planAccessExpiresAt = company.planAccessExpiresAt ?? null;
+  const paidSubscription = Boolean(
+    subscription && ["PAID", "ADMIN_GRANTED"].includes(subscription.source)
+  );
+  const naturallyExpired = Boolean(
+    company.planExpired ||
+    company.planExpiryTestActive ||
+    (planAccessExpiresAt && planAccessExpiresAt.getTime() <= now) ||
+    (paidSubscription && subscription && subscription.currentPeriodEnd.getTime() <= now)
+  );
+  const inactiveSubscription = Boolean(
+    paidSubscription &&
+    subscription &&
+    subscription.status !== "ACTIVE" &&
+    subscription.currentPeriodEnd.getTime() > now
+  );
   const reason: CompanyPlanAccessState["reason"] = planSuspended
     ? "SUSPENDED"
-    : locked
-      ? "EXPIRED"
-      : "ACTIVE";
-  const planAccessExpiresAt = company.planAccessExpiresAt ?? null;
+    : !locked
+      ? "ACTIVE"
+      : naturallyExpired
+        ? "EXPIRED"
+        : inactiveSubscription
+          ? "INACTIVE"
+          : "EXPIRED";
 
   return {
     locked,

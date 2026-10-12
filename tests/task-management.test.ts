@@ -174,8 +174,9 @@ test("task management provides enterprise filters, list/board views, pagination 
   assert.ok(authorization.includes("assertAssignableEmployees"));
   assert.ok(planAccess.includes("if (company.planSuspended || company.planExpiryTestActive) return true;"));
   assert.ok(planAccess.includes('["PAID", "ADMIN_GRANTED"].includes(subscription.source)'));
+  assert.ok(planAccess.includes('periodEndMs > now && subscription.status === "ACTIVE"'));
+  assert.ok(planAccess.includes('subscription.status !== "ACTIVE"'));
   assert.ok(planAccess.includes("const periodEndMs = periodEnd?.getTime?.() ?? 0;"));
-  assert.ok(planAccess.includes("periodEndMs > now"));
   assert.ok(dashboard.includes("PLAN_SUSPENDED: \"Task updates are locked because this company's plan is suspended or expired."));
 });
 
@@ -336,6 +337,7 @@ test("plan suspension and expiry use one server access gate across feature entry
   assert.match(guard, /Plan renewal reminder/);
   assert.match(guard, /Plan access is suspended/);
   assert.match(guard, /Your plan has expired/);
+  assert.match(guard, /Your plan is not active/);
   assert.match(guard, /router\.refresh\(\)/);
   assert.match(taskPage, /PlanAccessGuard/);
   assert.match(vaultPage, /PlanAccessGuard/);
