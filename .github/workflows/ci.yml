@@ -7,7 +7,7 @@ on:
     branches: ["main"]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify:
@@ -25,22 +25,6 @@ jobs:
 
       - name: Install
         run: npm install
-
-      - name: Commit Sentry dependency lockfile
-        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'fix/sentry-env-observability' }}
-        run: |
-          if ! git diff --quiet -- package-lock.json; then
-            cp package-lock.json "$RUNNER_TEMP/package-lock.json"
-            git fetch origin "refs/heads/${GITHUB_HEAD_REF}"
-            git checkout -B "${GITHUB_HEAD_REF}" FETCH_HEAD
-            cp "$RUNNER_TEMP/package-lock.json" package-lock.json
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add package-lock.json
-            git commit -m "chore: update npm lockfile for Sentry"
-            git push origin "HEAD:refs/heads/${GITHUB_HEAD_REF}"
-          fi
-
 
       - name: Unit tests
         run: npm test
