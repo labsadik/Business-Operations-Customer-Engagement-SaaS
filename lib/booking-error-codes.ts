@@ -16,6 +16,7 @@ const FRIENDLY_MESSAGES: Record<string, string> = {
   WORKSPACE_NOT_FOUND: "The workspace scheduling configuration is no longer available.",
   MEETING_TYPE_NOT_FOUND: "The meeting type is no longer available.",
   RESOURCE_BUSY: "Another response is being processed. The request will refresh automatically.",
+  REDIS_UNAVAILABLE: "A coordination service is temporarily unavailable. Please retry shortly.",
   GOOGLE_NOT_CONNECTED: "Google Calendar is not connected for this team member.",
   GOOGLE_TOKEN_REFRESH_FAILED: "Google Calendar needs to be reconnected before this meeting can be created.",
   GOOGLE_SCHEDULING_CONNECTION_REQUIRED: "Google Calendar scheduling access is required for this meeting.",
