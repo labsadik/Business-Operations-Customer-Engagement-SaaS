@@ -196,6 +196,21 @@ Availability results are advisory and cached briefly to reduce repeated Google C
 
 
 
+## Redis production behavior
+
+MongoDB remains the source of truth. Redis holds only short-lived coordination keys and an advisory availability cache; it is not the durable store for company/member records, bookings, meeting records, chat messages, tasks, notifications, payments, or audit logs.
+
+Current Redis usage:
+
+- `conventus:availability:v1:<companyId>:<date>:<duration>:<buffers>:<capacity>` — serialized availability results with a 75-second Redis TTL. Booking submission rechecks capacity and eligibility, so this cache is advisory only.
+- `booking:create:*`, `booking:accept:*`, `booking:respond:*`, `meeting:end:*`, `meeting:finalize:*` and `booking:sweep:*` — short-lived distributed locks that protect state transitions and overlapping maintenance work.
+- `live-chat:create:<companyId>` — a short-lived lock to prevent concurrent creation of duplicate open conversations for the same company.
+
+Production must configure `REDIS_URL` (or `UPSTASH_REDIS_REST_URL`) and the server-only REST token (`REDIS_TOKEN` or `UPSTASH_REDIS_REST_TOKEN`). The health endpoint pings Redis. Lock-protected operations fail with HTTP 503 in production when Redis is unconfigured or unavailable; development can still run without Redis. Availability caching remains best-effort and falls back to calculating availability without Redis.
+
+Task lists, dashboard data, admin reports and live-chat transcripts are not currently cached in Redis. Do not cache these indiscriminately: tenant scope, permission/entitlement changes, and freshness requirements must be addressed before adding each cache.
+
+
 ## Canonical access roles
 
 Conventus has exactly four canonical application roles: `PLATFORM_ADMIN`, `COMPANY_ADMIN`, `EMPLOYEE`, and `CUSTOMER`. Company and workspace APIs enforce authorization server-side and require an explicit role allowlist plus an active membership in the requested company/workspace. `COMPANY_OWNER` is only recognized as a legacy database value so it can be migrated to `COMPANY_ADMIN`; it is not an application permission.
