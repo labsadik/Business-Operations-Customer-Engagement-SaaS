@@ -210,7 +210,7 @@ test("members can save their own work availability and only active members can b
 
   assert.ok(profileRoute.includes('body.employmentStatus !== undefined'));
   assert.ok(profileRoute.includes("isEmploymentStatus"));
-  assert.ok(source("lib/user-profile.ts").includes('["ACTIVE", "ON_LEAVE", "INACTIVE"]'));
+  assert.ok(source("types/domain.ts").includes('["ACTIVE", "ON_LEAVE", "INACTIVE"]'));
   assert.ok(profileRoute.includes("Membership.findOneAndUpdate"));
   assert.ok(profile.includes("Work availability"));
   assert.ok(profile.includes('profileRole !== "PLATFORM_ADMIN"'));
