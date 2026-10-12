@@ -606,6 +606,9 @@ test("company plan suspension is admin-controlled, server-enforced, and restored
   const vault = source("features/company-vault/server/vault-storage.ts");
   const booking = source("app/api/public/[companySlug]/bookings/route.ts");
   const liveChat = source("lib/live-chat.ts");
+  const publicChatConfig = source("app/api/public/live-chat/[companySlug]/route.ts");
+  const publicChatConversations = source("app/api/public/live-chat/[companySlug]/conversations/route.ts");
+  const publicChatMessages = source("app/api/public/live-chat/[companySlug]/conversations/[conversationId]/messages/route.ts");
 
   assert.ok(company.includes('planSuspended: { type: Boolean, default: false, index: true }'));
   assert.ok(company.includes('planAccessExpiresAt: { type: Date }'));
@@ -631,6 +634,9 @@ test("company plan suspension is admin-controlled, server-enforced, and restored
   assert.ok(vault.includes("allowSuspendedRead"));
   assert.ok(booking.includes('code === "PLAN_SUSPENDED" ? 423'));
   assert.ok(liveChat.includes("PLAN_SUSPENDED"));
+  assert.ok(publicChatConfig.includes("assertCompanyPlanNotSuspended(String(context.company._id))"));
+  assert.ok(publicChatConversations.includes("assertCompanyPlanNotSuspended(String(context.company._id))"));
+  assert.ok(publicChatMessages.includes("assertCompanyPlanNotSuspended(claims.companyId)"));
   assert.ok(billing.includes("// A successful payment restores expired access but never overrides a"));
   assert.ok(billing.includes("planAccessExpiresAt: periodEnd"));
   assert.ok(billing.includes("planExpiryTestActive: false"));

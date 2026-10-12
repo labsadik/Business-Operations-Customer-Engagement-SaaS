@@ -10,6 +10,7 @@ import { LiveChatConversation } from "@/models/live-chat-conversation";
 import { LiveChatMonthlyCustomer } from "@/models/live-chat-monthly-customer";
 import { LiveChatMonthlyUsage } from "@/models/live-chat-monthly-usage";
 import { validateContact } from "@/features/live-chat/shared/validation";
+import { assertCompanyPlanNotSuspended } from "@/lib/plans-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -92,6 +93,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ com
     const siteOrigin = typeof body.siteOrigin === "string" ? body.siteOrigin : "";
     const claims = verifyPublicWidgetToken(request.headers.get("x-conventus-live-chat-token"), companySlug, siteOrigin, Date.now(), visitorId);
     const context = await getPublicLiveChatContext(companySlug, siteOrigin, visitorId);
+    await assertCompanyPlanNotSuspended(String(context.company._id));
     if (claims.companyId !== String(context.company._id) || claims.workspaceId !== String(context.workspace._id)) return jsonError("LIVE_CHAT_TOKEN_INVALID", 401);
     const contact = validateContact(body.contact, context.settings);
     const telemetry = visitorTelemetry(request, body, siteOrigin, visitorId);

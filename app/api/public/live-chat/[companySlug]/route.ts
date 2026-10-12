@@ -1,5 +1,6 @@
 import { jsonError, jsonOk } from "@/lib/http";
 import { assertWidgetApiOrigin, getPublicLiveChatContext, liveChatError } from "@/lib/live-chat";
+import { assertCompanyPlanNotSuspended } from "@/lib/plans-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,6 +14,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ comp
     const visitorId = url.searchParams.get("visitorId") ?? "";
     if (!/^[a-zA-Z0-9_-]{16,100}$/.test(visitorId)) return jsonError("LIVE_CHAT_VISITOR_INVALID", 400);
     const context = await getPublicLiveChatContext(companySlug, siteOrigin, visitorId);
+    await assertCompanyPlanNotSuspended(String(context.company._id));
     const response = jsonOk({
       company: { name: context.company.name, slug: context.company.slug },
       accessToken: context.accessToken,

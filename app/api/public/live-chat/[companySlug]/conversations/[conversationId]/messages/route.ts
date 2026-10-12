@@ -19,6 +19,7 @@ async function publicConversation(request: Request, companySlug: string, convers
   const siteOrigin = url.searchParams.get("site") ?? "";
   if (!/^[a-zA-Z0-9_-]{16,100}$/.test(visitorId)) throw new Error("LIVE_CHAT_VISITOR_INVALID");
   const claims = verifyPublicWidgetToken(request.headers.get("x-conventus-live-chat-token"), companySlug, siteOrigin, Date.now(), visitorId);
+  await assertCompanyPlanNotSuspended(claims.companyId);
   await getMongo();
   const companyId = new Types.ObjectId(claims.companyId);
   const workspaceId = new Types.ObjectId(claims.workspaceId);
@@ -76,7 +77,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ com
     const body = await readLiveChatJson(request);
     const message = validateChatMessage(body.body);
     const scope = await publicConversation(request, companySlug, conversationId);
-    await assertCompanyPlanNotSuspended(scope.claims.companyId);
     const now = new Date();
     const { getCompanyEntitlements } = await import("@/lib/plans-server");
     const entitlements = await getCompanyEntitlements(scope.claims.companyId);
