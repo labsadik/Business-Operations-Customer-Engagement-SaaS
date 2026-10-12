@@ -20,11 +20,10 @@ export async function withRedisLock<T>(key: string, ttlMs: number, fn: () => Pro
     return fn();
   }
 
-  const redisKey = `conventus:lock:v1:${key}`;
   const token = randomToken(16);
   let acquired: string | null;
   try {
-    acquired = await redis.set(redisKey, token, { NX: true, PX: ttlMs });
+    acquired = await redis.set(key, token, { NX: true, PX: ttlMs });
   } catch (error) {
     if (process.env.NODE_ENV !== "production") throw error;
     const code = error instanceof Error ? error.message : "REDIS_SET_FAILED";
@@ -37,7 +36,7 @@ export async function withRedisLock<T>(key: string, ttlMs: number, fn: () => Pro
     return await fn();
   } finally {
     try {
-      await redis.compareAndDelete(redisKey, token);
+      await redis.compareAndDelete(key, token);
     } catch (error) {
       const code = error instanceof Error ? error.message : "REDIS_LOCK_RELEASE_FAILED";
       console.warn("[Conventus] Redis lock release failed", { code });
