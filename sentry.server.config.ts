@@ -14,7 +14,17 @@ Sentry.init({
     "development",
   release:
     process.env.SENTRY_RELEASE?.trim() || process.env.VERCEL_GIT_COMMIT_SHA || undefined,
-  sendDefaultPii: false,
+  dataCollection: {
+    userInfo: false,
+    cookies: false,
+    httpHeaders: { request: false, response: false },
+    httpBodies: [],
+    urlQueryParams: false,
+    genAI: { inputs: false, outputs: false },
+    databaseQueryData: false,
+    queues: false,
+    graphQL: { document: false, variables: false }
+  },
   tracesSampleRate: readSentrySampleRate(
     process.env.SENTRY_TRACES_SAMPLE_RATE,
     defaultTracesSampleRate
