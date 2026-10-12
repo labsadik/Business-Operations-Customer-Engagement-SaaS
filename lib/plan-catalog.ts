@@ -322,40 +322,50 @@ async function seedPlan(id: string, index: number) {
 }
 
 async function ensureFreePlanSeeded() {
-  try {
-    // Seed the Free plan first: new company provisioning depends on it.
-    await seedPlan("free", 0);
-  } catch (error) {
-    if (!(error instanceof Error) || error.message !== "FREE_PLAN_NOT_CONFIGURED") {
-      throw error;
-    }
+  // A persisted Free plan is mandatory before provisioning a company/workspace.
+  // Keep legacy identifier repair first, then use a raw collection upsert as the
+  // last-resort bootstrap so stale hot-reloaded Mongoose models cannot block it.
+  await getMongo();
 
-    // Some legacy Mongo deployments can skip an upsert when old plan rows
-    // have incomplete identifiers. A direct insert repairs the bootstrap case.
-    try {
-      await Plan.create(seedPlanDocument("free", 0));
-    } catch (createError) {
-      if (!isDuplicateKeyError(createError)) throw createError;
-    }
-  }
+  const existing = await Plan.findOne({ identifier: "free" }).select({ _id: 1 }).lean();
+  if (existing) return;
 
-  let freePlan = await Plan.findOne({ identifier: "free" }).select({ _id: 1 }).lean();
-  if (!freePlan) {
+  const legacyRow = await Plan.findOne(
+    legacyPlanCandidateQuery("free", PLANS.free)
+  ).select({ _id: 1 }).lean();
+
+  if (legacyRow) {
     try {
-      await Plan.findOneAndUpdate(
-        { identifier: "free" },
-        { $setOnInsert: seedPlanDocument("free", 0) },
-        { upsert: true, returnDocument: "after", runValidators: true, setDefaultsOnInsert: true }
-      );
+      await Plan.updateOne({ _id: legacyRow._id }, { $set: { identifier: "free" } });
     } catch (error) {
       if (!isDuplicateKeyError(error)) throw error;
     }
-    freePlan = await Plan.findOne({ identifier: "free" }).select({ _id: 1 }).lean();
   }
 
-  if (!freePlan) throw new Error("FREE_PLAN_NOT_CONFIGURED");
-}
+  let verified = await Plan.findOne({ identifier: "free" }).select({ _id: 1 }).lean();
+  if (!verified) {
+    const now = new Date();
+    try {
+      await Plan.collection.updateOne(
+        { identifier: "free" },
+        { $setOnInsert: { ...seedPlanDocument("free", 0), createdAt: now, updatedAt: now } },
+        { upsert: true }
+      );
+    } catch (error) {
+      // Another app instance may win the upsert race; verify before failing.
+      if (!isDuplicateKeyError(error)) throw error;
+    }
+    verified = await Plan.findOne({ identifier: "free" }).select({ _id: 1 }).lean();
+  }
 
+  if (!verified) {
+    console.error("FREE_PLAN_BOOTSTRAP_FAILED", {
+      databaseName: process.env.MONGODB_DB_NAME?.trim() || "Conventus",
+      collectionName: Plan.collection.name
+    });
+    throw new Error("FREE_PLAN_NOT_CONFIGURED");
+  }
+}
 async function seedLegacyPlans() {
   await ensureFreePlanSeeded();
   await Promise.all(

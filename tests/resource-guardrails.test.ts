@@ -937,3 +937,20 @@ test("Free plan bootstrap and 10,000-company smoke seeder stay environment-scope
   assert.ok(envGuide.includes("npm run seed:smoke"));
   assert.ok(envGuide.includes("Do not run either seeder against production"));
 });
+
+test("runtime and scripts use the environment-selected Mongo database and bootstrap the Free plan", () => {
+  const mongo = source("lib/mongodb.ts");
+  const envHelper = source("scripts/lib/env.mjs");
+  const envExample = source(".env.example");
+  const planCatalog = source("lib/plan-catalog.ts");
+  const companyRoute = source("app/api/company/route.ts");
+
+  assert.ok(mongo.includes('process.env.MONGODB_DB_NAME?.trim() || "Conventus"'));
+  assert.ok(envHelper.includes('process.env.MONGODB_DB_NAME?.trim() || "Conventus"'));
+  assert.ok(envExample.includes("MONGODB_DB_NAME=canvas_test"));
+  assert.ok(envExample.includes("Production can use MONGODB_DB_NAME=Conventus"));
+  assert.ok(planCatalog.includes("Plan.collection.updateOne("));
+  assert.ok(planCatalog.includes("FREE_PLAN_BOOTSTRAP_FAILED"));
+  assert.ok(planCatalog.includes('throw new Error("FREE_PLAN_NOT_CONFIGURED")'));
+  assert.ok(companyRoute.includes('getManagedPlan("free", { includeArchived: true })'));
+});
