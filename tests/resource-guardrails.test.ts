@@ -363,7 +363,7 @@ test("vault limits follow company plan entitlement, avoid Bunny folder marker wr
   assert.ok(storage.includes("bunnyPutStream"));
   assert.ok(planSchema.includes("vaultEnabled"));
   assert.ok(plans.includes("vaultQuotaBytes"));
-  assert.doesNotMatch(createFolder, /bunnyEnsureMarker|\.conventus-folder/);
+  assert.doesNotMatch(createFolder, /bunnyEnsureMarker|\.canvas-folder/);
   assert.ok(complete.includes("streamVaultParts("));
   assert.ok(complete.includes("if (finalStorageKey)"));
   assert.doesNotMatch(complete, /Buffer\.concat|bunnyReadBuffer/);
@@ -553,13 +553,13 @@ test("company dashboard navigation stays consistent, collapsible, branded, and e
   const profile = source("components/company-profile.tsx");
 
   assert.ok(sidebar.includes("{companyName || \"Company workspace\"}"));
-  assert.ok(sidebar.includes("Powered by Conventus"));
+  assert.ok(sidebar.includes("Powered by Canvas"));
   assert.ok(sidebar.includes("Task Management"));
   assert.ok(sidebar.includes("Cloud Vault"));
   assert.ok(sidebar.includes("aria-label={collapsed ? \"Expand sidebar\" : \"Collapse sidebar\"}"));
   assert.ok(sidebar.includes("aria-expanded={mobileMenuOpen}"));
   assert.doesNotMatch(sidebar, /api\/auth\/logout|Sign out|LogOut/);
-  assert.ok(sidebarState.includes("conventus:workspace-sidebar-collapsed"));
+  assert.ok(sidebarState.includes("canvas:workspace-sidebar-collapsed"));
   assert.ok(workspace.includes("useWorkspaceSidebarState"));
   assert.ok(workspace.includes('sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"'));
   assert.ok(tasks.includes("vaultEnabled={vaultEnabled}"));
@@ -839,14 +839,14 @@ test("MongoDB database name is environment-configured and Free plan seeding is v
   const envHelper = source("scripts/lib/env.mjs");
   const demoSeed = source("scripts/seed-canvas-demo.mjs");
 
-  assert.ok(mongo.includes('process.env.MONGODB_DB_NAME?.trim() || "Conventus"'));
-  assert.ok(envHelper.includes('process.env.MONGODB_DB_NAME?.trim() || "Conventus"'));
+  assert.ok(mongo.includes('process.env.MONGODB_DB_NAME?.trim() || "Canvas"'));
+  assert.ok(envHelper.includes('process.env.MONGODB_DB_NAME?.trim() || "Canvas"'));
   assert.ok(envExample.includes("MONGODB_DB_NAME=canvas_test"));
   assert.ok(envDocs.includes("MONGODB_DB_NAME=canvas_test"));
   assert.ok(envExample.includes("NEXT_PUBLIC_APP_NAME=Canvas"));
   assert.ok(envExample.includes("NEXT_PUBLIC_COMPANY_NAME=AlgoQuit"));
   assert.ok(scripts.every((script) => script.includes("mongoDatabaseName()")));
-  assert.ok(scripts.every((script) => !script.includes('dbName: "Conventus"')));
+  assert.ok(scripts.every((script) => !script.includes('dbName: "Canvas"')));
   assert.ok(demoSeed.includes('EXPECTED_TEST_DATABASE = "canvas_test"'));
   assert.ok(demoSeed.includes("for (let ei = 1; ei <= 49; ei += 1)"));
   assert.ok(demoSeed.includes("const platformToken"));
@@ -917,7 +917,7 @@ test("Free plan bootstrap and 10,000-company smoke seeder stay environment-scope
   const envGuide = source(".env.example.md");
 
   assert.ok(mongo.includes("process.env.MONGODB_DB_NAME?.trim()"));
-  assert.ok(mongo.includes('|| "Conventus"'));
+  assert.ok(mongo.includes('|| "Canvas"'));
   assert.ok(catalog.includes("async function ensureFreePlanSeeded()"));
   assert.ok(catalog.includes("Plan.collection.updateOne("));
   assert.ok(catalog.includes("FREE_PLAN_BOOTSTRAP_FAILED"));
@@ -946,10 +946,10 @@ test("runtime and scripts use the environment-selected Mongo database and bootst
   const planCatalog = source("lib/plan-catalog.ts");
   const companyRoute = source("app/api/company/route.ts");
 
-  assert.ok(mongo.includes('process.env.MONGODB_DB_NAME?.trim() || "Conventus"'));
-  assert.ok(envHelper.includes('process.env.MONGODB_DB_NAME?.trim() || "Conventus"'));
+  assert.ok(mongo.includes('process.env.MONGODB_DB_NAME?.trim() || "Canvas"'));
+  assert.ok(envHelper.includes('process.env.MONGODB_DB_NAME?.trim() || "Canvas"'));
   assert.ok(envExample.includes("MONGODB_DB_NAME=canvas_test"));
-  assert.ok(envExample.includes("Production can use MONGODB_DB_NAME=Conventus"));
+  assert.ok(envExample.includes("Production can use MONGODB_DB_NAME=Canvas"));
   assert.ok(planCatalog.includes("Plan.collection.updateOne("));
   assert.ok(planCatalog.includes("FREE_PLAN_BOOTSTRAP_FAILED"));
   assert.ok(planCatalog.includes('throw new Error("FREE_PLAN_NOT_CONFIGURED")'));

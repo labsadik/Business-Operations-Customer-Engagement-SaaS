@@ -1,4 +1,4 @@
-/* One-time cleanup for service workers installed by older Conventus versions. */
+/* One-time cleanup for service workers installed by older Canvas versions. */
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
 });

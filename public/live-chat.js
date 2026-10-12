@@ -59,7 +59,7 @@
   function sendInit() {
     if (!frame.contentWindow) return;
     frame.contentWindow.postMessage({
-      type: "conventus-live-chat-init",
+      type: "canvas-live-chat-init",
       siteOrigin: window.location.origin,
       siteUrl: window.location.href
     }, scriptUrl.origin);
@@ -105,11 +105,11 @@
 
     // The iframe announces readiness and retries until it receives this init.
     // This avoids losing the only handshake during React hydration.
-    if (data.type === "conventus-live-chat-ready") {
+    if (data.type === "canvas-live-chat-ready") {
       sendInit();
       return;
     }
-    if (data.type !== "conventus-live-chat-resize" || typeof data.open !== "boolean") return;
+    if (data.type !== "canvas-live-chat-resize" || typeof data.open !== "boolean") return;
     resizeFrame(data);
   }, false);
 

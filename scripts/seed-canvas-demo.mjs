@@ -489,7 +489,7 @@ for (let ci = 0; ci < companySeeds.length; ci += 1) {
   payments.push(record("payment:" + suffix + ":failed", {
     companyId,
     planId: "pro",
-    merchantAccount: "CONVENTUS",
+    merchantAccount: "ALGOQUIT",
     providerOrderId: "canvas-demo-failed-order-" + suffix,
     amount: demoPlans.pro.priceInr,
     baseAmount: demoPlans.pro.priceInr,
@@ -955,12 +955,12 @@ try {
     collectionsEnsuredEmptyWhereAppropriate: emptyButIntentionallyUnseeded,
     demoAccess: {
       platformAdminEmail,
-      platformAdminCookieName: "conventus_session",
+      platformAdminCookieName: "canvas_session",
       platformAdminCookieToken: platformToken,
       companyAdminEmail: companyInfo[0].companyAdminEmail,
-      companyAdminCookieName: "conventus_session",
+      companyAdminCookieName: "canvas_session",
       companyAdminCookieToken: companyAdminToken,
-      localBrowserInstructions: "On http://localhost:3000, open DevTools Console and set document.cookie to 'conventus_session=<token>; path=/; SameSite=Lax', then reload. The platform token opens the admin experience; the company token opens Northstar Advisory."
+      localBrowserInstructions: "On http://localhost:3000, open DevTools Console and set document.cookie to 'canvas_session=<token>; path=/; SameSite=Lax', then reload. The platform token opens the admin experience; the company token opens Northstar Advisory."
     }
   }, null, 2));
 } finally {

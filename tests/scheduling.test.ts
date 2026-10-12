@@ -293,7 +293,7 @@ test("booking API errors expose stable codes and never require raw Google error 
   );
   assert.equal(
     friendlyBookingMessage("GOOGLE_API_500"),
-    "Google Calendar returned a temporary server error. Conventus will retry safely."
+    "Google Calendar returned a temporary server error. Canvas will retry safely."
   );
   assert.equal(
     friendlyBookingMessage("BOOKING_ALREADY_ASSIGNED"),
