@@ -21,17 +21,11 @@ const databaseName = process.env.MONGODB_DB_NAME?.trim();
 if (!databaseName) {
   throw new Error("MONGODB_DB_NAME_REQUIRED_FOR_BRAND_MIGRATION: set the exact existing database name explicitly.");
 }
-const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\const replaceText = (value) => {
+const replaceText = (value) => {
   if (typeof value !== "string") return value;
   return value
     .split(previousProductName).join("Canvas")
     .split(previousMerchantName).join("AlgoQuit");
-};");
-const replaceText = (value) => {
-  if (typeof value !== "string") return value;
-  return value
-    .replace(new RegExp(escapeRegex(previousProductName), "gi"), "Canvas")
-    .replace(new RegExp(escapeRegex(previousMerchantName), "gi"), "AlgoQuit");
 };
 
 await mongoose.connect(uri, { dbName: databaseName });
