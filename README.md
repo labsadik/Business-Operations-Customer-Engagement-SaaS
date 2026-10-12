@@ -200,7 +200,7 @@ Availability results are advisory and cached briefly to reduce repeated Google C
 
 MongoDB remains the source of truth. Redis holds only short-lived coordination keys and an advisory availability cache; it is not the durable store for company/member records, bookings, meeting records, chat messages, tasks, notifications, payments, or audit logs.
 
-Current Redis usage:
+Current Redis usage (distributed lock keys are stored under the `conventus:lock:v1:` namespace):
 
 - `conventus:availability:v1:<companyId>:<date>:<duration>:<buffers>:<capacity>` — serialized availability results with a 75-second Redis TTL. Booking submission rechecks capacity and eligibility, so this cache is advisory only.
 - `booking:create:*`, `booking:accept:*`, `booking:respond:*`, `meeting:end:*`, `meeting:finalize:*` and `booking:sweep:*` — short-lived distributed locks that protect state transitions and overlapping maintenance work.
