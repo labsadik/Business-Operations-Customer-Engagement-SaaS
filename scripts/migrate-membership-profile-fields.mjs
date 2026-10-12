@@ -42,7 +42,8 @@ try {
   const profileCursor = memberships.find({
     $or: [
       { jobTitle: { $exists: true } },
-      { department: { $exists: true } }
+      { department: { $exists: true } },
+      { googleConnectionStatus: { $exists: true } }
     ]
   }).sort({ updatedAt: -1, createdAt: -1, _id: 1 });
 
@@ -112,7 +113,8 @@ try {
   const remainingLegacyFields = await memberships.countDocuments({
     $or: [
       { jobTitle: { $exists: true } },
-      { department: { $exists: true } }
+      { department: { $exists: true } },
+      { googleConnectionStatus: { $exists: true } }
     ]
   });
 

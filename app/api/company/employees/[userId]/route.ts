@@ -163,7 +163,7 @@ export async function DELETE(
 
     await Membership.updateOne(
       { _id: membership._id },
-      { $set: { active: false, googleConnectionStatus: "DISCONNECTED" } }
+      { $set: { active: false } }
     );
 
     await AvailabilityRule.updateMany(

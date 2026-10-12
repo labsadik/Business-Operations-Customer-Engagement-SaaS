@@ -436,8 +436,7 @@ export async function POST(request: Request) {
         workspaceId: workspace._id,
         userId: session.userId,
         role: "COMPANY_ADMIN",
-        active: true,
-        googleConnectionStatus: "DISCONNECTED"
+        active: true
       }], { session: tx });
 
       await MeetingType.create([{
@@ -471,10 +470,6 @@ export async function POST(request: Request) {
     }).select("status scopes").lean();
 
     if (isGoogleSchedulingReady(ownerGoogleAccount)) {
-      await Membership.updateOne(
-        { companyId: createdIds.companyId, userId: session.userId, active: true },
-        { $set: { googleConnectionStatus: "CONNECTED" } }
-      );
       await Company.updateOne(
         { _id: createdIds.companyId },
         { $set: { publicBookingEnabled: true } }

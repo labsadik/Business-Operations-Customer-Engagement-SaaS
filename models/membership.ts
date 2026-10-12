@@ -12,12 +12,7 @@ const membershipSchema = new Schema(
       required: true
     },
     active: { type: Boolean, default: true, index: true },
-    employmentStatus: { type: String, enum: ["ACTIVE", "ON_LEAVE", "INACTIVE"], default: "ACTIVE" },
-    googleConnectionStatus: {
-      type: String,
-      enum: ["CONNECTED", "REAUTH_REQUIRED", "DISCONNECTED"],
-      default: "DISCONNECTED"
-    }
+    employmentStatus: { type: String, enum: ["ACTIVE", "ON_LEAVE", "INACTIVE"], default: "ACTIVE" }
   },
   { timestamps: true }
 );

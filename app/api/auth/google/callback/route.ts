@@ -230,11 +230,6 @@ export async function GET(request: Request) {
         active: true
       }).distinct("companyId");
 
-      await Membership.updateMany(
-        { userId: current.userId, active: true },
-        { $set: { googleConnectionStatus: "CONNECTED" } }
-      );
-
       // A connected scheduling account is enough to make a workspace publishable.
       if (connectedCompanyIds.length) {
         await Company.updateMany(
@@ -402,8 +397,7 @@ export async function GET(request: Request) {
             workspaceId: invite.workspaceId,
             userId: user._id,
             role: "EMPLOYEE",
-            active: true,
-            googleConnectionStatus: "DISCONNECTED"
+            active: true
           }
         },
         { upsert: true, returnDocument: "after" }

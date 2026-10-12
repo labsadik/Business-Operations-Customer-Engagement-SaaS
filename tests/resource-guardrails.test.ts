@@ -97,12 +97,14 @@ test("job title and department are owned by users, while employment status stays
   const membershipModel = source("models/membership.ts");
   const employeeDirectory = source("app/api/company/employees/route.ts");
   const employeeProfile = source("app/api/company/employees/[userId]/route.ts");
+  const oauthCallback = source("app/api/auth/google/callback/route.ts");
+  const companyRoute = source("app/api/company/route.ts");
   const ownProfile = source("app/api/profile/member/route.ts");
   const migration = source("scripts/migrate-membership-profile-fields.mjs");
   const packageJson = JSON.parse(source("package.json")) as { scripts: Record<string, string> };
 
   assert.match(userModel, /jobTitle:[\s\S]*?department:/);
-  assert.doesNotMatch(membershipModel, /jobTitle|department/);
+  assert.doesNotMatch(membershipModel, /jobTitle|department|googleConnectionStatus/);
   assert.ok(employeeDirectory.includes('.select("userId role employmentStatus")'));
   assert.ok(employeeDirectory.includes('.select("_id name email image role jobTitle department")'));
   assert.ok(employeeDirectory.includes('jobTitle: user.jobTitle ?? ""'));
@@ -110,7 +112,10 @@ test("job title and department are owned by users, while employment status stays
   assert.ok(employeeProfile.includes("User.findByIdAndUpdate"));
   assert.ok(ownProfile.includes("User.findByIdAndUpdate"));
   assert.ok(ownProfile.includes("Membership.findOneAndUpdate"));
-  assert.ok(migration.includes('$unset: { jobTitle: "", department: "" }'));
+  assert.ok(migration.includes('$unset: { jobTitle: "", department: "", googleConnectionStatus: "" }'));
+  assert.doesNotMatch(employeeProfile, /googleConnectionStatus/);
+  assert.doesNotMatch(oauthCallback, /googleConnectionStatus/);
+  assert.doesNotMatch(companyRoute, /googleConnectionStatus/);
   assert.ok(migration.includes("ORPHANED_MEMBERSHIP_PROFILE_DATA"));
   assert.equal(packageJson.scripts["membership-profile:migrate"], "node scripts/migrate-membership-profile-fields.mjs");
 });
