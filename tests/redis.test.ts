@@ -22,6 +22,70 @@ test("Redis is optional when no URL is configured", async () => {
   }
 });
 
+test("Upstash REST URL environment name is accepted", async () => {
+  const previousUrl = process.env.REDIS_URL;
+  const previousUpstashUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const previousToken = process.env.REDIS_TOKEN;
+  const previousUpstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  const originalFetch = globalThis.fetch;
+
+  delete process.env.REDIS_URL;
+  process.env.UPSTASH_REDIS_REST_URL = "https://redis.example.test";
+  delete process.env.REDIS_TOKEN;
+  process.env.UPSTASH_REDIS_REST_TOKEN = "test-token";
+  resetRedisState();
+  globalThis.fetch = async () => new Response(JSON.stringify({ result: "PONG" }), {
+    status: 200,
+    headers: { "content-type": "application/json" }
+  });
+
+  try {
+    const redis = await getRedis();
+    assert.ok(redis);
+    assert.equal(await redis.ping(), "PONG");
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (previousUrl === undefined) delete process.env.REDIS_URL;
+    else process.env.REDIS_URL = previousUrl;
+    if (previousUpstashUrl === undefined) delete process.env.UPSTASH_REDIS_REST_URL;
+    else process.env.UPSTASH_REDIS_REST_URL = previousUpstashUrl;
+    if (previousToken === undefined) delete process.env.REDIS_TOKEN;
+    else process.env.REDIS_TOKEN = previousToken;
+    if (previousUpstashToken === undefined) delete process.env.UPSTASH_REDIS_REST_TOKEN;
+    else process.env.UPSTASH_REDIS_REST_TOKEN = previousUpstashToken;
+    resetRedisState();
+  }
+});
+
+test("production distributed locks fail closed when Redis is not configured", async () => {
+  const previousUrl = process.env.REDIS_URL;
+  const previousUpstashUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const previousNodeEnv = process.env.NODE_ENV;
+  delete process.env.REDIS_URL;
+  delete process.env.UPSTASH_REDIS_REST_URL;
+  process.env.NODE_ENV = "production";
+  resetRedisState();
+  let callbackRan = false;
+
+  try {
+    await assert.rejects(
+      () => withRedisLock("test:production-lock", 1000, async () => {
+        callbackRan = true;
+      }),
+      /REDIS_UNAVAILABLE/
+    );
+    assert.equal(callbackRan, false);
+  } finally {
+    if (previousUrl === undefined) delete process.env.REDIS_URL;
+    else process.env.REDIS_URL = previousUrl;
+    if (previousUpstashUrl === undefined) delete process.env.UPSTASH_REDIS_REST_URL;
+    else process.env.UPSTASH_REDIS_REST_URL = previousUpstashUrl;
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+    resetRedisState();
+  }
+});
+
 test("Redis REST failures remain explicit and never expose credentials", async () => {
   const previousUrl = process.env.REDIS_URL;
   const previousToken = process.env.REDIS_TOKEN;
