@@ -233,7 +233,7 @@ test("company vault APIs stay tenant-scoped and Bunny secrets remain server-only
   ].map(source);
 
   for (const route of routes) {
-    assert.ok(route.includes("requireVaultScope()"));
+    assert.match(route, /requireVaultScope\\s*\\(/, "vault route must resolve an authenticated scope");
     assert.ok(route.includes("scope.companyId"));
     assert.ok(route.includes("scope.workspaceId"));
     assert.doesNotMatch(route, /searchParams\.get\(["']companyId["']\)/);
