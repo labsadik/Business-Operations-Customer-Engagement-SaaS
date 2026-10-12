@@ -7,6 +7,8 @@ const defaultTracesSampleRate = process.env.NODE_ENV === "production" ? 0.1 : 1;
 Sentry.init({
   dsn,
   enabled: Boolean(dsn),
+  // instrumentation.node.ts owns the OpenTelemetry provider for Axiom; avoid registering a competing Sentry provider.
+  enableOpenTelemetrySetup: false,
   environment:
     process.env.SENTRY_ENVIRONMENT?.trim() ||
     process.env.VERCEL_ENV?.trim() ||
