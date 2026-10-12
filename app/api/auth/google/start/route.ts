@@ -79,7 +79,7 @@ export async function GET(request: Request) {
   });
 
   const response = NextResponse.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
-  response.cookies.set("conventus_oauth_state", state, {
+  response.cookies.set("canvas_oauth_state", state, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

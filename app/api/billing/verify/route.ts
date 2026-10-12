@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     const payment = await Payment.findOne({
       providerOrderId: orderId,
       companyId: session.companyId,
-      merchantAccount: "CONVENTUS"
+      merchantAccount: "ALGOQUIT"
     });
 
     if (!payment) return jsonError("PAYMENT_NOT_FOUND", 404);

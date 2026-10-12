@@ -60,7 +60,7 @@ export async function GET(request: Request) {
       timestamp: now.toISOString()
     });
   } catch (error) {
-    console.error("[Conventus] Live Chat retention job failed", {
+    console.error("[Canvas] Live Chat retention job failed", {
       code: error instanceof Error ? error.message : "UNKNOWN_ERROR"
     });
     return NextResponse.json({ ok: false, error: "LIVE_CHAT_RETENTION_FAILED" }, { status: 500 });

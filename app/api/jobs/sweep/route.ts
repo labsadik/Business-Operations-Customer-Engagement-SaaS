@@ -93,7 +93,7 @@ export async function GET(request: Request) {
         }
       );
     } catch (error) {
-      console.warn("[Conventus] booking expiry sweep failed", {
+      console.warn("[Canvas] booking expiry sweep failed", {
         code: bookingErrorCode(error)
       });
     }
@@ -144,7 +144,7 @@ export async function GET(request: Request) {
 
       retried += 1;
     } catch (error) {
-      console.warn("[Conventus] booking retry sweep failed", {
+      console.warn("[Canvas] booking retry sweep failed", {
         code: bookingErrorCode(error)
       });
     }
@@ -172,7 +172,7 @@ export async function GET(request: Request) {
       );
       meetingRetries += 1;
     } catch (error) {
-      console.warn("[Conventus] meeting retry failed", {
+      console.warn("[Canvas] meeting retry failed", {
         code: bookingErrorCode(error)
       });
     }

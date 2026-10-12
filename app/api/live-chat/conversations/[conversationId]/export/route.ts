@@ -186,10 +186,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ conv
     ]));
 
     const pdf = await PDFDocument.create();
-    pdf.setTitle("Conventus Live Chat Transcript - " + (conversation.customerName || "Anonymous visitor"));
-    pdf.setAuthor("Conventus");
+    pdf.setTitle("Canvas Live Chat Transcript - " + (conversation.customerName || "Anonymous visitor"));
+    pdf.setAuthor("Canvas");
     pdf.setSubject("Customer support conversation " + String(conversation._id));
-    pdf.setCreator("Conventus Live Chat");
+    pdf.setCreator("Canvas Live Chat");
     pdf.setCreationDate(new Date());
     pdf.setModificationDate(new Date());
 
@@ -224,7 +224,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ conv
         color: NAVY
       });
       if (first) {
-        page.drawText("CONVENTUS  /  CUSTOMER SUPPORT", {
+        page.drawText("CANVAS  /  CUSTOMER SUPPORT", {
           x: MARGIN, y: PAGE_HEIGHT - 38, size: 9, font: bold, color: rgb(0.77, 0.85, 1)
         });
         page.drawText("Conversation transcript", {
@@ -238,7 +238,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ conv
         });
         y = PAGE_HEIGHT - 164;
       } else {
-        page.drawText("CONVENTUS  /  LIVE CHAT TRANSCRIPT", {
+        page.drawText("CANVAS  /  LIVE CHAT TRANSCRIPT", {
           x: MARGIN, y: PAGE_HEIGHT - 32, size: 9, font: bold, color: rgb(0.86, 0.9, 0.98)
         });
         page.drawText("Case " + String(conversation._id), {
@@ -383,7 +383,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ conv
 
     const bytes = await pdf.save();
     const safeName = (conversation.customerName || "visitor").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "visitor";
-    const filename = `conventus-live-chat-${safeName}-${String(conversation._id).slice(-8)}.pdf`;
+    const filename = `canvas-live-chat-${safeName}-${String(conversation._id).slice(-8)}.pdf`;
     return new Response(new Uint8Array(bytes), {
       status: 200,
       headers: {

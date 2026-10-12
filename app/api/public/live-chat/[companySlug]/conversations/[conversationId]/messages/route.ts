@@ -18,7 +18,7 @@ async function publicConversation(request: Request, companySlug: string, convers
   const visitorId = url.searchParams.get("visitorId") ?? "";
   const siteOrigin = url.searchParams.get("site") ?? "";
   if (!/^[a-zA-Z0-9_-]{16,100}$/.test(visitorId)) throw new Error("LIVE_CHAT_VISITOR_INVALID");
-  const claims = verifyPublicWidgetToken(request.headers.get("x-conventus-live-chat-token"), companySlug, siteOrigin, Date.now(), visitorId);
+  const claims = verifyPublicWidgetToken(request.headers.get("x-canvas-live-chat-token"), companySlug, siteOrigin, Date.now(), visitorId);
   await assertCompanyPlanNotSuspended(claims.companyId);
   await getMongo();
   const companyId = new Types.ObjectId(claims.companyId);

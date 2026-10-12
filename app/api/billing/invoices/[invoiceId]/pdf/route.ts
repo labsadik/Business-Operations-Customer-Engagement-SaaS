@@ -182,7 +182,7 @@ function drawStatusBadge(
   return width;
 }
 
-function drawConventusMark(page: PDFPage, x: number, y: number, size: number) {
+function drawCanvasMark(page: PDFPage, x: number, y: number, size: number) {
   page.drawRectangle({ x, y, width: size, height: size, color: INK });
   page.drawCircle({
     x: x + size * 0.66,
@@ -332,8 +332,8 @@ export async function GET(
     const pdfDoc = await PDFDocument.create();
     pdfDoc.setTitle(invoice.invoiceNumber + " - " + merchant.name);
     pdfDoc.setAuthor(merchant.name);
-    pdfDoc.setSubject("Conventus invoice");
-    pdfDoc.setCreator("Conventus billing");
+    pdfDoc.setSubject("Canvas invoice");
+    pdfDoc.setCreator("Canvas billing");
 
     const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
     const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -347,7 +347,7 @@ export async function GET(
       color: BLUE
     });
 
-    drawConventusMark(page, MARGIN, 767, 38);
+    drawCanvasMark(page, MARGIN, 767, 38);
     drawText(page, merchant.name, 94, 786, bold, 15, INK);
     drawWrapped(
       page,
@@ -464,7 +464,7 @@ export async function GET(
 
     const serviceText =
       invoice.serviceDescription ||
-      "Conventus " + planSnapshot.name + " monthly scheduling service";
+      "Canvas " + planSnapshot.name + " monthly scheduling service";
     drawWrapped(
       page,
       serviceText,

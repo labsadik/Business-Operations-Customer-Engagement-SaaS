@@ -121,7 +121,7 @@ export async function POST(request: Request) {
       async () => {
         const existingPending = await Payment.findOne({
           companyId,
-          merchantAccount: "CONVENTUS",
+          merchantAccount: "ALGOQUIT",
           status: "PENDING"
         }).sort({ createdAt: -1 });
 
@@ -165,7 +165,7 @@ export async function POST(request: Request) {
           taxConfig.enabled
         );
 
-        const receipt = `conventus_${String(companyId).slice(-10)}_${Date.now().toString(36)}_${randomToken(6)}`.slice(0, 40);
+        const receipt = `canvas_${String(companyId).slice(-10)}_${Date.now().toString(36)}_${randomToken(6)}`.slice(0, 40);
 
         const order = await createRazorpayOrder({
           amount: tax.totalAmount,
@@ -191,7 +191,7 @@ export async function POST(request: Request) {
           payment = await Payment.create({
             companyId,
             planId: plan.id as PlanId,
-            merchantAccount: "CONVENTUS",
+            merchantAccount: "ALGOQUIT",
             checkoutKey: String(companyId),
             providerOrderId: order.id,
             planRevision: plan.revision,

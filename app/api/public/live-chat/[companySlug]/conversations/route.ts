@@ -91,7 +91,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ com
     const visitorId = typeof body.visitorId === "string" ? body.visitorId : "";
     if (!/^[a-zA-Z0-9_-]{16,100}$/.test(visitorId)) return jsonError("LIVE_CHAT_VISITOR_INVALID", 400);
     const siteOrigin = typeof body.siteOrigin === "string" ? body.siteOrigin : "";
-    const claims = verifyPublicWidgetToken(request.headers.get("x-conventus-live-chat-token"), companySlug, siteOrigin, Date.now(), visitorId);
+    const claims = verifyPublicWidgetToken(request.headers.get("x-canvas-live-chat-token"), companySlug, siteOrigin, Date.now(), visitorId);
     const context = await getPublicLiveChatContext(companySlug, siteOrigin, visitorId);
     await assertCompanyPlanNotSuspended(String(context.company._id));
     if (claims.companyId !== String(context.company._id) || claims.workspaceId !== String(context.workspace._id)) return jsonError("LIVE_CHAT_TOKEN_INVALID", 401);
