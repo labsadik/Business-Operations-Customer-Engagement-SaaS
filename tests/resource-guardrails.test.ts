@@ -906,3 +906,31 @@ test("admin company invoice repair avoids conflicting parent and child snapshot 
   assert.ok(admin.includes("await ensureInvoicesForCapturedPayments(String(objectId))"));
   assert.ok(admin.includes("await requirePlatformAdmin()"));
 });
+
+
+test("Free plan bootstrap and 10,000-company smoke seeder stay environment-scoped", () => {
+  const mongo = source("lib/mongodb.ts");
+  const catalog = source("lib/plan-catalog.ts");
+  const smokeSeeder = source("scripts/seed-canvas-scale-smoke.mjs");
+  const packageJson = JSON.parse(source("package.json")) as { scripts: Record<string, string> };
+  const envExample = source(".env.example");
+  const envGuide = source(".env.example.md");
+
+  assert.ok(mongo.includes("process.env.MONGODB_DB_NAME?.trim()"));
+  assert.ok(mongo.includes('|| "Conventus"'));
+  assert.ok(catalog.includes("async function ensureFreePlanSeeded()"));
+  assert.ok(catalog.includes('await Plan.create(seedPlanDocument("free", 0))'));
+  assert.ok(catalog.includes("await ensureFreePlanSeeded()"));
+  assert.ok(smokeSeeder.includes('const EXPECTED_DATABASE = "canvas_test"'));
+  assert.ok(smokeSeeder.includes('positiveIntEnv("SMOKE_COMPANY_COUNT", 10000, 10000)'));
+  assert.ok(smokeSeeder.includes('positiveIntEnv("SMOKE_MEMBERS_PER_COMPANY", 50, 50)'));
+  assert.ok(smokeSeeder.includes('databaseName.toLowerCase() !== EXPECTED_DATABASE'));
+  assert.ok(smokeSeeder.includes('collection("memberships")'));
+  assert.ok(smokeSeeder.includes('collection("subscriptions")'));
+  assert.ok(smokeSeeder.includes("SMOKE_SEED_COUNT_MISMATCH"));
+  assert.doesNotMatch(smokeSeeder, /\.drop\(|dropDatabase/);
+  assert.equal(packageJson.scripts["seed:smoke"], "node --experimental-strip-types scripts/seed-canvas-scale-smoke.mjs");
+  assert.ok(envExample.includes("MONGODB_DB_NAME=canvas_test"));
+  assert.ok(envGuide.includes("npm run seed:smoke"));
+  assert.ok(envGuide.includes("Do not run either seeder against production"));
+});

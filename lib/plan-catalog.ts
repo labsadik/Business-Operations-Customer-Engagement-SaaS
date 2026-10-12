@@ -321,8 +321,46 @@ async function seedPlan(id: string, index: number) {
   }
 }
 
+async function ensureFreePlanSeeded() {
+  try {
+    // Seed the Free plan first: new company provisioning depends on it.
+    await seedPlan("free", 0);
+  } catch (error) {
+    if (!(error instanceof Error) || error.message !== "FREE_PLAN_NOT_CONFIGURED") {
+      throw error;
+    }
+
+    // Some legacy Mongo deployments can skip an upsert when old plan rows
+    // have incomplete identifiers. A direct insert repairs the bootstrap case.
+    try {
+      await Plan.create(seedPlanDocument("free", 0));
+    } catch (createError) {
+      if (!isDuplicateKeyError(createError)) throw createError;
+    }
+  }
+
+  let freePlan = await Plan.findOne({ identifier: "free" }).select({ _id: 1 }).lean();
+  if (!freePlan) {
+    try {
+      await Plan.findOneAndUpdate(
+        { identifier: "free" },
+        { $setOnInsert: seedPlanDocument("free", 0) },
+        { upsert: true, returnDocument: "after", runValidators: true, setDefaultsOnInsert: true }
+      );
+    } catch (error) {
+      if (!isDuplicateKeyError(error)) throw error;
+    }
+    freePlan = await Plan.findOne({ identifier: "free" }).select({ _id: 1 }).lean();
+  }
+
+  if (!freePlan) throw new Error("FREE_PLAN_NOT_CONFIGURED");
+}
+
 async function seedLegacyPlans() {
-  await Promise.all(PLAN_IDS.map((id, index) => seedPlan(id, index)));
+  await ensureFreePlanSeeded();
+  await Promise.all(
+    PLAN_IDS.filter((id) => id !== "free").map((id) => seedPlan(id, PLAN_IDS.indexOf(id)))
+  );
 }
 
 export async function ensurePlanCatalog() {
