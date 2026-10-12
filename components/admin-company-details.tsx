@@ -285,6 +285,14 @@ export default function AdminCompanyDetailsView({ company }: { company: AdminCom
             </div>
             <div className="border-b border-slate-200 px-6 py-4">
               <AdminCompanyPlanSuspensionButton
+                key={JSON.stringify([
+                  company.id,
+                  company.planSuspended,
+                  company.planSuspendedAt ?? null,
+                  company.planExpired,
+                  company.planExpiredAt ?? null,
+                  company.planExpiryTestActive
+                ])}
                 companyId={company.id}
                 suspended={company.planSuspended}
                 suspendedAt={company.planSuspendedAt}
