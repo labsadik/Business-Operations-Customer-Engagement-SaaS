@@ -26,6 +26,15 @@ jobs:
       - name: Install
         run: npm install
 
+      - name: Upload resolved dependency lockfile (temporary)
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: sentry-resolved-lockfile
+          path: package-lock.json
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Unit tests
         run: npm test
 
