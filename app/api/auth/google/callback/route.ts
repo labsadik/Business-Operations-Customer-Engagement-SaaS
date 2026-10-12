@@ -188,12 +188,7 @@ export async function GET(request: Request) {
         throw new Error("GOOGLE_REFRESH_TOKEN_MISSING");
       }
 
-
-      await User.findByIdAndUpdate(
-        current.userId,
-        {
-          $set: {
-            name: googleUser.name ||       await GoogleAccount.findOneAndUpdate(
+      await GoogleAccount.findOneAndUpdate(
         { userId: current.userId },
         {
           $set: {
@@ -211,7 +206,12 @@ export async function GET(request: Request) {
         },
         { upsert: true, returnDocument: "after" }
       );
-current.name,
+
+      await User.findByIdAndUpdate(
+        current.userId,
+        {
+          $set: {
+            name: googleUser.name || current.name,
             email: email,
             image: googleAvatarUrl(googleUser.picture),
             lastLoginAt: new Date()
