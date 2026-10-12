@@ -3,7 +3,7 @@ import { getSession } from "@/lib/session";
 import CompanyProfile from "@/components/company-profile";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Company Profile · Conventus" };
+export const metadata = { title: "Company Profile · Canvas" };
 
 export default async function CompanyProfilePage() {
   const session = await getSession();

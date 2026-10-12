@@ -9,7 +9,7 @@ import { getCompanyEntitlements, getCompanyPlanAccessState } from "@/lib/plans-s
 import PlanAccessGuard from "@/components/plan-access-guard";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Live Chat · Conventus" };
+export const metadata = { title: "Live Chat · Canvas" };
 
 export default async function LiveChatPage() {
   const session = await getSession();

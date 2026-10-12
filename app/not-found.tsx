@@ -7,7 +7,7 @@ export default function NotFound() {
         <p className="text-sm font-semibold text-blue-600">404</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Page not found</h1>
         <p className="mt-3 text-sm leading-6 text-slate-600">
-          This Conventus link does not exist or is no longer available.
+          This Canvas link does not exist or is no longer available.
         </p>
         <Link
           href="/"

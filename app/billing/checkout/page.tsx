@@ -20,7 +20,7 @@ import RazorpayPlanButton from "@/components/razorpay-plan-button";
 import { getServerNowMs } from "@/lib/server-time";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Checkout · Conventus" };
+export const metadata = { title: "Checkout · Canvas" };
 
 function money(minor: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -127,13 +127,13 @@ export default async function BillingCheckoutPage({
           <Link href="/dashboard" className="flex items-center gap-3">
             <Image
               src="/favicon.svg"
-              alt="Conventus"
+              alt="Canvas"
               width={36}
               height={36}
               className="size-9 rounded-xl object-contain"
             />
             <div>
-              <p className="text-sm font-semibold tracking-tight">Conventus</p>
+              <p className="text-sm font-semibold tracking-tight">Canvas</p>
               <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400">
                 Secure checkout
               </p>
@@ -159,7 +159,7 @@ export default async function BillingCheckoutPage({
             {isCurrentPlan ? "Renew your plan" : "Confirm your plan"}
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-            Review the server-calculated plan price, GST, and total before Conventus opens Razorpay Checkout.
+            Review the server-calculated plan price, GST, and total before Canvas opens Razorpay Checkout.
           </p>
         </div>
 
@@ -353,7 +353,7 @@ export default async function BillingCheckoutPage({
                     <p className="text-xs font-semibold">Invoice record</p>
                   </div>
                   <p className="mt-2 text-[11px] leading-5 text-slate-500">
-                    After capture, Conventus writes a payment ledger record and a unique invoice linked to the Razorpay payment ID.
+                    After capture, Canvas writes a payment ledger record and a unique invoice linked to the Razorpay payment ID.
                   </p>
                 </div>
 
@@ -427,7 +427,7 @@ export default async function BillingCheckoutPage({
                 </span>
               </div>
               <p className="mt-2 text-[10px] leading-4 text-blue-800">
-                This exact total is sent to Razorpay by the Conventus server.
+                This exact total is sent to Razorpay by the Canvas server.
               </p>
             </div>
 
@@ -448,7 +448,7 @@ export default async function BillingCheckoutPage({
 
             <div className="mt-4 flex items-start gap-2 text-[10px] leading-4 text-slate-400">
               <CreditCard className="mt-0.5 size-3.5 shrink-0" />
-              Razorpay handles the payment UI. Conventus does not trust browser-supplied prices.
+              Razorpay handles the payment UI. Canvas does not trust browser-supplied prices.
             </div>
 
             {isCurrentPlan && (

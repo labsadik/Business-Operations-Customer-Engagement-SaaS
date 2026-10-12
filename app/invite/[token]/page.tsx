@@ -16,7 +16,7 @@ export default async function InvitationPage({ params }: { params: Promise<{ tok
   const company = invite ? await Company.findById(invite.companyId).lean() : null;
 
   if (!invite || !company) {
-    return <main className="grid min-h-screen place-items-center bg-[#faf9f1] px-5"><div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm"><p className="text-sm font-semibold text-rose-600">Invitation unavailable</p><h1 className="mt-2 text-2xl font-semibold text-slate-950">This invite has expired or was already used.</h1><Link href="/" className="mt-6 inline-flex rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white">Go to Conventus</Link></div></main>;
+    return <main className="grid min-h-screen place-items-center bg-[#faf9f1] px-5"><div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm"><p className="text-sm font-semibold text-rose-600">Invitation unavailable</p><h1 className="mt-2 text-2xl font-semibold text-slate-950">This invite has expired or was already used.</h1><Link href="/" className="mt-6 inline-flex rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white">Go to Canvas</Link></div></main>;
   }
 
   const loginUrl = `/api/auth/google/start?intent=employee&companySlug=${encodeURIComponent(company.slug)}&invitationToken=${encodeURIComponent(token)}&returnTo=/dashboard`;

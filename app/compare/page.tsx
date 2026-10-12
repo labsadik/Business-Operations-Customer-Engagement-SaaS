@@ -25,10 +25,10 @@ import CountrySelector from "@/components/country-selector";
 
 export const metadata: Metadata = {
   title: {
-    absolute: "Conventus vs Cal.com, Google Drive & Jira | The Unified Workspace"
+    absolute: "Canvas vs Cal.com, Google Drive & Jira | The Unified Workspace"
   },
   description:
-    "Compare Conventus with separate scheduling, cloud storage, and task-management tools. Explore workflow coverage, estimated per-seat costs, and the unified workspace approach."
+    "Compare Canvas with separate scheduling, cloud storage, and task-management tools. Explore workflow coverage, estimated per-seat costs, and the unified workspace approach."
 };
 
 type Support = "yes" | "partial" | "no";
@@ -40,7 +40,7 @@ type ComparisonCell = {
 
 type ComparisonRow = {
   feature: string;
-  conventus: ComparisonCell;
+  canvas: ComparisonCell;
   cal: ComparisonCell;
   drive: ComparisonCell;
   jira: ComparisonCell;
@@ -63,28 +63,28 @@ const comparisonGroups: ComparisonGroup[] = [
     rows: [
       {
         feature: "Branded company booking portal",
-        conventus: yes("Built-in public company URL"),
+        canvas: yes("Built-in public company URL"),
         cal: yes("Team booking pages"),
         drive: no(),
         jira: no()
       },
       {
         feature: "Guarded employee acceptance",
-        conventus: yes("Explicit accept / decline before confirmation"),
+        canvas: yes("Explicit accept / decline before confirmation"),
         cal: partial("Routing and workflows depend on configuration"),
         drive: no(),
         jira: no()
       },
       {
         feature: "Virtual meeting room link",
-        conventus: yes("Created after meeting acceptance"),
+        canvas: yes("Created after meeting acceptance"),
         cal: partial("Uses configured meeting-provider integrations"),
         drive: no(),
         jira: no()
       },
       {
         feature: "Verified client sign-in",
-        conventus: yes("Required on published company booking pages"),
+        canvas: yes("Required on published company booking pages"),
         cal: partial("Authentication depends on booking flow and plan"),
         drive: no("Drive sign-in is not a public booking verification flow"),
         jira: no()
@@ -97,28 +97,28 @@ const comparisonGroups: ComparisonGroup[] = [
     rows: [
       {
         feature: "Private company cloud vault",
-        conventus: yes("Built in · /dashboard/vault"),
+        canvas: yes("Built in · /dashboard/vault"),
         cal: no(),
         drive: yes("Standalone file storage"),
         jira: partial("Issue attachments")
       },
       {
         feature: "In-browser document & PDF preview",
-        conventus: yes("Native Vault preview"),
+        canvas: yes("Native Vault preview"),
         cal: no(),
         drive: yes("File preview available"),
         jira: partial("Attachment preview depends on file type")
       },
       {
         feature: "Reduced third-party storage sync handoffs",
-        conventus: yes("Vault and workspace use the same company scope"),
+        canvas: yes("Vault and workspace use the same company scope"),
         cal: no("Separate file storage is still needed"),
         drive: partial("Drive remains a separate storage workspace"),
         jira: partial("Attachments remain part of a separate task workspace")
       },
       {
         feature: "Shared company scope across bookings, tasks & files",
-        conventus: yes("One company workspace boundary"),
+        canvas: yes("One company workspace boundary"),
         cal: partial("Scheduling workspace scope"),
         drive: partial("Separate storage and sharing controls"),
         jira: partial("Separate project and site permissions")
@@ -131,21 +131,21 @@ const comparisonGroups: ComparisonGroup[] = [
     rows: [
       {
         feature: "Availability-aware task routing",
-        conventus: yes("Uses team status and availability rules"),
+        canvas: yes("Uses team status and availability rules"),
         cal: no(),
         drive: no(),
         jira: partial("Can be configured with workflows and automation")
       },
       {
         feature: "Kanban & priority task board",
-        conventus: yes("Built in · /dashboard/tasks"),
+        canvas: yes("Built in · /dashboard/tasks"),
         cal: no(),
         drive: no(),
         jira: yes("Boards and configurable workflows")
       },
       {
         feature: "Task follow-up connected to meetings",
-        conventus: yes("Connected company workflow"),
+        canvas: yes("Connected company workflow"),
         cal: partial("Usually needs an additional workflow or integration"),
         drive: partial("Manual follow-up or external automation"),
         jira: partial("Connected through project setup or integration")
@@ -158,28 +158,28 @@ const comparisonGroups: ComparisonGroup[] = [
     rows: [
       {
         feature: "Company-level data scope",
-        conventus: yes("Company-scoped workspace access"),
+        canvas: yes("Company-scoped workspace access"),
         cal: partial("Scheduling account and team permissions"),
         drive: partial("Separate drive and sharing permissions"),
         jira: partial("Separate site and project permissions")
       },
       {
         feature: "One-page corporate PDF invoices",
-        conventus: yes("Built-in billing invoice workflow"),
+        canvas: yes("Built-in billing invoice workflow"),
         cal: partial("Depends on subscription and billing setup"),
         drive: no("Not a billing product"),
         jira: no("Not a billing product")
       },
       {
         feature: "Platform-wide & targeted company announcements",
-        conventus: yes("Broadcast or target client workspaces"),
+        canvas: yes("Broadcast or target client workspaces"),
         cal: no(),
         drive: partial("Can share documents, not a platform announcement feed"),
         jira: partial("Can configure project notifications")
       },
       {
         feature: "Extensible company workflow",
-        conventus: yes("One workspace for connected operational modules"),
+        canvas: yes("One workspace for connected operational modules"),
         cal: partial("Scheduling-centered integrations"),
         drive: partial("Storage-centered integrations"),
         jira: partial("Task-centered apps and integrations")
@@ -219,27 +219,27 @@ function ComparisonStatus({ cell, emphasized = false }: { cell: ComparisonCell; 
 const competitorNotes = [
   {
     eyebrow: "Scheduling",
-    title: "Conventus vs Cal.com",
+    title: "Canvas vs Cal.com",
     description:
-      "A booking link is only the start. Conventus connects the request to employee acceptance, the confirmed meeting, follow-up tasks, and company files without making separate tools the center of the workflow.",
+      "A booking link is only the start. Canvas connects the request to employee acceptance, the confirmed meeting, follow-up tasks, and company files without making separate tools the center of the workflow.",
     points: ["Acceptance before confirmation", "Follow-up stays in the workspace", "No separate workflow glue just to store meeting files"],
     icon: CalendarCheck2,
     accent: "blue"
   },
   {
     eyebrow: "Documents",
-    title: "Conventus vs Google Drive & Dropbox",
+    title: "Canvas vs Google Drive & Dropbox",
     description:
-      "A separate drive is useful for storage, but it creates another place to manage access and share links. The Conventus Vault keeps documents with the company workspace and supports in-browser PDF and file preview.",
+      "A separate drive is useful for storage, but it creates another place to manage access and share links. The Canvas Vault keeps documents with the company workspace and supports in-browser PDF and file preview.",
     points: ["Structured private company folders", "Preview documents in the Vault", "Keep files alongside client operations"],
     icon: FolderLock,
     accent: "emerald"
   },
   {
     eyebrow: "Task management",
-    title: "Conventus vs Jira & Asana",
+    title: "Canvas vs Jira & Asana",
     description:
-      "Dedicated task tools offer deep project configuration. Conventus focuses on the operational handoff: assign priorities, account for employee availability, and keep next steps close to the client workflow.",
+      "Dedicated task tools offer deep project configuration. Canvas focuses on the operational handoff: assign priorities, account for employee availability, and keep next steps close to the client workflow.",
     points: ["Kanban and list-style task work", "Priority labels for team follow-up", "Team-status-aware assignments"],
     icon: ListTodo,
     accent: "violet"
@@ -255,7 +255,7 @@ export default function ComparePage() {
             <span className="grid size-10 place-items-center overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               <Image src="/favicon.svg" alt="" width={40} height={40} className="size-full object-contain" priority />
             </span>
-            <span className="text-sm font-bold tracking-tight text-slate-950">Conventus</span>
+            <span className="text-sm font-bold tracking-tight text-slate-950">Canvas</span>
           </Link>
 
           <nav aria-label="Main navigation" className="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex">
@@ -299,10 +299,10 @@ export default function ComparePage() {
               Tool Consolidation &amp; Cost Comparison
             </span>
             <h1 className="mt-6 text-4xl font-semibold leading-[1.07] tracking-[-0.045em] text-slate-950 sm:text-5xl lg:text-6xl">
-              Stop paying for 3 separate platforms. Run your entire client workflow in Conventus.
+              Stop paying for 3 separate platforms. Run your entire client workflow in Canvas.
             </h1>
             <p className="mx-auto mt-6 max-w-3xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
-              Instead of juggling scheduling tools, separate document drives, and disconnected task boards, Conventus unifies customer booking, team task delegation, and private file storage into one seamless workspace.
+              Instead of juggling scheduling tools, separate document drives, and disconnected task boards, Canvas unifies customer booking, team task delegation, and private file storage into one seamless workspace.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
               <Link href="/login" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/15 transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
@@ -374,7 +374,7 @@ export default function ComparePage() {
               <article className="relative rounded-3xl border-2 border-blue-300 bg-blue-50/60 p-5 shadow-[0_18px_52px_rgba(37,99,235,0.10)] sm:p-6">
                 <span className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full bg-blue-600 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-white"><Sparkles className="size-3.5" /> Unified choice</span>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-white px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-blue-700">
-                  <Layers3 className="size-3.5" /> The Conventus approach
+                  <Layers3 className="size-3.5" /> The Canvas approach
                 </span>
                 <h3 className="mt-4 text-xl font-semibold tracking-tight text-slate-950">One connected workspace</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600">Start with a Free tier, then choose a plan based on your company&apos;s actual team size and usage needs.</p>
@@ -395,7 +395,7 @@ export default function ComparePage() {
                   })}
                 </div>
                 <Link href="/#pricing" className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
-                  Explore Conventus plans <ArrowRight className="size-4" />
+                  Explore Canvas plans <ArrowRight className="size-4" />
                 </Link>
               </article>
             </div>
@@ -429,7 +429,7 @@ export default function ComparePage() {
                 <tr className="border-b border-slate-200">
                   <th scope="col" className="sticky left-0 z-20 w-[245px] bg-slate-50 p-4 text-xs font-bold uppercase tracking-[0.12em] text-slate-600">Feature</th>
                   <th scope="col" className="w-[245px] border-x border-blue-200 bg-blue-600 p-4 text-white">
-                    <span className="flex items-center gap-2 text-sm font-bold"><BadgeCheck className="size-4" /> Conventus</span>
+                    <span className="flex items-center gap-2 text-sm font-bold"><BadgeCheck className="size-4" /> Canvas</span>
                     <span className="mt-1 block text-[10px] font-medium text-blue-100">Unified workspace</span>
                   </th>
                   <th scope="col" className="w-[190px] bg-white p-4 text-sm font-semibold text-slate-800">Cal.com<span className="mt-1 block text-[10px] font-normal text-slate-500">Scheduling</span></th>
@@ -448,7 +448,7 @@ export default function ComparePage() {
                   {group.rows.map((row) => (
                     <tr key={row.feature} className="border-b border-slate-100 last:border-b-0">
                       <th scope="row" className="sticky left-0 z-10 bg-white p-4 align-top text-xs font-semibold leading-5 text-slate-900">{row.feature}</th>
-                      <td className="border-x border-blue-100 bg-blue-50/60 p-4 align-top"><ComparisonStatus cell={row.conventus} emphasized /></td>
+                      <td className="border-x border-blue-100 bg-blue-50/60 p-4 align-top"><ComparisonStatus cell={row.canvas} emphasized /></td>
                       <td className="p-4 align-top"><ComparisonStatus cell={row.cal} /></td>
                       <td className="p-4 align-top"><ComparisonStatus cell={row.drive} /></td>
                       <td className="p-4 align-top"><ComparisonStatus cell={row.jira} /></td>
@@ -504,7 +504,7 @@ export default function ComparePage() {
               </div>
               <div className="flex shrink-0 flex-col gap-3 sm:flex-row lg:flex-col xl:flex-row">
                 <Link href="/login" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-blue-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-blue-600">
-                  Get started with Conventus <ArrowRight className="size-4" />
+                  Get started with Canvas <ArrowRight className="size-4" />
                 </Link>
                 <Link href="/#pricing" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-white/30 bg-blue-700/30 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-blue-600">
                   Explore all plans
@@ -520,12 +520,12 @@ export default function ComparePage() {
           <div>
             <Link href="/" className="inline-flex items-center gap-3 font-semibold text-slate-950">
               <span className="grid size-9 place-items-center overflow-hidden rounded-xl border border-slate-200 bg-white"><Image src="/favicon.svg" alt="" width={36} height={36} className="size-full object-contain" /></span>
-              <span>Conventus</span>
+              <span>Canvas</span>
             </Link>
             <p className="mt-4 max-w-sm text-xs leading-5 text-slate-500">Client booking, team routing, task delegation, private files, and company operations in one cohesive workspace.</p>
           </div>
           <div className="grid gap-8 sm:grid-cols-3">
-            <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Product</p><div className="mt-3 grid gap-2.5"><Link href="/" className="rounded-lg py-1 hover:text-blue-700">Home</Link><Link href="/#features" className="rounded-lg py-1 hover:text-blue-700">Features</Link><Link href="/#pricing" className="rounded-lg py-1 hover:text-blue-700">Pricing</Link><Link href="/compare" className="rounded-lg py-1 font-semibold text-blue-700 hover:text-blue-800">Conventus vs Cal.com &amp; Jira</Link></div></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Product</p><div className="mt-3 grid gap-2.5"><Link href="/" className="rounded-lg py-1 hover:text-blue-700">Home</Link><Link href="/#features" className="rounded-lg py-1 hover:text-blue-700">Features</Link><Link href="/#pricing" className="rounded-lg py-1 hover:text-blue-700">Pricing</Link><Link href="/compare" className="rounded-lg py-1 font-semibold text-blue-700 hover:text-blue-800">Canvas vs Cal.com &amp; Jira</Link></div></div>
             <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Workspace</p><div className="mt-3 grid gap-2.5"><Link href="/dashboard" className="rounded-lg py-1 hover:text-blue-700">Open dashboard</Link><Link href="/dashboard/tasks" className="rounded-lg py-1 hover:text-blue-700">Team tasks</Link><Link href="/dashboard/vault" className="rounded-lg py-1 hover:text-blue-700">Company Vault</Link></div></div>
             <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Account</p><div className="mt-3 grid gap-2.5"><Link href="/login" className="rounded-lg py-1 hover:text-blue-700">Sign in</Link><Link href="/" className="rounded-lg py-1 hover:text-blue-700">Return home</Link></div></div>
           </div>

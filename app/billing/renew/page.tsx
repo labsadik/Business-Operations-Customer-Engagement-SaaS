@@ -10,7 +10,7 @@ import { getCompanyPlanAccessState, getCompanySubscription } from "@/lib/plans-s
 import { listPublicPlans } from "@/lib/plan-catalog";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Renew company plan · Conventus" };
+export const metadata = { title: "Renew company plan · Canvas" };
 
 function money(value: number) {
   return new Intl.NumberFormat("en-IN", {

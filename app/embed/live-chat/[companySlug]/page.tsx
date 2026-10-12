@@ -1,7 +1,7 @@
 import LiveChatWidget from "@/components/live-chat-widget";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Live Chat · Conventus" };
+export const metadata = { title: "Live Chat · Canvas" };
 
 export default async function EmbeddedLiveChatPage({
   params
