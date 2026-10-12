@@ -621,8 +621,8 @@ test("company plan suspension is admin-controlled, server-enforced, and restored
   assert.ok(expiryApi.includes("PLAN_EXPIRY_TEST_RESTORED"));
   assert.ok(plans.includes('throw new Error("PLAN_SUSPENDED")'));
   assert.ok(plans.includes("planAccessExpiresAt"));
-  assert.ok(companyAccessApi.includes("isCompanyPlanSuspended(session.companyId)"));
-  assert.ok(companyAccessApi.includes("planExpiryTestActive"));
+  assert.ok(companyAccessApi.includes("getCompanyPlanAccessState(session.companyId)"));
+  assert.ok(plans.includes("planExpiryTestActive: Boolean(company.planExpiryTestActive)"));
   assert.ok(workspace.includes('fetch("/api/company/plan-access"'));
   assert.ok(workspace.includes("window.setInterval(() => void syncPlanAccess(), 8_000)"));
   assert.ok(workspace.includes("Your workspace and existing information remain visible"));
@@ -631,8 +631,14 @@ test("company plan suspension is admin-controlled, server-enforced, and restored
   assert.ok(vault.includes("allowSuspendedRead"));
   assert.ok(booking.includes('code === "PLAN_SUSPENDED" ? 423'));
   assert.ok(liveChat.includes("PLAN_SUSPENDED"));
-  assert.ok(billing.includes("// Only an applied, verified paid plan clears access locks."));
+  assert.ok(billing.includes("// A successful payment restores expired access but never overrides a"));
   assert.ok(billing.includes("planAccessExpiresAt: periodEnd"));
   assert.ok(billing.includes("planExpiryTestActive: false"));
+  assert.doesNotMatch(billing, /planSuspended:\s*false/);
+  assert.ok(tasks.includes("assertCompanyPlanNotSuspended(scope.companyId)"));
+  assert.ok(vault.includes("await assertCompanyPlanNotSuspended(String(companyId))"));
+  assert.ok(source("app/dashboard/tasks/page.tsx").includes("PlanAccessGuard"));
+  assert.ok(source("app/dashboard/vault/page.tsx").includes("PlanAccessGuard"));
+  assert.ok(source("app/dashboard/live-chat/page.tsx").includes("PlanAccessGuard"));
 });
 
