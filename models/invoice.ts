@@ -26,7 +26,7 @@ const invoiceSchema = new Schema(
     issuedAt: { type: Date, required: true },
     billingPeriodStart: { type: Date },
     billingPeriodEnd: { type: Date },
-    serviceDescription: { type: String, required: true, default: "Conventus monthly scheduling service" },
+    serviceDescription: { type: String, required: true, default: "Canvas monthly scheduling service" },
     discountType: { type: String, enum: [...PLAN_DISCOUNT_TYPES], default: "NONE" },
     discountValue: { type: Number, min: 0, default: 0 },
     discountAmount: { type: Number, min: 0, default: 0 },

@@ -51,7 +51,7 @@ export async function POST(request: Request) {
 
       const payment = await Payment.findOne({
         providerOrderId: entity.order_id,
-        merchantAccount: "CANVAS"
+        merchantAccount: "ALGOQUIT"
       });
 
       if (!payment) {
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
       await Payment.updateOne(
         {
           providerOrderId: entity.order_id,
-          merchantAccount: "CANVAS",
+          merchantAccount: "ALGOQUIT",
           status: "PENDING"
         },
         {

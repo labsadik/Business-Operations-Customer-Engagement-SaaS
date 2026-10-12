@@ -159,7 +159,7 @@ export default async function BillingCheckoutPage({
             {isCurrentPlan ? "Renew your plan" : "Confirm your plan"}
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-            Review the server-calculated plan price, GST, and total before Canvas opens Razorpay Checkout.
+            Review the server-calculated plan price, GST, and total before AlgoQuit opens Razorpay Checkout.
           </p>
         </div>
 
