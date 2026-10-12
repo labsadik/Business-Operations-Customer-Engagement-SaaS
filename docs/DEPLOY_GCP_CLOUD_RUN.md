@@ -139,6 +139,12 @@ Do not include the secret in the URL or in source control.
 
 Set the Scheduler timezone intentionally (UTC is simplest). Restrict who can view/edit Scheduler jobs because the custom header contains the maintenance secret.
 
+## Redis runtime contract
+
+Set `REDIS_URL` to the Upstash Redis REST HTTPS endpoint and `REDIS_TOKEN` to its REST token through Secret Manager. The runtime also accepts `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` for compatibility. Never expose the token through a `NEXT_PUBLIC_*` variable.
+
+Redis stores only temporary availability results (75-second TTL) and distributed lock keys for booking/meeting state transitions, the booking sweep, and live-chat conversation creation. MongoDB remains authoritative for application records. Production lock-protected API operations and the booking sweep fail closed with HTTP 503 if Redis is missing or unavailable; configure and verify Redis before sending production booking traffic.
+
 ## 8. Verify the live service
 
 Run these checks after deployment:
