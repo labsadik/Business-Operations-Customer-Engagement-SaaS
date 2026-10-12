@@ -23,10 +23,6 @@ const taskSchema = new Schema(
       index: true,
       immutable: true
     },
-    assigneeUserIds: {
-      type: [{ type: Schema.Types.ObjectId, ref: "User" }],
-      default: []
-    },
     title: { type: String, required: true, trim: true, minlength: 1, maxlength: 160 },
     description: { type: String, default: "", trim: true, maxlength: 5000 },
     priority: {
@@ -53,7 +49,6 @@ const taskSchema = new Schema(
 
 taskSchema.index({ companyId: 1, workspaceId: 1, createdAt: -1, _id: -1 });
 taskSchema.index({ companyId: 1, workspaceId: 1, status: 1, createdAt: -1, _id: -1 });
-taskSchema.index({ companyId: 1, workspaceId: 1, assigneeUserIds: 1, createdAt: -1, _id: -1 });
 taskSchema.index({ companyId: 1, workspaceId: 1, createdByUserId: 1, createdAt: -1, _id: -1 });
 
 export const Task = models.Task ?? model("Task", taskSchema);

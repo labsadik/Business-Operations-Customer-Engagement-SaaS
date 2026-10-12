@@ -58,10 +58,15 @@ export async function GET(request: Request) {
     if (statusParam) filters.push({ status: statusParam });
     if (priorityParam) filters.push({ priority: priorityParam });
     if (!scope.isPlatformAdmin && !["COMPANY_ADMIN"].includes(scope.session.role)) {
+      const assignedTaskIds = await TaskAssignment.distinct("taskId", {
+        companyId: new Types.ObjectId(scope.companyId),
+        workspaceId: new Types.ObjectId(scope.workspaceId),
+        assigneeUserId: new Types.ObjectId(scope.session.userId)
+      });
       filters.push({
         $or: [
           { createdByUserId: new Types.ObjectId(scope.session.userId) },
-          { assigneeUserIds: new Types.ObjectId(scope.session.userId) }
+          { _id: { $in: assignedTaskIds } }
         ]
       });
     }
@@ -77,19 +82,35 @@ export async function GET(request: Request) {
     const rows = await Task.find({ $and: filters })
       .sort({ createdAt: -1, _id: -1 })
       .limit(limit + 1)
-      .select("_id companyId workspaceId createdByUserId assigneeUserIds title description priority status dueAt startedAt completedAt createdAt updatedAt")
+      .select("_id companyId workspaceId createdByUserId title description priority status dueAt startedAt completedAt createdAt updatedAt")
       .lean();
 
     const hasMore = rows.length > limit;
     const page = hasMore ? rows.slice(0, limit) : rows;
     const taskIds = page.map((task) => task._id);
-    const summaries = taskIds.length
-      ? await TaskAssignment.aggregate<{ _id: Types.ObjectId; total: number; completed: number }>([
-          { $match: { companyId: new Types.ObjectId(scope.companyId), workspaceId: new Types.ObjectId(scope.workspaceId), taskId: { $in: taskIds } } },
-          { $group: { _id: "$taskId", total: { $sum: 1 }, completed: { $sum: { $cond: [{ $eq: ["$status", "COMPLETED"] }, 1, 0] } } } }
-        ])
-      : [];
+    const [summaries, taskAssignments] = await Promise.all([
+      taskIds.length
+        ? TaskAssignment.aggregate<{ _id: Types.ObjectId; total: number; completed: number }>([
+            { $match: { companyId: new Types.ObjectId(scope.companyId), workspaceId: new Types.ObjectId(scope.workspaceId), taskId: { $in: taskIds } } },
+            { $group: { _id: "$taskId", total: { $sum: 1 }, completed: { $sum: { $cond: [{ $eq: ["$status", "COMPLETED"] }, 1, 0] } } } }
+          ])
+        : Promise.resolve([]),
+      taskIds.length
+        ? TaskAssignment.find({
+            companyId: new Types.ObjectId(scope.companyId),
+            workspaceId: new Types.ObjectId(scope.workspaceId),
+            taskId: { $in: taskIds }
+          }).select("taskId assigneeUserId").sort({ assignedAt: 1, _id: 1 }).lean()
+        : Promise.resolve([])
+    ]);
     const summaryByTask = new Map(summaries.map((item) => [String(item._id), { total: item.total, completed: item.completed }]));
+    const assigneesByTask = new Map<string, string[]>();
+    for (const assignment of taskAssignments) {
+      const key = String(assignment.taskId);
+      const assignees = assigneesByTask.get(key) ?? [];
+      assignees.push(String(assignment.assigneeUserId));
+      assigneesByTask.set(key, assignees);
+    }
 
     return jsonOk({
       items: page.map((task) => ({
@@ -104,7 +125,7 @@ export async function GET(request: Request) {
         createdAt: task.createdAt,
         updatedAt: task.updatedAt,
         createdByUserId: String(task.createdByUserId),
-        assigneeUserIds: task.assigneeUserIds.map(String),
+        assigneeUserIds: assigneesByTask.get(String(task._id)) ?? [],
         assignmentSummary: summaryByTask.get(String(task._id)) ?? { total: 0, completed: 0 }
       })),
       nextCursor: hasMore && page.length
@@ -150,7 +171,6 @@ export async function POST(request: Request) {
       companyId: new Types.ObjectId(scope.companyId),
       workspaceId: new Types.ObjectId(scope.workspaceId),
       createdByUserId: new Types.ObjectId(scope.session.userId),
-      assigneeUserIds: assigneeIds,
       title: input.title,
       description: input.description,
       priority: input.priority,
@@ -222,7 +242,7 @@ export async function POST(request: Request) {
       createdAt: task.createdAt,
       updatedAt: task.updatedAt,
       createdByUserId: scope.session.userId,
-      assigneeUserIds: input.assigneeUserIds,
+      assigneeUserIds: assigneeIds.map(String),
       assignmentSummary: { total: assigneeIds.length, completed: 0 }
     }, 201);
   } catch (error) {

@@ -13,7 +13,8 @@
     "admin:create": "node scripts/create-platform-admin.mjs",
     "test": "node --experimental-strip-types --test tests/scheduling.test.ts tests/cookie-consent.test.ts tests/platform-communication.test.ts tests/feedback-flow.test.ts tests/support-tickets.test.ts tests/plan-management.test.ts tests/task-management.test.ts tests/redis.test.ts tests/platform-announcement-client.test.ts tests/dashboard-loading-shell.test.ts tests/meeting-dashboard.test.ts tests/public-feedback-embed.test.ts tests/resource-guardrails.test.ts tests/live-chat.test.ts tests/sentry-config.test.ts",
     "roles:migrate": "node scripts/migrate-roles.mjs",
-    "membership-profile:migrate": "node scripts/migrate-membership-profile-fields.mjs"
+    "membership-profile:migrate": "node scripts/migrate-membership-profile-fields.mjs",
+    "task-assignees:migrate": "node scripts/migrate-task-assignees.mjs"
   },
   "dependencies": {
     "@axiomhq/js": "1.8.0",

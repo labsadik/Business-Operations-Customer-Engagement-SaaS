@@ -13,10 +13,6 @@ import { recordTaskEvent } from "@/features/task-management/server/task-events";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function visibleToUser(task: { createdByUserId: unknown; assigneeUserIds: unknown[] }, userId: string) {
-  return String(task.createdByUserId) === userId || task.assigneeUserIds.some((id) => String(id) === userId);
-}
-
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ taskId: string }> }
@@ -34,15 +30,19 @@ export async function GET(
       workspaceId: new Types.ObjectId(scope.workspaceId)
     }).lean();
     if (!task) return jsonError("TASK_NOT_FOUND", 404);
-    if (!scope.isPlatformAdmin && !["COMPANY_ADMIN"].includes(scope.session.role) && !visibleToUser(task, scope.session.userId)) {
-      return jsonError("TASK_NOT_FOUND", 404);
-    }
-
     const assignments = await TaskAssignment.find({
       taskId: task._id,
       companyId: task.companyId,
       workspaceId: task.workspaceId
     }).sort({ assignedAt: 1, _id: 1 }).lean();
+    const canReadAllTasks = scope.isPlatformAdmin || scope.session.role === "COMPANY_ADMIN";
+    const createdByCurrentUser = String(task.createdByUserId) === scope.session.userId;
+    const assignedToCurrentUser = assignments.some(
+      (assignment) => String(assignment.assigneeUserId) === scope.session.userId
+    );
+    if (!canReadAllTasks && !createdByCurrentUser && !assignedToCurrentUser) {
+      return jsonError("TASK_NOT_FOUND", 404);
+    }
     const userIds = [...new Set([
       String(task.createdByUserId),
       ...assignments.map((assignment) => String(assignment.assigneeUserId))
@@ -113,9 +113,13 @@ export async function PATCH(
     ).lean();
     if (!updated) return jsonError("TASK_NOT_FOUND", 404);
 
-    const assigneeIds: string[] = (existing.assigneeUserIds as unknown[])
-      .map((id: unknown) => String(id))
-      .filter((id: string) => id !== scope.session.userId);
+    const existingAssignments = await TaskAssignment.find({
+      taskId: existing._id,
+      companyId: existing.companyId,
+      workspaceId: existing.workspaceId
+    }).select("assigneeUserId").lean();
+    const assigneeIds = [...new Set(existingAssignments.map((assignment) => String(assignment.assigneeUserId)))]
+      .filter((id) => id !== scope.session.userId);
     await recordTaskEvent({
       scope,
       taskId,

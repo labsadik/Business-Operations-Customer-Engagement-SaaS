@@ -150,9 +150,9 @@ test("job title and department are owned by users, while employment status stays
   assert.ok(paymentModel.includes("planEntitlementSnapshotSchema"));
   assert.ok(subscriptionModel.includes("planEntitlementSnapshotSchema"));
   assert.ok(invoicing.includes("planSnapshot: createEntitlementSnapshot(input.plan)"));
-  assert.doesNotMatch(invoiceModel, /planSnapshot:\s*\{/);
-  assert.doesNotMatch(paymentModel, /checkoutPlanSnapshot:\s*\{/);
-  assert.doesNotMatch(subscriptionModel, /entitlementSnapshot:\s*\{/);
+  assert.doesNotMatch(invoiceModel, /planSnapshot:\s*\{\s*id:/);
+  assert.doesNotMatch(paymentModel, /checkoutPlanSnapshot:\s*\{\s*_id:\s*false/);
+  assert.doesNotMatch(subscriptionModel, /entitlementSnapshot:\s*\{\s*_id:\s*false/);
   assert.ok(companyModel.includes("createAddressSchema"));
   assert.ok(platformSettings.includes("createAddressSchema"));
   assert.ok(invoiceModel.includes("createAddressSchema"));
@@ -515,6 +515,7 @@ test("vault listing and usage reads are bounded for very large tenants", () => {
 test("invoice UI and one-page PDF resolve the full plan-specific feature entitlement snapshot", () => {
   const invoiceModel = source("models/invoice.ts");
   const paymentModel = source("models/payment.ts");
+  const planSnapshotSchema = source("models/plan-entitlement-snapshot.ts");
   const invoicing = source("lib/invoicing.ts");
   const resolver = source("lib/invoice-plan-snapshot.ts");
   const invoicePage = source("app/billing/invoices/[invoiceId]/page.tsx");
@@ -522,12 +523,13 @@ test("invoice UI and one-page PDF resolve the full plan-specific feature entitle
   const invoiceUi = source("components/invoice-document.tsx");
   const pdf = source("app/api/billing/invoices/[invoiceId]/pdf/route.ts");
 
-  for (const field of ["taskManagementDailyLimit", "vaultEnabled", "vaultQuotaBytes", "vaultMaxFileBytes", "vaultMaxItems"]) {
-    assert.ok(invoiceModel.includes(field), "invoice snapshot persists " + field);
-    assert.ok(paymentModel.includes(field), "checkout snapshot persists " + field);
-    assert.ok(invoicing.includes(field), "invoice creation snapshots " + field);
+  for (const field of ["taskManagementDailyLimit", "vaultEnabled", "vaultQuotaBytes", "vaultMaxFileBytes", "vaultMaxItems", "liveChatEnabled", "liveChatMonthlyLimit"]) {
+    assert.ok(planSnapshotSchema.includes(field), "shared plan snapshot persists " + field);
+    assert.ok(invoiceModel.includes("planEntitlementSnapshotSchema"), "invoice uses the shared plan snapshot schema");
+    assert.ok(paymentModel.includes("planEntitlementSnapshotSchema"), "checkout uses the shared plan snapshot schema");
     assert.ok(resolver.includes(field), "legacy invoice resolver repairs " + field);
   }
+  assert.ok(invoicing.includes("planSnapshot: createEntitlementSnapshot(input.plan)"));
 
   assert.ok(invoicePage.includes("resolveInvoicePlanSnapshot"));
   assert.ok(invoiceList.includes("resolveInvoicePlanSnapshot"));

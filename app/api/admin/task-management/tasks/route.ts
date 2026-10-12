@@ -45,7 +45,7 @@ export async function GET(request: Request) {
     const rows = await Task.find(filters.length ? { $and: filters } : {})
       .sort({ createdAt: -1, _id: -1 })
       .limit(limit + 1)
-      .select("_id companyId workspaceId createdByUserId assigneeUserIds title description priority status dueAt startedAt completedAt createdAt updatedAt")
+      .select("_id companyId workspaceId createdByUserId title description priority status dueAt startedAt completedAt createdAt updatedAt")
       .lean();
     const hasMore = rows.length > limit;
     const page = hasMore ? rows.slice(0, limit) : rows;
@@ -53,17 +53,27 @@ export async function GET(request: Request) {
     const actorIds = [...new Set(page.map((task) => String(task.createdByUserId)))];
     const taskIds = page.map((task) => task._id);
 
-    const [companies, users, summaries] = await Promise.all([
+    const [companies, users, summaries, assignmentRows] = await Promise.all([
       companyIds.length ? Company.find({ _id: { $in: companyIds.map((id) => new Types.ObjectId(id)) } }).select("name slug").lean() : [],
       actorIds.length ? User.find({ _id: { $in: actorIds.map((id) => new Types.ObjectId(id)) } }).select("name email").lean() : [],
       taskIds.length ? TaskAssignment.aggregate<{ _id: Types.ObjectId; total: number; completed: number }>([
         { $match: { taskId: { $in: taskIds } } },
         { $group: { _id: "$taskId", total: { $sum: 1 }, completed: { $sum: { $cond: [{ $eq: ["$status", "COMPLETED"] }, 1, 0] } } } }
-      ]) : []
+      ]) : [],
+      taskIds.length
+        ? TaskAssignment.find({ taskId: { $in: taskIds } }).select("taskId assigneeUserId").sort({ assignedAt: 1, _id: 1 }).lean()
+        : []
     ]);
     const companyMap = new Map(companies.map((item) => [String(item._id), { id: String(item._id), name: item.name, slug: item.slug }]));
     const userMap = new Map(users.map((item) => [String(item._id), { id: String(item._id), name: item.name, email: item.email }]));
     const summaryMap = new Map(summaries.map((item) => [String(item._id), { total: item.total, completed: item.completed }]));
+    const assigneesByTask = new Map<string, string[]>();
+    for (const assignment of assignmentRows) {
+      const key = String(assignment.taskId);
+      const assignees = assigneesByTask.get(key) ?? [];
+      assignees.push(String(assignment.assigneeUserId));
+      assigneesByTask.set(key, assignees);
+    }
 
     return jsonOk({
       items: page.map((task) => ({
@@ -78,7 +88,7 @@ export async function GET(request: Request) {
         dueAt: task.dueAt ?? null,
         startedAt: task.startedAt ?? null,
         completedAt: task.completedAt ?? null,
-        assigneeUserIds: task.assigneeUserIds.map(String),
+        assigneeUserIds: assigneesByTask.get(String(task._id)) ?? [],
         assignmentSummary: summaryMap.get(String(task._id)) ?? { total: 0, completed: 0 },
         createdAt: task.createdAt,
         updatedAt: task.updatedAt

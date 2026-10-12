@@ -209,7 +209,8 @@ test("members can save their own work availability and only active members can b
   const employeeRoute = source("app/api/company/employees/route.ts");
 
   assert.ok(profileRoute.includes('body.employmentStatus !== undefined'));
-  assert.ok(profileRoute.includes('["ACTIVE", "ON_LEAVE", "INACTIVE"]'));
+  assert.ok(profileRoute.includes("isEmploymentStatus"));
+  assert.ok(source("lib/user-profile.ts").includes('["ACTIVE", "ON_LEAVE", "INACTIVE"]'));
   assert.ok(profileRoute.includes("Membership.findOneAndUpdate"));
   assert.ok(profile.includes("Work availability"));
   assert.ok(profile.includes('profileRole !== "PLATFORM_ADMIN"'));
@@ -351,4 +352,31 @@ test("plan suspension and expiry use one server access gate across feature entry
   // separate administrative suspension.
   assert.match(billing, /planExpiryTestActive:\s*false/);
   assert.doesNotMatch(billing, /planSuspended:\s*false/);
+});
+
+
+test("TaskAssignment is the single source of truth for persisted task assignees", () => {
+  const taskModel = source("models/task.ts");
+  const taskList = source("app/api/tasks/route.ts");
+  const addAssignments = source("app/api/tasks/[taskId]/assignments/route.ts");
+  const removeAssignment = source("app/api/tasks/[taskId]/assignments/[assignmentId]/route.ts");
+  const taskDetail = source("app/api/tasks/[taskId]/route.ts");
+  const taskActivity = source("app/api/tasks/[taskId]/activity/route.ts");
+  const adminTaskList = source("app/api/admin/task-management/tasks/route.ts");
+  const migration = source("scripts/migrate-task-assignees.mjs");
+  const packageJson = JSON.parse(source("package.json")) as { scripts: Record<string, string> };
+
+  assert.doesNotMatch(taskModel, /assigneeUserIds/);
+  assert.ok(taskList.includes('TaskAssignment.distinct("taskId"'));
+  assert.ok(taskList.includes("assigneesByTask.get(String(task._id))"));
+  assert.ok(!addAssignments.includes("$addToSet: { $each: targetIds }"));
+  assert.ok(!removeAssignment.includes("$pull: { assigneeUserIds:"));
+  assert.ok(taskDetail.includes("assignedToCurrentUser"));
+  assert.ok(taskDetail.includes("existingAssignments.map"));
+  assert.doesNotMatch(taskActivity, /assigneeUserIds/);
+  assert.ok(taskActivity.includes("TaskAssignment.exists"));
+  assert.ok(adminTaskList.includes("assigneesByTask.get(String(task._id))"));
+  assert.ok(migration.includes("TASK_ASSIGNEE_SOURCE_DRIFT"));
+  assert.ok(migration.includes('$unset: { assigneeUserIds: "" }'));
+  assert.equal(packageJson.scripts["task-assignees:migrate"], "node scripts/migrate-task-assignees.mjs");
 });

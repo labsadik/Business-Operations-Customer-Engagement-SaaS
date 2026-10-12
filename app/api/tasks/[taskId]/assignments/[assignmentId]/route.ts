@@ -43,10 +43,6 @@ export async function DELETE(
     if (assignment.status === "COMPLETED") return jsonError("ASSIGNMENT_ALREADY_COMPLETED", 409);
 
     await TaskAssignment.deleteOne({ _id: assignment._id, taskId: task._id, companyId: task.companyId, workspaceId: task.workspaceId });
-    await Task.updateOne(
-      { _id: task._id, companyId: task.companyId, workspaceId: task.workspaceId },
-      { $pull: { assigneeUserIds: assignment.assigneeUserId } }
-    );
     await recomputeTaskAggregate({ taskId, companyId: scope.companyId, workspaceId: scope.workspaceId });
 
     await recordTaskEvent({

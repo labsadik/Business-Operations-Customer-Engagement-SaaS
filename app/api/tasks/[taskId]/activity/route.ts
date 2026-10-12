@@ -2,6 +2,7 @@ import { Types } from "mongoose";
 import { getMongo } from "@/lib/mongodb";
 import { jsonError, jsonOk } from "@/lib/http";
 import { Task } from "@/models/task";
+import { TaskAssignment } from "@/models/task-assignment";
 import { TaskActivity } from "@/models/task-activity";
 import { User } from "@/models/user";
 import { assertTaskFeatureAccess, requireTaskScope } from "@/features/task-management/server/task-authorization";
@@ -26,12 +27,17 @@ export async function GET(
       _id: new Types.ObjectId(taskId),
       companyId: new Types.ObjectId(scope.companyId),
       workspaceId: new Types.ObjectId(scope.workspaceId)
-    }).select("_id createdByUserId assigneeUserIds").lean();
+    }).select("_id companyId workspaceId createdByUserId").lean();
     if (!task) return jsonError("TASK_NOT_FOUND", 404);
     if (!scope.isPlatformAdmin && !["COMPANY_ADMIN"].includes(scope.session.role) &&
-      String(task.createdByUserId) !== scope.session.userId &&
-      !task.assigneeUserIds.some((id: unknown) => String(id) === scope.session.userId)) {
-      return jsonError("TASK_NOT_FOUND", 404);
+      String(task.createdByUserId) !== scope.session.userId) {
+      const assignment = await TaskAssignment.exists({
+        taskId: task._id,
+        companyId: task.companyId,
+        workspaceId: task.workspaceId,
+        assigneeUserId: new Types.ObjectId(scope.session.userId)
+      });
+      if (!assignment) return jsonError("TASK_NOT_FOUND", 404);
     }
 
     const limit = parseTaskLimit(new URL(request.url).searchParams.get("limit"));

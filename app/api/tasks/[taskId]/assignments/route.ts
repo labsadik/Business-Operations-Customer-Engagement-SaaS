@@ -48,7 +48,12 @@ export async function POST(
 
     const body = await request.json().catch(() => null) as { assigneeUserIds?: unknown } | null;
     const userIds = validateAssigneeUserIds(body?.assigneeUserIds);
-    const currentIds = new Set(task.assigneeUserIds.map(String));
+    const currentAssignments = await TaskAssignment.find({
+      taskId: task._id,
+      companyId: task.companyId,
+      workspaceId: task.workspaceId
+    }).select("assigneeUserId").lean();
+    const currentIds = new Set(currentAssignments.map((assignment) => String(assignment.assigneeUserId)));
     if (userIds.some((id) => currentIds.has(id))) return jsonError("ASSIGNEE_ALREADY_ASSIGNED", 409);
     const targetIds = await assertAssignableEmployees(scope, userIds);
     const now = new Date();
@@ -73,11 +78,6 @@ export async function POST(
       }
       throw error;
     }
-
-    await Task.updateOne(
-      { _id: task._id, companyId: task.companyId, workspaceId: task.workspaceId },
-      { $addToSet: { assigneeUserIds: { $each: targetIds } } }
-    );
 
     const notifications: TaskNotificationDraft[] = userIds
       .filter((userId) => userId !== scope.session.userId)
