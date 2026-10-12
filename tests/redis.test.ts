@@ -10,7 +10,9 @@ function resetRedisState() {
 
 test("Redis is optional when no URL is configured", async () => {
   const previousUrl = process.env.REDIS_URL;
+  const previousUpstashUrl = process.env.UPSTASH_REDIS_REST_URL;
   delete process.env.REDIS_URL;
+  delete process.env.UPSTASH_REDIS_REST_URL;
   resetRedisState();
 
   try {
@@ -18,6 +20,8 @@ test("Redis is optional when no URL is configured", async () => {
   } finally {
     if (previousUrl === undefined) delete process.env.REDIS_URL;
     else process.env.REDIS_URL = previousUrl;
+    if (previousUpstashUrl === undefined) delete process.env.UPSTASH_REDIS_REST_URL;
+    else process.env.UPSTASH_REDIS_REST_URL = previousUpstashUrl;
     resetRedisState();
   }
 });
