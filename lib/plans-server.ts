@@ -23,6 +23,24 @@ function periodFor(plan: PlanEntitlements, start: Date) {
   return addValidityDays(start, plan.validityDays);
 }
 
+async function markCompanyPlanExpired(companyId: string, expiresAt: Date) {
+  await Company.updateOne(
+    {
+      _id: companyId,
+      planSuspended: { $ne: true },
+      planExpiryTestActive: { $ne: true }
+    },
+    {
+      $set: {
+        planExpired: true,
+        planAccessExpiresAt: expiresAt,
+        planExpiredAt: expiresAt
+      },
+      $unset: { planExpiredByUserId: "" }
+    }
+  );
+}
+
 function utcDayKey(date = new Date()) {
   return date.toISOString().slice(0, 10);
 }
@@ -156,11 +174,22 @@ async function ensureSubscription(companyId: string) {
     return subscription;
   }
 
-  if (!isValidEntitlementSnapshot(subscription.entitlementSnapshot)) {
-    await resolvePlanEntitlementsForSubscription(subscription);
-  }
+  const subscriptionEntitlements = isValidEntitlementSnapshot(subscription.entitlementSnapshot)
+    ? createEntitlementSnapshot(subscription.entitlementSnapshot)
+    : await resolvePlanEntitlementsForSubscription(subscription);
 
   const now = new Date();
+  if (subscription.source === "FREE" && typeof subscriptionEntitlements.freeFeatureDays === "number") {
+    const freeFeatureExpiresAt = addValidityDays(
+      new Date(subscription.currentPeriodStart),
+      subscriptionEntitlements.freeFeatureDays
+    );
+    if (freeFeatureExpiresAt.getTime() <= now.getTime()) {
+      await markCompanyPlanExpired(companyId, freeFeatureExpiresAt);
+      return subscription;
+    }
+  }
+
   if (subscription.currentPeriodEnd.getTime() <= now.getTime()) {
     const currentPlan = await resolvePlanEntitlementsForSubscription(subscription);
     const accessState = await Company.findById(companyId)
@@ -169,7 +198,11 @@ async function ensureSubscription(companyId: string) {
 
     // Paid and admin-granted access never silently rolls into a fresh free period.
     // Keeping the expired subscription also keeps its history visible to admins.
-    if (["PAID", "ADMIN_GRANTED"].includes(subscription.source) || accessState?.planExpiryTestActive) {
+    if (
+      ["PAID", "ADMIN_GRANTED"].includes(subscription.source) ||
+      accessState?.planExpiryTestActive ||
+      accessState?.planExpired
+    ) {
       if (!accessState?.planExpired) {
         await Company.updateOne(
           { _id: companyId, planExpired: { $ne: true } },
@@ -183,6 +216,12 @@ async function ensureSubscription(companyId: string) {
           }
         );
       }
+      return subscription;
+    }
+
+    // A Free subscription period must not automatically restart into another free trial.
+    if (subscription.source === "FREE") {
+      await markCompanyPlanExpired(companyId, subscription.currentPeriodEnd);
       return subscription;
     }
 
@@ -292,8 +331,31 @@ export async function isCompanyPlanSuspended(companyId: string) {
   const now = Date.now();
   const storedAccessExpired = Boolean(storedAccessExpiry && storedAccessExpiry.getTime() <= now);
   const subscription = await Subscription.findOne({ companyId })
-    .select("status source currentPeriodEnd")
+    .select("status source currentPeriodStart currentPeriodEnd planId entitlementSnapshot")
     .lean();
+
+  // Free plans may grant a finite feature window even when the nominal period ends later.
+  // Once that window expires, persist the lock so direct APIs and repeated free-plan requests
+  // cannot reset the trial or keep dashboard features active.
+  if (subscription?.source === "FREE") {
+    const freePlan = isValidEntitlementSnapshot(subscription.entitlementSnapshot)
+      ? createEntitlementSnapshot(subscription.entitlementSnapshot)
+      : await getManagedPlan(subscription.planId, { includeArchived: true });
+    const freeFeatureExpiresAt = freePlan && typeof freePlan.freeFeatureDays === "number"
+      ? addValidityDays(new Date(subscription.currentPeriodStart), freePlan.freeFeatureDays)
+      : null;
+
+    if (freeFeatureExpiresAt && freeFeatureExpiresAt.getTime() <= now) {
+      await markCompanyPlanExpired(companyId, freeFeatureExpiresAt);
+      return true;
+    }
+
+    const freePeriodEnd = subscription.currentPeriodEnd?.getTime?.() ?? 0;
+    if (freePeriodEnd <= now) {
+      await markCompanyPlanExpired(companyId, new Date(subscription.currentPeriodEnd));
+      return true;
+    }
+  }
 
   // Reconcile against the subscription's actual service period even when the
   // company-level expiry timestamp or flag is stale in either direction.

@@ -4,7 +4,7 @@ import { Subscription } from "@/models/subscription";
 import { Workspace } from "@/models/workspace";
 import { Company } from "@/models/company";
 import { ensureCurrentAccessInvoice } from "@/lib/billing";
-import { getCompanySubscription } from "@/lib/plans-server";
+import { getCompanyPlanAccessState, getCompanySubscription } from "@/lib/plans-server";
 import { createEntitlementSnapshot, getManagedPlan } from "@/lib/plan-catalog";
 import { jsonError, jsonOk } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
@@ -23,6 +23,14 @@ export async function POST(request: Request) {
     }
 
     await getMongo();
+
+    const accessState = await getCompanyPlanAccessState(session.companyId);
+    if (accessState?.locked) {
+      return jsonError(
+        accessState.reason === "SUSPENDED" ? "PLAN_SUSPENDED" : "PLAN_REQUIRES_RENEWAL",
+        accessState.reason === "SUSPENDED" ? 423 : 409
+      );
+    }
 
     const company = await Company.findById(session.companyId).lean();
     if (!company) return jsonError("COMPANY_NOT_FOUND", 404);

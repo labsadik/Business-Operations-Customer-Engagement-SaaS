@@ -6,7 +6,7 @@ import { getSession } from "@/lib/session";
 import { getMongo } from "@/lib/mongodb";
 import { Company } from "@/models/company";
 import { Membership } from "@/models/membership";
-import { getCompanySubscription } from "@/lib/plans-server";
+import { getCompanyPlanAccessState, getCompanySubscription } from "@/lib/plans-server";
 import { listPublicPlans } from "@/lib/plan-catalog";
 
 export const dynamic = "force-dynamic";
@@ -53,6 +53,13 @@ export default async function BillingRenewalPage() {
   ]);
   if (!company || !subscription) redirect("/dashboard");
 
+  const accessState = await getCompanyPlanAccessState(session.companyId);
+  const accessStatusLabel = accessState?.reason === "SUSPENDED" ? "Suspended by platform"
+    : accessState?.reason === "EXPIRED" ? "Expired"
+    : accessState?.reason === "INACTIVE" ? "Subscription inactive"
+    : accessState?.reason === "ACTIVE" ? "Active"
+    : "Unavailable";
+  const accessExpiresAt = accessState?.planAccessExpiresAt ?? subscription.currentPeriodEnd;
   const purchasablePlans = plans.filter((plan) => plan.status === "PUBLIC" && plan.requiresPayment);
 
   return (
@@ -79,7 +86,7 @@ export default async function BillingRenewalPage() {
                 Choose a published paid plan below. The dashboard stays locked until the server confirms an active subscription and an unexpired service period. A successful renewal restores expired access automatically; a separate platform suspension must still be lifted by an administrator.
               </p>
               <p className="mt-3 text-xs leading-5 text-slate-600">
-                Current plan: <span className="font-semibold">{subscription.planId}</span> · Subscription status: <span className="font-semibold">{subscription.status}</span> · Current period ends: <span className="font-semibold">{dateLabel(subscription.currentPeriodEnd)}</span>
+                Current plan: <span className="font-semibold">{subscription.planId}</span> · Subscription status: <span className="font-semibold">{subscription.status}</span> · Access status: <span className="font-semibold">{accessStatusLabel}</span> · Access ends: <span className="font-semibold">{dateLabel(accessExpiresAt)}</span>
               </p>
             </div>
           </div>

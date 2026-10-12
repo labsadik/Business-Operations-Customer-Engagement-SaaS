@@ -665,3 +665,16 @@ test("company plan suspension is admin-controlled, server-enforced, and restored
   assert.ok(source("app/dashboard/live-chat/page.tsx").includes("PlanAccessGuard"));
 });
 
+
+test("expired Free plan access locks the whole dashboard and cannot be restarted through the free-plan endpoint", () => {
+  const plans = source("lib/plans-server.ts");
+  const freePlanApi = source("app/api/billing/free/route.ts");
+  const dashboardLayout = source("app/dashboard/layout.tsx");
+
+  assert.ok(plans.includes('subscription.source === "FREE"'));
+  assert.ok(plans.includes("freeFeatureExpiresAt"));
+  assert.ok(plans.includes("markCompanyPlanExpired(companyId, subscription.currentPeriodEnd)"));
+  assert.ok(freePlanApi.includes("getCompanyPlanAccessState(session.companyId)"));
+  assert.ok(freePlanApi.includes('"PLAN_REQUIRES_RENEWAL"'));
+  assert.ok(dashboardLayout.includes("getCompanyPlanAccessState"));
+});
