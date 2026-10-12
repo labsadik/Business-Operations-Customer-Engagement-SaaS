@@ -422,8 +422,8 @@ export default function TaskManagementDashboard({
         setSelectedAssigneeIds((current) => current.filter((id) => id !== userId));
       }
     };
-    window.addEventListener("conventus:employment-status-updated", syncOwnEmploymentStatus);
-    return () => window.removeEventListener("conventus:employment-status-updated", syncOwnEmploymentStatus);
+    window.addEventListener("canvas:employment-status-updated", syncOwnEmploymentStatus);
+    return () => window.removeEventListener("canvas:employment-status-updated", syncOwnEmploymentStatus);
   }, [userId]);
 
   async function loadMoreTasks() {

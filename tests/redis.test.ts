@@ -4,8 +4,8 @@ import { getRedis } from "../lib/redis.ts";
 import { withRedisLock } from "../lib/redis-lock.ts";
 
 function resetRedisState() {
-  globalThis.__conventusRedis = undefined;
-  globalThis.__conventusRedisConnect = undefined;
+  globalThis.__canvasRedis = undefined;
+  globalThis.__canvasRedisConnect = undefined;
 }
 
 test("Redis is optional when no URL is configured", async () => {

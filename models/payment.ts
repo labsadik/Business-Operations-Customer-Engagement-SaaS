@@ -6,7 +6,7 @@ const paymentSchema = new Schema(
   {
     companyId: { type: Schema.Types.ObjectId, ref: "Company", required: true, index: true },
     planId: { type: String, required: true, index: true, match: /^[a-z][a-z0-9_-]{1,63}$/ },
-    merchantAccount: { type: String, enum: ["CONVENTUS"], default: "CONVENTUS", immutable: true },
+    merchantAccount: { type: String, enum: ["ALGOQUIT"], default: "ALGOQUIT", immutable: true },
     providerOrderId: { type: String, required: true, unique: true, index: true },
     // One live checkout/order per company. The field is removed once the
     // payment is captured or permanently failed, so a company cannot create

@@ -27,5 +27,5 @@ export function loadLocalEnv() {
 }
 
 export function mongoDatabaseName() {
-  return process.env.MONGODB_DB_NAME?.trim() || "Conventus";
+  return process.env.MONGODB_DB_NAME?.trim() || "Canvas";
 }

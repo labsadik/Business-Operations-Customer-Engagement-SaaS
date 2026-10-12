@@ -142,7 +142,7 @@ export async function GET(request: Request) {
   }
 
   const cookieHeader = request.headers.get("cookie") ?? "";
-  const expected = cookieHeader.match(/(?:^|; )conventus_oauth_state=([^;]+)/)?.[1];
+  const expected = cookieHeader.match(/(?:^|; )canvas_oauth_state=([^;]+)/)?.[1];
   if (!expected || state !== expected) {
     return NextResponse.redirect(errorPathForOAuth(request, "workspace", undefined, "invalid_oauth_state"));
   }
@@ -237,7 +237,7 @@ export async function GET(request: Request) {
       await clearGoogleAccessTokenCache(current.userId);
 
       const response = NextResponse.redirect(new URL(returnTo, request.url));
-      response.cookies.delete("conventus_oauth_state");
+      response.cookies.delete("canvas_oauth_state");
       return response;
     }
 
@@ -274,7 +274,7 @@ export async function GET(request: Request) {
         const response = NextResponse.redirect(
           new URL(platformAdminSession ? "/admin" : "/dashboard", request.url)
         );
-        response.cookies.delete("conventus_oauth_state");
+        response.cookies.delete("canvas_oauth_state");
         return response;
       }
 
@@ -291,7 +291,7 @@ export async function GET(request: Request) {
         const response = NextResponse.redirect(
           new URL(platformAdminSession ? "/admin" : "/dashboard", request.url)
         );
-        response.cookies.delete("conventus_oauth_state");
+        response.cookies.delete("canvas_oauth_state");
         return response;
       }
 
@@ -326,7 +326,7 @@ export async function GET(request: Request) {
       const response = NextResponse.redirect(
         new URL(platformAdminSession ? "/admin" : returnTo, request.url)
       );
-      response.cookies.delete("conventus_oauth_state");
+      response.cookies.delete("canvas_oauth_state");
       return response;
     }
 
@@ -422,7 +422,7 @@ export async function GET(request: Request) {
       const response = NextResponse.redirect(
         new URL(platformAdminSession ? "/admin" : returnTo, request.url)
       );
-      response.cookies.delete("conventus_oauth_state");
+      response.cookies.delete("canvas_oauth_state");
       return response;
     }
 
@@ -467,14 +467,14 @@ export async function GET(request: Request) {
 
     const finalReturnTo = oauth.intent === "workspace" && platformAdminSession && !companySlug ? "/admin" : returnTo;
     const response = NextResponse.redirect(new URL(finalReturnTo, request.url));
-    response.cookies.delete("conventus_oauth_state");
+    response.cookies.delete("canvas_oauth_state");
     return response;
   } catch (error) {
     const message = error instanceof Error ? error.message : "google_auth_failed";
     const response = NextResponse.redirect(
       errorPathForOAuth(request, oauth.intent, companySlug, message.toLowerCase().slice(0, 80))
     );
-    response.cookies.delete("conventus_oauth_state");
+    response.cookies.delete("canvas_oauth_state");
     return response;
   }
 }

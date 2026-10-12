@@ -220,7 +220,7 @@ test("members can save their own work availability and only active members can b
   assert.ok(profile.includes('method: "PATCH"'));
   assert.ok(dashboard.includes("Team availability"));
   assert.ok(dashboard.includes('employee.employmentStatus === "ACTIVE"'));
-  assert.ok(dashboard.includes("conventus:employment-status-updated"));
+  assert.ok(dashboard.includes("canvas:employment-status-updated"));
   assert.ok(auth.includes('employmentStatus: "ACTIVE"'));
   assert.ok(auth.includes('{ employmentStatus: { $exists: false } }'));
   assert.ok(employeeRoute.includes('employmentStatus: membership?.employmentStatus ?? "ACTIVE"'));

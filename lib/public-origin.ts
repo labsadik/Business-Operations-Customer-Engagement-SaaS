@@ -46,7 +46,7 @@ export function getPublicOrigin() {
 
 export function isDevelopmentOnlyUrl(value: string) {
   try {
-    const url = new URL(value, "https://conventus.invalid");
+    const url = new URL(value, "https://canvas.algoquit.com");
     return isDevelopmentOnlyHostname(url.hostname);
   } catch {
     return true;

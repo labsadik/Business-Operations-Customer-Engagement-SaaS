@@ -1340,7 +1340,7 @@ export default function WorkspaceDashboard({
         ? `Delete “${confirmation.title}” permanently from this company?`
         : confirmation?.kind === "respond-request"
           ? confirmation.action === "accept"
-            ? `Accept ${confirmation.customerName}'s meeting request? Conventus will continue with the existing scheduling flow.`
+            ? `Accept ${confirmation.customerName}'s meeting request? Canvas will continue with the existing scheduling flow.`
             : `Decline ${confirmation.customerName}'s meeting request? The request will no longer remain available for your response.`
           : confirmation?.kind === "publish-page"
             ? confirmation.published

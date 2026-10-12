@@ -16,7 +16,7 @@ import { platformLegalProfile, PLATFORM_BRAND } from "@/lib/platform";
 import { getCompanySubscription } from "@/lib/plans-server";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Billing · Conventus" };
+export const metadata = { title: "Billing · Canvas" };
 
 function dateLabel(value: Date | null) {
   if (!value) return "—";
@@ -51,7 +51,7 @@ export default async function BillingResultPage({
           providerPaymentId: paymentId.trim(),
           companyId: session.companyId,
           status: "CAPTURED",
-          merchantAccount: "CONVENTUS"
+          merchantAccount: "CANVAS"
         }).lean()
       : null,
     invoiceId
@@ -146,15 +146,15 @@ export default async function BillingResultPage({
 
   const source = invoice?.source ?? "PAID";
   const title = source === "PAID"
-    ? "Your Conventus plan is active."
+    ? "Your Canvas plan is active."
     : source === "ADMIN_GRANTED"
       ? "Your access has been activated."
       : "Your Free plan is active.";
   const message = source === "PAID"
     ? `${company?.name ?? "Your workspace"} is subscribed to ${plan?.name ?? "your selected plan"} and the captured payment is documented below.`
     : source === "ADMIN_GRANTED"
-      ? `${company?.name ?? "Your workspace"} has received ${plan?.name ?? "subscription"} access from the Conventus platform administrator.`
-      : `${company?.name ?? "Your workspace"} is using the Conventus Free plan. The 30-day period includes up to 14 active feature days.`;
+      ? `${company?.name ?? "Your workspace"} has received ${plan?.name ?? "subscription"} access from the Canvas platform administrator.`
+      : `${company?.name ?? "Your workspace"} is using the Canvas Free plan. The 30-day period includes up to 14 active feature days.`;
 
   return (
     <main className="min-h-screen bg-[#faf9f1] text-slate-950">

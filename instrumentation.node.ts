@@ -7,7 +7,7 @@ const axiomHost = process.env.AXIOM_HOST?.trim().replace(/\/+$/, "");
 const axiomToken = process.env.AXIOM_TOKEN?.trim();
 const axiomDataset = process.env.AXIOM_DATASET?.trim();
 const serviceName =
-  process.env.AXIOM_SERVICE_NAME?.trim() || "conventus";
+  process.env.AXIOM_SERVICE_NAME?.trim() || "canvas";
 
 if (!axiomHost || !axiomToken || !axiomDataset) {
   console.warn(

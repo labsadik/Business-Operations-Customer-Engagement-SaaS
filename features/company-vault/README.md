@@ -1,6 +1,6 @@
 # Company Vault
 
-Conventus Company Vault gives each company an isolated document area. MongoDB stores folder metadata, file metadata, upload sessions, quota reservations, and usage. File bytes live in Bunny.net Storage and are accessed through authenticated Conventus server routes.
+Canvas Company Vault gives each company an isolated document area. MongoDB stores folder metadata, file metadata, upload sessions, quota reservations, and usage. File bytes live in Bunny.net Storage and are accessed through authenticated Canvas server routes.
 
 ## Plan entitlements and exact limits
 

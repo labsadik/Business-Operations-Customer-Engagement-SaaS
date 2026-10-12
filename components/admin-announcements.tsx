@@ -235,7 +235,7 @@ export default function AdminAnnouncements() {
         <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="announcement-editor-title">
           <form onSubmit={save} className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[1.75rem] border border-slate-200 bg-white shadow-2xl">
             <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 sm:px-6">
-              <div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-600">Conventus platform</p><h2 id="announcement-editor-title" className="mt-1 text-lg font-semibold">{editingId ? "Edit announcement" : "Create announcement"}</h2></div>
+              <div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-600">Canvas platform</p><h2 id="announcement-editor-title" className="mt-1 text-lg font-semibold">{editingId ? "Edit announcement" : "Create announcement"}</h2></div>
               <button type="button" onClick={() => setEditorOpen(false)} className="grid size-9 place-items-center rounded-xl text-slate-400 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-blue-500" aria-label="Close editor"><X className="size-4" /></button>
             </div>
             <div className="grid gap-5 px-5 py-5 sm:px-6">
@@ -246,7 +246,7 @@ export default function AdminAnnouncements() {
                 <legend className="text-sm font-semibold">Audience</legend>
                 <div className="mt-2 grid gap-2">
                   {([
-                    ["LANDING_PAGE", "Main Conventus landing page visitors"],
+                    ["LANDING_PAGE", "Main Canvas landing page visitors"],
                     ["ALL_COMPANIES", "All authenticated company dashboards"],
                     ["SELECTED_COMPANIES", "Selected authenticated company dashboards"]
                   ] as const).map(([value, label]) => (

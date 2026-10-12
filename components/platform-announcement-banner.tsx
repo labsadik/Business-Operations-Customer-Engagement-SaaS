@@ -10,7 +10,7 @@ import {
 
 type Announcement = PlatformAnnouncementClientItem;
 
-const STORAGE_PREFIX = "conventus:dismissed-platform-announcements:v1";
+const STORAGE_PREFIX = "canvas:dismissed-platform-announcements:v1";
 
 function getDismissed(scope: string) {
   if (typeof window === "undefined") return new Set<string>();

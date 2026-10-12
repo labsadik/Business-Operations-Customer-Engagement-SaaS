@@ -113,7 +113,7 @@ export async function DELETE(
 
     // Clean marker files written by older vault builds; new folders never create them.
     for (const item of [...descendants].reverse()) {
-      await bunnyDelete(item.storageKey + "/.conventus-folder");
+      await bunnyDelete(item.storageKey + "/.canvas-folder");
     }
 
     await VaultFolder.deleteMany({ _id: { $in: folderIds }, companyId, workspaceId });

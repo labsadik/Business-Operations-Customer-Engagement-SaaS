@@ -14,11 +14,11 @@ import { recordBookingActivity, releaseMeetingUsage } from "@/lib/booking-histor
 import type { Document } from "mongoose";
 
 function calendarEventIdForBooking(bookingId: string) {
-  return `conventus${bookingId}`;
+  return `canvas${bookingId}`;
 }
 
 function conferenceRequestIdForBooking(bookingId: string) {
-  return `conventus-${bookingId}`;
+  return `canvas-${bookingId}`;
 }
 
 function googleMeetUri(event: GoogleCalendarEvent | null | undefined) {
@@ -318,8 +318,8 @@ export async function createMeetingForBooking(bookingId: string) {
         event = await createCalendarEvent(String(meeting.employeeId), {
           eventId,
           conferenceRequestId,
-          summary: `Conventus meeting with ${customer.name}`,
-          description: `Conventus booking ${String(booking._id)}`,
+          summary: `Canvas meeting with ${customer.name}`,
+          description: `Canvas booking ${String(booking._id)}`,
           startAt: booking.requestedStartAt,
           endAt: booking.requestedEndAt,
           attendeeEmails: [customer.email]

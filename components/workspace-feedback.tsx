@@ -181,7 +181,7 @@ export default function WorkspaceFeedback({
       });
       setRating(0);
       setDescription("");
-      setNotice("Your feedback was sent privately to the Conventus platform team.");
+      setNotice("Your feedback was sent privately to the Canvas platform team.");
       void playFeedbackSound();
       if (canViewCustomerFeedback) {
         const data = await request<{ customerFeedback: FeedbackItem[]; companyFeedback: FeedbackItem[] }>(
@@ -232,10 +232,10 @@ export default function WorkspaceFeedback({
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em]">Private workspace feedback</p>
             </div>
             <h2 id="workspace-feedback-title" className="mt-1 text-lg font-semibold tracking-tight text-slate-950">
-              Send feedback to Conventus
+              Send feedback to Canvas
             </h2>
             <p id="workspace-feedback-description" className="mt-1 text-xs leading-5 text-slate-500">
-              This is sent privately to the Conventus platform team. It is not a public company review and is never shown to customers.
+              This is sent privately to the Canvas platform team. It is not a public company review and is never shown to customers.
             </p>
           </div>
           <button
@@ -261,7 +261,7 @@ export default function WorkspaceFeedback({
                 onClick={() => setTab("platform")}
                 className={"rounded-lg px-4 py-2 text-xs font-semibold " + (tab === "platform" ? "bg-white text-blue-700 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-800")}
               >
-                Send to Conventus
+                Send to Canvas
               </button>
               <button
                 type="button"
@@ -313,7 +313,7 @@ export default function WorkspaceFeedback({
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-700">Public feedback</p>
                 <h3 id="public-feedback-embed-title" className="mt-1 text-base font-semibold text-slate-950">Collect reviews on any website</h3>
                 <p className="mt-2 max-w-3xl text-xs leading-5 text-slate-600">
-                  Copy this iframe snippet into your website HTML. Visitors can submit their name, email, phone number, star rating, and review without creating a Conventus account. Submissions are attached to this company automatically.
+                  Copy this iframe snippet into your website HTML. Visitors can submit their name, email, phone number, star rating, and review without creating a Canvas account. Submissions are attached to this company automatically.
                 </p>
               </div>
 
@@ -366,7 +366,7 @@ export default function WorkspaceFeedback({
               <div className="grid gap-3 md:grid-cols-2">
                 <section className="rounded-2xl border border-slate-200 bg-white p-4">
                   <h4 className="text-xs font-semibold text-slate-900">Privacy and security</h4>
-                  <p className="mt-2 text-[11px] leading-5 text-slate-600">The form submits to Conventus over HTTPS. Company identity comes from the embed URL rather than visitor-supplied IDs. Phone and email are visible only to authorized company members, not to the public review list.</p>
+                  <p className="mt-2 text-[11px] leading-5 text-slate-600">The form submits to Canvas over HTTPS. Company identity comes from the embed URL rather than visitor-supplied IDs. Phone and email are visible only to authorized company members, not to the public review list.</p>
                 </section>
                 <section className="rounded-2xl border border-slate-200 bg-white p-4">
                   <h4 className="text-xs font-semibold text-slate-900">Review publishing</h4>
@@ -389,7 +389,7 @@ export default function WorkspaceFeedback({
                 <legend className="text-xs font-semibold text-slate-700">
                   Rating <span className="text-rose-600">*</span>
                 </legend>
-                <div className="mt-2 flex gap-1" role="radiogroup" aria-label="Rate Conventus from 1 to 5 stars">
+                <div className="mt-2 flex gap-1" role="radiogroup" aria-label="Rate Canvas from 1 to 5 stars">
                   {[1, 2, 3, 4, 5].map((value) => (
                     <label key={value} className="cursor-pointer rounded-xl p-1.5 focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-500">
                       <input
@@ -415,7 +415,7 @@ export default function WorkspaceFeedback({
                   maxLength={300}
                   rows={5}
                   className="mt-2 w-full resize-y rounded-2xl border border-slate-300 bg-white px-3.5 py-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                  placeholder="Tell the Conventus platform team what we can improve."
+                  placeholder="Tell the Canvas platform team what we can improve."
                 />
               </label>
 
@@ -450,7 +450,7 @@ export default function WorkspaceFeedback({
                 <section className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4" aria-labelledby="company-platform-feedback-title">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p id="company-platform-feedback-title" className="text-xs font-semibold text-slate-900">Company → Conventus feedback</p>
+                      <p id="company-platform-feedback-title" className="text-xs font-semibold text-slate-900">Company → Canvas feedback</p>
                       <p className="mt-1 text-[10px] text-slate-500">Private feedback submitted by members of this company. Other companies cannot access it.</p>
                     </div>
                     <span className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-slate-500">{sentFeedback.length}</span>

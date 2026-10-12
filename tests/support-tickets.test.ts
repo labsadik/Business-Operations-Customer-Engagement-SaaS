@@ -134,7 +134,7 @@ test("viewing a ticket is not a status mutation and UI distinguishes all stable 
   const companyUi = source("components/workspace-support-tickets.tsx");
   const adminUi = source("components/admin-support-tickets.tsx");
 
-  has(companyUi, "Ticket status is managed by Conventus support");
+  has(companyUi, "Ticket status is managed by Canvas support");
   has(companyUi, "Opening this ticket does not change its status");
   has(companyUi, '"NOT_SEEN"');
   has(companyUi, '"PROCESSING"');

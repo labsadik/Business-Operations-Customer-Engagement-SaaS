@@ -1,4 +1,4 @@
-# Conventus Build Plan
+# Canvas Build Plan
 
 ## Phase 1 — Foundation (current)
 

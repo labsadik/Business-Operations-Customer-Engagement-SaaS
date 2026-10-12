@@ -494,7 +494,7 @@ export async function getVaultUsageSnapshot(
 }
 
 export function uploadChunkKey(storageRoot: string, uploadId: string, index: number) {
-  return ".conventus-staging/" + storageRoot + "/" + uploadId + "/" + index + ".part";
+  return ".canvas-staging/" + storageRoot + "/" + uploadId + "/" + index + ".part";
 }
 
 export async function removeUploadChunks(storageRoot: string, uploadId: string, expectedChunks: number) {

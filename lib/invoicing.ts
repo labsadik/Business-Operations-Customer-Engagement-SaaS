@@ -201,7 +201,7 @@ export async function buildInvoiceSnapshots(input: {
     discountAmount: input.discount?.amountMinor ?? 0,
     planSnapshot: createEntitlementSnapshot(input.plan),
     serviceDescription: input.plan.id === "free"
-      ? "Conventus Free plan access"
-      : `Conventus ${input.plan.name} monthly scheduling service`
+      ? "Canvas Free plan access"
+      : `Canvas ${input.plan.name} monthly scheduling service`
   };
 }

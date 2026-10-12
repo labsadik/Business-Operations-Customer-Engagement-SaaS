@@ -1,15 +1,15 @@
 import mongoose from "mongoose";
 
 declare global {
-  var __conventusMongo: Promise<typeof mongoose> | undefined;
+  var __canvasMongo: Promise<typeof mongoose> | undefined;
 }
 
 function resetMongoCache(connectionPromise?: Promise<typeof mongoose>) {
   if (
     !connectionPromise ||
-    globalThis.__conventusMongo === connectionPromise
+    globalThis.__canvasMongo === connectionPromise
   ) {
-    globalThis.__conventusMongo = undefined;
+    globalThis.__canvasMongo = undefined;
   }
 }
 
@@ -20,21 +20,21 @@ export async function getMongo() {
     throw new Error("MONGODB_URI is not configured");
   }
 
-  const databaseName = process.env.MONGODB_DB_NAME?.trim() || "Conventus";
+  const databaseName = process.env.MONGODB_DB_NAME?.trim() || "Canvas";
 
   if (mongoose.connection.readyState === 1) {
     if (mongoose.connection.db?.databaseName === databaseName) return mongoose;
     await mongoose.disconnect();
-    globalThis.__conventusMongo = undefined;
+    globalThis.__canvasMongo = undefined;
   }
 
   // Reuse only an in-flight connection. A disconnected or failed connection
   // must not leave a stale resolved promise in the global cache.
   if (mongoose.connection.readyState !== 2) {
-    globalThis.__conventusMongo = undefined;
+    globalThis.__canvasMongo = undefined;
   }
 
-  if (!globalThis.__conventusMongo) {
+  if (!globalThis.__canvasMongo) {
     const connectionPromise = mongoose.connect(uri, {
       dbName: databaseName,
       bufferCommands: false,
@@ -50,7 +50,7 @@ export async function getMongo() {
       socketTimeoutMS: 10000
     });
 
-    globalThis.__conventusMongo = connectionPromise;
+    globalThis.__canvasMongo = connectionPromise;
 
     connectionPromise.catch(() => {
       resetMongoCache(connectionPromise);
@@ -65,5 +65,5 @@ export async function getMongo() {
     });
   }
 
-  return globalThis.__conventusMongo;
+  return globalThis.__canvasMongo;
 }

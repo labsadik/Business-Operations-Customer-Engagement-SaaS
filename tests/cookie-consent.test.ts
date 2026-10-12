@@ -12,7 +12,7 @@ test("cookie consent records are versioned and timestamped without identity data
   const timestamp = new Date("2026-10-04T08:30:00.000Z");
   const record = createConsentRecord("reject-optional", timestamp);
 
-  assert.equal(COOKIE_CONSENT_STORAGE_KEY, "conventus_cookie_consent");
+  assert.equal(COOKIE_CONSENT_STORAGE_KEY, "canvas_cookie_consent");
   assert.equal(record.version, COOKIE_CONSENT_VERSION);
   assert.equal(record.timestamp, timestamp.toISOString());
   assert.equal(record.essential, true);

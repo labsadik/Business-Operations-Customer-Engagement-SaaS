@@ -47,7 +47,7 @@ export default function LandingWorkflowMockup() {
               <CalendarDays className="size-[18px]" />
             </span>
             <div>
-              <p className="text-xs font-bold tracking-tight text-slate-950">Conventus workflow</p>
+              <p className="text-xs font-bold tracking-tight text-slate-950">Canvas workflow</p>
               <p className="mt-0.5 text-[10px] text-slate-500">Illustrative enterprise workspace</p>
             </div>
           </div>
@@ -91,7 +91,7 @@ export default function LandingWorkflowMockup() {
                   <h2 className="mt-2 text-lg font-semibold tracking-tight text-slate-950 sm:text-xl">Meridian Health</h2>
                   <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
                     <Link2 className="size-3.5" />
-                    meridian.conventus.com
+                    canvas.algoquit.com
                   </p>
                 </div>
                 <span className="shrink-0 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[10px] font-semibold text-slate-600">Client portal</span>
@@ -261,7 +261,7 @@ export default function LandingWorkflowMockup() {
                 </div>
                 <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5">
                   <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-800">Meeting room link generated</p>
-                  <p className="mt-1.5 break-all font-mono text-[11px] leading-5 text-emerald-950">conventus.com/room/abc-defg-hij</p>
+                  <p className="mt-1.5 break-all font-mono text-[11px] leading-5 text-emerald-950">canvas.algoquit.com/acme/meet/abc-defg-hij</p>
                   <p className="mt-2 text-[11px] leading-5 text-emerald-800">A private room link is attached to the confirmed meeting.</p>
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">

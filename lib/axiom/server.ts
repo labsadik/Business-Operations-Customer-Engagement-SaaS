@@ -16,7 +16,7 @@ export const logger =
           new AxiomJSTransport({
             axiom: new Axiom({
               token: axiomToken,
-              axiomClient: "conventus"
+              axiomClient: "canvas"
             }),
             dataset: axiomDataset
           }),

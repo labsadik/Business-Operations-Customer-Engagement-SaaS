@@ -42,7 +42,7 @@ type WorkspaceSidebarProps = {
   onNavigateOverview?: () => void;
 };
 
-const SIDEBAR_SCROLL_KEY = "conventus:sidebar-scroll";
+const SIDEBAR_SCROLL_KEY = "canvas:sidebar-scroll";
 
 const primaryItems = [
   { key: "dashboard", href: "/dashboard", label: "Overview", icon: BarChart3 }
@@ -235,7 +235,7 @@ export default function WorkspaceSidebar({
               {!collapsed && (
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold tracking-tight text-slate-950">{companyName || "Company workspace"}</p>
-                  <p className="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Powered by Conventus</p>
+                  <p className="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">Powered by Canvas</p>
                 </div>
               )}
             </div>
@@ -379,7 +379,7 @@ export default function WorkspaceSidebar({
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-bold tracking-tight text-slate-950">{companyName || "Company workspace"}</p>
-              <p className="mt-0.5 truncate text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400">Powered by Conventus</p>
+              <p className="mt-0.5 truncate text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400">Powered by Canvas</p>
             </div>
           </div>
           <button

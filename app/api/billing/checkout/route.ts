@@ -8,7 +8,7 @@ import type { PlanId } from "@/lib/plans";
 import { createRazorpayOrder, razorpayKeyId } from "@/lib/razorpay";
 import { jsonError, jsonOk } from "@/lib/http";
 import { assertSameOrigin, randomToken } from "@/lib/security";
-import { PLATFORM_BRAND, platformLogoUrl } from "@/lib/platform";
+import { PLATFORM_BRAND, PLATFORM_COMPANY_NAME, platformLogoUrl } from "@/lib/platform";
 import { calculateInvoiceTaxFromBase, invoiceTaxConfig } from "@/lib/invoicing";
 import { withRedisLock } from "@/lib/redis-lock";
 
@@ -40,7 +40,7 @@ function checkoutResponse(input: {
     keyId: razorpayKeyId(),
     planId,
     planName,
-    merchant: PLATFORM_BRAND,
+    merchant: { ...PLATFORM_BRAND, name: PLATFORM_COMPANY_NAME },
     logoUrl,
     pricing: {
       baseAmount: payment.checkoutPlanSnapshot?.priceInr != null
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
       async () => {
         const existingPending = await Payment.findOne({
           companyId,
-          merchantAccount: "CONVENTUS",
+          merchantAccount: "ALGOQUIT",
           status: "PENDING"
         }).sort({ createdAt: -1 });
 
@@ -165,14 +165,14 @@ export async function POST(request: Request) {
           taxConfig.enabled
         );
 
-        const receipt = `conventus_${String(companyId).slice(-10)}_${Date.now().toString(36)}_${randomToken(6)}`.slice(0, 40);
+        const receipt = `canvas_${String(companyId).slice(-10)}_${Date.now().toString(36)}_${randomToken(6)}`.slice(0, 40);
 
         const order = await createRazorpayOrder({
           amount: tax.totalAmount,
           currency: "INR",
           receipt,
           notes: {
-            merchant: PLATFORM_BRAND.name,
+            merchant: PLATFORM_COMPANY_NAME,
             companyId,
             planId: plan.id,
             planRevision: String(plan.revision),
@@ -191,7 +191,7 @@ export async function POST(request: Request) {
           payment = await Payment.create({
             companyId,
             planId: plan.id as PlanId,
-            merchantAccount: "CONVENTUS",
+            merchantAccount: "ALGOQUIT",
             checkoutKey: String(companyId),
             providerOrderId: order.id,
             planRevision: plan.revision,

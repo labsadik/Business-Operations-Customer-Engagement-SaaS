@@ -1,8 +1,8 @@
 {
-  "name": "conventus",
+  "name": "canvas",
   "version": "0.1.0",
   "private": true,
-  "description": "Conventus - real-time customer meeting scheduling for teams.",
+  "description": "Canvas by AlgoQuit — company scheduling and collaboration workspace.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -17,7 +17,8 @@
     "roles:migrate": "node scripts/migrate-roles.mjs",
     "membership-profile:migrate": "node scripts/migrate-membership-profile-fields.mjs",
     "task-assignees:migrate": "node scripts/migrate-task-assignees.mjs",
-    "audit-events:migrate": "node scripts/migrate-admin-audit-events.mjs"
+    "audit-events:migrate": "node scripts/migrate-admin-audit-events.mjs",
+    "brand:migrate": "node --experimental-strip-types scripts/migrate-brand-data.mjs"
   },
   "dependencies": {
     "@axiomhq/js": "1.8.0",

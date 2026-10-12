@@ -83,7 +83,7 @@ export function usageExpiry(now = new Date()) {
 
 export function monthlyCustomerHash(companyId: string, visitorId: string, periodKey: string) {
   // Rotate this pseudonymous key each month to avoid cross-period linkage.
-  return sha256("conventus-live-chat-monthly-customer:v1:" + companyId + ":" + periodKey + ":" + visitorId);
+  return sha256("canvas-live-chat-monthly-customer:v1:" + companyId + ":" + periodKey + ":" + visitorId);
 }
 
 export function monthlyCustomerKeyExpiry(now = new Date()) {
@@ -96,7 +96,7 @@ export function addRetentionDays(from: Date, days: number) {
 }
 
 export function visitorHash(companyId: string, visitorId: string) {
-  return sha256("conventus-live-chat:v1:" + companyId + ":" + visitorId);
+  return sha256("canvas-live-chat:v1:" + companyId + ":" + visitorId);
 }
 
 export function requestIpHash(request: Request, companyId: string) {
@@ -105,7 +105,7 @@ export function requestIpHash(request: Request, companyId: string) {
     ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
     ?? "unknown";
   const userAgent = (request.headers.get("user-agent") ?? "unknown").slice(0, 300);
-  return createHmac("sha256", publicWidgetSigningSecret()).update("conventus-live-chat-ip:v1:" + companyId + ":" + forwarded + ":" + userAgent).digest("hex");
+  return createHmac("sha256", publicWidgetSigningSecret()).update("canvas-live-chat-ip:v1:" + companyId + ":" + forwarded + ":" + userAgent).digest("hex");
 }
 
 function companyWebsiteDomain(websiteUrl?: string | null) {
@@ -131,7 +131,7 @@ function publicWidgetSigningSecret() {
   const secret = process.env.AUTH_SECRET || process.env.ENCRYPTION_KEY;
   if (secret) return secret;
   if (process.env.NODE_ENV === "production") throw new Error("LIVE_CHAT_SIGNING_SECRET_MISSING");
-  return "conventus-live-chat-development-only-not-for-production";
+  return "canvas-live-chat-development-only-not-for-production";
 }
 
 export function createPublicWidgetToken(input: Omit<PublicWidgetTokenClaims, "v" | "exp">, now = Date.now()) {

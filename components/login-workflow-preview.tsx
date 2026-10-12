@@ -231,7 +231,7 @@ export default function LoginWorkflowPreview() {
               </span>
               <div className="min-w-0">
                 <p className="truncate text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                  Conventus · Meeting request
+                  Canvas · Meeting request
                 </p>
                 <p className="truncate text-xs font-semibold text-slate-950">
                   {stage.status}

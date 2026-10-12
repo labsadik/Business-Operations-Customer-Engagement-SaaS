@@ -76,7 +76,7 @@ export async function GET() {
 
   return NextResponse.json(
     {
-      service: "conventus",
+      service: "canvas",
       status: healthy ? "ok" : "degraded",
       checks: { mongo, redis },
       latencyMs: Date.now() - startedAt,

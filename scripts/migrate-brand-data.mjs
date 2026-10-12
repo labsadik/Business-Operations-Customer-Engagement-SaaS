@@ -1,0 +1,107 @@
+import mongoose from "mongoose";
+import { loadLocalEnv } from "./lib/env.mjs";
+
+loadLocalEnv();
+
+const uri = process.env.MONGODB_URI?.trim();
+if (!uri) throw new Error("MONGODB_URI is not configured");
+
+// Supply exact previous values from the current database configuration at run time.
+const previousMerchantCode = process.env.MIGRATION_PREVIOUS_MERCHANT_CODE?.trim();
+const previousProductName = process.env.MIGRATION_PREVIOUS_PRODUCT_NAME?.trim();
+const previousMerchantName = process.env.MIGRATION_PREVIOUS_MERCHANT_NAME?.trim();
+if (!previousMerchantCode || !previousProductName || !previousMerchantName) {
+  throw new Error(
+    "MIGRATION_SOURCE_VALUES_REQUIRED: set MIGRATION_PREVIOUS_MERCHANT_CODE, MIGRATION_PREVIOUS_PRODUCT_NAME, and MIGRATION_PREVIOUS_MERCHANT_NAME using exact current database values."
+  );
+}
+
+const apply = process.argv.includes("--apply");
+const databaseName = process.env.MONGODB_DB_NAME?.trim();
+if (!databaseName) {
+  throw new Error("MONGODB_DB_NAME_REQUIRED_FOR_BRAND_MIGRATION: set the exact existing database name explicitly.");
+}
+const replaceText = (value) => {
+  if (typeof value !== "string") return value;
+  return value
+    .split(previousProductName).join("Canvas")
+    .split(previousMerchantName).join("AlgoQuit");
+};
+
+await mongoose.connect(uri, { dbName: databaseName });
+try {
+  const db = mongoose.connection.db;
+  if (!db) throw new Error("MONGODB_CONNECTION_UNAVAILABLE");
+
+  const payments = db.collection("payments");
+  const invoices = db.collection("invoices");
+  const settings = db.collection("platformsettings");
+
+  const paymentCount = await payments.countDocuments({ merchantAccount: previousMerchantCode });
+  let invoiceCount = 0;
+  let settingsCount = 0;
+
+  for await (const invoice of invoices.find({})) {
+    const merchant = invoice.merchantSnapshot ?? {};
+    const nextMerchant = {
+      ...merchant,
+      name: "AlgoQuit",
+      description: replaceText(merchant.description) || "Canvas by AlgoQuit",
+      logoUrl: "/favicon.svg",
+      websiteUrl: "https://algoquit.com"
+    };
+    const nextServiceDescription = replaceText(invoice.serviceDescription) || "Canvas monthly scheduling service";
+    const changed =
+      merchant.name !== nextMerchant.name ||
+      merchant.description !== nextMerchant.description ||
+      merchant.logoUrl !== nextMerchant.logoUrl ||
+      merchant.websiteUrl !== nextMerchant.websiteUrl ||
+      invoice.serviceDescription !== nextServiceDescription;
+    if (!changed) continue;
+    // Issued invoice snapshots are historical accounting records. Count them
+    // for review, but never rewrite them silently during a branding migration.
+    invoiceCount += 1;
+  }
+
+  const platformSettings = await settings.findOne({ key: "default" });
+  if (platformSettings) settingsCount = 1;
+
+  if (apply) {
+    if (paymentCount) {
+      await payments.updateMany(
+        { merchantAccount: previousMerchantCode },
+        { $set: { merchantAccount: "ALGOQUIT" } }
+      );
+    }
+    if (platformSettings) {
+      await settings.updateOne(
+        { _id: platformSettings._id },
+        {
+          $set: {
+            legalName: "AlgoQuit",
+            description: replaceText(platformSettings.description) || "Canvas by AlgoQuit",
+            websiteUrl: "https://canvas.algoquit.com",
+            logoUrl: "/favicon.svg"
+          }
+        }
+      );
+    }
+  }
+
+  console.log(JSON.stringify({
+    mode: apply ? "apply" : "dry-run",
+    databaseName,
+    paymentRecordsToUpdate: paymentCount,
+    historicalInvoiceSnapshotsFlaggedForReview: invoiceCount,
+    platformSettingsRecordsToUpdate: settingsCount,
+    companyWebsite: "https://algoquit.com",
+    productWebsite: "https://canvas.algoquit.com"
+  }, null, 2));
+
+  if (!apply) console.log("No changes were written. Review the counts and rerun with --apply to migrate payment and platform settings.");
+  if (apply && invoiceCount) {
+    console.warn("HISTORICAL_INVOICE_SNAPSHOTS_PRESERVED: review the reported invoices with your accountant/counsel; use a legally appropriate correction or reissue process rather than rewriting issued invoices.");
+  }
+} finally {
+  await mongoose.disconnect();
+}

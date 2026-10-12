@@ -417,7 +417,7 @@ export default function LiveChatDashboard({
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `conventus-chat-${item.id}.pdf`;
+      anchor.download = `canvas-chat-${item.id}.pdf`;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
@@ -651,7 +651,7 @@ export default function LiveChatDashboard({
                   </div>
                   <div className="mt-3 flex justify-end"><span className="rounded-lg px-3 py-2 text-[10px] font-semibold text-white" style={{ backgroundColor: settings.primaryColor }}>Start chatting</span></div>
                 </div>
-                <footer className={`flex shrink-0 justify-center border-t px-2 py-2 text-[9px] ${settings.theme === "DARK" ? "border-slate-800 text-slate-500" : "border-slate-100 text-slate-400"}`}>Powered by Conventus</footer>
+                <footer className={`flex shrink-0 justify-center border-t px-2 py-2 text-[9px] ${settings.theme === "DARK" ? "border-slate-800 text-slate-500" : "border-slate-100 text-slate-400"}`}>Powered by Canvas</footer>
               </section>
             )}
           </div>

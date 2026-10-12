@@ -12,7 +12,7 @@ import { platformLegalProfile } from "@/lib/platform";
 import { getCompanySubscription } from "@/lib/plans-server";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Invoice · Conventus" };
+export const metadata = { title: "Invoice · Canvas" };
 
 export default async function InvoicePage({
   params

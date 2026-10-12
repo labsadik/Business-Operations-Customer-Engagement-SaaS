@@ -24,7 +24,7 @@ type WidgetConfig = { company: { name: string; slug: string }; accessToken: stri
 type Message = { id: string; senderType: "CUSTOMER" | "AGENT"; body: string; createdAt: string; senderName?: string; senderAvatar?: string };
 type ApiEnvelope<T> = { ok: boolean; data?: T; error?: string; details?: { retryAt?: string } };
 
-const STORAGE_PREFIX = "conventus:live-chat:v1:";
+const STORAGE_PREFIX = "canvas:live-chat:v1:";
 
 function randomVisitorId() {
   try {
@@ -40,7 +40,7 @@ async function api<T>(url: string, init?: RequestInit, accessToken?: string): Pr
   const response = await fetch(url, {
     ...init,
     cache: "no-store",
-    headers: { "content-type": "application/json", ...(accessToken ? { "x-conventus-live-chat-token": accessToken } : {}), ...(init?.headers ?? {}) }
+    headers: { "content-type": "application/json", ...(accessToken ? { "x-canvas-live-chat-token": accessToken } : {}), ...(init?.headers ?? {}) }
   });
   const body = await response.json().catch(() => ({})) as ApiEnvelope<T>;
   if (!response.ok || !body.ok || body.data === undefined) {
@@ -96,13 +96,13 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
       if (!initialized) {
         // The ready ping contains no visitor or customer data. The parent
         // responds with the verified page origin after checking this iframe.
-        window.parent.postMessage({ type: "conventus-live-chat-ready" }, "*");
+        window.parent.postMessage({ type: "canvas-live-chat-ready" }, "*");
       }
     };
     const initialize = (event: MessageEvent) => {
       if (event.source !== window.parent) return;
       const data = event.data as { type?: unknown; siteOrigin?: unknown; siteUrl?: unknown } | null;
-      if (!data || data.type !== "conventus-live-chat-init" || typeof data.siteOrigin !== "string") return;
+      if (!data || data.type !== "canvas-live-chat-init" || typeof data.siteOrigin !== "string") return;
       if (event.origin !== data.siteOrigin) return;
       let parsed: URL;
       try { parsed = new URL(event.origin); } catch { return; }
@@ -134,7 +134,7 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
   const notifyParent = useCallback((isOpen: boolean) => {
     if (typeof window === "undefined" || window.parent === window || !verifiedSiteOrigin) return;
     window.parent.postMessage({
-      type: "conventus-live-chat-resize",
+      type: "canvas-live-chat-resize",
       open: isOpen,
       width: isOpen ? 380 : launcherSize + 12,
       height: isOpen ? 620 : launcherSize + 12,
@@ -353,7 +353,7 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
         <header className="flex shrink-0 items-start gap-3 bg-blue-600 px-4 py-4 text-white">
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">Live Chat</p>
-            <p className={`mt-1 text-[11px] ${headerSecondaryClass}`}>Powered by Conventus</p>
+            <p className={`mt-1 text-[11px] ${headerSecondaryClass}`}>Powered by Canvas</p>
           </div>
           <button type="button" onClick={() => setOpened(false)} aria-label="Minimize chat" className="rounded-lg p-1.5 hover:bg-white/15">
             <X className="size-4" />
@@ -373,7 +373,7 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
           )}
         </div>
         <footer className="flex shrink-0 items-center justify-center border-t border-slate-100 px-2 py-2 text-[10px] text-slate-400">
-          Powered by Conventus
+          Powered by Canvas
         </footer>
       </section>
     );
@@ -456,7 +456,7 @@ export default function LiveChatWidget({ companySlug }: { companySlug: string })
             </>
           )}
           <footer className={`flex shrink-0 items-center justify-center gap-1 border-t px-2 py-2 text-[10px] ${theme ? "border-slate-800 text-slate-500" : "border-slate-100 text-slate-400"}`}>
-            Powered by Conventus
+            Powered by Canvas
           </footer>
         </section>
       )}

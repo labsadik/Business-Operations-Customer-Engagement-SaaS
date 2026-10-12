@@ -32,8 +32,8 @@ export default function NavigationProgress() {
   const finishTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const bar = document.querySelector<HTMLElement>("[data-conventus-nav-progress]");
-    const status = document.querySelector<HTMLElement>("[data-conventus-nav-status]");
+    const bar = document.querySelector<HTMLElement>("[data-canvas-nav-progress]");
+    const status = document.querySelector<HTMLElement>("[data-canvas-nav-status]");
     if (!bar) return;
 
     const stopTimers = () => {
@@ -118,7 +118,7 @@ export default function NavigationProgress() {
   }, []);
 
   useEffect(() => {
-    const bar = document.querySelector<HTMLElement>("[data-conventus-nav-progress]");
+    const bar = document.querySelector<HTMLElement>("[data-canvas-nav-progress]");
     if (!bar || !activeRef.current) return;
 
     activeRef.current = false;
@@ -126,7 +126,7 @@ export default function NavigationProgress() {
     const timer = window.setTimeout(() => {
       bar.style.opacity = "0";
       bar.dataset.active = "false";
-      const status = document.querySelector<HTMLElement>("[data-conventus-nav-status]");
+      const status = document.querySelector<HTMLElement>("[data-canvas-nav-status]");
       if (status) status.textContent = "";
     }, 220);
 
@@ -136,14 +136,14 @@ export default function NavigationProgress() {
   return (
     <>
       <div
-        data-conventus-nav-progress
+        data-canvas-nav-progress
         data-active="false"
         aria-hidden="true"
         className="pointer-events-none fixed left-0 top-0 z-[9999] h-0.5 w-full origin-left bg-gradient-to-r from-blue-600 via-blue-500 to-yellow-400 opacity-0 shadow-[0_0_10px_rgba(37,99,235,0.35)] transition-[transform,opacity] duration-200 motion-reduce:transition-none"
         style={{ transform: "scaleX(0.18)" }}
       />
       <span
-        data-conventus-nav-status
+        data-canvas-nav-status
         role="status"
         className="sr-only"
         aria-live="polite"

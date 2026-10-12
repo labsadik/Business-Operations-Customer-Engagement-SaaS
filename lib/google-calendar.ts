@@ -83,7 +83,7 @@ export async function clearGoogleAccessTokenCache(userId: string) {
     }
   } catch (error) {
     const code = error instanceof Error ? error.message : "REDIS_CACHE_CLEAR_FAILED";
-    console.warn("[Conventus] Google access-token cache clear failed", { code });
+    console.warn("[Canvas] Google access-token cache clear failed", { code });
   }
 }
 
@@ -104,13 +104,13 @@ async function loadGoogleAccessToken(userId: string) {
         }
       } catch (error) {
         const code = error instanceof Error ? error.message : "REDIS_CACHE_READ_FAILED";
-        console.warn("[Conventus] Google access-token cache read failed", { code });
+        console.warn("[Canvas] Google access-token cache read failed", { code });
         redis = null;
       }
     }
   } catch (error) {
     const code = error instanceof Error ? error.message : "REDIS_CACHE_UNAVAILABLE";
-    console.warn("[Conventus] Google access-token cache unavailable", { code });
+    console.warn("[Canvas] Google access-token cache unavailable", { code });
   }
 
   await getMongo();
@@ -152,7 +152,7 @@ async function loadGoogleAccessToken(userId: string) {
       await redis.set(cacheKey, refreshed.access_token, { EX: ttl });
     } catch (error) {
       const code = error instanceof Error ? error.message : "REDIS_CACHE_WRITE_FAILED";
-      console.warn("[Conventus] Google access-token cache write failed", { code });
+      console.warn("[Canvas] Google access-token cache write failed", { code });
     }
   }
 

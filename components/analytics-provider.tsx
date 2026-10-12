@@ -21,7 +21,7 @@ export default function AnalyticsProvider({
       {children}
       {umamiScriptUrl && umamiWebsiteId ? (
         <Script
-          id="conventus-umami"
+          id="canvas-umami"
           src={umamiScriptUrl}
           data-website-id={umamiWebsiteId}
           data-auto-track="true"

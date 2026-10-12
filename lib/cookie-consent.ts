@@ -1,4 +1,4 @@
-export const COOKIE_CONSENT_STORAGE_KEY = "conventus_cookie_consent";
+export const COOKIE_CONSENT_STORAGE_KEY = "canvas_cookie_consent";
 export const COOKIE_CONSENT_VERSION = "2026-10-04";
 
 export type ConsentChoice = "accept-all" | "reject-optional" | "custom";

@@ -39,11 +39,11 @@ const FRIENDLY_MESSAGES: Record<string, string> = {
   GOOGLE_API_401: "Google Calendar authentication needs to be refreshed.",
   GOOGLE_API_403: "The connected Google account does not have the required Calendar permission.",
   GOOGLE_API_404: "The Google Calendar event could not be found.",
-  GOOGLE_API_409: "Google Calendar already has the deterministic event for this booking. Conventus will recover it safely.",
-  GOOGLE_API_429: "Google Calendar is temporarily rate-limiting requests. Conventus will retry safely.",
-  GOOGLE_API_500: "Google Calendar returned a temporary server error. Conventus will retry safely.",
-  GOOGLE_API_502: "Google Calendar returned a temporary server error. Conventus will retry safely.",
-  GOOGLE_API_503: "Google Calendar is temporarily unavailable. Conventus will retry safely.",
+  GOOGLE_API_409: "Google Calendar already has the deterministic event for this booking. Canvas will recover it safely.",
+  GOOGLE_API_429: "Google Calendar is temporarily rate-limiting requests. Canvas will retry safely.",
+  GOOGLE_API_500: "Google Calendar returned a temporary server error. Canvas will retry safely.",
+  GOOGLE_API_502: "Google Calendar returned a temporary server error. Canvas will retry safely.",
+  GOOGLE_API_503: "Google Calendar is temporarily unavailable. Canvas will retry safely.",
   FREE_FEATURE_DAYS_EXHAUSTED: "The free-plan trial window has ended for this workspace.",
   PLATFORM_ADMIN_CANNOT_ACCEPT_AS_EMPLOYEE: "Platform administrators cannot accept a meeting as an employee.",
   CSRF_ORIGIN_INVALID: "The request origin could not be verified."
@@ -54,7 +54,7 @@ export function friendlyBookingMessage(code: string) {
   if (knownMessage) return knownMessage;
 
   if (/^GOOGLE_API_[45]\d\d$/.test(code)) {
-    return "Google Calendar returned a temporary or permission error. Conventus will refresh the meeting state and retry when safe.";
+    return "Google Calendar returned a temporary or permission error. Canvas will refresh the meeting state and retry when safe.";
   }
 
   return "We could not complete that meeting action. The request will refresh to its current server state.";

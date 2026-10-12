@@ -10,8 +10,8 @@ import { randomToken, sha256 } from "@/lib/security";
 import { googleAvatarUrl } from "@/lib/avatar";
 import { isUserRole, type UserRole } from "@/types/domain";
 
-const COOKIE_NAME = "conventus_session";
-export const ADMIN_MANAGED_COMPANY_COOKIE = "conventus_admin_company";
+const COOKIE_NAME = "canvas_session";
+export const ADMIN_MANAGED_COMPANY_COOKIE = "canvas_admin_company";
 const SESSION_DAYS = 30;
 const COMPANY_ROLES = ["COMPANY_ADMIN", "EMPLOYEE"] as const;
 const LEGACY_COMPANY_OWNER_ROLE = "COMPANY_OWNER";

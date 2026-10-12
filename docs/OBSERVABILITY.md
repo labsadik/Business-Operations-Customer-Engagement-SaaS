@@ -1,6 +1,6 @@
-# Conventus observability
+# Canvas observability
 
-Conventus uses a global App Router analytics provider for browser telemetry and a server-side Axiom observability layer.
+Canvas uses a global App Router analytics provider for browser telemetry and a server-side Axiom observability layer.
 
 ## Environment
 

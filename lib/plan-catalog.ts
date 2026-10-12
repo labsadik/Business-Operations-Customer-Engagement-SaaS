@@ -58,7 +58,7 @@ const LEGACY_DESCRIPTIONS: Record<string, string> = {
   starter: "For small teams that need reliable scheduling capacity.",
   elite: "For growing teams with higher meeting and employee limits.",
   pro: "For established teams running scheduling at higher volume.",
-  plus: "The highest standard capacity in the current Conventus catalog."
+  plus: "The highest standard capacity in the current Canvas catalog."
 };
 
 const seedPromiseState: { promise: Promise<void> | null; databaseKey: string | null } = {
@@ -360,7 +360,7 @@ async function ensureFreePlanSeeded() {
 
   if (!verified) {
     console.error("FREE_PLAN_BOOTSTRAP_FAILED", {
-      databaseName: process.env.MONGODB_DB_NAME?.trim() || "Conventus",
+      databaseName: process.env.MONGODB_DB_NAME?.trim() || "Canvas",
       collectionName: Plan.collection.name
     });
     throw new Error("FREE_PLAN_NOT_CONFIGURED");
@@ -378,7 +378,7 @@ export async function ensurePlanCatalog() {
   // resolved seed promise from a different database in a warm Node process.
   const databaseKey = [
     process.env.MONGODB_URI?.trim() ?? "",
-    process.env.MONGODB_DB_NAME?.trim() || "Conventus"
+    process.env.MONGODB_DB_NAME?.trim() || "Canvas"
   ].join("::");
 
   if (seedPromiseState.databaseKey !== databaseKey) {

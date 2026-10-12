@@ -3,7 +3,7 @@ import { getAdminAccessUsers } from "@/lib/admin";
 import { getSession } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Admin Access · Conventus" };
+export const metadata = { title: "Admin Access · Canvas" };
 
 export default async function AdminAccessPage() {
   const session = await getSession();

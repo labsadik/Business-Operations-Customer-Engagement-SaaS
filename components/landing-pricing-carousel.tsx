@@ -143,7 +143,7 @@ export default function LandingPricingCarousel({ plans }: { plans: PublicPlan[] 
       <div
         className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
         role="listbox"
-        aria-label="Conventus plans"
+        aria-label="Canvas plans"
         aria-activedescendant={selected.id}
         tabIndex={0}
         onKeyDown={(event) => {

@@ -3,8 +3,8 @@
 ## Windows PowerShell
 
 ```powershell
-git clone https://github.com/WorkRCS/Conventus.git
-cd Conventus
+git clone https://github.com/WorkRCS/canvas-v1.git
+cd canvas-v1
 git pull origin main
 
 Copy-Item .env.example .env.local
@@ -36,7 +36,7 @@ After Google OAuth is configured:
 
 Set these in .env.local:
 - MONGODB_URI
-- MONGODB_DB_NAME=Conventus
+- MONGODB_DB_NAME=Canvas
 - REDIS_URL
 - GOOGLE_CLIENT_ID
 - GOOGLE_CLIENT_SECRET
@@ -46,7 +46,7 @@ Set these in .env.local:
 
 Generate a 32-byte base64url ENCRYPTION_KEY and a long AUTH_SECRET. Do not commit .env.local.
 
-MongoDB database: `MONGODB_DB_NAME=Conventus` keeps the application out of the `test` database.
+MongoDB database: `MONGODB_DB_NAME=Canvas` keeps the application out of the `test` database.
 
 ## Health check
 
@@ -59,7 +59,7 @@ Invoke-WebRequest http://localhost:3000/api/health | Select-Object -ExpandProper
 Expected shape:
 
 ```json
-{"service":"conventus","status":"ok","checks":{"mongo":"ok","redis":"ok"}}
+{"service":"canvas","status":"ok","checks":{"mongo":"ok","redis":"ok"}}
 ```
 
 A missing local service should show `degraded`, not be mistaken for a successful production configuration.

@@ -246,7 +246,7 @@ export default function AdminSupportTickets() {
             </div>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight">Support tickets</h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-              Company members can contact Conventus support here. Ticket status is explicit, persistent, and visible to the owning company.
+              Company members can contact Canvas support here. Ticket status is explicit, persistent, and visible to the owning company.
             </p>
           </div>
           <div className="text-xs font-semibold text-slate-400">Sorted by recent activity</div>

@@ -94,7 +94,7 @@ export default function AdminPlatformSettings({ initial }: { initial: Settings }
               <ShieldCheck className="size-4" />
               Platform settings
             </div>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight">Conventus legal identity</h1>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight">AlgoQuit company identity</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-white/60">
               This data lives in MongoDB and is copied into new invoices as the merchant snapshot. It is not read from admin-email environment variables.
             </p>
@@ -149,9 +149,9 @@ export default function AdminPlatformSettings({ initial }: { initial: Settings }
           <Field label="Website" value={form.websiteUrl} onChange={(v) => setValue("websiteUrl", v)} />
           <Field label="Phone" value={form.phone} onChange={(v) => setValue("phone", v)} />
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-            <span className="text-xs font-semibold text-slate-700">Conventus logo</span>
+            <span className="text-xs font-semibold text-slate-700">Canvas logo</span>
             <div className="mt-2 flex items-center gap-3">
-              <Image src="/favicon.svg" alt="Conventus" width={40} height={40} className="size-10 rounded-xl object-cover" />
+              <Image src="/favicon.svg" alt="Canvas" width={40} height={40} className="size-10 rounded-xl object-cover" />
               <div>
                 <p className="text-xs font-semibold text-slate-900">Bundled locally</p>
                 <p className="mt-0.5 text-[11px] text-slate-500">Used by the app, dashboard, website, invoices and favicon.</p>

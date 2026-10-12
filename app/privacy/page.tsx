@@ -4,7 +4,7 @@ import { LEGAL_CONFIG } from "@/lib/legal";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
-  description: "Conventus Privacy Policy."
+  description: "Canvas Privacy Policy."
 };
 
 const sections: LegalSection[] = [
@@ -14,10 +14,10 @@ const sections: LegalSection[] = [
     content: (
       <>
         <p>
-          This Privacy Policy describes the information handling visible in the current Conventus application. It is intentionally limited to behavior that the repository currently implements; it does not invent a list of subprocessors, retention periods, legal bases, certifications, or other legal facts that are not established in the product.
+          This Privacy Policy explains how AlgoQuit operates the Canvas product and describes the information handling implemented in the service. It is intentionally limited to behavior that the repository currently implements; it does not invent a list of subprocessors, retention periods, legal bases, certifications, or other legal facts that are not established in the product.
         </p>
         <p>
-          Conventus has separate public company pages, customer booking, company workspace access, Google integrations, and billing flows. Access and data remain scoped to the relevant company and workspace where the application enforces that boundary.
+          Canvas has separate public company pages, customer booking, company workspace access, Google integrations, and billing flows. Access and data remain scoped to the relevant company and workspace where the application enforces that boundary.
         </p>
       </>
     )
@@ -45,7 +45,7 @@ const sections: LegalSection[] = [
     content: (
       <>
         <p>
-          For normal Google sign-in, the current app requests openid, email, and profile scopes. The callback uses Google&apos;s user information endpoint to obtain the verified identity information needed to create or continue a Conventus session.
+          For normal Google sign-in, the current app requests openid, email, and profile scopes. The callback uses Google&apos;s user information endpoint to obtain verified identity information needed to create or continue a Canvas session.
         </p>
         <p>
           Scheduling members can separately authorize Google Calendar scopes for free/busy checks and event creation. The application checks the primary calendar when deciding whether a slot is available and can create or remove the Calendar event associated with a confirmed meeting.
@@ -96,7 +96,7 @@ const sections: LegalSection[] = [
           Paid plan checkout uses Razorpay. The current browser code loads Razorpay&apos;s checkout JavaScript only when a paid checkout is started, while the server creates and verifies orders and payments.
         </p>
         <p>
-          Payment data stored by Conventus includes company and plan identifiers, provider order/payment IDs, amount, currency, tax values, status and payment timestamps. Invoice records preserve company and merchant snapshots, plan information, invoice numbers, billing periods, payment identifiers, and tax snapshots.
+          Payment data stored by Canvas includes company and plan identifiers, provider order/payment IDs, amount, currency, tax values, status and payment timestamps. Invoice records preserve company and merchant snapshots, plan information, invoice numbers, billing periods, payment identifiers, and tax snapshots.
         </p>
         <p>
           The repository does not establish a public list of additional payment subprocessors or a separate retention schedule. Those details require owner confirmation.
@@ -110,13 +110,13 @@ const sections: LegalSection[] = [
     content: (
       <>
         <p>
-          Conventus uses essential server-side cookies for authentication and protected workflow state. The primary session cookie is <code>conventus_session</code>; the application also uses <code>conventus_oauth_state</code> during Google OAuth and an application cookie named <code>conventus_admin_company</code> for platform-admin company scope. These are part of service/security flows and are not optional analytics cookies.
+          Canvas uses essential server-side cookies for authentication and protected workflow state. The primary session cookie is <code>canvas_session</code>; the application also uses <code>canvas_oauth_state</code> during Google OAuth and an application cookie named <code>canvas_admin_company</code> for platform-admin company scope. These are part of service/security flows and are not optional analytics cookies.
         </p>
         <p>
           The current session cookie is HTTP-only, uses a secure flag in production, uses SameSite=Lax, and is issued with a 30-day expiry. The Google OAuth state cookie is HTTP-only, uses SameSite=Lax, and expires after 10 minutes.
         </p>
         <p>
-          The cookie-consent experience added with this policy stores only a small browser-local preference record under <code>conventus_cookie_consent</code>. It contains the consent version, timestamp, chosen consent action, and the fact that essential storage remains enabled. It does not contain an email, name, company ID, meeting data, or other sensitive personal information.
+          The cookie-consent experience added with this policy stores only a small browser-local preference record under <code>canvas_cookie_consent</code>. It contains the consent version, timestamp, chosen consent action, and the fact that essential storage remains enabled. It does not contain an email, name, company ID, meeting data, or other sensitive personal information.
         </p>
         <p>
           There are currently no analytics or marketing technologies configured in the inspected application, so the consent dialog does not offer analytics or marketing toggles and the new consent flow does not initialize any optional tracker.
@@ -175,7 +175,7 @@ const sections: LegalSection[] = [
     content: (
       <>
         <p>
-          Legal entity: <strong className="text-slate-900">{LEGAL_CONFIG.legalEntityName}</strong>
+          Operating company: <strong className="text-slate-900">{LEGAL_CONFIG.companyName}</strong><br />Registered legal entity: <strong className="text-slate-900">{LEGAL_CONFIG.legalEntityName}</strong>
         </p>
         <p>
           Legal/privacy contact: <strong className="text-slate-900">{LEGAL_CONFIG.legalContact}</strong>
@@ -193,7 +193,7 @@ export default function PrivacyPage() {
     <LegalPageShell
       kind="privacy"
       title="Privacy Policy"
-      summary="What Conventus currently stores and how its Google, scheduling, membership, billing, cookie, and browser-storage flows use that information."
+      summary="What Canvas currently stores and how its Google, scheduling, membership, billing, cookie, and browser-storage flows use that information."
       sections={sections}
     />
   );

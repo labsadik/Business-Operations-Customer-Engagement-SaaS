@@ -62,7 +62,7 @@ export async function reconcileLatestPaidAccess(companyId: string) {
     Subscription.findOne({ companyId }).lean(),
     Payment.findOne({
       companyId,
-      merchantAccount: "CONVENTUS",
+      merchantAccount: "ALGOQUIT",
       status: "CAPTURED",
       providerPaymentId: { $exists: true, $ne: "" },
       paidAt: { $exists: true, $ne: null }
@@ -422,7 +422,7 @@ export async function isCompanyPlanSuspended(companyId: string) {
   // Recover legacy tenants that were previously downgraded to free after paid expiry.
   const latestPayment = await Payment.findOne({
     companyId,
-    merchantAccount: "CONVENTUS",
+    merchantAccount: "ALGOQUIT",
     status: "CAPTURED",
     providerPaymentId: { $exists: true, $ne: "" },
     paidAt: { $exists: true, $ne: null }

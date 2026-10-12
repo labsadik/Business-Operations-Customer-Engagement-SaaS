@@ -6,8 +6,8 @@ import CookieSettingsButton from "@/components/cookie-settings-button";
 import LoginWorkflowPreview from "@/components/login-workflow-preview";
 
 export const metadata = {
-  title: "Sign in · Conventus",
-  description: "Sign in to your Conventus workspace with Google."
+  title: "Sign in · Canvas",
+  description: "Sign in to your Canvas workspace with Google."
 };
 
 function safeReturnTo(value?: string) {
@@ -76,7 +76,7 @@ export default async function LoginPage({
                     className="size-full object-contain"
                   />
                 </span>
-                Conventus
+                Canvas
               </Link>
 
               <Link
@@ -100,14 +100,14 @@ export default async function LoginPage({
                   Sign in to your workspace.
                 </h1>
                 <p className="mt-3 max-w-xl text-[14px] leading-5.5 text-slate-600 sm:text-[15px] sm:leading-6">
-                  Continue with your Google account to access your Conventus workspace.
+                  Continue with your Google account to access your Canvas workspace.
                 </p>
 
                 {hasContinuation && (
                   <p className="mt-4 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2.5 text-[12px] leading-4.5 text-blue-950">
                     {plan
-                      ? "After Google sign-in, Conventus will return you to the selected plan checkout."
-                      : "After Google sign-in, Conventus will return you to the page or action you requested."}
+                      ? "After Google sign-in, Canvas will return you to the selected plan checkout."
+                      : "After Google sign-in, Canvas will return you to the page or action you requested."}
                   </p>
                 )}
 

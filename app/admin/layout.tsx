@@ -3,7 +3,7 @@ import AdminShell from "@/components/admin-shell";
 import { getSession } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Admin Console · Conventus" };
+export const metadata = { title: "Admin Console · Canvas" };
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();

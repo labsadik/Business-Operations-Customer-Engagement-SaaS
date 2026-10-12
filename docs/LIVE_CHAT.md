@@ -12,7 +12,7 @@ Live Chat is a plan-gated, company-isolated customer messaging module.
 Example (use the exact generated snippet; the example company slug is illustrative):
 
 ```html
-<script src="https://YOUR-CONVENTUS-HOST/live-chat.js" data-company="your-company-slug" data-position="right" async></script>
+<script src="https://canvas.algoquit.com/live-chat.js" data-company="your-company-slug" data-position="right" async></script>
 ```
 
 ## Visitor details, agent identity, and offline mode

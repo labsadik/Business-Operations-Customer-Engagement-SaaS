@@ -39,9 +39,9 @@ export default function NavigationLabelsProvider({
     setLabels(next);
 
     try {
-      window.localStorage.setItem("conventus-navigation-labels", JSON.stringify(next));
+      window.localStorage.setItem("canvas-navigation-labels", JSON.stringify(next));
       if ("BroadcastChannel" in window) {
-        const channel = new BroadcastChannel("conventus-navigation");
+        const channel = new BroadcastChannel("canvas-navigation");
         channel.postMessage(next);
         channel.close();
       }
@@ -67,7 +67,7 @@ export default function NavigationLabelsProvider({
     };
 
     const onStorage = (event: StorageEvent) => {
-      if (event.key !== "conventus-navigation-labels" || !event.newValue) return;
+      if (event.key !== "canvas-navigation-labels" || !event.newValue) return;
       try {
         setLabels(normalizeNavigationLabels(JSON.parse(event.newValue)));
       } catch {
@@ -77,7 +77,7 @@ export default function NavigationLabelsProvider({
 
     let channel: BroadcastChannel | null = null;
     if ("BroadcastChannel" in window) {
-      channel = new BroadcastChannel("conventus-navigation");
+      channel = new BroadcastChannel("canvas-navigation");
       channel.onmessage = (event) => setLabels(normalizeNavigationLabels(event.data));
     }
 

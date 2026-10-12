@@ -448,7 +448,7 @@ export async function POST(
       } catch (error) {
         const code = bookingErrorCode(error);
         if (!["GOOGLE_MEET_PENDING", "RESOURCE_BUSY"].includes(code)) {
-          console.warn("[Conventus] meeting finalization failed", { code });
+          console.warn("[Canvas] meeting finalization failed", { code });
         }
       }
     });
@@ -518,7 +518,7 @@ export async function POST(
           )
         : undefined;
 
-    console.warn("[Conventus] booking accept rejected", {
+    console.warn("[Canvas] booking accept rejected", {
       code,
       status,
       role: session.role,

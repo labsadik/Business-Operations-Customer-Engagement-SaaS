@@ -32,7 +32,7 @@ export default function RouteError({
         <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-rose-50 text-rose-600">
           <AlertTriangle className="size-6" />
         </div>
-        <p className="mt-6 text-xs font-bold uppercase tracking-[0.16em] text-blue-600">Conventus</p>
+        <p className="mt-6 text-xs font-bold uppercase tracking-[0.16em] text-blue-600">Canvas</p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">{title}</h1>
         <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-600">{description}</p>
         <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">

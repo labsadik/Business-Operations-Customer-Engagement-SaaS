@@ -526,7 +526,7 @@ export default function AdminPlans() {
             </div>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight">Plans</h1>
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              Manage stable billing identifiers, public visibility, pricing, discounts, labels, and the existing Conventus entitlement units. Current subscribers keep their stored entitlements when a catalog plan changes.
+              Manage stable billing identifiers, public visibility, pricing, discounts, labels, and the existing Canvas entitlement units. Current subscribers keep their stored entitlements when a catalog plan changes.
             </p>
           </div>
           <button

@@ -97,7 +97,7 @@ export default function LegalPageShell({
               <div className="mt-7 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-xs leading-6 text-amber-950">
                 <p className="font-semibold">Important launch note</p>
                 <p className="mt-1">
-                  This page is written from the current Conventus implementation. It is not a statement that the product is legally compliant. Confirm the marked owner decisions and have the final wording reviewed by qualified counsel before public launch.
+                  This page describes the current Canvas implementation and is not a representation that the service is legally compliant. Resolve all marked owner decisions and obtain qualified legal review before public launch.
                 </p>
               </div>
 
@@ -120,7 +120,7 @@ export default function LegalPageShell({
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-7 text-xs text-slate-500 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
             <Link href="/" className="font-semibold text-slate-700 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-              Back to Conventus
+              Back to Canvas
             </Link>
             <Link href="/terms" className="hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Terms</Link>
             <Link href="/privacy" className="hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Privacy</Link>

@@ -15,7 +15,7 @@ const navGroups: NavGroup[] = [
   {
     label: "Getting Started",
     items: [
-      { id: "overview", label: "Platform overview", description: "How the workspace fits together", keywords: "introduction conventus platform" },
+      { id: "overview", label: "Platform overview", description: "How the workspace fits together", keywords: "introduction canvas platform" },
       { id: "workspace-setup", label: "Workspace setup", description: "Prepare your team", keywords: "setup onboarding company admin" }
     ]
   },
@@ -155,7 +155,7 @@ export default function PublicDocs() {
   }, []);
 
   const copyEmbed = async () => {
-    const text = '<script src="https://YOUR-CONVENTUS-HOST/live-chat.js" data-company="your-company-slug" data-position="right" async></script>';
+    const text = '<script src="https://canvas.algoquit.com/live-chat.js" data-company="your-company-slug" data-position="right" async></script>';
     try {
       await navigator.clipboard.writeText(text);
       setCopiedEmbed(true);
@@ -190,7 +190,7 @@ export default function PublicDocs() {
         <div className="mx-auto flex min-h-[64px] max-w-[1600px] items-center gap-3 px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex shrink-0 items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
             <span className="grid size-9 place-items-center rounded-xl bg-blue-600 text-white"><BookOpen className="size-4.5" /></span>
-            <span className="text-sm font-bold tracking-tight text-slate-950">Conventus <span className="font-medium text-slate-400">Docs</span></span>
+            <span className="text-sm font-bold tracking-tight text-slate-950">Canvas <span className="font-medium text-slate-400">Docs</span></span>
           </Link>
           <div className="ml-auto hidden w-full max-w-md lg:block">
             <label className="relative block">
@@ -235,7 +235,7 @@ export default function PublicDocs() {
           <main className="min-w-0 max-w-4xl py-7 sm:py-10 xl:py-12">
             <div className="mb-7 flex items-center gap-2 text-xs font-medium text-slate-500"><Link href="/" className="hover:text-blue-700">Home</Link><span>/</span><span className="text-slate-800">Documentation</span></div>
             <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-bold text-blue-800"><Sparkles className="size-3.5" /> Workspace guides</div>
-            <h1 className="mt-5 text-4xl font-semibold leading-tight tracking-[-0.04em] text-slate-950 sm:text-5xl">Conventus Documentation</h1>
+            <h1 className="mt-5 text-4xl font-semibold leading-tight tracking-[-0.04em] text-slate-950 sm:text-5xl">Canvas Documentation</h1>
             <p className="mt-5 max-w-3xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">Everything your team needs to coordinate client meetings, delegate work, protect company files, and support website visitors—from setup through daily operation.</p>
             <div className="mt-7 grid gap-3 sm:grid-cols-2">
               <FeatureCard id="scheduling" icon={CalendarCheck2} eyebrow="Client experience" title="Scheduling & acceptance" description="Share a booking page, route requests to eligible teammates, and confirm meetings only after acceptance." />
@@ -246,7 +246,7 @@ export default function PublicDocs() {
 
             <section className="mt-12 border-b border-slate-200 pb-10" aria-labelledby="overview-heading">
               <DocHeading id="overview">Platform overview</DocHeading>
-              <p className="mt-4 text-sm leading-7 text-slate-700 sm:text-base">Conventus is a company workspace that connects the customer-facing booking experience with internal delivery. Scheduling, task management, document storage and website chat share company and workspace access rules, so teams can keep work connected without treating every feature as a separate tool.</p>
+              <p className="mt-4 text-sm leading-7 text-slate-700 sm:text-base">Canvas is a company workspace that connects the customer-facing booking experience with internal delivery. Scheduling, task management, document storage and website chat share company and workspace access rules, so teams can keep work connected without treating every feature as a separate tool.</p>
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-200 bg-white p-4"><div className="flex items-center gap-2"><CalendarCheck2 className="size-4 text-blue-700" /><p className="text-sm font-semibold">Bring meetings into the workflow</p></div><p className="mt-2 text-xs leading-5 text-slate-600">Review requests and acceptance, then keep follow-up work and files alongside team activity.</p></div>
                 <div className="rounded-2xl border border-slate-200 bg-white p-4"><div className="flex items-center gap-2"><ShieldCheck className="size-4 text-emerald-700" /><p className="text-sm font-semibold">Keep access scoped</p></div><p className="mt-2 text-xs leading-5 text-slate-600">Feature access depends on company membership, role permissions and the active plan.</p></div>
@@ -267,7 +267,7 @@ export default function PublicDocs() {
 
             <section className="border-b border-slate-200 py-4 pb-10" aria-labelledby="scheduling-heading">
               <DocHeading id="scheduling">1. Client Scheduling & Meeting Acceptance</DocHeading>
-              <p className="mt-4 text-sm leading-7 text-slate-700">Conventus pairs a public company booking page at <code className="rounded bg-slate-100 px-1.5 py-0.5 text-[0.85em] text-slate-800">/{'{companySlug}'}</code> with employee availability and an explicit acceptance step. A request is not the same thing as a confirmed meeting: eligible employees review incoming requests before the time is finalized.</p>
+              <p className="mt-4 text-sm leading-7 text-slate-700">Canvas pairs a public company booking page at <code className="rounded bg-slate-100 px-1.5 py-0.5 text-[0.85em] text-slate-800">/{'{companySlug}'}</code> with employee availability and an explicit acceptance step. A request is not the same thing as a confirmed meeting: eligible employees review incoming requests before the time is finalized.</p>
               <DocHeading id="scheduling-why" level="h3">Why use it?</DocHeading>
               <p className="mt-2 text-sm leading-7 text-slate-700">The acceptance-gated flow helps reduce unwanted meetings and calendar conflicts. Customers can request a suitable slot while the team retains control over which requests become commitments.</p>
               <DocHeading id="scheduling-admin" level="h3">For companies and admins</DocHeading>
@@ -277,7 +277,7 @@ export default function PublicDocs() {
                 { title: "Check eligibility", text: "Keep employee membership and availability up to date so requests can be routed to the appropriate active teammates." }
               ]} />
               <DocHeading id="scheduling-employees" level="h3">For employees</DocHeading>
-              <p className="mt-2 text-sm leading-7 text-slate-700">Connect calendar availability where supported, review new requests and customer details, then accept or decline within the response window. Once accepted, Conventus completes the configured confirmation workflow, including meeting details and calendar updates where enabled.</p>
+              <p className="mt-2 text-sm leading-7 text-slate-700">Connect calendar availability where supported, review new requests and customer details, then accept or decline within the response window. Once accepted, Canvas completes the configured confirmation workflow, including meeting details and calendar updates where enabled.</p>
               <DocHeading id="scheduling-clients" level="h3">For customers</DocHeading>
               <p className="mt-2 text-sm leading-7 text-slate-700">Open the company booking link, complete the required verification, choose a duration and an available time, and submit the request. Watch for the confirmation email before treating the meeting as booked.</p>
               <Callout kind="tip" title="Avoid phantom meetings.">Tell customers that a submitted request is pending until the responsible employee accepts it. This makes the confirmation boundary clear for everyone.</Callout>
@@ -321,7 +321,7 @@ export default function PublicDocs() {
 
             <section className="border-b border-slate-200 py-4 pb-10" aria-labelledby="live-chat-heading">
               <DocHeading id="live-chat">4. Public Live Chat & Customer Support</DocHeading>
-              <p className="mt-4 text-sm leading-7 text-slate-700">Live Chat combines an embeddable website widget with the agent inbox at <Link href="/dashboard/live-chat" className="font-semibold text-blue-700 underline decoration-blue-200 underline-offset-4">/dashboard/live-chat</Link>. Visitors can start a conversation without creating a Conventus account; agents respond from the company workspace.</p>
+              <p className="mt-4 text-sm leading-7 text-slate-700">Live Chat combines an embeddable website widget with the agent inbox at <Link href="/dashboard/live-chat" className="font-semibold text-blue-700 underline decoration-blue-200 underline-offset-4">/dashboard/live-chat</Link>. Visitors can start a conversation without creating a Canvas account; agents respond from the company workspace.</p>
               <DocHeading id="chat-why" level="h3">Why use it?</DocHeading>
               <p className="mt-2 text-sm leading-7 text-slate-700">A branded launcher gives visitors a direct support path while keeping incoming chats alongside the team&apos;s other work. The widget uses visibility-aware polling, so it can pause unnecessary checks when a browser tab is hidden. Messages are near-real-time rather than guaranteed instant push delivery.</p>
               <DocHeading id="chat-admin" level="h3">For companies and admins: install and customize</DocHeading>
@@ -329,11 +329,11 @@ export default function PublicDocs() {
                 { title: "Enable Live Chat for your plan", text: "A platform administrator controls plan entitlements. Confirm Live Chat is enabled for the company's assigned plan." },
                 { title: "Allow the website domain", text: "In Workspace → Live Chat → Settings, enable the public widget and add the exact website hostname that will embed it." },
                 { title: "Customize and save", text: "Set the title, welcome message, theme, brand color, position, appearance and any required pre-chat fields, then save." },
-                { title: "Paste the embed snippet", text: "Copy the generated script into the website HTML before the closing body tag and load it from your configured Conventus host." }
+                { title: "Paste the embed snippet", text: "Copy the generated script into the website HTML before the closing body tag and load it from your configured Canvas host." }
               ]} />
               <div className="my-5 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950">
                 <div className="flex items-center justify-between gap-2 border-b border-slate-800 px-4 py-3"><div className="flex items-center gap-2 text-xs font-semibold text-slate-200"><Code2 className="size-4 text-blue-300" /> HTML embed</div><button type="button" onClick={() => void copyEmbed()} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1.5 text-[11px] font-semibold text-slate-200 hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400">{copiedEmbed ? <Check className="size-3.5" /> : <ClipboardCopy className="size-3.5" />}{copiedEmbed ? "Copied" : "Copy snippet"}</button></div>
-                <pre className="overflow-x-auto p-4 text-xs leading-6 text-blue-100"><code>{'<script src="https://YOUR-CONVENTUS-HOST/live-chat.js" data-company="your-company-slug" data-position="right" async></script>'}</code></pre>
+                <pre className="overflow-x-auto p-4 text-xs leading-6 text-blue-100"><code>{'<script src="https://canvas.algoquit.com/live-chat.js" data-company="your-company-slug" data-position="right" async></script>'}</code></pre>
               </div>
               <p className="text-xs leading-5 text-slate-500">Replace the host and slug with the exact snippet generated in your Live Chat settings. The example is illustrative.</p>
               <DocHeading id="chat-agents" level="h3">For employees and support agents</DocHeading>
@@ -345,7 +345,7 @@ export default function PublicDocs() {
 
             <section className="border-b border-slate-200 py-4 pb-10" aria-labelledby="data-isolation-heading">
               <DocHeading id="data-isolation">Security & multi-tenancy: data isolation</DocHeading>
-              <p className="mt-4 text-sm leading-7 text-slate-700">Conventus features are designed around a company and workspace boundary. Authenticated API routes validate the member session, workspace membership and applicable permissions; Live Chat&apos;s public APIs additionally validate the configured website origin and signed widget access tokens.</p>
+              <p className="mt-4 text-sm leading-7 text-slate-700">Canvas features are designed around a company and workspace boundary. Authenticated API routes validate the member session, workspace membership and applicable permissions; Live Chat&apos;s public APIs additionally validate the configured website origin and signed widget access tokens.</p>
               <div className="my-5 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-200 bg-white p-4"><LockKeyhole className="size-5 text-blue-700" /><p className="mt-3 text-sm font-semibold">Scoped reads and writes</p><p className="mt-1 text-xs leading-5 text-slate-600">Queries should be constrained to the authorized company/workspace and resource, not a client-supplied identifier alone.</p></div>
                 <div className="rounded-2xl border border-slate-200 bg-white p-4"><ShieldCheck className="size-5 text-emerald-700" /><p className="mt-3 text-sm font-semibold">Public surface protections</p><p className="mt-1 text-xs leading-5 text-slate-600">Embed allowlists, token checks, request validation and server-enforced quotas help protect the public widget.</p></div>
@@ -378,7 +378,7 @@ export default function PublicDocs() {
                   { q: "Can an employee manage plan limits?", a: "Plan-level entitlements are managed by platform administrators. Company-level settings and daily actions are further limited by role." },
                   { q: "Can customers browse the Company Vault?", a: "The vault is an internal workspace feature by default. Public access should not be assumed; share documents only through an approved company workflow." },
                   { q: "Does Live Chat use WebSockets?", a: "The standard widget uses visibility-aware polling for near-real-time updates. It pauses network checks while the page is hidden instead of keeping a persistent socket open." },
-                  { q: "Why does the public chat widget not appear?", a: "Confirm the plan enables Live Chat, the public widget is enabled in settings, the embed snippet points to the correct Conventus host, and the testing website's exact host is allowlisted." },
+                  { q: "Why does the public chat widget not appear?", a: "Confirm the plan enables Live Chat, the public widget is enabled in settings, the embed snippet points to the correct Canvas host, and the testing website's exact host is allowlisted." },
                   { q: "How do I get help?", a: "Ask your company administrator about workspace access or plan entitlements. For platform-level questions, use the support route provided by your organization." }
                 ].map((item) => <details key={item.q} className="group rounded-2xl border border-slate-200 bg-white p-4 sm:p-5"><summary className="flex cursor-pointer items-center justify-between gap-3 text-sm font-semibold text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"><span>{item.q}</span><ChevronDown className="size-4 shrink-0 text-slate-400 transition group-open:rotate-180" /></summary><p className="mt-3 text-sm leading-6 text-slate-600">{item.a}</p></details>)}
               </div>
@@ -403,7 +403,7 @@ export default function PublicDocs() {
       </div>
 
       <footer className="border-t border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-[1600px] flex-col gap-3 px-4 py-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8"><p>© {new Date().getFullYear()} Conventus. Product documentation.</p><div className="flex flex-wrap gap-4"><Link href="/privacy" className="hover:text-blue-700">Privacy</Link><Link href="/terms" className="hover:text-blue-700">Terms</Link><Link href="/compare" className="hover:text-blue-700">Compare</Link><Link href="/" className="hover:text-blue-700">Home</Link></div></div>
+        <div className="mx-auto flex max-w-[1600px] flex-col gap-3 px-4 py-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8"><p>© {new Date().getFullYear()} Canvas. Product documentation.</p><div className="flex flex-wrap gap-4"><Link href="/privacy" className="hover:text-blue-700">Privacy</Link><Link href="/terms" className="hover:text-blue-700">Terms</Link><Link href="/compare" className="hover:text-blue-700">Compare</Link><Link href="/" className="hover:text-blue-700">Home</Link></div></div>
       </footer>
     </div>
   );

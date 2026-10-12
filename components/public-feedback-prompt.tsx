@@ -144,7 +144,7 @@ export default function PublicFeedbackPrompt({
               How was your experience with this company?
             </h2>
             <p id="public-feedback-description" className="mt-1 text-xs leading-5 text-slate-500">
-              This private feedback is shared with the owning company&apos;s authorized feedback view and the Conventus platform team.
+              This private feedback is shared with the owning company&apos;s authorized feedback view and the Canvas platform team.
             </p>
           </div>
           <button

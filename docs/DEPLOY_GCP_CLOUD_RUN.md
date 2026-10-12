@@ -17,7 +17,7 @@ Cloud Run instances can scale to zero or be replaced at any time. Do not store u
 
 ## 1. Choose your production URL and databases first
 
-Choose your permanent HTTPS origin before building the image, for example https://app.yourdomain.com. NEXT_PUBLIC_* values are compiled into the browser bundle, so changing only Cloud Run runtime variables will not change browser code; rebuild the image after changing these public values.
+Use the canonical production origin https://canvas.algoquit.com before building the image. NEXT_PUBLIC_* values are compiled into the browser bundle, so changing only Cloud Run runtime variables will not change browser code; rebuild the image after changing these public values.
 
 Use separate databases:
 
@@ -92,20 +92,20 @@ $env:REGION = "asia-south1"
 $env:REPOSITORY = "canvas"
 $env:IMAGE = "canvas-web"
 $env:TAG = (git rev-parse --short HEAD).Trim()
-$env:APP_URL = "https://app.yourdomain.com"
+$env:APP_URL = "https://canvas.algoquit.com"
 $env:IMAGE_URI = "$($env:REGION)-docker.pkg.dev/$($env:PROJECT_ID)/$($env:REPOSITORY)/$($env:IMAGE):$($env:TAG)"
-docker build --pull -t $env:IMAGE_URI --build-arg "NEXT_PUBLIC_APP_URL=$($env:APP_URL)" --build-arg "NEXT_PUBLIC_APP_NAME=Canvas" --build-arg "NEXT_PUBLIC_COMPANY_NAME=AlgoQuit" .
+docker build --pull -t $env:IMAGE_URI --build-arg "NEXT_PUBLIC_APP_URL=$($env:APP_URL)" --build-arg "NEXT_PUBLIC_APP_NAME=Canvas" --build-arg "NEXT_PUBLIC_COMPANY_NAME=AlgoQuit" --build-arg "NEXT_PUBLIC_COMPANY_URL=https://algoquit.com" .
 docker push $env:IMAGE_URI
 ~~~
 
-Replace https://app.yourdomain.com with your actual domain. The Dockerfile uses Next.js standalone output, installs dependencies in a separate stage, excludes local environment files from the build context, and runs the container as the unprivileged nextjs user. Optional NEXT_PUBLIC_* analytics/Sentry settings can be passed as additional build arguments if enabled.
+Use https://canvas.algoquit.com after its DNS mapping and HTTPS certificate are active. The Dockerfile uses Next.js standalone output, installs dependencies in a separate stage, excludes local environment files from the build context, and runs the container as the unprivileged nextjs user. Optional NEXT_PUBLIC_* analytics/Sentry settings can be passed as additional build arguments if enabled.
 
 ## 5. Deploy the first Cloud Run service
 
 Before running this command, replace the sample values below with your actual non-secret integration values. Create the corresponding Secret Manager secrets in step 3 first.
 
 ~~~powershell
-gcloud run deploy canvas-web --image $env:IMAGE_URI --region $env:REGION --platform managed --port 8080 --allow-unauthenticated --service-account $runtimeSa --cpu 1 --memory 1Gi --concurrency 40 --timeout 300 --max 10 --set-env-vars="NODE_ENV=production,MONGODB_DB_NAME=Canvas,NEXT_PUBLIC_APP_URL=$($env:APP_URL),NEXT_PUBLIC_APP_NAME=Canvas,NEXT_PUBLIC_COMPANY_NAME=AlgoQuit,GOOGLE_CLIENT_ID=YOUR_GOOGLE_CLIENT_ID,GOOGLE_REDIRECT_URI=$($env:APP_URL)/api/auth/google/callback,REDIS_URL=YOUR_UPSTASH_REDIS_REST_URL,BUNNY_STORAGE_ZONE=YOUR_BUNNY_STORAGE_ZONE,BUNNY_STORAGE_ENDPOINT=https://storage.bunnycdn.com,BUNNY_VAULT_QUOTA_BYTES=5368709120,BUNNY_VAULT_MAX_FILE_BYTES=104857600,RAZORPAY_KEY_ID=YOUR_RAZORPAY_KEY_ID,AXIOM_SERVICE_NAME=canvas" --set-secrets="MONGODB_URI=MONGODB_URI:latest,REDIS_TOKEN=REDIS_TOKEN:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,AUTH_SECRET=AUTH_SECRET:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,CRON_SECRET=CRON_SECRET:latest,BUNNY_STORAGE_PASSWORD=BUNNY_STORAGE_PASSWORD:latest,RAZORPAY_KEY_SECRET=RAZORPAY_KEY_SECRET:latest,RAZORPAY_WEBHOOK_SECRET=RAZORPAY_WEBHOOK_SECRET:latest"
+gcloud run deploy canvas-web --image $env:IMAGE_URI --region $env:REGION --platform managed --port 8080 --allow-unauthenticated --service-account $runtimeSa --cpu 1 --memory 1Gi --concurrency 40 --timeout 300 --max 10 --set-env-vars="NODE_ENV=production,MONGODB_DB_NAME=Canvas,NEXT_PUBLIC_APP_URL=$($env:APP_URL),NEXT_PUBLIC_APP_NAME=Canvas,NEXT_PUBLIC_COMPANY_NAME=AlgoQuit,NEXT_PUBLIC_COMPANY_URL=https://algoquit.com,GOOGLE_CLIENT_ID=YOUR_GOOGLE_CLIENT_ID,GOOGLE_REDIRECT_URI=$($env:APP_URL)/api/auth/google/callback,REDIS_URL=YOUR_UPSTASH_REDIS_REST_URL,BUNNY_STORAGE_ZONE=YOUR_BUNNY_STORAGE_ZONE,BUNNY_STORAGE_ENDPOINT=https://storage.bunnycdn.com,BUNNY_VAULT_QUOTA_BYTES=5368709120,BUNNY_VAULT_MAX_FILE_BYTES=104857600,RAZORPAY_KEY_ID=YOUR_RAZORPAY_KEY_ID,AXIOM_SERVICE_NAME=canvas" --set-secrets="MONGODB_URI=MONGODB_URI:latest,REDIS_TOKEN=REDIS_TOKEN:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,AUTH_SECRET=AUTH_SECRET:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,CRON_SECRET=CRON_SECRET:latest,BUNNY_STORAGE_PASSWORD=BUNNY_STORAGE_PASSWORD:latest,RAZORPAY_KEY_SECRET=RAZORPAY_KEY_SECRET:latest,RAZORPAY_WEBHOOK_SECRET=RAZORPAY_WEBHOOK_SECRET:latest"
 ~~~
 
 The command's set-env-vars option replaces the service's existing plain environment variable list. Use it for the first deploy only, or include all required plain variables when intentionally replacing the list. For later changes, use update-env-vars/update-secrets so unrelated configuration is not accidentally removed.
@@ -118,8 +118,8 @@ After the service is deployed, map your custom domain to Cloud Run using the dom
 
 Then configure:
 
-- Google OAuth authorized redirect URI: https://app.yourdomain.com/api/auth/google/callback (must equal GOOGLE_REDIRECT_URI exactly).
-- Razorpay webhook URL: https://app.yourdomain.com/api/webhooks/razorpay.
+- Google OAuth authorized redirect URI: https://canvas.algoquit.com/api/auth/google/callback (must equal GOOGLE_REDIRECT_URI exactly).
+- Razorpay webhook URL: https://canvas.algoquit.com/api/webhooks/razorpay.
 - Cloud Scheduler must call the deployed HTTPS origin, not localhost.
 - Update NEXT_PUBLIC_APP_URL and GOOGLE_REDIRECT_URI and rebuild/redeploy if the permanent domain differs from the one used in the image.
 
@@ -149,7 +149,7 @@ Redis stores only temporary availability results (75-second TTL) and distributed
 
 Run these checks after deployment:
 
-1. Open https://app.yourdomain.com/api/health. A healthy service returns HTTP 200 with both mongo and redis equal to ok. It returns 503 when either dependency is not healthy.
+1. Open https://canvas.algoquit.com/api/health. A healthy service returns HTTP 200 with both mongo and redis equal to ok. It returns 503 when either dependency is not healthy.
 2. Sign in with Google and verify that the OAuth callback uses the production domain.
 3. Create one fresh company/workspace. The app's plan catalog bootstraps built-in plans on demand; do not run npm run seed:demo in production. That demo seeder deliberately refuses any database other than canvas_test.
 4. Test booking creation, assignment, Google Calendar/Meet creation, Razorpay checkout/webhook, Vault upload/download, task assignment, and each scheduled endpoint.
@@ -162,3 +162,21 @@ If company creation returns FREE_PLAN_NOT_CONFIGURED, first check the Cloud Run 
 After the first service exists and its runtime configuration is correct, cloudbuild.yaml can build, push and deploy new revisions. Configure a Cloud Build trigger for the protected main branch and set the _NEXT_PUBLIC_APP_URL substitution to the final URL. Give the Cloud Build service account permission to push to Artifact Registry, deploy Cloud Run, and act as the chosen runtime service account. The deploy step updates the image while preserving existing Cloud Run runtime configuration.
 
 For production, enable database backups/point-in-time recovery, monitor Cloud Run 5xx and database connection saturation, rotate secrets through Secret Manager, and test restores before real customer data is onboarded. Start with the 1 CPU / 1 GiB setting above and tune based on observed latency, memory and cost. Consider one minimum instance if cold-start latency is unacceptable.
+
+
+## Branding and production cutover
+
+The product is **Canvas** at https://canvas.algoquit.com. The operating company and billing merchant is **AlgoQuit** at https://algoquit.com. Keep the two URLs separate: use the product URL for the app and callbacks, and the company URL for the merchant/legal website. Set that URL in the DNS/domain mapping and ensure TLS is active before deploying the final image. Build-time public URL values must be rebuilt when changed.
+
+Before running the data migration, take a verified backup and point `MONGODB_URI` and `MONGODB_DB_NAME` at the current production database. Set these variables in PowerShell from the exact current database values (do not add the values to source control):
+
+```powershell
+$env:MIGRATION_PREVIOUS_MERCHANT_CODE = "the exact current payment merchant code"
+$env:MIGRATION_PREVIOUS_PRODUCT_NAME = "the exact current product display name"
+$env:MIGRATION_PREVIOUS_MERCHANT_NAME = "the exact current merchant display name"
+npm run brand:migrate
+```
+
+The first invocation is a dry run. Review the counts and run `npm run brand:migrate -- --apply` only after verifying the active database and backup. The migration updates the payment merchant code and current platform merchant profile. It reports but **does not rewrite issued invoice snapshots**: historical tax/accounting documents should be corrected or reissued only through an accountant/counsel-approved process. New invoices use Canvas as the product and AlgoQuit as the merchant. Do not point this script at a fresh empty database.
+
+If the MongoDB database itself has an earlier name, do not just change `MONGODB_DB_NAME`—that would point the app at a different database. Back up the existing database, restore its collections and indexes into the new `Canvas` database, validate row counts and key application workflows, then change the deployment setting and cut over. Keep the old database as a rollback copy until the new deployment is verified.
