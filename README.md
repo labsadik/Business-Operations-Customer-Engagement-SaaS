@@ -41,6 +41,21 @@ Conventus is a multi-tenant scheduling SaaS for companies that want customers to
 
 The `.env.example.md` file is documentation only; Next.js does not load Markdown files as environment files. Do not commit `.env.local` or real credentials.
 
+## Sentry error monitoring
+
+Sentry is optional and is initialized from environment variables. When no DSN is configured, Sentry stays disabled and the existing Axiom/console logging remains available.
+
+Configure these values in each deployment environment (for example, Vercel Project Settings → Environment Variables):
+
+- `NEXT_PUBLIC_SENTRY_DSN`: the Sentry project DSN used by the browser. DSNs are public identifiers, not auth tokens.
+- `SENTRY_DSN`: the server/edge DSN. Use the same project DSN unless browser and server events should go to different projects.
+- `SENTRY_ENVIRONMENT` and `NEXT_PUBLIC_SENTRY_ENVIRONMENT`: optional labels such as `production`, `preview`, or `development`. If omitted, the server uses `VERCEL_ENV`/ `NODE_ENV` and the browser uses `NODE_ENV`.
+- `SENTRY_TRACES_SAMPLE_RATE` and `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE`: optional values from `0` to `1`. Defaults are `1.0` in development and `0.1` in production. Invalid values safely fall back to these defaults.
+- `SENTRY_RELEASE` and `NEXT_PUBLIC_SENTRY_RELEASE`: optional release identifier to correlate browser and server events with a deployment.
+- `SENTRY_ORG`, `SENTRY_PROJECT`, and `SENTRY_AUTH_TOKEN`: build-time settings for uploading source maps. The auth token is secret and must never use a `NEXT_PUBLIC_*` name. Source-map upload is skipped when build credentials are absent.
+
+Set the `NEXT_PUBLIC_*` variables before running `npm run build`; Next.js embeds public environment variables into the browser bundle at build time. Keep Sentry's default PII collection disabled unless the application's privacy review explicitly approves changing it. Sentry request-error reporting is composed with the existing Axiom request-error hook, rather than replacing it.
+
 ## Checks
 
 - `npm run test`
