@@ -7,7 +7,7 @@ on:
     branches: ["main"]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   verify:
@@ -26,14 +26,17 @@ jobs:
       - name: Install
         run: npm install
 
-      - name: Upload resolved dependency lockfile (temporary)
-        if: ${{ always() && github.event_name == 'pull_request' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: sentry-resolved-lockfile
-          path: package-lock.json
-          if-no-files-found: error
-          retention-days: 1
+      - name: Commit Sentry dependency lockfile
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'fix/sentry-env-observability' }}
+        run: |
+          if ! git diff --quiet -- package-lock.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package-lock.json
+            git commit -m "chore: update npm lockfile for Sentry"
+            git push origin "HEAD:refs/heads/${GITHUB_HEAD_REF}"
+          fi
+
 
       - name: Unit tests
         run: npm test
