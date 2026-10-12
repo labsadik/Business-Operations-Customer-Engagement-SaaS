@@ -165,7 +165,7 @@ export default function PlanAccessGuard({
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             {canManageBilling ? (
               <Link
-                href="/dashboard?billing=1"
+                href="/dashboard?panel=billing"
                 className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800"
               >
                 {suspended ? "Review plan options" : "Renew plan"}
@@ -220,7 +220,7 @@ export default function PlanAccessGuard({
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               {canManageBilling ? (
                 <Link
-                  href="/dashboard?billing=1"
+                  href="/dashboard?panel=billing"
                   className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800"
                 >
                   Review plans and renew

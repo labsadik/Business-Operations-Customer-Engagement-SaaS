@@ -637,6 +637,9 @@ test("company plan suspension is admin-controlled, server-enforced, and restored
   assert.ok(publicChatConfig.includes("assertCompanyPlanNotSuspended(String(context.company._id))"));
   assert.ok(publicChatConversations.includes("assertCompanyPlanNotSuspended(String(context.company._id))"));
   assert.ok(publicChatMessages.includes("assertCompanyPlanNotSuspended(claims.companyId)"));
+  assert.ok(source("components/plan-access-guard.tsx").includes('href="/dashboard?panel=billing"'));
+  assert.ok(source("app/billing/checkout/page.tsx").includes('href="/dashboard?panel=billing"'));
+  assert.doesNotMatch(source("components/plan-access-guard.tsx"), /dashboard\?billing=1/);
   assert.ok(billing.includes("// A successful payment restores expired access but never overrides a"));
   assert.ok(billing.includes("planAccessExpiresAt: periodEnd"));
   assert.ok(billing.includes("planExpiryTestActive: false"));
