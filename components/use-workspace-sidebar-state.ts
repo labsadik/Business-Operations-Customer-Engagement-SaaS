@@ -2,7 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 
-const STORAGE_KEY = "conventus:workspace-sidebar-collapsed";
+const STORAGE_KEY = "canvas:workspace-sidebar-collapsed";
 const listeners = new Set<() => void>();
 
 function getCollapsedSnapshot() {

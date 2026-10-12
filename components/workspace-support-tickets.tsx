@@ -228,7 +228,7 @@ export default function WorkspaceSupportTickets({
 
       setSubject("");
       setDescription("");
-      setNotice(`Ticket ${ticketNumber(data.id)} was submitted to Conventus support.`);
+      setNotice(`Ticket ${ticketNumber(data.id)} was submitted to Canvas support.`);
       setView("list");
       await loadTickets(1);
     } catch (errorValue) {
@@ -274,7 +274,7 @@ export default function WorkspaceSupportTickets({
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-blue-600">
               <LifeBuoy className="size-4" aria-hidden="true" />
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em]">Conventus support</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em]">Canvas support</p>
             </div>
             <h2 id="support-ticket-title" className="mt-1 text-lg font-semibold tracking-tight text-slate-950">
               Support tickets
@@ -315,7 +315,7 @@ export default function WorkspaceSupportTickets({
             <>
               <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-xs font-semibold text-slate-900">Need help from Conventus?</p>
+                  <p className="text-xs font-semibold text-slate-900">Need help from Canvas?</p>
                   <p className="mt-1 text-[11px] leading-5 text-slate-500">
                     Your signed-in company identity and workspace are attached automatically.
                   </p>
@@ -367,7 +367,7 @@ export default function WorkspaceSupportTickets({
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
                   <LifeBuoy className="mx-auto size-6 text-slate-300" aria-hidden="true" />
                   <p className="mt-3 text-sm font-semibold text-slate-800">No support tickets yet</p>
-                  <p className="mt-1 text-xs text-slate-500">Create a ticket to contact the Conventus platform support team.</p>
+                  <p className="mt-1 text-xs text-slate-500">Create a ticket to contact the Canvas platform support team.</p>
                 </div>
               )}
 
@@ -525,7 +525,7 @@ export default function WorkspaceSupportTickets({
                 <div className="mt-4 flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3.5">
                   <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden="true" />
                   <p className="text-[11px] leading-5 text-blue-900">
-                    Ticket status is managed by Conventus support. Opening this ticket does not change its status.
+                    Ticket status is managed by Canvas support. Opening this ticket does not change its status.
                   </p>
                 </div>
               </section>

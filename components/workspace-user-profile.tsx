@@ -200,7 +200,7 @@ export default function WorkspaceUserProfile({
       setDepartment(updated.department || "");
       setEmploymentStatus(updated.employmentStatus || employmentStatus);
       if (profileRole !== "PLATFORM_ADMIN") {
-        window.dispatchEvent(new CustomEvent("conventus:employment-status-updated", {
+        window.dispatchEvent(new CustomEvent("canvas:employment-status-updated", {
           detail: { employmentStatus: updated.employmentStatus || employmentStatus }
         }));
       }

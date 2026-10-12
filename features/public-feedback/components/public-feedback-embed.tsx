@@ -180,7 +180,7 @@ export default function PublicFeedbackEmbed({ companySlug, companyName }: { comp
           </div>
         )}
       </section>
-      <footer className="border-t border-slate-200 pt-3 text-center text-[10px] text-slate-400">Feedback powered by Conventus</footer>
+      <footer className="border-t border-slate-200 pt-3 text-center text-[10px] text-slate-400">Feedback powered by Canvas</footer>
     </main>
   );
 }
