@@ -175,7 +175,7 @@ const sections: LegalSection[] = [
     content: (
       <>
         <p>
-          Legal entity: <strong className="text-slate-900">{LEGAL_CONFIG.legalEntityName}</strong>
+          Operating company: <strong className="text-slate-900">{LEGAL_CONFIG.companyName}</strong><br />Registered legal entity: <strong className="text-slate-900">{LEGAL_CONFIG.legalEntityName}</strong>
         </p>
         <p>
           Legal/privacy contact: <strong className="text-slate-900">{LEGAL_CONFIG.legalContact}</strong>
