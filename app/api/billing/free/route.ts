@@ -1,7 +1,6 @@
 import { getSession } from "@/lib/session";
 import { getMongo } from "@/lib/mongodb";
 import { Subscription } from "@/models/subscription";
-import { Workspace } from "@/models/workspace";
 import { Company } from "@/models/company";
 import { ensureCurrentAccessInvoice } from "@/lib/billing";
 import { getCompanyPlanAccessState, getCompanySubscription } from "@/lib/plans-server";
@@ -103,11 +102,6 @@ export async function POST(request: Request) {
         $setOnInsert: { companyId: session.companyId }
       },
       { upsert: true, returnDocument: "after" }
-    );
-
-    await Workspace.updateOne(
-      { companyId: session.companyId },
-      { $set: { planId: freePlan.id } }
     );
 
     await ensureCurrentAccessInvoice(session.companyId);

@@ -6,7 +6,6 @@ import { Company } from "@/models/company";
 import { Invoice } from "@/models/invoice";
 import { Payment } from "@/models/payment";
 import { Subscription } from "@/models/subscription";
-import { Workspace } from "@/models/workspace";
 import { buildInvoiceSnapshots, resolveInvoiceBillingPeriod, type InvoiceTaxSnapshot } from "@/lib/invoicing";
 import { getCompanyEntitlements, reconcileLatestPaidAccess } from "@/lib/plans-server";
 
@@ -279,12 +278,6 @@ export async function activatePaidPlan(paymentId: string) {
           { upsert: true, returnDocument: "after", session: tx }
         );
 
-        await Workspace.updateOne(
-          { companyId: captured.companyId },
-          { $set: { planId: plan.id } },
-          { session: tx }
-        );
-
         // A successful payment restores expired access but never overrides a
         // separate manual suspension imposed by a platform administrator.
         await Company.updateOne(
@@ -433,8 +426,6 @@ export async function grantCompanyPlan(
     },
     { upsert: true, returnDocument: "after" }
   ).lean();
-
-  await Workspace.updateOne({ companyId }, { $set: { planId } });
 
   if (!subscription) throw new Error("SUBSCRIPTION_GRANT_FAILED");
 

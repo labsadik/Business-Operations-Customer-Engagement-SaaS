@@ -416,8 +416,7 @@ export async function POST(request: Request) {
       const [workspace] = await Workspace.create([{
         companyId: company._id,
         name: `${name} workspace`,
-        timezone: body.timezone || "Asia/Kolkata",
-        planId: "free"
+        timezone: body.timezone || "Asia/Kolkata"
       }], { session: tx });
 
       await Subscription.create([{

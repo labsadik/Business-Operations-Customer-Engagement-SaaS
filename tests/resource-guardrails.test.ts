@@ -99,6 +99,9 @@ test("job title and department are owned by users, while employment status stays
   const employeeProfile = source("app/api/company/employees/[userId]/route.ts");
   const oauthCallback = source("app/api/auth/google/callback/route.ts");
   const companyRoute = source("app/api/company/route.ts");
+  const workspaceModel = source("models/workspace.ts");
+  const billing = source("lib/billing.ts");
+  const freePlanRoute = source("app/api/billing/free/route.ts");
   const ownProfile = source("app/api/profile/member/route.ts");
   const migration = source("scripts/migrate-membership-profile-fields.mjs");
   const packageJson = JSON.parse(source("package.json")) as { scripts: Record<string, string> };
@@ -116,6 +119,12 @@ test("job title and department are owned by users, while employment status stays
   assert.doesNotMatch(employeeProfile, /googleConnectionStatus/);
   assert.doesNotMatch(oauthCallback, /googleConnectionStatus/);
   assert.doesNotMatch(companyRoute, /googleConnectionStatus/);
+  assert.doesNotMatch(workspaceModel, /planId/);
+  assert.doesNotMatch(billing, /Workspace\.updateOne/);
+  assert.doesNotMatch(freePlanRoute, /Workspace\.updateOne/);
+  assert.doesNotMatch(companyRoute, /planId:\s*"free"/);
+  assert.ok(migration.includes('workspacePlanIdsRemoved'));
+  assert.ok(migration.includes('$unset: { planId: "" }'));
   assert.ok(migration.includes("ORPHANED_MEMBERSHIP_PROFILE_DATA"));
   assert.equal(packageJson.scripts["membership-profile:migrate"], "node scripts/migrate-membership-profile-fields.mjs");
 });

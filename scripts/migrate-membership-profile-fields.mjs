@@ -119,16 +119,28 @@ try {
     ]
   });
 
+  const workspaces = db.collection("workspaces");
+  const workspacePlanIdsRemoved = await workspaces.updateMany(
+    { planId: { $exists: true } },
+    { $unset: { planId: "" } }
+  );
+  const remainingWorkspacePlanIds = await workspaces.countDocuments({ planId: { $exists: true } });
+
   console.log(JSON.stringify({
     membershipsReviewed,
     jobTitlesCopied,
     departmentsCopied,
     membershipRecordsCleaned: fieldsRemoved.modifiedCount,
-    remainingLegacyFieldRecords: remainingLegacyFields
+    remainingLegacyFieldRecords: remainingLegacyFields,
+    workspacePlanIdsRemoved: workspacePlanIdsRemoved.modifiedCount,
+    remainingWorkspacePlanIds
   }, null, 2));
 
   if (remainingLegacyFields > 0) {
     throw new Error("MEMBERSHIP_PROFILE_FIELDS_REMAIN; rerun the migration after resolving database permissions or write failures.");
+  }
+  if (remainingWorkspacePlanIds > 0) {
+    throw new Error("WORKSPACE_PLAN_IDS_REMAIN; rerun the migration after resolving database permissions or write failures.");
   }
 } finally {
   await mongoose.disconnect();
