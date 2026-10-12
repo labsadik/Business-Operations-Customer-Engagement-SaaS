@@ -151,6 +151,11 @@ test("Redis lock release uses the existing lock value safely", async () => {
   try {
     await withRedisLock("test:lock", 1000, async () => "ok");
     assert.equal(
+      calls.some((call) => call.url.includes("/set/conventus%3Alock%3Av1%3Atest%3Alock/")),
+      true,
+      "lock keys should use the application namespace"
+    );
+    assert.equal(
       calls.some((call) => call.init?.method === "POST" && call.url === "https://redis.example.test"),
       true
     );
