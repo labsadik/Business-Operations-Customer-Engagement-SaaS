@@ -143,7 +143,7 @@ Set the Scheduler timezone intentionally (UTC is simplest). Restrict who can vie
 
 Set `REDIS_URL` to the Upstash Redis REST HTTPS endpoint and `REDIS_TOKEN` to its REST token through Secret Manager. The runtime also accepts `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` for compatibility. Never expose the token through a `NEXT_PUBLIC_*` variable.
 
-Redis stores only temporary availability results (75-second TTL) and distributed lock keys under the `conventus:lock:v1:` namespace for booking/meeting state transitions, the booking sweep, and live-chat conversation creation. MongoDB remains authoritative for application records. Production lock-protected API operations and the booking sweep fail closed with HTTP 503 if Redis is missing or unavailable; configure and verify Redis before sending production booking traffic.
+Redis stores only temporary availability results (75-second TTL) and distributed lock keys for booking/meeting state transitions, the booking sweep, and live-chat conversation creation. Use a dedicated Redis database for this app. Existing lock key names are intentionally preserved so old and new application revisions continue coordinating during a rolling deployment. MongoDB remains authoritative for application records. Production lock-protected API operations and the booking sweep fail closed with HTTP 503 if Redis is missing or unavailable; configure and verify Redis before sending production booking traffic.
 
 ## 8. Verify the live service
 
