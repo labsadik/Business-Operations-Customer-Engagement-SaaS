@@ -971,7 +971,9 @@ test("Canvas is the product identity and AlgoQuit is the company and merchant id
   assert.ok(platform.includes('process.env.NEXT_PUBLIC_APP_NAME?.trim() || "Canvas"'));
   assert.ok(platform.includes('process.env.NEXT_PUBLIC_COMPANY_NAME?.trim() || "AlgoQuit"'));
   assert.ok(metadata.includes("Canvas by AlgoQuit"));
-  assert.ok(settings.includes('default: "https://canvas.algoquit.com"'));
+  assert.ok(settings.includes('default: "https://algoquit.com"'));
+  assert.ok(platform.includes('|| "https://algoquit.com"'));
+  assert.ok(cloudBuild.includes("_NEXT_PUBLIC_COMPANY_URL: https://algoquit.com"));
   assert.ok(payment.includes('enum: ["ALGOQUIT"]'));
   assert.ok(checkout.includes('merchant: { ...PLATFORM_BRAND, name: PLATFORM_COMPANY_NAME }'));
   assert.ok(cloudBuild.includes("_NEXT_PUBLIC_APP_URL: https://canvas.algoquit.com"));

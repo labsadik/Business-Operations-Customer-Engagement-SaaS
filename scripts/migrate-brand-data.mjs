@@ -48,7 +48,7 @@ try {
       name: "AlgoQuit",
       description: replaceText(merchant.description) || "Canvas by AlgoQuit",
       logoUrl: "/favicon.svg",
-      websiteUrl: "https://canvas.algoquit.com"
+      websiteUrl: "https://algoquit.com"
     };
     const nextServiceDescription = replaceText(invoice.serviceDescription) || "Canvas monthly scheduling service";
     const changed =
@@ -94,7 +94,8 @@ try {
     paymentRecordsToUpdate: paymentCount,
     historicalInvoiceSnapshotsFlaggedForReview: invoiceCount,
     platformSettingsRecordsToUpdate: settingsCount,
-    canonicalWebsite: "https://canvas.algoquit.com"
+    companyWebsite: "https://algoquit.com",
+    productWebsite: "https://canvas.algoquit.com"
   }, null, 2));
 
   if (!apply) console.log("No changes were written. Review the counts and rerun with --apply to migrate payment and platform settings.");

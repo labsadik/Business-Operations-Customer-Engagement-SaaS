@@ -94,7 +94,7 @@ $env:IMAGE = "canvas-web"
 $env:TAG = (git rev-parse --short HEAD).Trim()
 $env:APP_URL = "https://canvas.algoquit.com"
 $env:IMAGE_URI = "$($env:REGION)-docker.pkg.dev/$($env:PROJECT_ID)/$($env:REPOSITORY)/$($env:IMAGE):$($env:TAG)"
-docker build --pull -t $env:IMAGE_URI --build-arg "NEXT_PUBLIC_APP_URL=$($env:APP_URL)" --build-arg "NEXT_PUBLIC_APP_NAME=Canvas" --build-arg "NEXT_PUBLIC_COMPANY_NAME=AlgoQuit" .
+docker build --pull -t $env:IMAGE_URI --build-arg "NEXT_PUBLIC_APP_URL=$($env:APP_URL)" --build-arg "NEXT_PUBLIC_APP_NAME=Canvas" --build-arg "NEXT_PUBLIC_COMPANY_NAME=AlgoQuit" --build-arg "NEXT_PUBLIC_COMPANY_URL=https://algoquit.com" .
 docker push $env:IMAGE_URI
 ~~~
 
@@ -105,7 +105,7 @@ Use https://canvas.algoquit.com after its DNS mapping and HTTPS certificate are 
 Before running this command, replace the sample values below with your actual non-secret integration values. Create the corresponding Secret Manager secrets in step 3 first.
 
 ~~~powershell
-gcloud run deploy canvas-web --image $env:IMAGE_URI --region $env:REGION --platform managed --port 8080 --allow-unauthenticated --service-account $runtimeSa --cpu 1 --memory 1Gi --concurrency 40 --timeout 300 --max 10 --set-env-vars="NODE_ENV=production,MONGODB_DB_NAME=Canvas,NEXT_PUBLIC_APP_URL=$($env:APP_URL),NEXT_PUBLIC_APP_NAME=Canvas,NEXT_PUBLIC_COMPANY_NAME=AlgoQuit,GOOGLE_CLIENT_ID=YOUR_GOOGLE_CLIENT_ID,GOOGLE_REDIRECT_URI=$($env:APP_URL)/api/auth/google/callback,REDIS_URL=YOUR_UPSTASH_REDIS_REST_URL,BUNNY_STORAGE_ZONE=YOUR_BUNNY_STORAGE_ZONE,BUNNY_STORAGE_ENDPOINT=https://storage.bunnycdn.com,BUNNY_VAULT_QUOTA_BYTES=5368709120,BUNNY_VAULT_MAX_FILE_BYTES=104857600,RAZORPAY_KEY_ID=YOUR_RAZORPAY_KEY_ID,AXIOM_SERVICE_NAME=canvas" --set-secrets="MONGODB_URI=MONGODB_URI:latest,REDIS_TOKEN=REDIS_TOKEN:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,AUTH_SECRET=AUTH_SECRET:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,CRON_SECRET=CRON_SECRET:latest,BUNNY_STORAGE_PASSWORD=BUNNY_STORAGE_PASSWORD:latest,RAZORPAY_KEY_SECRET=RAZORPAY_KEY_SECRET:latest,RAZORPAY_WEBHOOK_SECRET=RAZORPAY_WEBHOOK_SECRET:latest"
+gcloud run deploy canvas-web --image $env:IMAGE_URI --region $env:REGION --platform managed --port 8080 --allow-unauthenticated --service-account $runtimeSa --cpu 1 --memory 1Gi --concurrency 40 --timeout 300 --max 10 --set-env-vars="NODE_ENV=production,MONGODB_DB_NAME=Canvas,NEXT_PUBLIC_APP_URL=$($env:APP_URL),NEXT_PUBLIC_APP_NAME=Canvas,NEXT_PUBLIC_COMPANY_NAME=AlgoQuit,NEXT_PUBLIC_COMPANY_URL=https://algoquit.com,GOOGLE_CLIENT_ID=YOUR_GOOGLE_CLIENT_ID,GOOGLE_REDIRECT_URI=$($env:APP_URL)/api/auth/google/callback,REDIS_URL=YOUR_UPSTASH_REDIS_REST_URL,BUNNY_STORAGE_ZONE=YOUR_BUNNY_STORAGE_ZONE,BUNNY_STORAGE_ENDPOINT=https://storage.bunnycdn.com,BUNNY_VAULT_QUOTA_BYTES=5368709120,BUNNY_VAULT_MAX_FILE_BYTES=104857600,RAZORPAY_KEY_ID=YOUR_RAZORPAY_KEY_ID,AXIOM_SERVICE_NAME=canvas" --set-secrets="MONGODB_URI=MONGODB_URI:latest,REDIS_TOKEN=REDIS_TOKEN:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,AUTH_SECRET=AUTH_SECRET:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,CRON_SECRET=CRON_SECRET:latest,BUNNY_STORAGE_PASSWORD=BUNNY_STORAGE_PASSWORD:latest,RAZORPAY_KEY_SECRET=RAZORPAY_KEY_SECRET:latest,RAZORPAY_WEBHOOK_SECRET=RAZORPAY_WEBHOOK_SECRET:latest"
 ~~~
 
 The command's set-env-vars option replaces the service's existing plain environment variable list. Use it for the first deploy only, or include all required plain variables when intentionally replacing the list. For later changes, use update-env-vars/update-secrets so unrelated configuration is not accidentally removed.
@@ -166,7 +166,7 @@ For production, enable database backups/point-in-time recovery, monitor Cloud Ru
 
 ## Branding and production cutover
 
-The product is **Canvas** and the company/merchant is **AlgoQuit**. The canonical product origin is https://canvas.algoquit.com. Set that URL in the DNS/domain mapping and ensure TLS is active before deploying the final image. Build-time public URL values must be rebuilt when changed.
+The product is **Canvas** at https://canvas.algoquit.com. The operating company and billing merchant is **AlgoQuit** at https://algoquit.com. Keep the two URLs separate: use the product URL for the app and callbacks, and the company URL for the merchant/legal website. Set that URL in the DNS/domain mapping and ensure TLS is active before deploying the final image. Build-time public URL values must be rebuilt when changed.
 
 Before running the data migration, take a verified backup and point `MONGODB_URI` and `MONGODB_DB_NAME` at the current production database. Set these variables in PowerShell from the exact current database values (do not add the values to source control):
 

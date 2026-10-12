@@ -1,8 +1,9 @@
 import { getMongo } from "@/lib/mongodb";
 import { PlatformSettings } from "@/models/platform-settings";
-import { getPublicOriginString, getSafeWebsiteUrl } from "@/lib/public-origin";
+import { getSafeWebsiteUrl } from "@/lib/public-origin";
 
 export const PLATFORM_COMPANY_NAME = process.env.NEXT_PUBLIC_COMPANY_NAME?.trim() || "AlgoQuit";
+export const PLATFORM_COMPANY_URL = getSafeWebsiteUrl(process.env.NEXT_PUBLIC_COMPANY_URL?.trim()) || "https://algoquit.com";
 
 export const PLATFORM_BRAND = {
   name: process.env.NEXT_PUBLIC_APP_NAME?.trim() || "Canvas",
@@ -43,8 +44,7 @@ function emailValue(value: string) {
 }
 
 function defaultWebsiteUrl() {
-  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  return configured ? getPublicOriginString() : "";
+  return PLATFORM_COMPANY_URL;
 }
 
 export async function getPlatformSettings() {
