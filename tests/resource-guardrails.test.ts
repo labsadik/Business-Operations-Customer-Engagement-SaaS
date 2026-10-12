@@ -976,5 +976,6 @@ test("Canvas is the product identity and AlgoQuit is the company and merchant id
   assert.ok(checkout.includes('merchant: { ...PLATFORM_BRAND, name: PLATFORM_COMPANY_NAME }'));
   assert.ok(cloudBuild.includes("_NEXT_PUBLIC_APP_URL: https://canvas.algoquit.com"));
   assert.ok(migration.includes("MONGODB_DB_NAME_REQUIRED_FOR_BRAND_MIGRATION"));
-  assert.ok(legal.includes('legalEntityName: "AlgoQuit"'));
+  assert.ok(legal.includes('companyName: "AlgoQuit"'));
+  assert.ok(legal.includes("registered legal entity name before launch"));
 });

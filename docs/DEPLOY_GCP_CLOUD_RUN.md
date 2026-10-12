@@ -177,6 +177,6 @@ $env:MIGRATION_PREVIOUS_MERCHANT_NAME = "the exact current merchant display name
 npm run brand:migrate
 ```
 
-The first invocation is a dry run. Review the counts and run `npm run brand:migrate -- --apply` only after verifying the active database and backup. This updates platform payment identifiers and invoice/merchant snapshots to the Canvas/AlgoQuit identity. Do not point this script at a fresh empty database.
+The first invocation is a dry run. Review the counts and run `npm run brand:migrate -- --apply` only after verifying the active database and backup. The migration updates the payment merchant code and current platform merchant profile. It reports but **does not rewrite issued invoice snapshots**: historical tax/accounting documents should be corrected or reissued only through an accountant/counsel-approved process. New invoices use Canvas as the product and AlgoQuit as the merchant. Do not point this script at a fresh empty database.
 
 If the MongoDB database itself has an earlier name, do not just change `MONGODB_DB_NAME`—that would point the app at a different database. Back up the existing database, restore its collections and indexes into the new `Canvas` database, validate row counts and key application workflows, then change the deployment setting and cut over. Keep the old database as a rollback copy until the new deployment is verified.

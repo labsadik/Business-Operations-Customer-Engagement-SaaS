@@ -21,11 +21,17 @@ const databaseName = process.env.MONGODB_DB_NAME?.trim();
 if (!databaseName) {
   throw new Error("MONGODB_DB_NAME_REQUIRED_FOR_BRAND_MIGRATION: set the exact existing database name explicitly.");
 }
-const replaceText = (value) => {
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\const replaceText = (value) => {
   if (typeof value !== "string") return value;
   return value
     .split(previousProductName).join("Canvas")
     .split(previousMerchantName).join("AlgoQuit");
+};");
+const replaceText = (value) => {
+  if (typeof value !== "string") return value;
+  return value
+    .replace(new RegExp(escapeRegex(previousProductName), "gi"), "Canvas")
+    .replace(new RegExp(escapeRegex(previousMerchantName), "gi"), "AlgoQuit");
 };
 
 await mongoose.connect(uri, { dbName: databaseName });
@@ -58,13 +64,9 @@ try {
       merchant.websiteUrl !== nextMerchant.websiteUrl ||
       invoice.serviceDescription !== nextServiceDescription;
     if (!changed) continue;
+    // Issued invoice snapshots are historical accounting records. Count them
+    // for review, but never rewrite them silently during a branding migration.
     invoiceCount += 1;
-    if (apply) {
-      await invoices.updateOne(
-        { _id: invoice._id },
-        { $set: { merchantSnapshot: nextMerchant, serviceDescription: nextServiceDescription } }
-      );
-    }
   }
 
   const platformSettings = await settings.findOne({ key: "default" });
@@ -96,12 +98,15 @@ try {
     mode: apply ? "apply" : "dry-run",
     databaseName,
     paymentRecordsToUpdate: paymentCount,
-    invoicesToUpdate: invoiceCount,
+    historicalInvoiceSnapshotsFlaggedForReview: invoiceCount,
     platformSettingsRecordsToUpdate: settingsCount,
     canonicalWebsite: "https://canvas.algoquit.com"
   }, null, 2));
 
-  if (!apply) console.log("No changes were written. Review the counts and rerun with --apply to perform the migration.");
+  if (!apply) console.log("No changes were written. Review the counts and rerun with --apply to migrate payment and platform settings.");
+  if (apply && invoiceCount) {
+    console.warn("HISTORICAL_INVOICE_SNAPSHOTS_PRESERVED: review the reported invoices with your accountant/counsel; use a legally appropriate correction or reissue process rather than rewriting issued invoices.");
+  }
 } finally {
   await mongoose.disconnect();
 }
