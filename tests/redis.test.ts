@@ -64,10 +64,11 @@ test("Upstash REST URL environment name is accepted", async () => {
 test("production distributed locks fail closed when Redis is not configured", async () => {
   const previousUrl = process.env.REDIS_URL;
   const previousUpstashUrl = process.env.UPSTASH_REDIS_REST_URL;
-  const previousNodeEnv = process.env.NODE_ENV;
+  const mutableEnv = process.env as Record<string, string | undefined>;
+  const previousNodeEnv = mutableEnv.NODE_ENV;
   delete process.env.REDIS_URL;
   delete process.env.UPSTASH_REDIS_REST_URL;
-  process.env.NODE_ENV = "production";
+  mutableEnv.NODE_ENV = "production";
   resetRedisState();
   let callbackRan = false;
 
@@ -84,8 +85,8 @@ test("production distributed locks fail closed when Redis is not configured", as
     else process.env.REDIS_URL = previousUrl;
     if (previousUpstashUrl === undefined) delete process.env.UPSTASH_REDIS_REST_URL;
     else process.env.UPSTASH_REDIS_REST_URL = previousUpstashUrl;
-    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
-    else process.env.NODE_ENV = previousNodeEnv;
+    if (previousNodeEnv === undefined) delete mutableEnv.NODE_ENV;
+    else mutableEnv.NODE_ENV = previousNodeEnv;
     resetRedisState();
   }
 });
