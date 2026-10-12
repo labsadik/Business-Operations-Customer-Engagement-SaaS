@@ -1,7 +1,7 @@
 type RedisSetOptions = { NX?: boolean; PX?: number; EX?: number };
-export type ConventusRedis = {
+export type CanvasRedis = {
   isReady: boolean;
-  connect(): Promise<ConventusRedis>;
+  connect(): Promise<CanvasRedis>;
   ping(): Promise<string>;
   set(key: string, value: string, options?: RedisSetOptions): Promise<string | null>;
   get(key: string): Promise<string | null>;
@@ -47,7 +47,7 @@ function withTimeout<T>(
   });
 }
 
-class UpstashRestRedis implements ConventusRedis {
+class UpstashRestRedis implements CanvasRedis {
   isReady = true;
   private readonly baseUrl: string;
   private readonly token: string;
@@ -144,11 +144,11 @@ class UpstashRestRedis implements ConventusRedis {
 }
 
 declare global {
-  var __conventusRedis: ConventusRedis | undefined;
-  var __conventusRedisConnect: Promise<ConventusRedis> | undefined;
+  var __canvasRedis: CanvasRedis | undefined;
+  var __canvasRedisConnect: Promise<CanvasRedis> | undefined;
 }
 
-async function createRedisClient(): Promise<ConventusRedis> {
+async function createRedisClient(): Promise<CanvasRedis> {
   const url = configuredRedisUrl();
   if (!url) throw new Error("REDIS_NOT_CONFIGURED");
 
@@ -173,10 +173,10 @@ async function createRedisClient(): Promise<ConventusRedis> {
   });
 
   client.on("error", (error) =>
-    console.error("Conventus Redis error", error)
+    console.error("Canvas Redis error", error)
   );
 
-  const wrapped: ConventusRedis = {
+  const wrapped: CanvasRedis = {
     get isReady() {
       return client.isReady;
     },
@@ -236,49 +236,49 @@ async function createRedisClient(): Promise<ConventusRedis> {
   };
 
   client.on("end", () => {
-    if (globalThis.__conventusRedis === wrapped) {
-      globalThis.__conventusRedis = undefined;
-      globalThis.__conventusRedisConnect = undefined;
+    if (globalThis.__canvasRedis === wrapped) {
+      globalThis.__canvasRedis = undefined;
+      globalThis.__canvasRedisConnect = undefined;
     }
   });
 
   return wrapped;
 }
 
-async function createAndConnectRedis(): Promise<ConventusRedis> {
+async function createAndConnectRedis(): Promise<CanvasRedis> {
   const client = await createRedisClient();
-  globalThis.__conventusRedis = client;
+  globalThis.__canvasRedis = client;
   if (client.isReady) return client;
   return client.connect();
 }
 
-export async function getRedis(): Promise<ConventusRedis | null> {
+export async function getRedis(): Promise<CanvasRedis | null> {
   if (!configuredRedisUrl()) return null;
 
-  if (globalThis.__conventusRedis?.isReady) {
-    return globalThis.__conventusRedis;
+  if (globalThis.__canvasRedis?.isReady) {
+    return globalThis.__canvasRedis;
   }
 
-  const existingConnect = globalThis.__conventusRedisConnect;
+  const existingConnect = globalThis.__canvasRedisConnect;
   const connectPromise =
     existingConnect ??
-    (globalThis.__conventusRedis
-      ? globalThis.__conventusRedis.connect()
+    (globalThis.__canvasRedis
+      ? globalThis.__canvasRedis.connect()
       : createAndConnectRedis());
 
-  globalThis.__conventusRedisConnect = connectPromise;
+  globalThis.__canvasRedisConnect = connectPromise;
 
   try {
     return await connectPromise;
   } catch (error) {
-    globalThis.__conventusRedisConnect = undefined;
-    if (globalThis.__conventusRedis?.isReady !== true) {
-      globalThis.__conventusRedis = undefined;
+    globalThis.__canvasRedisConnect = undefined;
+    if (globalThis.__canvasRedis?.isReady !== true) {
+      globalThis.__canvasRedis = undefined;
     }
     throw error;
   } finally {
-    if (globalThis.__conventusRedisConnect === connectPromise) {
-      globalThis.__conventusRedisConnect = undefined;
+    if (globalThis.__canvasRedisConnect === connectPromise) {
+      globalThis.__canvasRedisConnect = undefined;
     }
   }
 }

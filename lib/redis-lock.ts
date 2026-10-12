@@ -8,13 +8,13 @@ export async function withRedisLock<T>(key: string, ttlMs: number, fn: () => Pro
   } catch (error) {
     if (process.env.NODE_ENV !== "production") throw error;
     const code = error instanceof Error ? error.message : "REDIS_CONNECTION_FAILED";
-    console.error("[Conventus] Redis lock unavailable", { code });
+    console.error("[Canvas] Redis lock unavailable", { code });
     throw new Error("REDIS_UNAVAILABLE");
   }
 
   if (!redis) {
     if (process.env.NODE_ENV === "production") {
-      console.error("[Conventus] Redis lock unavailable", { code: "REDIS_NOT_CONFIGURED" });
+      console.error("[Canvas] Redis lock unavailable", { code: "REDIS_NOT_CONFIGURED" });
       throw new Error("REDIS_UNAVAILABLE");
     }
     return fn();
@@ -27,7 +27,7 @@ export async function withRedisLock<T>(key: string, ttlMs: number, fn: () => Pro
   } catch (error) {
     if (process.env.NODE_ENV !== "production") throw error;
     const code = error instanceof Error ? error.message : "REDIS_SET_FAILED";
-    console.error("[Conventus] Redis lock unavailable", { code });
+    console.error("[Canvas] Redis lock unavailable", { code });
     throw new Error("REDIS_UNAVAILABLE");
   }
   if (!acquired) throw new Error("RESOURCE_BUSY");
@@ -39,7 +39,7 @@ export async function withRedisLock<T>(key: string, ttlMs: number, fn: () => Pro
       await redis.compareAndDelete(key, token);
     } catch (error) {
       const code = error instanceof Error ? error.message : "REDIS_LOCK_RELEASE_FAILED";
-      console.warn("[Conventus] Redis lock release failed", { code });
+      console.warn("[Canvas] Redis lock release failed", { code });
     }
   }
 }

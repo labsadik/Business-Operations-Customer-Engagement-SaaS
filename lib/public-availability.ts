@@ -352,7 +352,7 @@ export async function getAvailableSlots(
     throw new Error("INVALID_DURATION");
   }
 
-  const cacheKey = "conventus:availability:v1:" + [
+  const cacheKey = "canvas:availability:v1:" + [
     companyId,
     dateIso,
     durationMinutes,

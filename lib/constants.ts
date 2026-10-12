@@ -1,4 +1,4 @@
-export const APP_NAME = "Conventus";
+export const APP_NAME = "Canvas";
 
 export const ROUTES = {
   home: "/",
