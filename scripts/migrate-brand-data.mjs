@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { loadLocalEnv, mongoDatabaseName } from "./lib/env.mjs";
+import { loadLocalEnv } from "./lib/env.mjs";
 
 loadLocalEnv();
 
@@ -17,7 +17,10 @@ if (!previousMerchantCode || !previousProductName || !previousMerchantName) {
 }
 
 const apply = process.argv.includes("--apply");
-const databaseName = mongoDatabaseName();
+const databaseName = process.env.MONGODB_DB_NAME?.trim();
+if (!databaseName) {
+  throw new Error("MONGODB_DB_NAME_REQUIRED_FOR_BRAND_MIGRATION: set the exact existing database name explicitly.");
+}
 const replaceText = (value) => {
   if (typeof value !== "string") return value;
   return value

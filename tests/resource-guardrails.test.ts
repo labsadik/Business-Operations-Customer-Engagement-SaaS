@@ -965,6 +965,7 @@ test("Canvas is the product identity and AlgoQuit is the company and merchant id
   const checkout = source("app/api/billing/checkout/route.ts");
   const cloudBuild = source("cloudbuild.yaml");
   const legal = source("lib/legal.ts");
+  const migration = source("scripts/migrate-brand-data.mjs");
 
   assert.equal(packageJson.name, "canvas");
   assert.ok(platform.includes('process.env.NEXT_PUBLIC_APP_NAME?.trim() || "Canvas"'));
@@ -974,5 +975,6 @@ test("Canvas is the product identity and AlgoQuit is the company and merchant id
   assert.ok(payment.includes('enum: ["ALGOQUIT"]'));
   assert.ok(checkout.includes('merchant: { ...PLATFORM_BRAND, name: PLATFORM_COMPANY_NAME }'));
   assert.ok(cloudBuild.includes("_NEXT_PUBLIC_APP_URL: https://canvas.algoquit.com"));
+  assert.ok(migration.includes("MONGODB_DB_NAME_REQUIRED_FOR_BRAND_MIGRATION"));
   assert.ok(legal.includes('legalEntityName: "AlgoQuit"'));
 });
