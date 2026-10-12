@@ -51,7 +51,7 @@ export default async function BillingResultPage({
           providerPaymentId: paymentId.trim(),
           companyId: session.companyId,
           status: "CAPTURED",
-          merchantAccount: "ALGOQUIT"
+          merchantAccount: "CANVAS"
         }).lean()
       : null,
     invoiceId

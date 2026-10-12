@@ -134,7 +134,7 @@ After that, the platform admin can use `/admin/access` to grant or revoke `PLATF
 
 ## Platform-owned billing
 
-Tenant companies are the **customers/billing subjects**. Payments for Canvas use AlgoQuit's Razorpay credentials and merchant identity. Funds are collected by the AlgoQuit merchant account, not a tenant's own payment account.
+Tenant companies are the **customers/billing subjects**. Canvas is the product. AlgoQuit is the company operating the service and merchant for paid plans. Payments use AlgoQuit's Razorpay credentials and merchant identity; funds are collected by the AlgoQuit merchant account, not a tenant's own payment account.
 
 The payment flow is:
 - The signed-in company owner/admin chooses a trusted Canvas plan.
@@ -145,7 +145,7 @@ The payment flow is:
 - Payment activation, invoice creation, subscription changes, and workspace plan state are idempotent.
 - The successful result page is `/billing/result` and is company-scoped; it shows AlgoQuit merchant branding plus the paying company's name, short description, and logo.
 
-For the Razorpay account itself, the legal merchant/business identity, settlement account, checkout branding, and statement descriptor must also be configured in the Canvas-owned Razorpay account. Application code cannot change the Razorpay account holder or settlement account.
+For the Razorpay account itself, the legal merchant/business identity, settlement account, checkout branding, and statement descriptor must also be configured in the Razorpay account managed by AlgoQuit. Application code cannot change the Razorpay account holder or settlement account.
 ## Task management module (feature-gated)
 
 Task Management is a separate feature module within the existing Next.js application. UI pages live under `app/dashboard/tasks` and `components/task-management`; route handlers live under `app/api/tasks`; business logic lives under `features/task-management/server`; MongoDB documents live under `models/task*`.

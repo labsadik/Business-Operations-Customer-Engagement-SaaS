@@ -17,7 +17,7 @@ Cloud Run instances can scale to zero or be replaced at any time. Do not store u
 
 ## 1. Choose your production URL and databases first
 
-Choose your permanent HTTPS origin before building the image, for example https://app.yourdomain.com. NEXT_PUBLIC_* values are compiled into the browser bundle, so changing only Cloud Run runtime variables will not change browser code; rebuild the image after changing these public values.
+Choose your permanent HTTPS origin before building the image, use https://canvas.algoquit.com. NEXT_PUBLIC_* values are compiled into the browser bundle, so changing only Cloud Run runtime variables will not change browser code; rebuild the image after changing these public values.
 
 Use separate databases:
 
@@ -92,13 +92,13 @@ $env:REGION = "asia-south1"
 $env:REPOSITORY = "canvas"
 $env:IMAGE = "canvas-web"
 $env:TAG = (git rev-parse --short HEAD).Trim()
-$env:APP_URL = "https://app.yourdomain.com"
+$env:APP_URL = "https://canvas.algoquit.com"
 $env:IMAGE_URI = "$($env:REGION)-docker.pkg.dev/$($env:PROJECT_ID)/$($env:REPOSITORY)/$($env:IMAGE):$($env:TAG)"
 docker build --pull -t $env:IMAGE_URI --build-arg "NEXT_PUBLIC_APP_URL=$($env:APP_URL)" --build-arg "NEXT_PUBLIC_APP_NAME=Canvas" --build-arg "NEXT_PUBLIC_COMPANY_NAME=AlgoQuit" .
 docker push $env:IMAGE_URI
 ~~~
 
-Replace https://app.yourdomain.com with your actual domain. The Dockerfile uses Next.js standalone output, installs dependencies in a separate stage, excludes local environment files from the build context, and runs the container as the unprivileged nextjs user. Optional NEXT_PUBLIC_* analytics/Sentry settings can be passed as additional build arguments if enabled.
+Use https://canvas.algoquit.com after its DNS mapping and HTTPS certificate are active. The Dockerfile uses Next.js standalone output, installs dependencies in a separate stage, excludes local environment files from the build context, and runs the container as the unprivileged nextjs user. Optional NEXT_PUBLIC_* analytics/Sentry settings can be passed as additional build arguments if enabled.
 
 ## 5. Deploy the first Cloud Run service
 

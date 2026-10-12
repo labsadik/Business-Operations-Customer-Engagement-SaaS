@@ -143,7 +143,7 @@ export async function activatePaidPlan(paymentId: string) {
         throw new Error("PLAN_CONFIGURATION_CHANGED");
       }
 
-      if (payment.merchantAccount && payment.merchantAccount !== "ALGOQUIT") {
+      if (payment.merchantAccount && payment.merchantAccount !== "CANVAS") {
         throw new Error("PAYMENT_MERCHANT_INVALID");
       }
 

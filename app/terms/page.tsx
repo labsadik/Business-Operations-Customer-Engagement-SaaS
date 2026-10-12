@@ -4,17 +4,17 @@ import { LEGAL_CONFIG } from "@/lib/legal";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
-  description: "Conventus Terms of Service."
+  description: "Canvas Terms of Service."
 };
 
 const sections: LegalSection[] = [
   {
     id: "service",
-    title: "1. The Conventus service",
+    title: "1. The Canvas service",
     content: (
       <>
         <p>
-          Conventus is a company scheduling service. A company can publish a public booking page, configure meeting types and availability, receive customer meeting requests, route those requests to eligible team members, and create a Google Meet and Calendar event after an eligible employee accepts a request.
+          Canvas is a scheduling and collaboration product operated by AlgoQuit. A company can publish a public booking page, configure meeting types and availability, receive customer meeting requests, route those requests to eligible team members, and create a Google Meet and Calendar event after an eligible employee accepts a request.
         </p>
         <p>
           The public booking experience is company-specific. A visitor uses a company slug to reach that company&apos;s page, and the company&apos;s workspace and scheduling configuration determine the available meeting types, durations, dates, times, and routing behavior.
@@ -34,7 +34,7 @@ const sections: LegalSection[] = [
           Employee access may be created through a company invitation. Invitation records are tied to a company and workspace and include an invited email, an expiration time, and an acceptance state.
         </p>
         <p>
-          Customers who use a published company booking page sign in with Google before Conventus reveals live availability or accepts a booking request.
+          Customers who use a published company booking page sign in with Google before Canvas reveals live availability or accepts a booking request.
         </p>
       </>
     )
@@ -113,7 +113,7 @@ const sections: LegalSection[] = [
           The current implementation contains operational states for expired, cancelled, failed, retrying, and completed requests and meetings. Temporary external-service failures can therefore delay a final meeting outcome.
         </p>
         <p>
-          Conventus may need to change implementation details, integrations, or plan configuration over time. The repository does not define a final contractual notice period, service-level commitment, termination procedure, or refund rule. Those are owner decisions that must be confirmed before launch.
+          Canvas may need to change implementation details, integrations, or plan configuration over time. The repository does not define a final contractual notice period, service-level commitment, termination procedure, or refund rule. Those are owner decisions that must be confirmed before launch.
         </p>
       </>
     )
@@ -145,7 +145,7 @@ export default function TermsPage() {
     <LegalPageShell
       kind="terms"
       title="Terms of Service"
-      summary="The rules for using Conventus, based on the scheduling, authentication, company, meeting, Google, and billing behavior currently implemented in the product."
+      summary="The rules for using Canvas, based on the scheduling, authentication, company, meeting, Google, and billing behavior currently implemented in the product."
       sections={sections}
     />
   );
