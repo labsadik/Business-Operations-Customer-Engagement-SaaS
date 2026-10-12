@@ -390,7 +390,16 @@ export async function POST(request: Request) {
   const collision = await Company.findOne({ slug }).lean();
   if (collision) return jsonError("COMPANY_SLUG_TAKEN", 409);
 
-  const freePlan = await getManagedPlan("free", { includeArchived: true });
+  let freePlan: Awaited<ReturnType<typeof getManagedPlan>> = null;
+  try {
+    freePlan = await getManagedPlan("free", { includeArchived: true });
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "";
+    return jsonError(
+      code === "FREE_PLAN_NOT_CONFIGURED" ? code : "PLAN_CATALOG_UNAVAILABLE",
+      503
+    );
+  }
   if (!freePlan) return jsonError("FREE_PLAN_NOT_CONFIGURED", 503);
   if (freePlan.archivedAt || freePlan.status !== "PUBLIC" || freePlan.requiresPayment) {
     return jsonError("FREE_PLAN_UNAVAILABLE", 409);

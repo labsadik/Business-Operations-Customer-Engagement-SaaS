@@ -227,71 +227,99 @@ function legacyPlanCandidateQuery(id: string, plan: PlanEntitlements) {
   };
 }
 
-async function seedLegacyPlans() {
-  await Promise.all(
-    PLAN_IDS.map(async (id, index) => {
-      const plan = PLANS[id];
+function seedPlanDocument(id: string, index: number) {
+  const plan = PLANS[id];
+  return {
+    identifier: id,
+    name: plan.name,
+    description: LEGACY_DESCRIPTIONS[id] ?? "",
+    status: "PUBLIC",
+    popular: false,
+    recommended: false,
+    priceInr: plan.priceInr,
+    discountType: "NONE",
+    discountValue: 0,
+    maxWorkspaces: plan.maxWorkspaces,
+    maxCompanies: plan.maxCompanies,
+    maxEmployees: plan.maxEmployees,
+    monthlyMeetingLimit: plan.monthlyMeetingLimit,
+    maxMeetingDurationMinutes: plan.maxMeetingDurationMinutes,
+    maxConcurrentMeetings: plan.maxConcurrentMeetings,
+    taskManagementEnabled: plan.taskManagementEnabled,
+    taskManagementDailyLimit: plan.taskManagementDailyLimit,
+    vaultEnabled: plan.vaultEnabled,
+    vaultQuotaBytes: plan.vaultQuotaBytes,
+    vaultMaxFileBytes: plan.vaultMaxFileBytes,
+    vaultMaxItems: plan.vaultMaxItems,
+    liveChatEnabled: plan.liveChatEnabled,
+    liveChatMonthlyLimit: plan.liveChatMonthlyLimit,
+    liveChatCustomerLimit: plan.liveChatCustomerLimit,
+    liveChatAgentLimit: plan.liveChatAgentLimit,
+    liveChatRetentionDays: plan.liveChatRetentionDays,
+    liveChatMessageCooldownSeconds: plan.liveChatMessageCooldownSeconds,
+    liveChatPdfExportEnabled: plan.liveChatPdfExportEnabled,
+    liveChatDeleteEnabled: plan.liveChatDeleteEnabled,
+    validityDays: plan.validityDays,
+    freeFeatureDays: plan.freeFeatureDays,
+    requiresPayment: plan.requiresPayment,
+    revision: 1,
+    sortOrder: index,
+    archivedAt: null
+  };
+}
 
-      const current = await Plan.findOne({ identifier: id }).select({ _id: 1 }).lean();
-      if (current) return;
+function isDuplicateKeyError(error: unknown) {
+  return Boolean(
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    (error as { code?: unknown }).code === 11000
+  );
+}
 
-      const legacyRow = await Plan.findOne(
-        legacyPlanCandidateQuery(id, plan)
-      ).select({ _id: 1 }).lean();
+async function seedPlan(id: string, index: number) {
+  const plan = PLANS[id];
+  const current = await Plan.findOne({ identifier: id }).select({ _id: 1 }).lean();
+  if (current) return;
 
-      if (legacyRow) {
-        await Plan.updateOne(
-          { _id: legacyRow._id },
-          { $set: { identifier: id } }
-        );
-        return;
-      }
+  const legacyRow = await Plan.findOne(
+    legacyPlanCandidateQuery(id, plan)
+  ).select({ _id: 1 }).lean();
 
+  if (legacyRow) {
+    try {
+      await Plan.updateOne(
+        { _id: legacyRow._id },
+        { $set: { identifier: id } }
+      );
+    } catch (error) {
+      if (!isDuplicateKeyError(error)) throw error;
+    }
+  }
+
+  // Some legacy rows have a name but an incompatible/missing old identifier.
+  // Re-check before an atomic upsert so concurrent app instances are safe.
+  let verified = await Plan.findOne({ identifier: id }).select({ _id: 1 }).lean();
+  if (!verified) {
+    try {
       await Plan.updateOne(
         { identifier: id },
-        {
-          $setOnInsert: {
-            identifier: id,
-            name: plan.name,
-            description: LEGACY_DESCRIPTIONS[id] ?? "",
-            status: "PUBLIC",
-            popular: false,
-            recommended: false,
-            priceInr: plan.priceInr,
-            discountType: "NONE",
-            discountValue: 0,
-            maxWorkspaces: plan.maxWorkspaces,
-            maxCompanies: plan.maxCompanies,
-            maxEmployees: plan.maxEmployees,
-            monthlyMeetingLimit: plan.monthlyMeetingLimit,
-            maxMeetingDurationMinutes: plan.maxMeetingDurationMinutes,
-            maxConcurrentMeetings: plan.maxConcurrentMeetings,
-            taskManagementEnabled: Boolean(plan.taskManagementEnabled),
-            taskManagementDailyLimit: plan.taskManagementDailyLimit ?? 10,
-            vaultEnabled: false,
-            vaultQuotaBytes: 5368709120,
-            vaultMaxFileBytes: 104857600,
-            vaultMaxItems: 1000,
-            liveChatEnabled: false,
-            liveChatMonthlyLimit: 1000,
-            liveChatCustomerLimit: 500,
-            liveChatAgentLimit: 5,
-            liveChatRetentionDays: 30,
-            liveChatMessageCooldownSeconds: 15,
-            liveChatPdfExportEnabled: true,
-            liveChatDeleteEnabled: true,
-            validityDays: plan.validityDays,
-            freeFeatureDays: plan.freeFeatureDays,
-            requiresPayment: plan.requiresPayment,
-            revision: 1,
-            sortOrder: index,
-            archivedAt: null
-          }
-        },
+        { $setOnInsert: seedPlanDocument(id, index) },
         { upsert: true }
       );
-    })
-  );
+    } catch (error) {
+      if (!isDuplicateKeyError(error)) throw error;
+    }
+    verified = await Plan.findOne({ identifier: id }).select({ _id: 1 }).lean();
+  }
+
+  if (!verified) {
+    throw new Error(id === "free" ? "FREE_PLAN_NOT_CONFIGURED" : "PLAN_CATALOG_SEED_FAILED:" + id);
+  }
+}
+
+async function seedLegacyPlans() {
+  await Promise.all(PLAN_IDS.map((id, index) => seedPlan(id, index)));
 }
 
 export async function ensurePlanCatalog() {
@@ -299,6 +327,10 @@ export async function ensurePlanCatalog() {
     seedPromiseState.promise = (async () => {
       await getMongo();
       await seedLegacyPlans();
+
+      // Company/workspace provisioning requires a persisted Free plan.
+      const freePlan = await Plan.findOne({ identifier: "free" }).select({ _id: 1 }).lean();
+      if (!freePlan) throw new Error("FREE_PLAN_NOT_CONFIGURED");
     })().catch((error) => {
       seedPromiseState.promise = null;
       throw error;

@@ -21,7 +21,8 @@ loadEnvFile(path.resolve(".env"));
 const uri = process.env.MONGODB_URI?.trim();
 if (!uri) throw new Error("MONGODB_URI is not configured");
 
-await mongoose.connect(uri, { dbName: "Conventus" });
+const databaseName = process.env.MONGODB_DB_NAME?.trim() || "Conventus";
+await mongoose.connect(uri, { dbName: databaseName });
 try {
   const db = mongoose.connection.db;
   if (!db) throw new Error("MONGODB_CONNECTION_UNAVAILABLE");

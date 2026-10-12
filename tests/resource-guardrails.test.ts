@@ -821,3 +821,31 @@ test("Mongoose model enums use canonical shared constants instead of copied list
   assert.ok(bookingState.includes("BOOKING_STATUSES"));
   assert.ok(planRules.includes("PLAN_DISCOUNT_TYPES"));
 });
+
+test("MongoDB database name is environment-configured and Free plan seeding is verified", () => {
+  const mongo = source("lib/mongodb.ts");
+  const planCatalog = source("lib/plan-catalog.ts");
+  const companyRoute = source("app/api/company/route.ts");
+  const envExample = source(".env.example");
+  const envDocs = source(".env.example.md");
+  const scripts = [
+    "scripts/create-platform-admin.mjs",
+    "scripts/migrate-roles.mjs",
+    "scripts/migrate-membership-profile-fields.mjs",
+    "scripts/migrate-task-assignees.mjs",
+    "scripts/migrate-admin-audit-events.mjs"
+  ].map(source);
+
+  assert.ok(mongo.includes('process.env.MONGODB_DB_NAME?.trim() || "Conventus"'));
+  assert.ok(envExample.includes("MONGODB_DB_NAME=Conventus"));
+  assert.ok(envDocs.includes("MONGODB_DB_NAME=Conventus"));
+  assert.ok(scripts.every((script) => script.includes("process.env.MONGODB_DB_NAME?.trim()")));
+  assert.ok(scripts.every((script) => !script.includes('dbName: "Conventus"')));
+
+  assert.ok(planCatalog.includes("function seedPlanDocument"));
+  assert.ok(planCatalog.includes("function isDuplicateKeyError"));
+  assert.ok(planCatalog.includes('id === "free" ? "FREE_PLAN_NOT_CONFIGURED"'));
+  assert.ok(planCatalog.includes('Plan.findOne({ identifier: "free" })'));
+  assert.ok(companyRoute.includes("PLAN_CATALOG_UNAVAILABLE"));
+  assert.ok(companyRoute.includes('jsonError("FREE_PLAN_NOT_CONFIGURED", 503)'));
+});

@@ -20,7 +20,7 @@ export async function getMongo() {
     throw new Error("MONGODB_URI is not configured");
   }
 
-  const databaseName = "Conventus";
+  const databaseName = process.env.MONGODB_DB_NAME?.trim() || "Conventus";
 
   if (mongoose.connection.readyState === 1) {
     if (mongoose.connection.db?.databaseName === databaseName) return mongoose;

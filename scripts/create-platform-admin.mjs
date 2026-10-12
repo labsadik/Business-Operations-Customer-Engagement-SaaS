@@ -49,7 +49,8 @@ if (!uri) {
   process.exit(1);
 }
 
-await mongoose.connect(uri, { dbName: "Conventus" });
+const databaseName = process.env.MONGODB_DB_NAME?.trim() || "Conventus";
+await mongoose.connect(uri, { dbName: databaseName });
 
 const db = mongoose.connection.db;
 if (!db) {

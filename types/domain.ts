@@ -16,8 +16,7 @@ export function isUserRole(value: unknown): value is UserRole {
   return typeof value === "string" && (USER_ROLES as readonly string[]).includes(value);
 }
 
-export const GOOGLE_CONNECTION_STATUSES = ["CONNECTED", "REAUTH_REQUIRED", "DISCONNECTED"] as const;
-export type GoogleConnectionStatus = (typeof GOOGLE_CONNECTION_STATUSES)[number];
+export type GoogleConnectionStatus = "CONNECTED" | "REAUTH_REQUIRED" | "DISCONNECTED";
 
 export type BookingRequestRecord = {
   id: string;
