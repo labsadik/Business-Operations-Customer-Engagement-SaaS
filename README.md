@@ -1,6 +1,6 @@
-# Conventus
+# Canvas by AlgoQuit
 
-Conventus is a multi-tenant scheduling SaaS for companies that want customers to request live meetings and have the system automatically route each request to an available employee.
+Canvas by AlgoQuit is a multi-tenant scheduling SaaS for companies that want customers to request live meetings and have the system automatically route each request to an available employee.
 
 ## Product model
 
@@ -40,6 +40,10 @@ Conventus is a multi-tenant scheduling SaaS for companies that want customers to
 4. Run `npm run dev` and open `http://localhost:3000`.
 
 The `.env.example.md` file is documentation only; Next.js does not load Markdown files as environment files. Do not commit `.env.local` or real credentials.
+
+## Production deployment
+
+For the container image, Google Cloud Run deployment, Secret Manager setup, Cloud Scheduler jobs, and production smoke checks, see [docs/DEPLOY_GCP_CLOUD_RUN.md](./docs/DEPLOY_GCP_CLOUD_RUN.md).
 
 ## Sentry error monitoring
 

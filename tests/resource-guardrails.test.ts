@@ -862,3 +862,30 @@ test("MongoDB database name is environment-configured and Free plan seeding is v
   assert.ok(companyRoute.includes("PLAN_CATALOG_UNAVAILABLE"));
   assert.ok(companyRoute.includes('jsonError("FREE_PLAN_NOT_CONFIGURED", 503)'));
 });
+
+
+test("Google Cloud Run container uses standalone output and keeps runtime secrets out of its image", () => {
+  const nextConfig = source("next.config.ts");
+  const dockerfile = source("Dockerfile");
+  const dockerignore = source(".dockerignore");
+  const gcloudignore = source(".gcloudignore");
+  const deploymentGuide = source("docs/DEPLOY_GCP_CLOUD_RUN.md");
+  const cloudBuild = source("cloudbuild.yaml");
+
+  assert.ok(nextConfig.includes('process.env.NEXT_OUTPUT_STANDALONE === "1"'));
+  assert.ok(dockerfile.includes("npm ci --no-audit --no-fund"));
+  assert.ok(dockerfile.includes("NEXT_OUTPUT_STANDALONE=1"));
+  assert.ok(dockerfile.includes("/app/.next/standalone"));
+  assert.ok(dockerfile.includes('ENV PORT=8080'));
+  assert.ok(dockerfile.includes('ENV HOSTNAME=0.0.0.0'));
+  assert.ok(dockerfile.includes("USER nextjs"));
+  assert.doesNotMatch(dockerfile, /MONGODB_URI|GOOGLE_CLIENT_SECRET|AUTH_SECRET|RAZORPAY_KEY_SECRET/);
+  assert.ok(dockerignore.includes(".env.*"));
+  assert.ok(gcloudignore.includes(".env.*"));
+  assert.ok(deploymentGuide.includes("MONGODB_DB_NAME=Canvas"));
+  assert.ok(deploymentGuide.includes("MONGODB_DB_NAME=canvas_test"));
+  assert.ok(deploymentGuide.includes("Secret Manager"));
+  assert.ok(deploymentGuide.includes("/api/jobs/sweep"));
+  assert.ok(cloudBuild.includes("gcloud"));
+  assert.ok(cloudBuild.includes("$_NEXT_PUBLIC_APP_URL"));
+});

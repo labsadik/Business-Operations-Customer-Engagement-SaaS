@@ -1,0 +1,16 @@
+.gcloudignore
+.git
+.gitignore
+node_modules/
+.next/
+coverage/
+dist/
+out/
+.env
+.env.*
+!.env.example
+!.env.example.md
+*.log
+.DS_Store
+.vscode/
+.idea/

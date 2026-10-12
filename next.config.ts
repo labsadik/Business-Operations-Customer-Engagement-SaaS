@@ -27,6 +27,7 @@ const publicLongCache = {
 };
 
 const nextConfig: NextConfig = {
+  output: process.env.NEXT_OUTPUT_STANDALONE === "1" ? "standalone" : undefined,
   poweredByHeader: false,
   reactStrictMode: true,
   typedRoutes: true,
