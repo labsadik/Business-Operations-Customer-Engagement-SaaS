@@ -1,5 +1,5 @@
 import { Schema, model, models } from "mongoose";
-import { COMPANY_MEMBER_ROLES } from "@/types/domain";
+import { COMPANY_MEMBER_ROLES, EMPLOYMENT_STATUSES } from "@/types/domain";
 
 const membershipSchema = new Schema(
   {
@@ -12,7 +12,7 @@ const membershipSchema = new Schema(
       required: true
     },
     active: { type: Boolean, default: true, index: true },
-    employmentStatus: { type: String, enum: ["ACTIVE", "ON_LEAVE", "INACTIVE"], default: "ACTIVE" }
+    employmentStatus: { type: String, enum: [...EMPLOYMENT_STATUSES], default: "ACTIVE" }
   },
   { timestamps: true }
 );

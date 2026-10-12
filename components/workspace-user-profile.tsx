@@ -12,6 +12,7 @@ import {
   X
 } from "lucide-react";
 import UserAvatar from "@/components/user-avatar";
+import { EMPLOYMENT_STATUSES, type EmploymentStatus } from "@/types/domain";
 
 type WorkAvailabilityRule = {
   dayOfWeek: number;
@@ -24,7 +25,7 @@ type ProfilePayload = {
   role: string;
   jobTitle: string;
   department: string;
-  employmentStatus: "ACTIVE" | "INACTIVE" | "ON_LEAVE" | string;
+  employmentStatus: EmploymentStatus;
   workAvailability?: WorkAvailabilityRule[];
   canEdit: boolean;
 };
@@ -39,16 +40,24 @@ function roleLabel(role: string) {
   return roles[role] ?? "Unknown role";
 }
 
+const EMPLOYMENT_STATUS_LABELS: Record<EmploymentStatus, string> = {
+  ACTIVE: "Active",
+  ON_LEAVE: "On leave",
+  INACTIVE: "Inactive"
+};
+
+const EMPLOYMENT_STATUS_CLASSES: Record<EmploymentStatus, string> = {
+  ACTIVE: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  ON_LEAVE: "bg-amber-50 text-amber-800 ring-amber-200",
+  INACTIVE: "bg-rose-50 text-rose-700 ring-rose-200"
+};
+
 function employmentLabel(status: string) {
-  if (status === "ON_LEAVE") return "On leave";
-  if (status === "INACTIVE") return "Inactive";
-  return "Active";
+  return EMPLOYMENT_STATUS_LABELS[status as EmploymentStatus] ?? "Active";
 }
 
 function employmentClasses(status: string) {
-  if (status === "ON_LEAVE") return "bg-amber-50 text-amber-800 ring-amber-200";
-  if (status === "INACTIVE") return "bg-rose-50 text-rose-700 ring-rose-200";
-  return "bg-emerald-50 text-emerald-700 ring-emerald-200";
+  return EMPLOYMENT_STATUS_CLASSES[status as EmploymentStatus] ?? EMPLOYMENT_STATUS_CLASSES.ACTIVE;
 }
 
 function formatTime(totalMinutes: number) {
@@ -278,9 +287,11 @@ export default function WorkspaceUserProfile({
                     disabled={!canEdit || loading || saving}
                     className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50 disabled:text-slate-500"
                   >
-                    <option value="ACTIVE">Active — eligible for new tasks</option>
-                    <option value="ON_LEAVE">On leave — not eligible for new tasks</option>
-                    <option value="INACTIVE">Inactive — not eligible for new tasks</option>
+                    {EMPLOYMENT_STATUSES.map((status) => (
+                      <option key={status} value={status}>
+                        {EMPLOYMENT_STATUS_LABELS[status]}{status === "ACTIVE" ? " — eligible for new tasks" : " — not eligible for new tasks"}
+                      </option>
+                    ))}
                   </select>
                 )}
               </div>

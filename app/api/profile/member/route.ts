@@ -6,6 +6,8 @@ import { AvailabilityRule } from "@/models/availability-rule";
 import { assertSameOrigin } from "@/lib/security";
 import { jsonError, jsonOk } from "@/lib/http";
 import { isCompanyPlanSuspended } from "@/lib/plans-server";
+import { isEmploymentStatus, normalizeUserProfileFields, USER_PROFILE_PATCH_FIELDS } from "@/lib/user-profile";
+import type { EmploymentStatus } from "@/types/domain";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -79,36 +81,24 @@ export async function PATCH(request: Request) {
     const session = await getSession();
     if (!session) return jsonError("UNAUTHENTICATED", 401);
 
-    const body = await request.json().catch(() => null) as {
-      jobTitle?: unknown;
-      department?: unknown;
-      employmentStatus?: unknown;
-    } | null;
-    const allowedFields = ["jobTitle", "department", "employmentStatus"];
-    if (!body || Object.keys(body).some((key) => !allowedFields.includes(key))) {
+    const body = await request.json().catch(() => null) as Record<string, unknown> | null;
+    const allowedFields = new Set<string>(USER_PROFILE_PATCH_FIELDS);
+    if (!body || Object.keys(body).some((key) => !allowedFields.has(key))) {
       return jsonError("PROFILE_FIELDS_INVALID", 400);
     }
 
-    const userUpdate: Record<string, string> = {};
-    if (body.jobTitle !== undefined) {
-      if (typeof body.jobTitle !== "string" || body.jobTitle.trim().length > 120) {
-        return jsonError("JOB_TITLE_INVALID", 400);
-      }
-      userUpdate.jobTitle = body.jobTitle.trim();
+    const normalizedProfile = normalizeUserProfileFields(body);
+    if (normalizedProfile.invalidField) {
+      return jsonError(normalizedProfile.invalidField === "jobTitle" ? "JOB_TITLE_INVALID" : "DEPARTMENT_INVALID", 400);
     }
-    if (body.department !== undefined) {
-      if (typeof body.department !== "string" || body.department.trim().length > 100) {
-        return jsonError("DEPARTMENT_INVALID", 400);
-      }
-      userUpdate.department = body.department.trim();
-    }
+    const userUpdate = normalizedProfile.update;
 
-    let employmentStatus: "ACTIVE" | "ON_LEAVE" | "INACTIVE" | undefined;
+    let employmentStatus: EmploymentStatus | undefined;
     if (body.employmentStatus !== undefined) {
-      if (!["ACTIVE", "ON_LEAVE", "INACTIVE"].includes(String(body.employmentStatus))) {
+      if (!isEmploymentStatus(body.employmentStatus)) {
         return jsonError("EMPLOYEE_STATUS_INVALID", 400);
       }
-      employmentStatus = body.employmentStatus as "ACTIVE" | "ON_LEAVE" | "INACTIVE";
+      employmentStatus = body.employmentStatus;
     }
     if (Object.keys(userUpdate).length === 0 && employmentStatus === undefined) {
       return jsonError("PROFILE_UPDATE_EMPTY", 400);

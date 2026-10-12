@@ -105,6 +105,17 @@ test("job title and department are owned by users, while employment status stays
   const ownProfile = source("app/api/profile/member/route.ts");
   const migration = source("scripts/migrate-membership-profile-fields.mjs");
   const packageJson = JSON.parse(source("package.json")) as { scripts: Record<string, string> };
+  const plansServer = source("lib/plans-server.ts");
+  const planSnapshotSchema = source("models/plan-entitlement-snapshot.ts");
+  const invoiceModel = source("models/invoice.ts");
+  const paymentModel = source("models/payment.ts");
+  const subscriptionModel = source("models/subscription.ts");
+  const invoicing = source("lib/invoicing.ts");
+  const addressSchema = source("models/address-schema.ts");
+  const companyModel = source("models/company.ts");
+  const platformSettings = source("models/platform-settings.ts");
+  const userProfileValidation = source("lib/user-profile.ts");
+  const profileUi = source("components/workspace-user-profile.tsx");
 
   assert.match(userModel, /jobTitle:[\s\S]*?department:/);
   assert.doesNotMatch(membershipModel, /jobTitle|department|googleConnectionStatus/);
@@ -130,6 +141,31 @@ test("job title and department are owned by users, while employment status stays
   assert.ok(migration.includes('$unset: { planId: "" }'));
   assert.ok(migration.includes("ORPHANED_MEMBERSHIP_PROFILE_DATA"));
   assert.equal(packageJson.scripts["membership-profile:migrate"], "node scripts/migrate-membership-profile-fields.mjs");
+  assert.doesNotMatch(plansServer, /Workspace\.updateOne|from "@\/models\/workspace"/);
+  assert.ok(plansServer.includes("planAccessExpiresAt: periodEnd"));
+  assert.ok(planSnapshotSchema.includes("liveChatEnabled"));
+  assert.ok(planSnapshotSchema.includes("liveChatMessageCooldownSeconds"));
+  assert.ok(planSnapshotSchema.includes("liveChatPdfExportEnabled"));
+  assert.ok(invoiceModel.includes("planEntitlementSnapshotSchema"));
+  assert.ok(paymentModel.includes("planEntitlementSnapshotSchema"));
+  assert.ok(subscriptionModel.includes("planEntitlementSnapshotSchema"));
+  assert.ok(invoicing.includes("planSnapshot: createEntitlementSnapshot(input.plan)"));
+  assert.doesNotMatch(invoiceModel, /planSnapshot:\s*\{/);
+  assert.doesNotMatch(paymentModel, /checkoutPlanSnapshot:\s*\{/);
+  assert.doesNotMatch(subscriptionModel, /entitlementSnapshot:\s*\{/);
+  assert.ok(companyModel.includes("createAddressSchema"));
+  assert.ok(platformSettings.includes("createAddressSchema"));
+  assert.ok(invoiceModel.includes("createAddressSchema"));
+  assert.ok(addressSchema.includes("ADDRESS_MAX_LENGTHS"));
+  assert.ok(employeeProfile.includes("normalizeUserProfileFields"));
+  assert.ok(ownProfile.includes("normalizeUserProfileFields"));
+  assert.doesNotMatch(employeeProfile, /body\.jobTitle\.trim\(\)|body\.department\.trim\(\)/);
+  assert.doesNotMatch(ownProfile, /body\.jobTitle\.trim\(\)|body\.department\.trim\(\)/);
+  assert.ok(userProfileValidation.includes("USER_JOB_TITLE_MAX_LENGTH"));
+  assert.ok(userProfileValidation.includes("USER_DEPARTMENT_MAX_LENGTH"));
+  assert.ok(userProfileValidation.includes("EMPLOYMENT_STATUSES"));
+  assert.ok(membershipModel.includes("enum: [...EMPLOYMENT_STATUSES]"));
+  assert.ok(profileUi.includes("EMPLOYMENT_STATUSES.map"));
 });
 
 test("Redis-cached Google tokens use a short local TTL below the token-expiry safety margin", () => {

@@ -1,16 +1,5 @@
 import { Schema, model, models, type InferSchemaType } from "mongoose";
-
-const addressSchema = new Schema(
-  {
-    line1: { type: String, trim: true, maxlength: 200, default: "" },
-    line2: { type: String, trim: true, maxlength: 200, default: "" },
-    city: { type: String, trim: true, maxlength: 100, default: "" },
-    state: { type: String, trim: true, maxlength: 100, default: "" },
-    postalCode: { type: String, trim: true, maxlength: 30, default: "" },
-    country: { type: String, trim: true, maxlength: 100, default: "India" }
-  },
-  { _id: false }
-);
+import { createAddressSchema } from "@/models/address-schema";
 
 const platformSettingsSchema = new Schema(
   {
@@ -30,7 +19,14 @@ const platformSettingsSchema = new Schema(
     taxId: { type: String, trim: true, maxlength: 80, default: "" },
     gstin: { type: String, trim: true, maxlength: 80, default: "" },
     sacCode: { type: String, trim: true, maxlength: 40, default: "" },
-    address: { type: addressSchema, default: () => ({}) },
+    address: {
+      type: createAddressSchema({
+        trim: true,
+        enforceMaxLength: true,
+        defaults: { line1: "", line2: "", city: "", state: "", postalCode: "", country: "India" }
+      }),
+      default: () => ({})
+    },
     gst: {
       enabled: { type: Boolean, default: true },
       ratePercent: { type: Number, min: 0, max: 100, default: 18 },

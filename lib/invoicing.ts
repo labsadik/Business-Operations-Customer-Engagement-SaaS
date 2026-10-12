@@ -1,5 +1,6 @@
 import { PLATFORM_BRAND, platformLegalProfile } from "@/lib/platform";
 import type { PlanEntitlements } from "@/lib/plans";
+import { createEntitlementSnapshot } from "@/lib/plan-catalog";
 
 export type InvoiceTaxSnapshot = {
   enabled: boolean;
@@ -198,26 +199,7 @@ export async function buildInvoiceSnapshots(input: {
     discountType: input.discount?.type ?? "NONE",
     discountValue: input.discount?.value ?? 0,
     discountAmount: input.discount?.amountMinor ?? 0,
-    planSnapshot: {
-      id: input.plan.id,
-      name: input.plan.name,
-      priceInr: input.plan.priceInr,
-      maxWorkspaces: input.plan.maxWorkspaces,
-      maxCompanies: input.plan.maxCompanies,
-      maxEmployees: input.plan.maxEmployees,
-      monthlyMeetingLimit: input.plan.monthlyMeetingLimit,
-      maxMeetingDurationMinutes: input.plan.maxMeetingDurationMinutes,
-      maxConcurrentMeetings: input.plan.maxConcurrentMeetings,
-      taskManagementEnabled: Boolean(input.plan.taskManagementEnabled),
-      taskManagementDailyLimit: input.plan.taskManagementDailyLimit,
-      vaultEnabled: Boolean(input.plan.vaultEnabled),
-      vaultQuotaBytes: input.plan.vaultQuotaBytes,
-      vaultMaxFileBytes: input.plan.vaultMaxFileBytes,
-      vaultMaxItems: input.plan.vaultMaxItems,
-      validityDays: input.plan.validityDays,
-      freeFeatureDays: input.plan.freeFeatureDays,
-      requiresPayment: input.plan.requiresPayment
-    },
+    planSnapshot: createEntitlementSnapshot(input.plan),
     serviceDescription: input.plan.id === "free"
       ? "Conventus Free plan access"
       : `Conventus ${input.plan.name} monthly scheduling service`

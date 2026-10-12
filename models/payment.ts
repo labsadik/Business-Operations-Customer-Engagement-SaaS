@@ -1,4 +1,5 @@
 import { Schema, model, models } from "mongoose";
+import { planEntitlementSnapshotSchema } from "@/models/plan-entitlement-snapshot";
 
 const paymentSchema = new Schema(
   {
@@ -26,27 +27,7 @@ const paymentSchema = new Schema(
     discountType: { type: String, enum: ["NONE", "PERCENTAGE", "FIXED_AMOUNT"], default: "NONE" },
     discountValue: { type: Number, min: 0, default: 0 },
     discountAmount: { type: Number, min: 0, default: 0 },
-    checkoutPlanSnapshot: {
-      _id: false,
-      id: { type: String },
-      name: { type: String },
-      priceInr: { type: Number, min: 0 },
-      maxWorkspaces: { type: Number, min: 1 },
-      maxCompanies: { type: Number, min: 1 },
-      maxEmployees: { type: Number, min: 1 },
-      monthlyMeetingLimit: { type: Number, min: 1 },
-      maxMeetingDurationMinutes: { type: Number, min: 1 },
-      maxConcurrentMeetings: { type: Number, min: 1 },
-      taskManagementEnabled: { type: Boolean, default: false },
-      taskManagementDailyLimit: { type: Number, min: 1 },
-      vaultEnabled: { type: Boolean },
-      vaultQuotaBytes: { type: Number, min: 1 },
-      vaultMaxFileBytes: { type: Number, min: 1 },
-      vaultMaxItems: { type: Number, min: 1 },
-      validityDays: { type: Number, min: 1 },
-      freeFeatureDays: { type: Number, min: 0, default: null },
-      requiresPayment: { type: Boolean }
-    }
+    checkoutPlanSnapshot: { type: planEntitlementSnapshotSchema },
   },
   { timestamps: true }
 );

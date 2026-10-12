@@ -1,16 +1,8 @@
 import { Schema, model, models } from "mongoose";
+import { createAddressSchema } from "@/models/address-schema";
+import { planEntitlementSnapshotSchema } from "@/models/plan-entitlement-snapshot";
 
-const addressSchema = new Schema(
-  {
-    line1: String,
-    line2: String,
-    city: String,
-    state: String,
-    postalCode: String,
-    country: String
-  },
-  { _id: false }
-);
+const addressSchema = createAddressSchema();
 
 const invoiceSchema = new Schema(
   {
@@ -36,26 +28,7 @@ const invoiceSchema = new Schema(
     discountType: { type: String, enum: ["NONE", "PERCENTAGE", "FIXED_AMOUNT"], default: "NONE" },
     discountValue: { type: Number, min: 0, default: 0 },
     discountAmount: { type: Number, min: 0, default: 0 },
-    planSnapshot: {
-      id: { type: String, required: true, default: "" },
-      name: { type: String, required: true, default: "" },
-      priceInr: { type: Number, required: true, default: 0 },
-      maxWorkspaces: { type: Number, required: true, default: 1 },
-      maxCompanies: { type: Number, required: true, default: 1 },
-      maxEmployees: { type: Number, required: true, default: 0 },
-      monthlyMeetingLimit: { type: Number, required: true, default: 0 },
-      maxMeetingDurationMinutes: { type: Number, required: true, default: 0 },
-      maxConcurrentMeetings: { type: Number, required: true, default: 0 },
-      taskManagementEnabled: { type: Boolean, required: true, default: false },
-      taskManagementDailyLimit: { type: Number, min: 1 },
-      vaultEnabled: { type: Boolean },
-      vaultQuotaBytes: { type: Number, min: 1 },
-      vaultMaxFileBytes: { type: Number, min: 1 },
-      vaultMaxItems: { type: Number, min: 1 },
-      validityDays: { type: Number, required: true, default: 30 },
-      freeFeatureDays: { type: Number, default: null },
-      requiresPayment: { type: Boolean, required: true, default: false }
-    },
+    planSnapshot: { type: planEntitlementSnapshotSchema, required: true },
     merchantSnapshot: {
       name: { type: String, required: true },
       description: { type: String, required: true },

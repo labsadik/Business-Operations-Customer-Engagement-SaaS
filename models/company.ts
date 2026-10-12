@@ -1,4 +1,5 @@
 import { Schema, model, models } from "mongoose";
+import { createAddressSchema } from "@/models/address-schema";
 
 const companySchema = new Schema(
   {
@@ -9,14 +10,7 @@ const companySchema = new Schema(
     logoUrl: { type: String, trim: true, maxlength: 2000 },
     websiteUrl: { type: String, trim: true, maxlength: 500 },
     description: { type: String, maxlength: 1200 },
-    address: {
-      line1: { type: String, trim: true, maxlength: 200 },
-      line2: { type: String, trim: true, maxlength: 200 },
-      city: { type: String, trim: true, maxlength: 100 },
-      state: { type: String, trim: true, maxlength: 100 },
-      postalCode: { type: String, trim: true, maxlength: 30 },
-      country: { type: String, trim: true, maxlength: 100 }
-    },
+    address: { type: createAddressSchema({ trim: true, enforceMaxLength: true }) },
     taxId: { type: String, trim: true, maxlength: 80 },
     publicBookingEnabled: { type: Boolean, default: false, index: true },
     planSuspended: { type: Boolean, default: false, index: true },

@@ -7,7 +7,6 @@ import {
 } from "@/lib/plan-catalog";
 import { Subscription } from "@/models/subscription";
 import { Payment } from "@/models/payment";
-import { Workspace } from "@/models/workspace";
 import { getMongo } from "@/lib/mongodb";
 import { Company } from "@/models/company";
 
@@ -131,16 +130,10 @@ export async function reconcileLatestPaidAccess(companyId: string) {
       { upsert: true, returnDocument: "after" }
     );
 
-    await Promise.all([
-      Workspace.updateOne(
-        { companyId },
-        { $set: { planId: plan.id } }
-      ),
-      Company.updateOne(
-        { _id: companyId },
-        { $set: { planAccessExpiresAt: periodEnd } }
-      )
-    ]);
+    await Company.updateOne(
+      { _id: companyId },
+      { $set: { planAccessExpiresAt: periodEnd } }
+    );
   }
 
   return Subscription.findOne({ companyId });
@@ -165,11 +158,6 @@ async function ensureSubscription(companyId: string) {
       monthlyMeetingsUsed: 0,
       freeUsageDates: []
     });
-
-    await Workspace.updateOne(
-      { companyId },
-      { $set: { planId: plan.id } }
-    );
 
     return subscription;
   }
@@ -249,10 +237,6 @@ async function ensureSubscription(companyId: string) {
 
     await subscription.save();
 
-    await Workspace.updateOne(
-      { companyId },
-      { $set: { planId: nextPlan.id } }
-    );
   }
 
   return subscription;

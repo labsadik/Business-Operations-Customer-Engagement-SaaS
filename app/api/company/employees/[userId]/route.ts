@@ -13,6 +13,8 @@ import { Session } from "@/models/session";
 import { Types } from "mongoose";
 import { isGoogleSchedulingReady } from "@/lib/google-scheduling";
 import { isCompanyPlanSuspended } from "@/lib/plans-server";
+import { isEmploymentStatus, normalizeUserProfileFields, USER_PROFILE_PATCH_FIELDS } from "@/lib/user-profile";
+import type { EmploymentStatus } from "@/types/domain";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,30 +34,22 @@ export async function PATCH(
     if (!Types.ObjectId.isValid(userId)) return jsonError("INVALID_EMPLOYEE_ID", 400);
 
     const body = await request.json().catch(() => null) as Record<string, unknown> | null;
-    if (!body || Object.keys(body).some((key) => !["jobTitle", "department", "employmentStatus"].includes(key))) {
+    if (!body || Object.keys(body).some((key) => !(USER_PROFILE_PATCH_FIELDS as readonly string[]).includes(key))) {
       return jsonError("EMPLOYEE_PROFILE_INVALID", 400);
     }
 
-    const userUpdate: Record<string, string> = {};
-    if (body.jobTitle !== undefined) {
-      if (typeof body.jobTitle !== "string" || body.jobTitle.trim().length > 120) {
-        return jsonError("EMPLOYEE_JOB_TITLE_INVALID", 400);
-      }
-      userUpdate.jobTitle = body.jobTitle.trim();
+    const normalizedProfile = normalizeUserProfileFields(body);
+    if (normalizedProfile.invalidField) {
+      return jsonError(normalizedProfile.invalidField === "jobTitle" ? "EMPLOYEE_JOB_TITLE_INVALID" : "EMPLOYEE_DEPARTMENT_INVALID", 400);
     }
-    if (body.department !== undefined) {
-      if (typeof body.department !== "string" || body.department.trim().length > 100) {
-        return jsonError("EMPLOYEE_DEPARTMENT_INVALID", 400);
-      }
-      userUpdate.department = body.department.trim();
-    }
+    const userUpdate = normalizedProfile.update;
 
-    let employmentStatus: "ACTIVE" | "ON_LEAVE" | "INACTIVE" | undefined;
+    let employmentStatus: EmploymentStatus | undefined;
     if (body.employmentStatus !== undefined) {
-      if (!["ACTIVE", "ON_LEAVE", "INACTIVE"].includes(String(body.employmentStatus))) {
+      if (!isEmploymentStatus(body.employmentStatus)) {
         return jsonError("EMPLOYEE_STATUS_INVALID", 400);
       }
-      employmentStatus = body.employmentStatus as "ACTIVE" | "ON_LEAVE" | "INACTIVE";
+      employmentStatus = body.employmentStatus;
     }
     if (Object.keys(userUpdate).length === 0 && employmentStatus === undefined) {
       return jsonError("EMPLOYEE_PROFILE_EMPTY", 400);
