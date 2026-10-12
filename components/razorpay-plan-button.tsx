@@ -167,7 +167,7 @@ export default function RazorpayPlanButton({
         key: checkoutData.keyId,
         amount: checkoutData.amount,
         currency: checkoutData.currency,
-        name: checkoutData.merchant?.name || "Conventus",
+        name: checkoutData.merchant?.name || "AlgoQuit",
         image: new URL("/favicon.svg", window.location.origin).toString(),
         description:
           (checkoutData.planName || displayName) +

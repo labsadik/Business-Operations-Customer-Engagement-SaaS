@@ -353,7 +353,7 @@ export default function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentD
                 <p className="mt-2 break-all text-sm font-semibold text-slate-800">{paymentValue}</p>
                 <p className="mt-2 text-xs leading-5 text-slate-500">
                   {isPaid
-                    ? "Payment was captured through the Conventus payment account."
+                    ? "Payment was captured through the AlgoQuit payment account."
                     : invoice.source === "ADMIN_GRANTED"
                       ? "This invoice records subscription access granted by a platform administrator; no customer payment was required."
                       : "This invoice records free-plan access; no customer payment was required."}

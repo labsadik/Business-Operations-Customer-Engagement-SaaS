@@ -766,7 +766,7 @@ export default function PublicBooking({
                   </div>
                   <p className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Customer access</p>
                   <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Sign in to see available times</h3>
-                  <p className="mt-3 text-sm leading-6 text-slate-600">Your Google account identifies the customer attached to the request. Sign-in is required before Conventus reveals live availability or accepts a booking request.</p>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">Your Google account identifies the customer attached to the request. Sign-in is required before Canvas reveals live availability or accepts a booking request.</p>
                   <div className="mt-5 text-left">
                     <GoogleIntegrationNotice mode="customer" />
                   </div>
@@ -991,7 +991,7 @@ export default function PublicBooking({
                         </p>
                         <p className="mt-1 text-xs leading-5 text-blue-950/60">
                           {status === "RETRYING"
-                            ? "That employee is busy or unavailable right now. Conventus is checking the next available company member."
+                            ? "That employee is busy or unavailable right now. Canvas is checking the next available company member."
                             : `The request remains active for ${minutes}:${String(seconds).padStart(2, "0")}.`}
                         </p>
                       </div>
