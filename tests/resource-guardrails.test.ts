@@ -108,6 +108,7 @@ test("job title and department are owned by users, while employment status stays
 
   assert.match(userModel, /jobTitle:[\s\S]*?department:/);
   assert.doesNotMatch(membershipModel, /jobTitle|department|googleConnectionStatus/);
+  assert.doesNotMatch(userModel, /googleSubject|googleEmail/);
   assert.ok(employeeDirectory.includes('.select("userId role employmentStatus")'));
   assert.ok(employeeDirectory.includes('.select("_id name email image role jobTitle department")'));
   assert.ok(employeeDirectory.includes('jobTitle: user.jobTitle ?? ""'));
@@ -124,6 +125,8 @@ test("job title and department are owned by users, while employment status stays
   assert.doesNotMatch(freePlanRoute, /Workspace\.updateOne/);
   assert.doesNotMatch(companyRoute, /planId:\s*"free"/);
   assert.ok(migration.includes('workspacePlanIdsRemoved'));
+  assert.ok(migration.includes('$unset: { googleSubject: "", googleEmail: "" }'));
+  assert.doesNotMatch(oauthCallback.replace(oauthCallback.slice(oauthCallback.indexOf("      await GoogleAccount.findOneAndUpdate("), oauthCallback.indexOf("\n      await User.findByIdAndUpdate(", oauthCallback.indexOf("      await GoogleAccount.findOneAndUpdate("))), ""), /googleSubject|googleEmail/);
   assert.ok(migration.includes('$unset: { planId: "" }'));
   assert.ok(migration.includes("ORPHANED_MEMBERSHIP_PROFILE_DATA"));
   assert.equal(packageJson.scripts["membership-profile:migrate"], "node scripts/migrate-membership-profile-fields.mjs");

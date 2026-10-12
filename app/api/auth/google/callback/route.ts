@@ -75,16 +75,12 @@ async function acceptPendingEmployeeInvitation(
       name: googleUser.name || email.split("@")[0],
       image: googleAvatarUrl(googleUser.picture),
       role: "EMPLOYEE",
-      googleSubject: googleUser.sub,
-      googleEmail: email,
       lastLoginAt: new Date()
     });
   } else {
     user.set({
       name: googleUser.name || user.name,
       image: googleAvatarUrl(googleUser.picture),
-      googleSubject: googleUser.sub,
-      googleEmail: email,
       role: user.role === "PLATFORM_ADMIN" ? user.role : "EMPLOYEE",
       lastLoginAt: new Date()
     });
@@ -192,7 +188,12 @@ export async function GET(request: Request) {
         throw new Error("GOOGLE_REFRESH_TOKEN_MISSING");
       }
 
-      await GoogleAccount.findOneAndUpdate(
+
+      await User.findByIdAndUpdate(
+        current.userId,
+        {
+          $set: {
+            name: googleUser.name ||       await GoogleAccount.findOneAndUpdate(
         { userId: current.userId },
         {
           $set: {
@@ -210,16 +211,9 @@ export async function GET(request: Request) {
         },
         { upsert: true, returnDocument: "after" }
       );
-
-      await User.findByIdAndUpdate(
-        current.userId,
-        {
-          $set: {
-            name: googleUser.name || current.name,
+current.name,
             email: email,
             image: googleAvatarUrl(googleUser.picture),
-            googleSubject: googleUser.sub,
-            googleEmail: email,
             lastLoginAt: new Date()
           }
         }
@@ -265,8 +259,6 @@ export async function GET(request: Request) {
         user!.set({
           name: googleUser.name || user!.name,
           image: googleAvatarUrl(googleUser.picture),
-          googleSubject: googleUser.sub,
-          googleEmail: email,
           lastLoginAt: new Date()
         });
         await user!.save();
@@ -313,16 +305,12 @@ export async function GET(request: Request) {
           name: googleUser.name || email.split("@")[0],
           image: googleAvatarUrl(googleUser.picture),
           role: "CUSTOMER",
-          googleSubject: googleUser.sub,
-          googleEmail: email,
           lastLoginAt: new Date()
         });
       } else {
         user.set({
           name: googleUser.name || user.name,
           image: googleAvatarUrl(googleUser.picture),
-          googleSubject: googleUser.sub,
-          googleEmail: email,
           role: user.role,
           lastLoginAt: new Date()
         });
@@ -373,16 +361,12 @@ export async function GET(request: Request) {
           name: googleUser.name || email.split("@")[0],
           image: googleAvatarUrl(googleUser.picture),
           role: "EMPLOYEE",
-          googleSubject: googleUser.sub,
-          googleEmail: email,
           lastLoginAt: new Date()
         });
       } else {
         user.set({
           name: googleUser.name || user.name,
           image: googleAvatarUrl(googleUser.picture),
-          googleSubject: googleUser.sub,
-          googleEmail: email,
           role: user.role === "PLATFORM_ADMIN" ? "PLATFORM_ADMIN" : "EMPLOYEE",
           lastLoginAt: new Date()
         });
@@ -449,16 +433,12 @@ export async function GET(request: Request) {
         name: googleUser.name || email.split("@")[0],
         image: googleAvatarUrl(googleUser.picture),
         role: "COMPANY_ADMIN",
-        googleSubject: googleUser.sub,
-        googleEmail: email,
         lastLoginAt: new Date()
       });
     } else {
       user.set({
         name: googleUser.name || user.name,
         image: googleAvatarUrl(googleUser.picture),
-        googleSubject: googleUser.sub,
-        googleEmail: email,
         role: user.role,
         lastLoginAt: new Date()
       });

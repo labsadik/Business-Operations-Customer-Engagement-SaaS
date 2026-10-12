@@ -126,6 +126,22 @@ try {
   );
   const remainingWorkspacePlanIds = await workspaces.countDocuments({ planId: { $exists: true } });
 
+  const userGoogleFieldsRemoved = await users.updateMany(
+    {
+      $or: [
+        { googleSubject: { $exists: true } },
+        { googleEmail: { $exists: true } }
+      ]
+    },
+    { $unset: { googleSubject: "", googleEmail: "" } }
+  );
+  const remainingUserGoogleFields = await users.countDocuments({
+    $or: [
+      { googleSubject: { $exists: true } },
+      { googleEmail: { $exists: true } }
+    ]
+  });
+
   console.log(JSON.stringify({
     membershipsReviewed,
     jobTitlesCopied,
@@ -133,7 +149,9 @@ try {
     membershipRecordsCleaned: fieldsRemoved.modifiedCount,
     remainingLegacyFieldRecords: remainingLegacyFields,
     workspacePlanIdsRemoved: workspacePlanIdsRemoved.modifiedCount,
-    remainingWorkspacePlanIds
+    remainingWorkspacePlanIds,
+    userGoogleFieldsRemoved: userGoogleFieldsRemoved.modifiedCount,
+    remainingUserGoogleFields
   }, null, 2));
 
   if (remainingLegacyFields > 0) {
@@ -141,6 +159,9 @@ try {
   }
   if (remainingWorkspacePlanIds > 0) {
     throw new Error("WORKSPACE_PLAN_IDS_REMAIN; rerun the migration after resolving database permissions or write failures.");
+  }
+  if (remainingUserGoogleFields > 0) {
+    throw new Error("USER_GOOGLE_FIELDS_REMAIN; rerun the migration after resolving database permissions or write failures.");
   }
 } finally {
   await mongoose.disconnect();
