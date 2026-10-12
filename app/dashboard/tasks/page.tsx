@@ -56,14 +56,14 @@ export default async function TaskManagementPage() {
       bypass={session.role === "PLATFORM_ADMIN"}
     >
       <TaskManagementDashboard
-      companyName={company.name}
-      userName={session.name?.trim() || session.email}
-      userEmail={session.email}
-      userImage={session.image}
-      userId={session.userId}
-      currentRole={session.role}
-      taskManagementEnabled={Boolean(plan.taskManagementEnabled)}
-      vaultEnabled={Boolean(plan.vaultEnabled)}
+        companyName={company.name}
+        userName={session.name?.trim() || session.email}
+        userEmail={session.email}
+        userImage={session.image}
+        userId={session.userId}
+        currentRole={session.role}
+        taskManagementEnabled={Boolean(plan.taskManagementEnabled)}
+        vaultEnabled={Boolean(plan.vaultEnabled)}
         liveChatEnabled={Boolean(plan.liveChatEnabled)}
       />
     </PlanAccessGuard>

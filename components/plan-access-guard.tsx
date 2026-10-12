@@ -80,9 +80,9 @@ export default function PlanAccessGuard({
             current &&
             current.locked === next.locked &&
             current.reason === next.reason &&
-            String(current.planAccessExpiresAt ?? "") === String(next.planAccessExpiresAt ?? "") &&
-            String(current.planSuspendedAt ?? "") === String(next.planSuspendedAt ?? "") &&
-            String(current.planExpiredAt ?? "") === String(next.planExpiredAt ?? "")
+            (dateFrom(current.planAccessExpiresAt)?.getTime() ?? 0) === (dateFrom(next.planAccessExpiresAt)?.getTime() ?? 0) &&
+            (dateFrom(current.planSuspendedAt)?.getTime() ?? 0) === (dateFrom(next.planSuspendedAt)?.getTime() ?? 0) &&
+            (dateFrom(current.planExpiredAt)?.getTime() ?? 0) === (dateFrom(next.planExpiredAt)?.getTime() ?? 0)
           ) return current;
           return next;
         });
