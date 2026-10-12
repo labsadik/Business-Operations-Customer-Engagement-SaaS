@@ -10,7 +10,17 @@ Sentry.init({
   environment:
     process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT?.trim() || process.env.NODE_ENV || "development",
   release: process.env.NEXT_PUBLIC_SENTRY_RELEASE?.trim() || undefined,
-  sendDefaultPii: false,
+  dataCollection: {
+    userInfo: false,
+    cookies: false,
+    httpHeaders: { request: false, response: false },
+    httpBodies: [],
+    urlQueryParams: false,
+    genAI: { inputs: false, outputs: false },
+    databaseQueryData: false,
+    queues: false,
+    graphQL: { document: false, variables: false }
+  },
   tracesSampleRate: readSentrySampleRate(
     process.env.NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE,
     defaultTracesSampleRate
