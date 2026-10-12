@@ -23,9 +23,7 @@ export async function PATCH(
 ) {
   try {
     assertSameOrigin(request);
-    const { session } = await requireCompanyMember(["COMPANY_ADMIN",
-    "PLATFORM_ADMIN"
-  ]);
+    const { session } = await requireCompanyMember(["COMPANY_ADMIN", "PLATFORM_ADMIN"]);
     if (session.role !== "PLATFORM_ADMIN" && await isCompanyPlanSuspended(session.companyId!)) {
       return jsonError("PLAN_SUSPENDED", 423);
     }
@@ -38,44 +36,65 @@ export async function PATCH(
       return jsonError("EMPLOYEE_PROFILE_INVALID", 400);
     }
 
-    const update: Record<string, unknown> = {};
+    const userUpdate: Record<string, string> = {};
     if (body.jobTitle !== undefined) {
       if (typeof body.jobTitle !== "string" || body.jobTitle.trim().length > 120) {
         return jsonError("EMPLOYEE_JOB_TITLE_INVALID", 400);
       }
-      update.jobTitle = body.jobTitle.trim();
+      userUpdate.jobTitle = body.jobTitle.trim();
     }
     if (body.department !== undefined) {
       if (typeof body.department !== "string" || body.department.trim().length > 100) {
         return jsonError("EMPLOYEE_DEPARTMENT_INVALID", 400);
       }
-      update.department = body.department.trim();
+      userUpdate.department = body.department.trim();
     }
+
+    let employmentStatus: "ACTIVE" | "ON_LEAVE" | "INACTIVE" | undefined;
     if (body.employmentStatus !== undefined) {
       if (!["ACTIVE", "ON_LEAVE", "INACTIVE"].includes(String(body.employmentStatus))) {
         return jsonError("EMPLOYEE_STATUS_INVALID", 400);
       }
-      update.employmentStatus = body.employmentStatus;
+      employmentStatus = body.employmentStatus as "ACTIVE" | "ON_LEAVE" | "INACTIVE";
     }
-    if (Object.keys(update).length === 0) return jsonError("EMPLOYEE_PROFILE_EMPTY", 400);
+    if (Object.keys(userUpdate).length === 0 && employmentStatus === undefined) {
+      return jsonError("EMPLOYEE_PROFILE_EMPTY", 400);
+    }
 
-    const membership = await Membership.findOneAndUpdate(
-      {
-        companyId: session.companyId,
-        userId: new Types.ObjectId(userId),
-        active: true,
-        role: { $in: ["COMPANY_ADMIN", "EMPLOYEE"] }
-      },
-      { $set: update },
-      { returnDocument: "after", runValidators: true }
-    ).select("userId jobTitle department employmentStatus").lean();
-
+    const membershipFilter = {
+      companyId: session.companyId,
+      userId: new Types.ObjectId(userId),
+      active: true,
+      role: { $in: ["COMPANY_ADMIN", "EMPLOYEE"] }
+    };
+    const membership = await Membership.findOne(membershipFilter)
+      .select("userId role employmentStatus")
+      .lean();
     if (!membership) return jsonError("EMPLOYEE_NOT_FOUND", 404);
+
+    const user = Object.keys(userUpdate).length
+      ? await User.findByIdAndUpdate(
+          userId,
+          { $set: userUpdate },
+          { returnDocument: "after", runValidators: true }
+        ).select("jobTitle department").lean()
+      : await User.findById(userId).select("jobTitle department").lean();
+    if (!user) return jsonError("EMPLOYEE_NOT_FOUND", 404);
+
+    const updatedMembership = employmentStatus !== undefined
+      ? await Membership.findOneAndUpdate(
+          membershipFilter,
+          { $set: { employmentStatus } },
+          { returnDocument: "after", runValidators: true }
+        ).select("userId employmentStatus").lean()
+      : membership;
+    if (!updatedMembership) return jsonError("EMPLOYEE_NOT_FOUND", 404);
+
     return jsonOk({
-      userId: String(membership.userId),
-      jobTitle: membership.jobTitle ?? "",
-      department: membership.department ?? "",
-      employmentStatus: membership.employmentStatus ?? "ACTIVE"
+      userId: String(updatedMembership.userId),
+      jobTitle: user.jobTitle ?? "",
+      department: user.department ?? "",
+      employmentStatus: updatedMembership.employmentStatus ?? "ACTIVE"
     });
   } catch (error) {
     const code = error instanceof Error ? error.message : "EMPLOYEE_PROFILE_UPDATE_FAILED";

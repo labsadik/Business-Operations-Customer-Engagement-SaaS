@@ -12,8 +12,6 @@ const membershipSchema = new Schema(
       required: true
     },
     active: { type: Boolean, default: true, index: true },
-    jobTitle: { type: String, trim: true, maxlength: 120, default: "" },
-    department: { type: String, trim: true, maxlength: 100, default: "" },
     employmentStatus: { type: String, enum: ["ACTIVE", "ON_LEAVE", "INACTIVE"], default: "ACTIVE" },
     googleConnectionStatus: {
       type: String,

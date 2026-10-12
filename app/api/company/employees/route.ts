@@ -20,10 +20,10 @@ export async function GET() {
   ]);
     await getMongo();
     const members = await Membership.find({ companyId: session.companyId, active: true })
-      .select("userId role jobTitle department employmentStatus")
+      .select("userId role employmentStatus")
       .lean();
     const users = await User.find({ _id: { $in: members.map((m) => m.userId) } })
-      .select("_id name email image role")
+      .select("_id name email image role jobTitle department")
       .lean();
     const connections = await GoogleAccount.find({
       userId: { $in: users.map((u) => u._id) },
@@ -41,8 +41,8 @@ export async function GET() {
       email: user.email,
       image: user.image ?? "",
       role: membership?.role ?? user.role,
-      jobTitle: membership?.jobTitle ?? "",
-      department: membership?.department ?? "",
+      jobTitle: user.jobTitle ?? "",
+      department: user.department ?? "",
       employmentStatus: membership?.employmentStatus ?? "ACTIVE",
       googleConnected: connected.has(String(user._id))
       };

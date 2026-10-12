@@ -86,8 +86,33 @@ test("task board avoids reloading the whole employee directory on every task pol
 
   assert.ok(dashboard.includes("EMPLOYEE_DIRECTORY_REFRESH_MS = 5 * 60_000"));
   assert.ok(dashboard.includes("Date.now() - employeeDirectoryLoadedAtRef.current >= EMPLOYEE_DIRECTORY_REFRESH_MS"));
-  assert.ok(employees.includes('.select("userId role jobTitle department employmentStatus")'));
-  assert.ok(employees.includes('.select("_id name email image role")'));
+  assert.ok(employees.includes('.select("userId role employmentStatus")'));
+  assert.ok(employees.includes('.select("_id name email image role jobTitle department")'));
+  assert.ok(employees.includes('jobTitle: user.jobTitle ?? ""'));
+  assert.ok(employees.includes('department: user.department ?? ""'));
+});
+
+test("job title and department are owned by users, while employment status stays with membership", () => {
+  const userModel = source("models/user.ts");
+  const membershipModel = source("models/membership.ts");
+  const employeeDirectory = source("app/api/company/employees/route.ts");
+  const employeeProfile = source("app/api/company/employees/[userId]/route.ts");
+  const ownProfile = source("app/api/profile/member/route.ts");
+  const migration = source("scripts/migrate-membership-profile-fields.mjs");
+  const packageJson = JSON.parse(source("package.json")) as { scripts: Record<string, string> };
+
+  assert.match(userModel, /jobTitle:[\s\S]*?department:/);
+  assert.doesNotMatch(membershipModel, /jobTitle|department/);
+  assert.ok(employeeDirectory.includes('.select("userId role employmentStatus")'));
+  assert.ok(employeeDirectory.includes('.select("_id name email image role jobTitle department")'));
+  assert.ok(employeeDirectory.includes('jobTitle: user.jobTitle ?? ""'));
+  assert.ok(employeeDirectory.includes('department: user.department ?? ""'));
+  assert.ok(employeeProfile.includes("User.findByIdAndUpdate"));
+  assert.ok(ownProfile.includes("User.findByIdAndUpdate"));
+  assert.ok(ownProfile.includes("Membership.findOneAndUpdate"));
+  assert.ok(migration.includes('$unset: { jobTitle: "", department: "" }'));
+  assert.ok(migration.includes("ORPHANED_MEMBERSHIP_PROFILE_DATA"));
+  assert.equal(packageJson.scripts["membership-profile:migrate"], "node scripts/migrate-membership-profile-fields.mjs");
 });
 
 test("Redis-cached Google tokens use a short local TTL below the token-expiry safety margin", () => {
