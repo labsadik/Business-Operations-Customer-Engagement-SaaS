@@ -104,10 +104,11 @@ try {
     {
       $or: [
         { jobTitle: { $exists: true } },
-        { department: { $exists: true } }
+        { department: { $exists: true } },
+        { googleConnectionStatus: { $exists: true } }
       ]
     },
-    { $unset: { jobTitle: "", department: "" } }
+    { $unset: { jobTitle: "", department: "", googleConnectionStatus: "" } }
   );
 
   const remainingLegacyFields = await memberships.countDocuments({
