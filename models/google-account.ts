@@ -1,6 +1,5 @@
 import { Schema, model, models } from "mongoose";
 import { GOOGLE_CONNECTION_STATUSES } from "@/types/domain";
-import { GOOGLE_CONNECTION_STATUSES } from "@/types/domain";
 
 const googleAccountSchema = new Schema(
   {
