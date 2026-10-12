@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getSession } from "@/lib/session";
@@ -45,7 +46,7 @@ export default async function BillingCompanyProfilePage({
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Account billing</p>
             <h1 className="mt-1 text-lg font-semibold">Billing contact details</h1>
           </div>
-          <Link href={planId ? "/billing/checkout?plan=" + encodeURIComponent(planId) : "/billing/renew"} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+          <Link href={(planId ? "/billing/checkout?plan=" + encodeURIComponent(planId) : "/billing/renew") as Route} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
             <ArrowLeft className="size-3.5" /> Back
           </Link>
         </div>

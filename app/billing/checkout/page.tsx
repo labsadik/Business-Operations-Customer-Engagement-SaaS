@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import type { Route } from "next";
 import { redirect } from "next/navigation";
 import {
   ArrowLeft,
@@ -171,7 +172,7 @@ export default async function BillingCheckoutPage({
               </p>
             </div>
             <Link
-              href={"/billing/company-profile?plan=" + encodeURIComponent(plan.id)}
+              href={("/billing/company-profile?plan=" + encodeURIComponent(plan.id)) as Route}
               className="inline-flex shrink-0 items-center justify-center rounded-xl bg-amber-950 px-3.5 py-2.5 text-xs font-semibold text-white"
             >
               Complete profile

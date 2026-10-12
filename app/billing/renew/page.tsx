@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { redirect } from "next/navigation";
 import { ArrowLeft, CheckCircle2, CreditCard, LockKeyhole } from "lucide-react";
 import { getSession } from "@/lib/session";
@@ -122,7 +123,7 @@ export default async function BillingRenewalPage() {
                     Up to {plan.maxEmployees} employees · {plan.monthlyMeetingLimit} meetings per period · {plan.maxConcurrentMeetings} concurrent meetings
                   </p>
                   <Link
-                    href={"/billing/checkout?plan=" + encodeURIComponent(plan.id)}
+                    href={("/billing/checkout?plan=" + encodeURIComponent(plan.id)) as Route}
                     className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800"
                   >
                     <CreditCard className="size-4" />

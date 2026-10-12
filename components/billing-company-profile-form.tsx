@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import type { Route } from "next";
 import { useRouter } from "next/navigation";
 
 type Props = {
@@ -40,9 +41,9 @@ export default function BillingCompanyProfileForm({
       if (!response.ok || !body?.ok) {
         throw new Error(body?.error || "BILLING_PROFILE_UPDATE_FAILED");
       }
-      router.push(planId
+      router.push((planId
         ? "/billing/checkout?plan=" + encodeURIComponent(planId)
-        : "/billing/renew");
+        : "/billing/renew") as Route);
       router.refresh();
     } catch (value) {
       setError(value instanceof Error ? value.message : "BILLING_PROFILE_UPDATE_FAILED");
