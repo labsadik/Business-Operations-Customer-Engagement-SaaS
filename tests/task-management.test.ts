@@ -173,8 +173,9 @@ test("task management provides enterprise filters, list/board views, pagination 
   assert.ok(authorization.includes("active: true"));
   assert.ok(authorization.includes("assertAssignableEmployees"));
   assert.ok(planAccess.includes("if (company.planSuspended || company.planExpiryTestActive) return true;"));
-  assert.ok(planAccess.includes('activeSubscription.status === "ACTIVE"'));
-  assert.ok(planAccess.includes("activeSubscription.currentPeriodEnd.getTime() > now"));
+  assert.ok(planAccess.includes('["PAID", "ADMIN_GRANTED"].includes(subscription.source)'));
+  assert.ok(planAccess.includes("const periodEndMs = periodEnd?.getTime?.() ?? 0;"));
+  assert.ok(planAccess.includes("periodEndMs > now"));
   assert.ok(dashboard.includes("PLAN_SUSPENDED: \"Task updates are locked because this company's plan is suspended or expired."));
 });
 

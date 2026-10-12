@@ -150,20 +150,17 @@ export default function PlanAccessGuard({
             </p>
           )}
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-            {!suspended && canManageBilling ? (
+            {canManageBilling ? (
               <Link
                 href="/dashboard?billing=1"
                 className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800"
               >
-                Renew plan
+                {suspended ? "Review plan options" : "Renew plan"}
               </Link>
             ) : suspended ? (
-              <Link
-                href="/dashboard"
-                className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800"
-              >
-                Return to overview
-              </Link>
+              <p className="flex-1 rounded-xl bg-rose-50 px-4 py-3 text-sm leading-5 text-rose-900">
+                Contact the platform administrator to restore suspended access. If the plan has expired too, ask your company administrator to review renewal options.
+              </p>
             ) : (
               <p className="flex-1 rounded-xl bg-amber-50 px-4 py-3 text-sm leading-5 text-amber-900">
                 Ask your company administrator to renew the plan.
