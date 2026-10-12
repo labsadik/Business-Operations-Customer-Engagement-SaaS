@@ -117,6 +117,7 @@ function errorMessage(error: unknown) {
     UNAUTHENTICATED: "Please sign in again to manage tasks.",
     FORBIDDEN: "You don't have permission to perform that action.",
     FEATURE_NOT_IN_PLAN: "Task Management isn't enabled for this company's active plan.",
+    PLAN_SUSPENDED: "Task updates are locked because this company's plan is suspended or expired. Ask a platform administrator to restore plan access.",
     ASSIGNEE_REQUIRED: "Choose at least one employee to assign this task to.",
     ASSIGNEE_NOT_FOUND: "One of the selected employees is no longer active in this workspace.",
     TASK_TITLE_REQUIRED: "Enter a title for the task.",
