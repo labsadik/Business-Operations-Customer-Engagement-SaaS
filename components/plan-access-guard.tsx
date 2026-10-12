@@ -49,13 +49,22 @@ export default function PlanAccessGuard({
   const router = useRouter();
   const [state, setState] = useState<PlanAccessState | null>(initialState);
   const [warningDismissed, setWarningDismissed] = useState(false);
+  const [nowMs, setNowMs] = useState<number | null>(null);
   const lockedRef = useRef(Boolean(initialState?.locked));
 
   useEffect(() => {
-    setState(initialState);
-    setWarningDismissed(false);
-    lockedRef.current = Boolean(initialState?.locked);
-  }, [initialState]);
+    let cancelled = false;
+    const updateClock = () => {
+      if (!cancelled) setNowMs(Date.now());
+    };
+    const initialTick = window.setTimeout(updateClock, 0);
+    const clockInterval = window.setInterval(updateClock, 60_000);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(initialTick);
+      window.clearInterval(clockInterval);
+    };
+  }, []);
 
   useEffect(() => {
     if (bypass) return;
@@ -106,8 +115,8 @@ export default function PlanAccessGuard({
 
   const locked = !bypass && Boolean(state?.locked);
   const expiryDate = dateFrom(state?.planAccessExpiresAt);
-  const daysRemaining = expiryDate
-    ? Math.ceil((expiryDate.getTime() - Date.now()) / 86400000)
+  const daysRemaining = expiryDate && nowMs !== null
+    ? Math.ceil((expiryDate.getTime() - nowMs) / 86400000)
     : null;
   const expiringSoon = !locked &&
     state?.reason === "ACTIVE" &&
