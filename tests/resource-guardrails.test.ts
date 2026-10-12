@@ -782,6 +782,10 @@ test("Mongoose model enums use canonical shared constants instead of copied list
   const bookingState = source("lib/booking-state.ts");
   const planRules = source("lib/plan-rules.ts");
   const taskModel = source("models/task.ts");
+  const taskActivityModel = source("models/task-activity.ts");
+  const taskEvents = source("features/task-management/server/task-events.ts");
+  const bookingActivityModel = source("models/booking-activity.ts");
+  const bookingHistory = source("lib/booking-history.ts");
   const assignmentModel = source("models/task-assignment.ts");
   const notificationModel = source("models/task-notification.ts");
   const bookingModel = source("models/booking-request.ts");
@@ -795,6 +799,14 @@ test("Mongoose model enums use canonical shared constants instead of copied list
   assert.ok(taskModel.includes("enum: [...TASK_STATUSES]"));
   assert.ok(assignmentModel.includes("enum: [...TASK_STATUSES]"));
   assert.ok(notificationModel.includes("enum: [...TASK_NOTIFICATION_TYPES]"));
+  assert.ok(taskActivityModel.includes("enum: [...TASK_ACTIVITY_EVENT_TYPES]"));
+  assert.ok(taskEvents.includes("eventType: TaskActivityEventType"));
+  assert.ok(bookingActivityModel.includes("enum: [...BOOKING_ACTIVITY_EVENT_TYPES]"));
+  assert.ok(bookingActivityModel.includes("enum: [...BOOKING_OUTCOMES]"));
+  assert.ok(bookingActivityModel.includes("enum: [...BOOKING_ACTIVITY_ACTOR_ROLES]"));
+  assert.ok(bookingHistory.includes("import type { BookingActivityEventType, BookingOutcome }"));
+  assert.doesNotMatch(taskEvents, /eventType: "TASK_CREATED" \|/);
+  assert.doesNotMatch(bookingHistory, /export type BookingActivityEventType =/);
   assert.ok(bookingModel.includes("enum: [...BOOKING_STATUSES]"));
   assert.ok(planModel.includes("enum: [...PLAN_STATUSES]"));
   assert.ok(planModel.includes("enum: [...PLAN_DISCOUNT_TYPES]"));

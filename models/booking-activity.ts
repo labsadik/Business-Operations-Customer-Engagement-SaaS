@@ -1,4 +1,5 @@
 import { Schema, model, models } from "mongoose";
+import { BOOKING_ACTIVITY_ACTOR_ROLES, BOOKING_ACTIVITY_EVENT_TYPES, BOOKING_OUTCOMES } from "@/lib/booking-state";
 
 const bookingActivitySchema = new Schema(
   {
@@ -6,18 +7,7 @@ const bookingActivitySchema = new Schema(
     bookingRequestId: { type: Schema.Types.ObjectId, ref: "BookingRequest", required: true, index: true },
     eventType: {
       type: String,
-      enum: [
-        "REQUEST_CREATED",
-        "EMPLOYEE_ACCEPTED",
-        "EMPLOYEE_DECLINED",
-        "RETRY_SCHEDULED",
-        "MEETING_CREATING",
-        "MEETING_CONFIRMED",
-        "MEETING_CREATION_FAILED",
-        "REQUEST_EXPIRED",
-        "MEETING_COMPLETED",
-        "MEETING_CANCELLED"
-      ],
+      enum: [...BOOKING_ACTIVITY_EVENT_TYPES],
       required: true,
       index: true
     },
@@ -25,31 +15,14 @@ const bookingActivitySchema = new Schema(
     toStatus: { type: String, required: true },
     outcome: {
       type: String,
-      enum: [
-        "PENDING",
-        "ACCEPTED",
-        "DECLINED",
-        "RETRYING",
-        "CONFIRMED",
-        "FAILED",
-        "EXPIRED",
-        "COMPLETED",
-        "CANCELLED"
-      ],
+      enum: [...BOOKING_OUTCOMES],
       required: true,
       index: true
     },
     actorId: { type: Schema.Types.ObjectId, ref: "User" },
     actorRole: {
       type: String,
-      enum: [
-        "CUSTOMER",
-        "COMPANY_OWNER",
-        "COMPANY_ADMIN",
-        "EMPLOYEE",
-        "PLATFORM_ADMIN",
-        "SYSTEM"
-      ]
+      enum: [...BOOKING_ACTIVITY_ACTOR_ROLES]
     },
     employeeId: { type: Schema.Types.ObjectId, ref: "User", index: true },
     reasonCode: { type: String, maxlength: 100 },

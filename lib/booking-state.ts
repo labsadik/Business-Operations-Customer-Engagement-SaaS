@@ -31,3 +31,38 @@ const TRANSITIONS: Record<BookingStatus, readonly BookingStatus[]> = {
 export function canTransition(from: BookingStatus, to: BookingStatus) {
   return TRANSITIONS[from].includes(to);
 }
+export const BOOKING_ACTIVITY_EVENT_TYPES = [
+  "REQUEST_CREATED",
+  "EMPLOYEE_ACCEPTED",
+  "EMPLOYEE_DECLINED",
+  "RETRY_SCHEDULED",
+  "MEETING_CREATING",
+  "MEETING_CONFIRMED",
+  "MEETING_CREATION_FAILED",
+  "REQUEST_EXPIRED",
+  "MEETING_COMPLETED",
+  "MEETING_CANCELLED"
+] as const;
+export type BookingActivityEventType = (typeof BOOKING_ACTIVITY_EVENT_TYPES)[number];
+
+export const BOOKING_OUTCOMES = [
+  "PENDING",
+  "ACCEPTED",
+  "DECLINED",
+  "RETRYING",
+  "CONFIRMED",
+  "FAILED",
+  "EXPIRED",
+  "COMPLETED",
+  "CANCELLED"
+] as const;
+export type BookingOutcome = (typeof BOOKING_OUTCOMES)[number];
+
+export const BOOKING_ACTIVITY_ACTOR_ROLES = [
+  "CUSTOMER",
+  "COMPANY_OWNER",
+  "COMPANY_ADMIN",
+  "EMPLOYEE",
+  "PLATFORM_ADMIN",
+  "SYSTEM"
+] as const;

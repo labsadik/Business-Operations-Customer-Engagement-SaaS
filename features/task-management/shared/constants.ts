@@ -20,3 +20,12 @@ export const TASK_NOTIFICATION_TYPES = [
   "TASK_UPDATED"
 ] as const;
 export type TaskNotificationType = (typeof TASK_NOTIFICATION_TYPES)[number];
+
+export const TASK_ACTIVITY_EVENT_TYPES = [
+  "TASK_CREATED",
+  "TASK_UPDATED",
+  "ASSIGNEES_ADDED",
+  "ASSIGNEE_REMOVED",
+  "ASSIGNEE_STATUS_CHANGED"
+] as const;
+export type TaskActivityEventType = (typeof TASK_ACTIVITY_EVENT_TYPES)[number];

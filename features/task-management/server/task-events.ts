@@ -1,7 +1,7 @@
 import { Types } from "mongoose";
 import { TaskActivity } from "@/models/task-activity";
 import { TaskNotification } from "@/models/task-notification";
-import type { TaskNotificationType } from "../shared/constants";
+import type { TaskActivityEventType, TaskNotificationType } from "../shared/constants";
 import type { TaskScope } from "./task-authorization";
 
 export type TaskNotificationDraft = {
@@ -15,7 +15,7 @@ export type TaskNotificationDraft = {
 export async function recordTaskEvent(input: {
   scope: TaskScope;
   taskId: string;
-  eventType: "TASK_CREATED" | "TASK_UPDATED" | "ASSIGNEES_ADDED" | "ASSIGNEE_REMOVED" | "ASSIGNEE_STATUS_CHANGED";
+  eventType: TaskActivityEventType;
   actorUserId: string;
   subjectUserId?: string | null;
   fromStatus?: string | null;

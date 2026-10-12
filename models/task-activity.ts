@@ -1,4 +1,5 @@
 import { Schema, model, models } from "mongoose";
+import { TASK_ACTIVITY_EVENT_TYPES } from "@/features/task-management/shared/constants";
 
 const taskActivitySchema = new Schema(
   {
@@ -9,7 +10,7 @@ const taskActivitySchema = new Schema(
     subjectUserId: { type: Schema.Types.ObjectId, ref: "User", default: null, index: true },
     eventType: {
       type: String,
-      enum: ["TASK_CREATED", "TASK_UPDATED", "ASSIGNEES_ADDED", "ASSIGNEE_REMOVED", "ASSIGNEE_STATUS_CHANGED"],
+      enum: [...TASK_ACTIVITY_EVENT_TYPES],
       required: true,
       index: true
     },

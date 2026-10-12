@@ -3,29 +3,7 @@ import { BookingActivity } from "@/models/booking-activity";
 import { BookingRequest } from "@/models/booking-request";
 import { Subscription } from "@/models/subscription";
 import type { PlanEntitlements } from "@/lib/plans";
-
-export type BookingActivityEventType =
-  | "REQUEST_CREATED"
-  | "EMPLOYEE_ACCEPTED"
-  | "EMPLOYEE_DECLINED"
-  | "RETRY_SCHEDULED"
-  | "MEETING_CREATING"
-  | "MEETING_CONFIRMED"
-  | "MEETING_CREATION_FAILED"
-  | "REQUEST_EXPIRED"
-  | "MEETING_COMPLETED"
-  | "MEETING_CANCELLED";
-
-export type BookingOutcome =
-  | "PENDING"
-  | "ACCEPTED"
-  | "DECLINED"
-  | "RETRYING"
-  | "CONFIRMED"
-  | "FAILED"
-  | "EXPIRED"
-  | "COMPLETED"
-  | "CANCELLED";
+import type { BookingActivityEventType, BookingOutcome } from "@/lib/booking-state";
 
 export async function recordBookingActivity(input: {
   companyId: string;
