@@ -272,18 +272,64 @@ export async function isCompanyPlanSuspended(companyId: string) {
     .lean();
 
   if (!company) return false;
-  if (company.planSuspended || company.planExpired || company.planExpiryTestActive) return true;
+
+  // Explicit platform suspensions and active expiry tests must remain locked.
+  // A stale expiry flag must not override a currently active paid/admin-granted period.
+  if (company.planSuspended || company.planExpiryTestActive) return true;
 
   const storedAccessExpiry = company.planAccessExpiresAt as Date | null | undefined;
   const now = Date.now();
-  if (storedAccessExpiry) {
-    if (storedAccessExpiry.getTime() > now) return false;
-    await Company.updateOne(
-      { _id: companyId, planExpired: { $ne: true } },
-      { $set: { planExpired: true, planExpiredAt: storedAccessExpiry } }
+  const storedAccessExpired = Boolean(storedAccessExpiry && storedAccessExpiry.getTime() <= now);
+
+  if (company.planExpired || storedAccessExpired) {
+    const activeSubscription = await Subscription.findOne({ companyId })
+      .select("status source currentPeriodEnd")
+      .lean();
+    const hasCurrentPaidAccess = Boolean(
+      activeSubscription &&
+      activeSubscription.status === "ACTIVE" &&
+      ["PAID", "ADMIN_GRANTED"].includes(activeSubscription.source) &&
+      activeSubscription.currentPeriodEnd.getTime() > now
     );
+
+    if (hasCurrentPaidAccess && activeSubscription) {
+      const repaired = await Company.updateOne(
+        {
+          _id: companyId,
+          planSuspended: { $ne: true },
+          planExpiryTestActive: { $ne: true }
+        },
+        {
+          $set: {
+            planExpired: false,
+            planAccessExpiresAt: activeSubscription.currentPeriodEnd
+          },
+          $unset: {
+            planExpiredAt: "",
+            planExpiredByUserId: ""
+          }
+        }
+      );
+
+      // If a platform admin applied a lock concurrently, fail closed.
+      return repaired.matchedCount === 0;
+    }
+
+    if (storedAccessExpired && !company.planExpired) {
+      await Company.updateOne(
+        {
+          _id: companyId,
+          planExpired: { $ne: true },
+          planSuspended: { $ne: true },
+          planExpiryTestActive: { $ne: true }
+        },
+        { $set: { planExpired: true, planExpiredAt: storedAccessExpiry } }
+      );
+    }
     return true;
   }
+
+  if (storedAccessExpiry) return false;
   // A stored null means this tenant is known to be on the free plan. An absent
   // field is a legacy record that needs one-time expiry backfill.
   if (storedAccessExpiry === null) return false;
