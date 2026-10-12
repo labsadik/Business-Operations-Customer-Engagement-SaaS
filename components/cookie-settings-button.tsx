@@ -14,7 +14,7 @@ export default function CookieSettingsButton({
         className
       }
       onClick={() => {
-        window.dispatchEvent(new CustomEvent("conventus:open-cookie-settings"));
+        window.dispatchEvent(new CustomEvent("canvas:open-cookie-settings"));
       }}
       {...props}
     >

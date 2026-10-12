@@ -96,7 +96,7 @@ export default function AdminFeedback() {
     <div className="space-y-6">
       <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-          <div><div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-600"><MessageSquareText className="size-4" />Platform feedback inbox</div><h1 className="mt-2 text-3xl font-semibold tracking-tight">Feedback</h1><p className="mt-2 text-sm leading-6 text-slate-500">Customer feedback about company scheduling and private company feedback about Conventus are stored separately and shown here with clear source labels.</p></div>
+          <div><div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-600"><MessageSquareText className="size-4" />Platform feedback inbox</div><h1 className="mt-2 text-3xl font-semibold tracking-tight">Feedback</h1><p className="mt-2 text-sm leading-6 text-slate-500">Customer feedback about company scheduling and private company feedback about Canvas are stored separately and shown here with clear source labels.</p></div>
         </div>
       </section>
 
@@ -116,7 +116,7 @@ export default function AdminFeedback() {
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${item.source === "CUSTOMER_BOOKING" ? "bg-blue-50 text-blue-700" : "bg-violet-50 text-violet-700"}`}>{item.source === "CUSTOMER_BOOKING" ? "Customer booking page" : "Company → Conventus"}</span>
+                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${item.source === "CUSTOMER_BOOKING" ? "bg-blue-50 text-blue-700" : "bg-violet-50 text-violet-700"}`}>{item.source === "CUSTOMER_BOOKING" ? "Customer booking page" : "Company → Canvas"}</span>
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">{item.reviewStatus}</span>
                 </div>
                 <p className="mt-3 text-sm font-semibold">{item.company?.name || "Unknown company"}</p>

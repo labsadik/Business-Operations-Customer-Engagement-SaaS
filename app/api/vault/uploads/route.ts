@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     const storageBaseKey = folder ? folder.storageKey : root;
 
     // Remove legacy marker objects from older deployments; new uploads need none.
-    await bunnyDelete(root + "/.conventus-vault").catch(() => undefined);
+    await bunnyDelete(root + "/.canvas-vault").catch(() => undefined);
     const expectedChunks = Math.ceil(body.size / VAULT_CHUNK_SIZE_BYTES);
     await reserveVaultBytes(scope, body.size);
 

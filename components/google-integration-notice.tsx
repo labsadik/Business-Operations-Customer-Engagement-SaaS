@@ -28,7 +28,7 @@ export default function GoogleIntegrationNotice({
         <div className="min-w-0">
           <p className="text-xs font-semibold text-blue-950">Before you connect Google</p>
           <p className="mt-1 text-xs leading-5 text-blue-900/75">
-            Employees and scheduling participants may need to connect Google before Conventus can use their calendar availability or create meeting events. The current Google connection asks for identity (openid, email, profile) plus Calendar free/busy and Calendar event access. It is used to check availability and, after an accepted request, create the Calendar event with the Google Meet conference.
+            Employees and scheduling participants may need to connect Google before Canvas can use their calendar availability or create meeting events. The current Google connection asks for identity (openid, email, profile) plus Calendar free/busy and Calendar event access. It is used to check availability and, after an accepted request, create the Calendar event with the Google Meet conference.
           </p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <div className="rounded-xl border border-blue-100 bg-white/70 px-3 py-2.5">

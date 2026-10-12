@@ -82,11 +82,11 @@ export default function CookieConsent() {
       triggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       setSettingsOpen(true);
     };
-    window.addEventListener("conventus:open-cookie-settings", openSettings);
+    window.addEventListener("canvas:open-cookie-settings", openSettings);
 
     return () => {
       window.clearTimeout(consentCheck);
-      window.removeEventListener("conventus:open-cookie-settings", openSettings);
+      window.removeEventListener("canvas:open-cookie-settings", openSettings);
     };
   }, []);
 
@@ -168,7 +168,7 @@ export default function CookieConsent() {
               Your privacy preferences
             </h2>
             <p id="cookie-settings-description" className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
-              Conventus currently has no analytics or marketing tracking category to switch on. Essential authentication and security storage is always required for the service.
+              Canvas currently has no analytics or marketing tracking category to switch on. Essential authentication and security storage is always required for the service.
             </p>
           </div>
 
@@ -213,7 +213,7 @@ export default function CookieConsent() {
           <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 sm:p-5">
             <h3 className="text-sm font-semibold text-slate-950">Optional categories</h3>
             <p className="mt-1 text-xs leading-5 text-slate-600">
-              None are currently configured in the application. Conventus does not add an analytics, advertising, or marketing tracker through this consent flow.
+              None are currently configured in the application. Canvas does not add an analytics, advertising, or marketing tracker through this consent flow.
             </p>
           </section>
         </div>
@@ -265,7 +265,7 @@ export default function CookieConsent() {
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-slate-950">Cookie & browser storage choices</p>
                 <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-600 sm:text-sm">
-                  Conventus needs essential authentication and security storage for sign-in and protected service flows. There are currently no optional analytics or marketing categories in the app.
+                  Canvas needs essential authentication and security storage for sign-in and protected service flows. There are currently no optional analytics or marketing categories in the app.
                 </p>
               </div>
             </div>

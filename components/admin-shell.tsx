@@ -77,7 +77,7 @@ export default function AdminShell({
             <Image src="/favicon.svg" alt="" width={40} height={40} className="size-full object-cover" />
           </span>
           <div>
-            <p className="text-sm font-semibold tracking-tight">Conventus</p>
+            <p className="text-sm font-semibold tracking-tight">Canvas</p>
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-600">Platform Admin</p>
           </div>
         </div>
