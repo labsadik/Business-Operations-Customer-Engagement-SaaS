@@ -4,7 +4,7 @@ import { getSession } from "@/lib/session";
 import { User } from "@/models/user";
 import { Membership } from "@/models/membership";
 import { Session } from "@/models/session";
-import { AdminAuditEvent } from "@/models/admin-audit-event";
+import { PlatformAuditEvent } from "@/models/platform-audit-event";
 import { assertSameOrigin } from "@/lib/security";
 import { jsonError, jsonOk } from "@/lib/http";
 
@@ -49,12 +49,15 @@ export async function PATCH(
       target.role = "PLATFORM_ADMIN";
       await target.save();
 
-      await AdminAuditEvent.create({
+      await PlatformAuditEvent.create({
         actorUserId: session.userId,
-        targetUserId: target._id,
+        entityType: "USER",
+        entityId: target._id,
         action: "GRANT_PLATFORM_ADMIN",
-        fromRole: target.platformAdminPreviousRole,
-        toRole: "PLATFORM_ADMIN"
+        details: {
+          fromRole: target.platformAdminPreviousRole,
+          toRole: "PLATFORM_ADMIN"
+        }
       });
 
       return jsonOk({ id: userId, role: target.role, changed: true });
@@ -94,12 +97,15 @@ export async function PATCH(
       role: "PLATFORM_ADMIN"
     });
 
-    await AdminAuditEvent.create({
+    await PlatformAuditEvent.create({
       actorUserId: session.userId,
-      targetUserId: target._id,
+      entityType: "USER",
+      entityId: target._id,
       action: "REVOKE_PLATFORM_ADMIN",
-      fromRole: previousRole,
-      toRole: restoredRole
+      details: {
+        fromRole: previousRole,
+        toRole: restoredRole
+      }
     });
 
     return jsonOk({ id: userId, role: restoredRole, changed: true });

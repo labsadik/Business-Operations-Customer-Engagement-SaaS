@@ -758,3 +758,20 @@ test("expired Free plan access locks the whole dashboard and cannot be restarted
   assert.ok(freePlanApi.includes('"PLAN_REQUIRES_RENEWAL"'));
   assert.ok(dashboardLayout.includes("getCompanyPlanAccessState"));
 });
+
+test("platform user role changes share the canonical platform audit model", () => {
+  const platformAuditModel = source("models/platform-audit-event.ts");
+  const userAccessRoute = source("app/api/admin/access/users/[userId]/route.ts");
+  const migration = source("scripts/migrate-admin-audit-events.mjs");
+  const packageJson = JSON.parse(source("package.json")) as { scripts: Record<string, string> };
+
+  assert.ok(platformAuditModel.includes('"USER"'));
+  assert.ok(userAccessRoute.includes('import { PlatformAuditEvent } from "@/models/platform-audit-event"'));
+  assert.equal((userAccessRoute.match(/PlatformAuditEvent\.create/g) ?? []).length, 2);
+  assert.doesNotMatch(userAccessRoute, /AdminAuditEvent/);
+  assert.ok(migration.includes('db.collection("adminauditevents")'));
+  assert.ok(migration.includes('db.collection("platformauditevents")'));
+  assert.ok(migration.includes("AUDIT_EVENT_MIGRATION_INCOMPLETE"));
+  assert.ok(migration.includes("--drop-legacy"));
+  assert.equal(packageJson.scripts["audit-events:migrate"], "node scripts/migrate-admin-audit-events.mjs");
+});
