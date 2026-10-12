@@ -153,6 +153,7 @@ test("task management provides enterprise filters, list/board views, pagination 
   const listRoute = source("app/api/tasks/route.ts");
   const statusRoute = source("app/api/tasks/[taskId]/status/route.ts");
   const authorization = source("features/task-management/server/task-authorization.ts");
+  const planAccess = source("lib/plans-server.ts");
 
   for (const feature of [
     'aria-label="Filter tasks by status"',
@@ -171,6 +172,10 @@ test("task management provides enterprise filters, list/board views, pagination 
   assert.ok(statusRoute.includes("assertSameOrigin(request)"));
   assert.ok(authorization.includes("active: true"));
   assert.ok(authorization.includes("assertAssignableEmployees"));
+  assert.ok(planAccess.includes("if (company.planSuspended || company.planExpiryTestActive) return true;"));
+  assert.ok(planAccess.includes('activeSubscription.status === "ACTIVE"'));
+  assert.ok(planAccess.includes("activeSubscription.currentPeriodEnd.getTime() > now"));
+  assert.ok(dashboard.includes("PLAN_SUSPENDED: \"Task updates are locked because this company's plan is suspended or expired."));
 });
 
 
