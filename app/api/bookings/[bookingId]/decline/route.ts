@@ -191,7 +191,9 @@ export async function POST(
     }
 
     const status =
-      code === "BOOKING_NOT_FOUND"
+      code === "REDIS_UNAVAILABLE"
+        ? 503
+        : code === "BOOKING_NOT_FOUND"
         ? 404
         : [
             "BOOKING_ALREADY_ASSIGNED",

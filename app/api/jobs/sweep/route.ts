@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getMongo } from "@/lib/mongodb";
 import { BookingRequest } from "@/models/booking-request";
 import { withRedisLock } from "@/lib/redis-lock";
+import { getRedis } from "@/lib/redis";
 import { createMeetingForBooking } from "@/lib/meeting-service";
 import { recordBookingActivity, releaseMeetingUsage } from "@/lib/booking-history";
 import { bookingErrorCode } from "@/lib/booking-errors";
@@ -22,6 +23,16 @@ function authorized(request: Request) {
 export async function GET(request: Request) {
   if (!authorized(request)) {
     return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    try {
+      const redis = await getRedis();
+      if (!redis) throw new Error("REDIS_NOT_CONFIGURED");
+      await redis.ping();
+    } catch {
+      return NextResponse.json({ ok: false, error: "REDIS_UNAVAILABLE" }, { status: 503 });
+    }
   }
 
   await getMongo();

@@ -235,7 +235,8 @@ export function liveChatError(error: unknown, fallback: string) {
     code === "LIVE_CHAT_DELETE_NOT_INCLUDED" || code === "LIVE_CHAT_EXPORT_NOT_INCLUDED" ? 403 :
     code.includes("_REQUIRED") || code.includes("_INVALID") || code.includes("_TOO_MANY") ? 400 :
     code === "LIVE_CHAT_BODY_TOO_LARGE" ? 413 :
-    code === "RESOURCE_BUSY" ? 429 : 500;
+    code === "RESOURCE_BUSY" ? 429 :
+    code === "REDIS_UNAVAILABLE" ? 503 : 500;
   return { code, status };
 }
 

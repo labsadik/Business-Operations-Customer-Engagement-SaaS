@@ -151,6 +151,7 @@ export async function POST(
   } catch (error) {
     const code = error instanceof Error ? error.message : "MEETING_END_FAILED";
     const status =
+      code === "REDIS_UNAVAILABLE" ? 503 :
       code === "PLAN_SUSPENDED" ? 423 :
       code === "MEETING_NOT_FOUND" ? 404 :
       ["FORBIDDEN", "MEETING_ALREADY_ENDED", "MEETING_NOT_READY", "BOOKING_NOT_ACTIVE"].includes(code)

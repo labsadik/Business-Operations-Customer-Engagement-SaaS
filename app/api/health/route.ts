@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getMongo } from "@/lib/mongodb";
-import { getRedis } from "@/lib/redis";
+import { getRedis, isRedisConfigured } from "@/lib/redis";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,7 +47,7 @@ async function checkMongo(): Promise<"ok" | "not_configured" | "error"> {
 }
 
 async function checkRedis(): Promise<"ok" | "not_configured" | "error"> {
-  if (!process.env.REDIS_URL) return "not_configured";
+  if (!isRedisConfigured()) return "not_configured";
 
   try {
     return await withTimeout(

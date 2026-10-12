@@ -12,6 +12,17 @@ export type ConventusRedis = {
 const REDIS_CONNECT_TIMEOUT_MS = 5000;
 const REDIS_COMMAND_TIMEOUT_MS = 10000;
 
+function configuredRedisUrl(): string | null {
+  const url =
+    process.env.REDIS_URL?.trim() ||
+    process.env.UPSTASH_REDIS_REST_URL?.trim();
+  return url || null;
+}
+
+export function isRedisConfigured() {
+  return configuredRedisUrl() !== null;
+}
+
 function withTimeout<T>(
   promise: Promise<T>,
   timeoutMs: number,
@@ -138,7 +149,7 @@ declare global {
 }
 
 async function createRedisClient(): Promise<ConventusRedis> {
-  const url = process.env.REDIS_URL;
+  const url = configuredRedisUrl();
   if (!url) throw new Error("REDIS_NOT_CONFIGURED");
 
   const restToken =
@@ -242,7 +253,7 @@ async function createAndConnectRedis(): Promise<ConventusRedis> {
 }
 
 export async function getRedis(): Promise<ConventusRedis | null> {
-  if (!process.env.REDIS_URL) return null;
+  if (!configuredRedisUrl()) return null;
 
   if (globalThis.__conventusRedis?.isReady) {
     return globalThis.__conventusRedis;

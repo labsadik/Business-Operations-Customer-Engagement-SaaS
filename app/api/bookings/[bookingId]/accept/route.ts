@@ -480,6 +480,7 @@ export async function POST(
     }
 
     const status =
+      code === "REDIS_UNAVAILABLE" ? 503 :
       code === "PLAN_SUSPENDED" ? 423 :
       ["BOOKING_NOT_FOUND"].includes(code)
         ? 404
