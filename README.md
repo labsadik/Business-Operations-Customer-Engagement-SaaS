@@ -112,7 +112,7 @@ The runtime environment only contains service/application credentials. The platf
 
 For local development use Razorpay Test Mode credentials. For a production deployment, configure the Live Mode credentials as server-side environment secrets and configure the Razorpay webhook URL as:
 
-`https://YOUR_DOMAIN/api/webhooks/razorpay`
+`https://canvas.algoquit.com/api/webhooks/razorpay`
 
 Do not copy the demo values into a real production environment. Replace them with the real environment-specific values before production.
 

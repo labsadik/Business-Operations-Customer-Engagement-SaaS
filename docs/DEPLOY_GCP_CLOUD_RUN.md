@@ -17,7 +17,7 @@ Cloud Run instances can scale to zero or be replaced at any time. Do not store u
 
 ## 1. Choose your production URL and databases first
 
-Choose your permanent HTTPS origin before building the image, use https://canvas.algoquit.com. NEXT_PUBLIC_* values are compiled into the browser bundle, so changing only Cloud Run runtime variables will not change browser code; rebuild the image after changing these public values.
+Use the canonical production origin https://canvas.algoquit.com before building the image. NEXT_PUBLIC_* values are compiled into the browser bundle, so changing only Cloud Run runtime variables will not change browser code; rebuild the image after changing these public values.
 
 Use separate databases:
 
@@ -118,8 +118,8 @@ After the service is deployed, map your custom domain to Cloud Run using the dom
 
 Then configure:
 
-- Google OAuth authorized redirect URI: https://app.yourdomain.com/api/auth/google/callback (must equal GOOGLE_REDIRECT_URI exactly).
-- Razorpay webhook URL: https://app.yourdomain.com/api/webhooks/razorpay.
+- Google OAuth authorized redirect URI: https://canvas.algoquit.com/api/auth/google/callback (must equal GOOGLE_REDIRECT_URI exactly).
+- Razorpay webhook URL: https://canvas.algoquit.com/api/webhooks/razorpay.
 - Cloud Scheduler must call the deployed HTTPS origin, not localhost.
 - Update NEXT_PUBLIC_APP_URL and GOOGLE_REDIRECT_URI and rebuild/redeploy if the permanent domain differs from the one used in the image.
 
@@ -149,7 +149,7 @@ Redis stores only temporary availability results (75-second TTL) and distributed
 
 Run these checks after deployment:
 
-1. Open https://app.yourdomain.com/api/health. A healthy service returns HTTP 200 with both mongo and redis equal to ok. It returns 503 when either dependency is not healthy.
+1. Open https://canvas.algoquit.com/api/health. A healthy service returns HTTP 200 with both mongo and redis equal to ok. It returns 503 when either dependency is not healthy.
 2. Sign in with Google and verify that the OAuth callback uses the production domain.
 3. Create one fresh company/workspace. The app's plan catalog bootstraps built-in plans on demand; do not run npm run seed:demo in production. That demo seeder deliberately refuses any database other than canvas_test.
 4. Test booking creation, assignment, Google Calendar/Meet creation, Razorpay checkout/webhook, Vault upload/download, task assignment, and each scheduled endpoint.
