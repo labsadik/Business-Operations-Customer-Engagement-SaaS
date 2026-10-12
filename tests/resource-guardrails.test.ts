@@ -889,3 +889,20 @@ test("Google Cloud Run container uses standalone output and keeps runtime secret
   assert.ok(cloudBuild.includes("gcloud"));
   assert.ok(cloudBuild.includes("$_NEXT_PUBLIC_APP_URL"));
 });
+
+
+test("admin company invoice repair avoids conflicting parent and child snapshot updates", () => {
+  const billing = source("lib/billing.ts");
+  const admin = source("lib/admin.ts");
+  const start = billing.indexOf("async function createOrUpdateAccessInvoice");
+  const end = billing.indexOf("\n/**", start);
+  assert.ok(start >= 0 && end > start, "access invoice upsert helper exists");
+  const helper = billing.slice(start, end);
+
+  assert.ok(helper.includes("$setOnInsert"));
+  assert.ok(helper.includes("...snapshots"));
+  assert.doesNotMatch(helper, /companySnapshot\\.name/);
+  assert.doesNotMatch(helper, /\\$set:\\s*\\{\\s*["']companySnapshot\\./);
+  assert.ok(admin.includes("await ensureInvoicesForCapturedPayments(String(objectId))"));
+  assert.ok(admin.includes("await requirePlatformAdmin()"));
+});

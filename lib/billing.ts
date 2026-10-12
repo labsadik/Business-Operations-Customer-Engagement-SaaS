@@ -27,8 +27,7 @@ async function createOrUpdateAccessInvoice({
   company,
   subscription,
   plan,
-  source,
-  grantedByUserId
+  source
 }: {
   company: {
     _id: unknown;
@@ -52,7 +51,6 @@ async function createOrUpdateAccessInvoice({
   };
   plan: PlanEntitlements;
   source: "FREE" | "ADMIN_GRANTED";
-  grantedByUserId?: string;
 }) {
   const periodStart = subscription.currentPeriodStart;
   const periodEnd = subscription.currentPeriodEnd;
@@ -98,8 +96,7 @@ async function createOrUpdateAccessInvoice({
         billingPeriodEnd: periodEnd,
         source,
         ...snapshots
-      },
-      ...(grantedByUserId ? { $set: { "companySnapshot.name": company.name } } : {})
+      }
     },
     { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
   );
@@ -450,8 +447,7 @@ export async function grantCompanyPlan(
     company,
     subscription,
     plan,
-    source: "ADMIN_GRANTED",
-    grantedByUserId: adminUserId
+    source: "ADMIN_GRANTED"
   });
 
   return subscription;
@@ -473,8 +469,7 @@ export async function ensureCurrentAccessInvoice(companyId: string) {
     company,
     subscription,
     plan,
-    source: subscription.source as "FREE" | "ADMIN_GRANTED",
-    grantedByUserId: subscription.grantedByUserId ? String(subscription.grantedByUserId) : undefined
+    source: subscription.source as "FREE" | "ADMIN_GRANTED"
   });
 }
 
