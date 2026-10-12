@@ -162,3 +162,21 @@ If company creation returns FREE_PLAN_NOT_CONFIGURED, first check the Cloud Run 
 After the first service exists and its runtime configuration is correct, cloudbuild.yaml can build, push and deploy new revisions. Configure a Cloud Build trigger for the protected main branch and set the _NEXT_PUBLIC_APP_URL substitution to the final URL. Give the Cloud Build service account permission to push to Artifact Registry, deploy Cloud Run, and act as the chosen runtime service account. The deploy step updates the image while preserving existing Cloud Run runtime configuration.
 
 For production, enable database backups/point-in-time recovery, monitor Cloud Run 5xx and database connection saturation, rotate secrets through Secret Manager, and test restores before real customer data is onboarded. Start with the 1 CPU / 1 GiB setting above and tune based on observed latency, memory and cost. Consider one minimum instance if cold-start latency is unacceptable.
+
+
+## Branding and production cutover
+
+The product is **Canvas** and the company/merchant is **AlgoQuit**. The canonical product origin is https://canvas.algoquit.com. Set that URL in the DNS/domain mapping and ensure TLS is active before deploying the final image. Build-time public URL values must be rebuilt when changed.
+
+Before running the data migration, take a verified backup and point `MONGODB_URI` and `MONGODB_DB_NAME` at the current production database. Set these variables in PowerShell from the exact current database values (do not add the values to source control):
+
+```powershell
+$env:MIGRATION_PREVIOUS_MERCHANT_CODE = "the exact current payment merchant code"
+$env:MIGRATION_PREVIOUS_PRODUCT_NAME = "the exact current product display name"
+$env:MIGRATION_PREVIOUS_MERCHANT_NAME = "the exact current merchant display name"
+npm run brand:migrate
+```
+
+The first invocation is a dry run. Review the counts and run `npm run brand:migrate -- --apply` only after verifying the active database and backup. This updates platform payment identifiers and invoice/merchant snapshots to the Canvas/AlgoQuit identity. Do not point this script at a fresh empty database.
+
+If the MongoDB database itself has an earlier name, do not just change `MONGODB_DB_NAME`—that would point the app at a different database. Back up the existing database, restore its collections and indexes into the new `Canvas` database, validate row counts and key application workflows, then change the deployment setting and cut over. Keep the old database as a rollback copy until the new deployment is verified.

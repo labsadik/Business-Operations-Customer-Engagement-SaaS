@@ -17,7 +17,8 @@
     "roles:migrate": "node scripts/migrate-roles.mjs",
     "membership-profile:migrate": "node scripts/migrate-membership-profile-fields.mjs",
     "task-assignees:migrate": "node scripts/migrate-task-assignees.mjs",
-    "audit-events:migrate": "node scripts/migrate-admin-audit-events.mjs"
+    "audit-events:migrate": "node scripts/migrate-admin-audit-events.mjs",
+    "brand:migrate": "node --experimental-strip-types scripts/migrate-brand-data.mjs"
   },
   "dependencies": {
     "@axiomhq/js": "1.8.0",

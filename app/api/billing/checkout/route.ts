@@ -8,7 +8,7 @@ import type { PlanId } from "@/lib/plans";
 import { createRazorpayOrder, razorpayKeyId } from "@/lib/razorpay";
 import { jsonError, jsonOk } from "@/lib/http";
 import { assertSameOrigin, randomToken } from "@/lib/security";
-import { PLATFORM_BRAND, platformLogoUrl } from "@/lib/platform";
+import { PLATFORM_BRAND, PLATFORM_COMPANY_NAME, platformLogoUrl } from "@/lib/platform";
 import { calculateInvoiceTaxFromBase, invoiceTaxConfig } from "@/lib/invoicing";
 import { withRedisLock } from "@/lib/redis-lock";
 
@@ -40,7 +40,7 @@ function checkoutResponse(input: {
     keyId: razorpayKeyId(),
     planId,
     planName,
-    merchant: PLATFORM_BRAND,
+    merchant: { ...PLATFORM_BRAND, name: PLATFORM_COMPANY_NAME },
     logoUrl,
     pricing: {
       baseAmount: payment.checkoutPlanSnapshot?.priceInr != null
@@ -172,7 +172,7 @@ export async function POST(request: Request) {
           currency: "INR",
           receipt,
           notes: {
-            merchant: PLATFORM_BRAND.name,
+            merchant: PLATFORM_COMPANY_NAME,
             companyId,
             planId: plan.id,
             planRevision: String(plan.revision),
