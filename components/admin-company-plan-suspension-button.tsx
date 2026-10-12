@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, PauseCircle, PlayCircle, RotateCcw, TimerOff } from "lucide-react";
 
@@ -36,16 +36,6 @@ export default function AdminCompanyPlanSuspensionButton({
   const [expiryDate, setExpiryDate] = useState<Date | string | null>(expiredAt ?? null);
   const [busy, setBusy] = useState<BusyAction>("");
   const [error, setError] = useState("");
-
-  // Align with refreshed server state, but never wait for a heavy detail-page refresh
-  // to update the controls immediately after a successful click.
-  useEffect(() => {
-    setIsSuspended(suspended);
-    setIsExpired(expired);
-    setIsExpiryTestActive(expiryTestActive);
-    setSuspensionDate(suspendedAt ?? null);
-    setExpiryDate(expiredAt ?? null);
-  }, [suspended, suspendedAt, expired, expiredAt, expiryTestActive]);
 
   async function saveSuspension() {
     if (busy) return;
