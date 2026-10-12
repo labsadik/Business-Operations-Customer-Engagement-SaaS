@@ -919,7 +919,8 @@ test("Free plan bootstrap and 10,000-company smoke seeder stay environment-scope
   assert.ok(mongo.includes("process.env.MONGODB_DB_NAME?.trim()"));
   assert.ok(mongo.includes('|| "Conventus"'));
   assert.ok(catalog.includes("async function ensureFreePlanSeeded()"));
-  assert.ok(catalog.includes('await Plan.create(seedPlanDocument("free", 0))'));
+  assert.ok(catalog.includes("Plan.collection.updateOne("));
+  assert.ok(catalog.includes("FREE_PLAN_BOOTSTRAP_FAILED"));
   assert.ok(catalog.includes("await ensureFreePlanSeeded()"));
   assert.ok(smokeSeeder.includes('const EXPECTED_DATABASE = "canvas_test"'));
   assert.ok(smokeSeeder.includes("insertMissingPlanRows"));
