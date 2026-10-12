@@ -65,6 +65,32 @@ async function bulkUpsert(collection, rows, filterFor = (row) => ({ _id: row._id
   return { upserted, modified, processed: rows.length };
 }
 
+async function insertMissingPlanRows(collection, rows) {
+  let upserted = 0;
+  for (let start = 0; start < rows.length; start += bulkBatchSize) {
+    const batch = rows.slice(start, start + bulkBatchSize);
+    const result = await collection.bulkWrite(batch.map((row) => {
+      const { _id, createdAt, updatedAt, ...fields } = row;
+      return {
+        updateOne: {
+          filter: { identifier: row.identifier },
+          update: {
+            $setOnInsert: {
+              ...fields,
+              _id,
+              createdAt: createdAt ?? now,
+              updatedAt: updatedAt ?? now
+            }
+          },
+          upsert: true
+        }
+      };
+    }), { ordered: true });
+    upserted += result.upsertedCount ?? 0;
+  }
+  return { insertedIfMissing: upserted, totalCatalogPlans: rows.length };
+}
+
 function planRow(identifier, sortOrder) {
   const plan = PLANS[identifier];
   return {
@@ -142,10 +168,10 @@ try {
     updatedAt: now
   }]);
 
-  counts.plans = await bulkUpsert(
+  // Preserve custom plan edits or demo entitlements already present in canvas_test.
+  counts.plans = await insertMissingPlanRows(
     collection("plans"),
-    PLAN_IDS.map((id, index) => planRow(id, index)),
-    (row) => ({ identifier: row.identifier })
+    PLAN_IDS.map((id, index) => planRow(id, index))
   );
 
   let companiesProcessed = 0;
@@ -364,6 +390,7 @@ try {
     databaseName: db.databaseName,
     smokeTestOnly: true,
     configured: { companies: companyCount, membersPerCompany, expectedUsers },
+    bootstrapRecords: counts,
     processed: {
       companies: companiesProcessed,
       workspaces: workspacesProcessed,

@@ -922,6 +922,9 @@ test("Free plan bootstrap and 10,000-company smoke seeder stay environment-scope
   assert.ok(catalog.includes('await Plan.create(seedPlanDocument("free", 0))'));
   assert.ok(catalog.includes("await ensureFreePlanSeeded()"));
   assert.ok(smokeSeeder.includes('const EXPECTED_DATABASE = "canvas_test"'));
+  assert.ok(smokeSeeder.includes("insertMissingPlanRows"));
+  assert.ok(smokeSeeder.includes("$setOnInsert"));
+  assert.ok(smokeSeeder.includes("Preserve custom plan edits"));
   assert.ok(smokeSeeder.includes('positiveIntEnv("SMOKE_COMPANY_COUNT", 10000, 10000)'));
   assert.ok(smokeSeeder.includes('positiveIntEnv("SMOKE_MEMBERS_PER_COMPANY", 50, 50)'));
   assert.ok(smokeSeeder.includes('databaseName.toLowerCase() !== EXPECTED_DATABASE'));
