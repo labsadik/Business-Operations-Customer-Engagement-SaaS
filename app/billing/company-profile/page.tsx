@@ -9,7 +9,7 @@ import { Membership } from "@/models/membership";
 import BillingCompanyProfileForm from "@/components/billing-company-profile-form";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Billing profile · Conventus" };
+export const metadata = { title: "Billing profile · Canvas" };
 
 export default async function BillingCompanyProfilePage({
   searchParams

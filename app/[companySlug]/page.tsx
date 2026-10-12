@@ -121,7 +121,7 @@ export default async function CompanyPublicPage({
         <footer className="mt-8 flex flex-col gap-4 border-t border-slate-200 px-1 pt-5 text-[10px] leading-5 text-slate-400 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p>Secure scheduling for {company.name}.</p>
-            <p className="mt-1">Powered by <span className="font-semibold text-slate-600">Conventus</span> · company-specific booking</p>
+            <p className="mt-1">Powered by <span className="font-semibold text-slate-600">Canvas</span> · company-specific booking</p>
           </div>
           <nav aria-label="Company booking legal links" className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
             <Link href="/terms" className="rounded-md py-1 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Terms</Link>
