@@ -79,6 +79,7 @@ function explainError(code: string) {
     BUNNY_STORAGE_CONFIGURATION_INVALID: "The Bunny Storage endpoint must be a valid HTTPS URL.",
     BUNNY_STORAGE_REQUEST_FAILED: "Private storage could not complete this operation. Your company data has not been shared. Please retry.",
     VAULT_USAGE_UNAVAILABLE: "Storage usage could not be updated safely. Refresh the vault and retry.",
+    PLAN_SUSPENDED: "This company’s plan is suspended or expired. Ask the platform administrator to restore access, or renew the plan if it has expired.",
     VAULT_FILE_DELETE_FAILED: "The file could not be deleted. Refresh the vault and retry.",
     VAULT_STORAGE_LIMIT_REACHED: "This upload would exceed your company's plan storage quota.",
     VAULT_ITEM_LIMIT_REACHED: "Your plan's maximum stored item count has been reached. Delete an item or contact your administrator.",

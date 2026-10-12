@@ -265,56 +265,91 @@ export async function getCompanyEntitlements(companyId: string): Promise<PlanEnt
       };
 }
 
+
+export type CompanyPlanAccessState = {
+  locked: boolean;
+  reason: "ACTIVE" | "SUSPENDED" | "EXPIRED";
+  planSuspended: boolean;
+  planExpired: boolean;
+  planExpiryTestActive: boolean;
+  planAccessExpiresAt: Date | null;
+  planSuspendedAt: Date | null;
+  planExpiredAt: Date | null;
+};
+
 export async function isCompanyPlanSuspended(companyId: string) {
   await getMongo();
   const company = await Company.findById(companyId)
-    .select("planSuspended planExpired planExpiryTestActive planAccessExpiresAt")
+    .select("planSuspended planExpired planExpiryTestActive planAccessExpiresAt planExpiredAt")
     .lean();
 
   if (!company) return false;
 
-  // Explicit platform suspensions and active expiry tests must remain locked.
-  // A stale expiry flag must not override a currently active paid/admin-granted period.
+  // Explicit platform suspensions and expiry tests always take precedence.
   if (company.planSuspended || company.planExpiryTestActive) return true;
 
   const storedAccessExpiry = company.planAccessExpiresAt as Date | null | undefined;
   const now = Date.now();
   const storedAccessExpired = Boolean(storedAccessExpiry && storedAccessExpiry.getTime() <= now);
+  const subscription = await Subscription.findOne({ companyId })
+    .select("status source currentPeriodEnd")
+    .lean();
 
-  if (company.planExpired || storedAccessExpired) {
-    const activeSubscription = await Subscription.findOne({ companyId })
-      .select("status source currentPeriodEnd")
-      .lean();
-    const hasCurrentPaidAccess = Boolean(
-      activeSubscription &&
-      activeSubscription.status === "ACTIVE" &&
-      ["PAID", "ADMIN_GRANTED"].includes(activeSubscription.source) &&
-      activeSubscription.currentPeriodEnd.getTime() > now
-    );
+  // Reconcile against the subscription's actual service period even when the
+  // company-level expiry timestamp or flag is stale in either direction.
+  if (subscription && ["PAID", "ADMIN_GRANTED"].includes(subscription.source)) {
+    const periodEnd = subscription.currentPeriodEnd;
+    const periodEndMs = periodEnd?.getTime?.() ?? 0;
 
-    if (hasCurrentPaidAccess && activeSubscription) {
-      const repaired = await Company.updateOne(
-        {
-          _id: companyId,
-          planSuspended: { $ne: true },
-          planExpiryTestActive: { $ne: true }
-        },
-        {
-          $set: {
-            planExpired: false,
-            planAccessExpiresAt: activeSubscription.currentPeriodEnd
+    if (periodEndMs > now) {
+      const needsRepair = company.planExpired ||
+        !storedAccessExpiry ||
+        storedAccessExpiry.getTime() !== periodEndMs;
+
+      if (needsRepair) {
+        const repaired = await Company.updateOne(
+          {
+            _id: companyId,
+            planSuspended: { $ne: true },
+            planExpiryTestActive: { $ne: true }
           },
-          $unset: {
-            planExpiredAt: "",
-            planExpiredByUserId: ""
+          {
+            $set: {
+              planExpired: false,
+              planAccessExpiresAt: periodEnd
+            },
+            $unset: {
+              planExpiredAt: "",
+              planExpiredByUserId: ""
+            }
           }
-        }
-      );
+        );
 
-      // If a platform admin applied a lock concurrently, fail closed.
-      return repaired.matchedCount === 0;
+        // Fail closed if an administrator changed the lock during reconciliation.
+        if (repaired.matchedCount === 0) return true;
+      }
+      return false;
     }
 
+    await Company.updateOne(
+      {
+        _id: companyId,
+        planSuspended: { $ne: true },
+        planExpiryTestActive: { $ne: true }
+      },
+      {
+        $set: {
+          planExpired: true,
+          planAccessExpiresAt: periodEnd,
+          planExpiredAt: company.planExpiredAt ?? periodEnd
+        },
+        $unset: { planExpiredByUserId: "" }
+      }
+    );
+    return true;
+  }
+
+  if (company.planExpired || storedAccessExpired) {
     if (storedAccessExpired && !company.planExpired) {
       await Company.updateOne(
         {
@@ -329,32 +364,10 @@ export async function isCompanyPlanSuspended(companyId: string) {
     return true;
   }
 
-  if (storedAccessExpiry) return false;
-  // A stored null means this tenant is known to be on the free plan. An absent
-  // field is a legacy record that needs one-time expiry backfill.
-  if (storedAccessExpiry === null) return false;
+  // A defined date (including null for a legacy free plan) has already been resolved.
+  if (storedAccessExpiry !== undefined) return false;
 
-  const subscription = await Subscription.findOne({ companyId })
-    .select("source planId currentPeriodEnd")
-    .lean();
-
-  if (subscription && ["PAID", "ADMIN_GRANTED"].includes(subscription.source)) {
-    const expiresAt = subscription.currentPeriodEnd;
-    const expired = expiresAt.getTime() <= now;
-    await Company.updateOne(
-      { _id: companyId, planAccessExpiresAt: { $exists: false } },
-      {
-        $set: {
-          planAccessExpiresAt: expiresAt,
-          ...(expired ? { planExpired: true, planExpiredAt: expiresAt } : {})
-        }
-      }
-    );
-    return expired;
-  }
-
-  // Some legacy tenants were already downgraded to free by the previous expiry
-  // behavior. Recover the last paid period once so they do not regain features.
+  // Recover legacy tenants that were previously downgraded to free after paid expiry.
   const latestPayment = await Payment.findOne({
     companyId,
     merchantAccount: "CONVENTUS",
@@ -394,6 +407,36 @@ export async function isCompanyPlanSuspended(companyId: string) {
     { $set: { planAccessExpiresAt: null } }
   );
   return false;
+}
+
+export async function getCompanyPlanAccessState(companyId: string): Promise<CompanyPlanAccessState | null> {
+  const locked = await isCompanyPlanSuspended(companyId);
+  const company = await Company.findById(companyId)
+    .select("planSuspended planExpired planExpiryTestActive planAccessExpiresAt planSuspendedAt planExpiredAt")
+    .lean();
+
+  if (!company) return null;
+
+  const planSuspended = Boolean(company.planSuspended);
+  const reason: CompanyPlanAccessState["reason"] = planSuspended
+    ? "SUSPENDED"
+    : locked
+      ? "EXPIRED"
+      : "ACTIVE";
+  const planAccessExpiresAt = company.planAccessExpiresAt ?? null;
+
+  return {
+    locked,
+    reason,
+    planSuspended,
+    planExpired: reason === "EXPIRED",
+    planExpiryTestActive: Boolean(company.planExpiryTestActive),
+    planAccessExpiresAt,
+    planSuspendedAt: company.planSuspendedAt ?? null,
+    planExpiredAt: reason === "EXPIRED"
+      ? company.planExpiredAt ?? planAccessExpiresAt
+      : null
+  };
 }
 
 export async function assertCompanyPlanNotSuspended(companyId: string) {

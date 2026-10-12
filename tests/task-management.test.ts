@@ -314,3 +314,38 @@ test("meeting activity summary counts are authorized and isolated to the current
   assert.match(route, /happenedCount/);
   assert.doesNotMatch(route, /searchParams\.get\("companyId"\)/);
 });
+
+
+test("plan suspension and expiry use one server access gate across feature entry points", () => {
+  const planServer = source("lib/plans-server.ts");
+  const accessRoute = source("app/api/company/plan-access/route.ts");
+  const guard = source("components/plan-access-guard.tsx");
+  const billing = source("lib/billing.ts");
+  const taskPage = source("app/dashboard/tasks/page.tsx");
+  const vaultPage = source("app/dashboard/vault/page.tsx");
+  const chatPage = source("app/dashboard/live-chat/page.tsx");
+  const taskAuth = source("features/task-management/server/task-authorization.ts");
+  const vaultAuth = source("features/company-vault/server/vault-storage.ts");
+  const chatAuth = source("lib/live-chat.ts");
+
+  assert.match(planServer, /getCompanyPlanAccessState/);
+  assert.match(planServer, /currentPeriodEnd/);
+  assert.match(planServer, /planSuspended:\s*\{\s*\$ne:\s*true\s*\}/);
+  assert.match(accessRoute, /getCompanyPlanAccessState/);
+  assert.match(guard, /Plan renewal reminder/);
+  assert.match(guard, /Plan access is suspended/);
+  assert.match(guard, /Your plan has expired/);
+  assert.match(guard, /router\.refresh\(\)/);
+  assert.match(taskPage, /PlanAccessGuard/);
+  assert.match(vaultPage, /PlanAccessGuard/);
+  assert.match(chatPage, /PlanAccessGuard/);
+
+  assert.match(taskAuth, /if \(!scope\.isPlatformAdmin\)\s*\{\s*await assertCompanyPlanNotSuspended/);
+  assert.doesNotMatch(vaultAuth, /!options\.allowSuspendedRead/);
+  assert.doesNotMatch(chatAuth, /!options\.allowSuspendedRead/);
+
+  // A paid renewal clears expiry/test state but cannot silently override a
+  // separate administrative suspension.
+  assert.match(billing, /planExpiryTestActive:\s*false/);
+  assert.doesNotMatch(billing, /planSuspended:\s*false/);
+});

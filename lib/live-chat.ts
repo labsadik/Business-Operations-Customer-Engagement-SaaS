@@ -20,7 +20,7 @@ export type LiveChatScope = {
   entitlements: Awaited<ReturnType<typeof getCompanyEntitlements>>;
 };
 
-export async function requireLiveChatScope(options: { allowSuspendedRead?: boolean } = {}): Promise<LiveChatScope> {
+export async function requireLiveChatScope(_options: { allowSuspendedRead?: boolean } = {}): Promise<LiveChatScope> {
   const { session } = await requireCompanyMember();
   await getMongo();
   if (!session.companyId || !session.workspaceId ||
@@ -33,7 +33,7 @@ export async function requireLiveChatScope(options: { allowSuspendedRead?: boole
     getCompanyEntitlements(session.companyId)
   ]);
   if (!company || !workspace) throw new Error("FORBIDDEN");
-  if (!options.allowSuspendedRead && session.role !== "PLATFORM_ADMIN") {
+  if (session.role !== "PLATFORM_ADMIN") {
     await assertCompanyPlanNotSuspended(session.companyId);
   }
   if (!entitlements.liveChatEnabled) throw new Error("LIVE_CHAT_NOT_INCLUDED");

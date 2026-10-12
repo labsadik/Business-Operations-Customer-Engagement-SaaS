@@ -285,20 +285,17 @@ export async function activatePaidPlan(paymentId: string) {
           { session: tx }
         );
 
-        // Only an applied, verified paid plan clears access locks. A replayed
-        // callback for an old payment must not undo a later admin suspension.
+        // A successful payment restores expired access but never overrides a
+        // separate manual suspension imposed by a platform administrator.
         await Company.updateOne(
           { _id: captured.companyId },
           {
             $set: {
-              planSuspended: false,
               planExpired: false,
               planExpiryTestActive: false,
               planAccessExpiresAt: periodEnd
             },
             $unset: {
-              planSuspendedAt: "",
-              planSuspendedByUserId: "",
               planExpiredAt: "",
               planExpiredByUserId: ""
             }

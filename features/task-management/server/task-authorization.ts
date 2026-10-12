@@ -59,10 +59,10 @@ export async function requireTaskScope(): Promise<TaskScope> {
 
 export async function assertTaskFeatureAccess(
   scope: TaskScope,
-  options: { allowSuspendedRead?: boolean } = {}
+  _options: { allowSuspendedRead?: boolean } = {}
 ) {
-  // Keep read-only dashboard views available while blocking feature mutations.
-  if (!scope.isPlatformAdmin && !options.allowSuspendedRead) {
+  // Both reads and mutations are protected: suspended tenants must not use the feature API.
+  if (!scope.isPlatformAdmin) {
     await assertCompanyPlanNotSuspended(scope.companyId);
   }
   // A platform administrator can inspect/manage records via the explicitly

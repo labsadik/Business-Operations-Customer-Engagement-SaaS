@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { TaskManagementDashboard } from "@/features/task-management/components";
 import { getMongo } from "@/lib/mongodb";
 import { getSession } from "@/lib/session";
-import { getCompanyEntitlements } from "@/lib/plans-server";
+import { getCompanyEntitlements, getCompanyPlanAccessState } from "@/lib/plans-server";
+import PlanAccessGuard from "@/components/plan-access-guard";
 import { Company } from "@/models/company";
 import { Membership } from "@/models/membership";
 
@@ -36,13 +37,25 @@ export default async function TaskManagementPage() {
     : null;
   if (!company) redirect("/dashboard");
 
+  const accessState = session.role === "PLATFORM_ADMIN"
+    ? null
+    : await getCompanyPlanAccessState(String(company._id));
+  if (accessState?.locked) {
+    return <PlanAccessGuard initialState={accessState} canManageBilling={session.role === "COMPANY_ADMIN"} />;
+  }
+
   const entitlements = await getCompanyEntitlements(String(company._id));
   const plan = session.role === "PLATFORM_ADMIN"
     ? { ...entitlements, taskManagementEnabled: true }
     : entitlements;
 
   return (
-    <TaskManagementDashboard
+    <PlanAccessGuard
+      initialState={accessState}
+      canManageBilling={session.role === "COMPANY_ADMIN"}
+      bypass={session.role === "PLATFORM_ADMIN"}
+    >
+      <TaskManagementDashboard
       companyName={company.name}
       userName={session.name?.trim() || session.email}
       userEmail={session.email}
@@ -51,7 +64,8 @@ export default async function TaskManagementPage() {
       currentRole={session.role}
       taskManagementEnabled={Boolean(plan.taskManagementEnabled)}
       vaultEnabled={Boolean(plan.vaultEnabled)}
-      liveChatEnabled={Boolean(plan.liveChatEnabled)}
-    />
+        liveChatEnabled={Boolean(plan.liveChatEnabled)}
+      />
+    </PlanAccessGuard>
   );
 }

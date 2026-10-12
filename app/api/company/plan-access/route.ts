@@ -1,7 +1,6 @@
 import { requireCompanyMember } from "@/lib/authz";
 import { getMongo } from "@/lib/mongodb";
 import { jsonError, jsonOk } from "@/lib/http";
-import { Company } from "@/models/company";
 import { isCompanyPlanSuspended } from "@/lib/plans-server";
 
 export const runtime = "nodejs";

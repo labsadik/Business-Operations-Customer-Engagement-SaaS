@@ -6,7 +6,8 @@ import { Company } from "@/models/company";
 import { Membership } from "@/models/membership";
 import { VaultFolder } from "@/models/vault-folder";
 import { VaultFile } from "@/models/vault-file";
-import { getCompanyEntitlements } from "@/lib/plans-server";
+import { getCompanyEntitlements, getCompanyPlanAccessState } from "@/lib/plans-server";
+import PlanAccessGuard from "@/components/plan-access-guard";
 import { getTenantFolder, getVaultUsageSnapshot } from "@/features/company-vault/server/vault-storage";
 import CompanyVault from "@/components/company-vault";
 
@@ -49,6 +50,13 @@ export default async function CompanyVaultPage({ searchParams }: PageProps) {
     ? await Company.findById(session.companyId).select("_id name").lean()
     : null;
   if (!company) redirect("/dashboard");
+  const accessState = session.role === "PLATFORM_ADMIN"
+    ? null
+    : await getCompanyPlanAccessState(String(company._id));
+  if (accessState?.locked) {
+    return <PlanAccessGuard initialState={accessState} canManageBilling={session.role === "COMPANY_ADMIN"} />;
+  }
+
   const entitlements = await getCompanyEntitlements(String(company._id));
   if (!entitlements.vaultEnabled) redirect("/dashboard");
 
@@ -154,12 +162,18 @@ export default async function CompanyVaultPage({ searchParams }: PageProps) {
   };
 
   return (
-    <CompanyVault
-      companyName={company.name}
-      currentRole={session.role}
-      taskManagementEnabled={Boolean(entitlements.taskManagementEnabled)}
-      liveChatEnabled={Boolean(entitlements.liveChatEnabled)}
-      initialSnapshot={initialSnapshot}
-    />
+    <PlanAccessGuard
+      initialState={accessState}
+      canManageBilling={session.role === "COMPANY_ADMIN"}
+      bypass={session.role === "PLATFORM_ADMIN"}
+    >
+      <CompanyVault
+        companyName={company.name}
+        currentRole={session.role}
+        taskManagementEnabled={Boolean(entitlements.taskManagementEnabled)}
+        liveChatEnabled={Boolean(entitlements.liveChatEnabled)}
+        initialSnapshot={initialSnapshot}
+      />
+    </PlanAccessGuard>
   );
 }

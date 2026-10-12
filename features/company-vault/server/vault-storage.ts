@@ -51,7 +51,7 @@ export function getUploadExpiry() {
   return new Date(Date.now() + UPLOAD_LIFETIME_MS);
 }
 
-export async function requireVaultScope(options: { allowSuspendedRead?: boolean } = {}): Promise<VaultScope> {
+export async function requireVaultScope(_options: { allowSuspendedRead?: boolean } = {}): Promise<VaultScope> {
   await getMongo();
   const result = await requireCompanyMember(["COMPANY_ADMIN", "EMPLOYEE", "PLATFORM_ADMIN"]);
   const session = result.session;
@@ -67,7 +67,7 @@ export async function requireVaultScope(options: { allowSuspendedRead?: boolean 
     Workspace.findOne({ _id: workspaceId, companyId, active: true }).select("_id").lean()
   ]);
   if (!company || !workspace) throw new Error("WORKSPACE_NOT_FOUND");
-  if (!options.allowSuspendedRead && session.role !== "PLATFORM_ADMIN") {
+  if (session.role !== "PLATFORM_ADMIN") {
     await assertCompanyPlanNotSuspended(String(companyId));
   }
 
