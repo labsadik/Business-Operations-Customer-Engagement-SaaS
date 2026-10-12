@@ -54,7 +54,7 @@ Configure these values in each deployment environment (for example, Vercel Proje
 - `SENTRY_RELEASE` and `NEXT_PUBLIC_SENTRY_RELEASE`: optional release identifier to correlate browser and server events with a deployment.
 - `SENTRY_ORG`, `SENTRY_PROJECT`, and `SENTRY_AUTH_TOKEN`: build-time settings for uploading source maps. The auth token is secret and must never use a `NEXT_PUBLIC_*` name. Source-map upload is skipped when build credentials are absent.
 
-Set the `NEXT_PUBLIC_*` variables before running `npm run build`; Next.js embeds public environment variables into the browser bundle at build time. Keep Sentry's default PII collection disabled unless the application's privacy review explicitly approves changing it. Sentry request-error reporting is composed with the existing Axiom request-error hook, rather than replacing it.
+Set the `NEXT_PUBLIC_*` variables before running `npm run build`; Next.js embeds public environment variables into the browser bundle at build time. Sentry v11 has more permissive collection defaults, so the shipped configuration explicitly disables user information, cookies, request/response headers and bodies, URL query parameters, GenAI inputs/outputs, database query data, queues, and GraphQL documents/variables. Sentry request-error reporting is composed with the existing Axiom request-error hook, rather than replacing it.
 
 ## Checks
 
