@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, Check, CheckCircle2, Clock3, FilePlus2, History, LoaderCircle, PanelLeftClose, PanelLeftOpen, Pencil, Plus, RotateCcw, Save, ShieldCheck, Trash2, UsersRound, X } from "lucide-react";
+import { AlertCircle, Check, CheckCircle2, Clock3, FilePlus2, LoaderCircle, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Trash2, UsersRound, X } from "lucide-react";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
 import UserAvatar from "@/components/user-avatar";
 import { useWorkspaceSidebarState } from "@/components/use-workspace-sidebar-state";
@@ -15,7 +15,6 @@ const Excalidraw = dynamic(async () => (await import("@excalidraw/excalidraw")).
 type Scene = { elements: unknown[]; appState: Record<string, unknown>; files: Record<string, unknown> };
 type CanvasItem = { id: string; name: string; version: number; createdByUserId: string; memberUserIds: string[]; memberCount: number; updatedAt: string; lastEditorUserId?: string | null };
 type Person = { id: string; name: string; email: string; image: string | null; role: string };
-type Revision = { id: string; version: number; name: string; createdAt: string; createdByUserId: string };
 type ConfirmationPrompt = { title: string; description: string; confirmLabel: string; destructive?: boolean };
 type Envelope<T> = { ok: boolean; data?: T; error?: string };
 type CanvasBridge = {
@@ -181,7 +180,7 @@ function errorText(code: string) {
     CANVAS_VERSION_CONFLICT: "A teammate saved a newer version. Load the latest version before continuing.",
     CANVAS_COLLABORATOR_LIMIT: "This plan's people-per-canvas limit has been reached.",
     CANVAS_MEMBER_INVALID: "Every collaborator must be an active member of this company workspace.",
-    CANVAS_CREATION_LIMIT: "This workspace has reached its canvas limit."
+    CANVAS_CREATION_LIMIT: "Your company has reached its canvas limit. Ask a company administrator to increase the plan allowance or remove an unused canvas."
   };
   return messages[code] ?? code.replaceAll("_", " ").toLocaleLowerCase();
 }
@@ -191,20 +190,26 @@ export default function TaskCanvasDashboard({
   currentRole,
   currentUserId,
   taskCanvasEnabled,
+  taskManagementEnabled,
+  vaultEnabled,
+  liveChatEnabled,
   maxCollaborators,
-  historyLimit
+  canvasLimit
 }: {
   companyName: string;
   currentRole: string;
   currentUserId: string;
   taskCanvasEnabled: boolean;
+  taskManagementEnabled: boolean;
+  vaultEnabled: boolean;
+  liveChatEnabled: boolean;
   maxCollaborators: number;
-  historyLimit: number;
+  canvasLimit: number;
 }) {
   const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useWorkspaceSidebarState();
   const [items, setItems] = useState<CanvasItem[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
-  const [limits, setLimits] = useState({ maxCollaborators, historyLimit, historyUsed: 0 });
+  const [limits, setLimits] = useState({ maxCollaborators, canvasLimit, canvasesUsed: 0 });
   const [selectedId, setSelectedId] = useState("");
   const [scene, setScene] = useState<Scene>(EMPTY_SCENE);
   const [loadingIndex, setLoadingIndex] = useState(true);
@@ -214,21 +219,13 @@ export default function TaskCanvasDashboard({
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameDraft, setRenameDraft] = useState("");
   const [canvasRailOpen, setCanvasRailOpen] = useState(true);
-  const [railTab, setRailTab] = useState<"canvases" | "history">("canvases");
   const [peopleOpen, setPeopleOpen] = useState(false);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
-  const [history, setHistory] = useState<Revision[]>([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [editingRevisionId, setEditingRevisionId] = useState<string | null>(null);
-  const [revisionNameDraft, setRevisionNameDraft] = useState("");
-  const [viewingRevision, setViewingRevision] = useState<Revision | null>(null);
-  const [viewingHistory, setViewingHistory] = useState(false);
   const [confirmation, setConfirmation] = useState<ConfirmationPrompt | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "loading" | "saving" | "saved" | "conflict" | "error">("idle");
   const [error, setError] = useState("");
   const apiRef = useRef<CanvasBridge | null>(null);
   const sceneRef = useRef<Scene>(EMPTY_SCENE);
-  const viewingHistoryRef = useRef(false);
   const confirmationResolveRef = useRef<((confirmed: boolean) => void) | null>(null);
   const selectedIdRef = useRef("");
   const versionRef = useRef(1);
@@ -267,15 +264,12 @@ export default function TaskCanvasDashboard({
     const token = ++loadTokenRef.current;
     selectedIdRef.current = id;
     setSelectedId(id);
-    viewingHistoryRef.current = false;
-    setViewingHistory(false);
-    setViewingRevision(null);
     setLoadingCanvas(true);
     setSaveState("loading");
     dirtyRef.current = false;
     conflictRef.current = false;
     try {
-      const data = await api<{ item: CanvasItem; scene: unknown; limits: { maxCollaborators: number; historyLimit: number; historyUsed: number } }>("/api/task-canvas/" + id);
+      const data = await api<{ item: CanvasItem; scene: unknown; limits: { maxCollaborators: number; canvasLimit: number; canvasesUsed: number } }>("/api/task-canvas/" + id);
       if (token !== loadTokenRef.current) return;
       const next = toScene(data.scene);
       versionRef.current = data.item.version;
@@ -299,7 +293,7 @@ export default function TaskCanvasDashboard({
 
   const refreshIndex = useCallback(async () => {
     try {
-      const data = await api<{ items: CanvasItem[]; people: Person[]; limits: { maxCollaborators: number; historyLimit: number; historyUsed: number } }>("/api/task-canvas");
+      const data = await api<{ items: CanvasItem[]; people: Person[]; limits: { maxCollaborators: number; canvasLimit: number; canvasesUsed: number } }>("/api/task-canvas");
       setItems(data.items);
       setPeople(data.people);
       setLimits(data.limits);
@@ -411,7 +405,7 @@ export default function TaskCanvasDashboard({
     appState: unknown,
     files: unknown
   ) => {
-    if (viewingHistoryRef.current || Date.now() < suppressUntilRef.current) return;
+    if (Date.now() < suppressUntilRef.current) return;
     scheduleSave(getPersistedScene(
       elements as unknown as unknown[],
       appState as Record<string, unknown>,
@@ -472,7 +466,7 @@ export default function TaskCanvasDashboard({
   }, [refreshIndex]);
 
   useEffect(() => {
-    if (!selectedId || loadingCanvas || viewingHistory) return;
+    if (!selectedId || loadingCanvas) return;
     const poll = async () => {
       if (document.visibilityState !== "visible" || dirtyRef.current || inFlightRef.current) return;
       try {
@@ -499,16 +493,21 @@ export default function TaskCanvasDashboard({
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", visibility);
     };
-  }, [selectedId, loadingCanvas, viewingHistory]);
+  }, [selectedId, loadingCanvas]);
 
   const createCanvas = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (limits.canvasesUsed >= limits.canvasLimit) {
+      setError("CANVAS_CREATION_LIMIT");
+      return;
+    }
     if (!(await prepareCanvasSwitch())) return;
     setCreating(true);
     setError("");
     try {
-      const data = await api<{ item: CanvasItem }>("/api/task-canvas", { method: "POST", body: JSON.stringify({ name: newName }) });
+      const data = await api<{ item: CanvasItem; limits: { maxCollaborators: number; canvasLimit: number; canvasesUsed: number } }>("/api/task-canvas", { method: "POST", body: JSON.stringify({ name: newName }) });
       setItems((current) => [data.item, ...current.filter((item) => item.id !== data.item.id)]);
+      setLimits(data.limits);
       setNewName("");
       await openCanvas(data.item.id);
     } catch (cause) {
@@ -537,179 +536,21 @@ export default function TaskCanvasDashboard({
     if (!selected) return;
     const confirmed = await askConfirmation({
       title: "Delete canvas?",
-      description: "Delete " + selected.name + " and its saved history? This cannot be undone.",
+      description: "Delete " + selected.name + "? This cannot be undone.",
       confirmLabel: "Delete canvas",
       destructive: true
     });
     if (!confirmed) return;
     try {
-      await api<{ deleted: boolean }>("/api/task-canvas/" + selected.id, { method: "DELETE" });
+      const result = await api<{ deleted: boolean; limits: { maxCollaborators: number; canvasLimit: number; canvasesUsed: number } }>("/api/task-canvas/" + selected.id, { method: "DELETE" });
+      setLimits(result.limits);
       selectedIdRef.current = "";
       apiRef.current = null;
       setSelectedId("");
       setItems((current) => current.filter((item) => item.id !== selected.id));
-      viewingHistoryRef.current = false;
-      setViewingHistory(false);
-      setViewingRevision(null);
       setScene(EMPTY_SCENE);
       sceneRef.current = EMPTY_SCENE;
       setSaveState("idle");
-    } catch (cause) {
-      setError(errorText((cause as Error).message));
-    }
-  };
-
-  const openHistory = async () => {
-    setCanvasRailOpen(true);
-    setRailTab("history");
-    if (!selected) {
-      setHistory([]);
-      return;
-    }
-    setHistoryLoading(true);
-    try {
-      const data = await api<{ items: Revision[]; historyLimit: number; historyUsed: number }>("/api/task-canvas/" + selected.id + "/history");
-      setHistory(data.items);
-      setLimits((current) => ({ ...current, historyLimit: data.historyLimit, historyUsed: data.historyUsed }));
-      setError("");
-    } catch (cause) {
-      setError(errorText((cause as Error).message));
-    } finally {
-      setHistoryLoading(false);
-    }
-  };
-
-  const refreshHistory = async () => {
-    if (!selected) return;
-    setHistoryLoading(true);
-    try {
-      const data = await api<{ items: Revision[]; historyLimit: number; historyUsed: number }>("/api/task-canvas/" + selected.id + "/history");
-      setHistory(data.items);
-      setLimits((current) => ({ ...current, historyLimit: data.historyLimit, historyUsed: data.historyUsed }));
-    } catch (cause) {
-      setError(errorText((cause as Error).message));
-    } finally {
-      setHistoryLoading(false);
-    }
-  };
-
-  const previewRevision = async (revisionId: string) => {
-    if (!selected || loadingCanvas || !(await prepareCanvasSwitch())) return;
-    try {
-      setSaveState("loading");
-      const data = await api<{ revision: Revision; scene: unknown }>(
-        "/api/task-canvas/" + selected.id + "/history?revisionId=" + encodeURIComponent(revisionId)
-      );
-      const next = toScene(data.scene);
-      sceneRef.current = next;
-      dirtyRef.current = false;
-      viewingHistoryRef.current = true;
-      setViewingRevision(data.revision);
-      setViewingHistory(true);
-      setSuppressionWindow(suppressUntilRef, 1400);
-      setScene(next);
-      applySceneToEditor(apiRef.current, next);
-      setSaveState("saved");
-      setError("");
-    } catch (cause) {
-      setError(errorText((cause as Error).message));
-      setSaveState("error");
-    }
-  };
-
-  const returnToCurrentCanvas = async () => {
-    if (!selected) return;
-    await openCanvas(selected.id);
-  };
-
-  const renameHistoryRevision = async (event: FormEvent<HTMLFormElement>, revisionId: string) => {
-    event.preventDefault();
-    if (!selected || !revisionNameDraft.trim()) return;
-    try {
-      const data = await api<{ revision: Revision }>("/api/task-canvas/" + selected.id + "/history", {
-        method: "PATCH",
-        body: JSON.stringify({ action: "rename", revisionId, name: revisionNameDraft })
-      });
-      setHistory((current) => current.map((revision) => revision.id === revisionId ? data.revision : revision));
-      setEditingRevisionId(null);
-      setError("");
-    } catch (cause) {
-      setError(errorText((cause as Error).message));
-    }
-  };
-
-  const deleteHistoryRevision = async (revisionId: string) => {
-    if (!selected) return;
-    const revision = history.find((entry) => entry.id === revisionId);
-    const confirmed = await askConfirmation({
-      title: "Delete history version?",
-      description: "Delete " + (revision?.name ?? "this saved version") + " from the canvas history? This cannot be undone.",
-      confirmLabel: "Delete version",
-      destructive: true
-    });
-    if (!confirmed) return;
-    try {
-      await api<{ deleted: boolean }>("/api/task-canvas/" + selected.id + "/history", {
-        method: "DELETE",
-        body: JSON.stringify({ revisionId })
-      });
-      setHistory((current) => current.filter((entry) => entry.id !== revisionId));
-      if (viewingRevision?.id === revisionId) {
-        viewingHistoryRef.current = false;
-        setViewingHistory(false);
-        setViewingRevision(null);
-        await openCanvas(selected.id);
-      }
-      setError("");
-    } catch (cause) {
-      setError(errorText((cause as Error).message));
-    }
-  };
-
-  const checkpoint = async () => {
-    if (!selected) return;
-    await saveNow();
-    if (dirtyRef.current || conflictRef.current) return;
-    try {
-      const data = await api<{ revision: Revision }>("/api/task-canvas/" + selected.id, {
-        method: "PATCH", body: JSON.stringify({ action: "checkpoint", expectedVersion: versionRef.current })
-      });
-      setHistory((current) => [data.revision, ...current.filter((entry) => entry.id !== data.revision.id)].slice(0, limits.historyLimit));
-      setError("");
-    } catch (cause) {
-      setError(errorText((cause as Error).message));
-    }
-  };
-
-  const restoreRevision = async (revisionId: string) => {
-    if (!selected) return;
-    const confirmed = await askConfirmation({
-      title: "Restore this version?",
-      description: "The current drawing will be saved to history first, then this version will become the current canvas.",
-      confirmLabel: "Restore version",
-      destructive: false
-    });
-    if (!confirmed) return;
-    await saveNow();
-    if (dirtyRef.current || conflictRef.current) return;
-    try {
-      const result = await api<{ version: number; scene: unknown }>("/api/task-canvas/" + selected.id + "/history", {
-        method: "POST", body: JSON.stringify({ revisionId, expectedVersion: versionRef.current })
-      });
-      const next = toScene(result.scene);
-      versionRef.current = result.version;
-      sceneRef.current = next;
-      viewingHistoryRef.current = false;
-      setViewingHistory(false);
-      setViewingRevision(null);
-      setScene(next);
-      dirtyRef.current = false;
-      setItems((current) => current.map((item) => item.id === selected.id ? { ...item, version: result.version } : item));
-      setSuppressionWindow(suppressUntilRef, 1400);
-      applySceneToEditor(apiRef.current, next);
-      setSaveState("saved");
-      const refreshedHistory = await api<{ items: Revision[]; historyLimit: number; historyUsed: number }>("/api/task-canvas/" + selected.id + "/history");
-      setHistory(refreshedHistory.items);
     } catch (cause) {
       setError(errorText((cause as Error).message));
     }
@@ -734,7 +575,7 @@ export default function TaskCanvasDashboard({
     }
   };
 
-  const savingLabel = viewingHistory ? "History preview" : loadingCanvas || saveState === "loading" ? "Loading" :
+  const savingLabel = loadingCanvas || saveState === "loading" ? "Loading" :
     saveState === "saving" ? "Saving…" :
     saveState === "saved" ? "Saved" :
     saveState === "conflict" ? "Version conflict" :
@@ -742,71 +583,42 @@ export default function TaskCanvasDashboard({
 
   return (
     <>
-      <WorkspaceSidebar companyName={companyName} taskCanvasEnabled={taskCanvasEnabled} canManage={canManage} adminManaged={currentRole === "PLATFORM_ADMIN"} collapsed={sidebarCollapsed} onToggleCollapsed={toggleSidebar} />
+      <WorkspaceSidebar companyName={companyName} taskManagementEnabled={taskManagementEnabled} taskCanvasEnabled={taskCanvasEnabled} vaultEnabled={vaultEnabled} liveChatEnabled={liveChatEnabled} canManage={canManage} adminManaged={currentRole === "PLATFORM_ADMIN"} collapsed={sidebarCollapsed} onToggleCollapsed={toggleSidebar} />
       <main className={"flex h-dvh min-h-0 flex-col overflow-hidden bg-[#f8f9fc] text-slate-950 " + (sidebarCollapsed ? "lg:pl-20" : "lg:pl-72")}>
         <header className="z-30 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 bg-white/95 px-3 py-2.5 backdrop-blur-xl sm:px-6">
           <div className="flex min-w-0 items-center gap-2">
-            <button type="button" onClick={() => setCanvasRailOpen((open) => !open)} aria-label={canvasRailOpen ? "Hide canvas and history panel" : "Show canvas and history panel"} title={canvasRailOpen ? "Hide canvas and history panel" : "Show canvas and history panel"} className="grid size-9 shrink-0 place-items-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">{canvasRailOpen ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}</button>
+            <button type="button" onClick={() => setCanvasRailOpen((open) => !open)} aria-label={canvasRailOpen ? "Hide canvas list" : "Show canvas list"} title={canvasRailOpen ? "Hide canvas list" : "Show canvas list"} className="grid size-9 shrink-0 place-items-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">{canvasRailOpen ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}</button>
             <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-600">Workspace / Collaboration</p><h1 className="truncate text-lg font-semibold tracking-tight">Task Canvas <span className="ml-1 text-xs font-normal text-slate-400">· {companyName}</span></h1></div>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[11px] font-medium text-slate-600">{saveState === "saving" || loadingCanvas ? <LoaderCircle className="size-3.5 animate-spin" /> : saveState === "saved" ? <CheckCircle2 className="size-3.5 text-emerald-600" /> : <Clock3 className="size-3.5" />}{savingLabel}</span>
-            <button type="button" onClick={() => void checkpoint()} disabled={!selected || loadingCanvas || viewingHistory} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><Save className="size-3.5" /> Save version</button>
-            <button type="button" onClick={() => { setSelectedMembers(selected ? selected.memberUserIds : []); setPeopleOpen(true); }} disabled={!selected || viewingHistory} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><UsersRound className="size-3.5" /> People</button>
-            <button type="button" onClick={() => void openHistory()} className={"inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold " + (canvasRailOpen && railTab === "history" ? "border-indigo-200 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}><History className="size-3.5" /> History</button>
+                        <button type="button" onClick={() => { setSelectedMembers(selected ? selected.memberUserIds : []); setPeopleOpen(true); }} disabled={!selected} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><UsersRound className="size-3.5" /> Collaborators</button>
           </div>
         </header>
 
         <div className={"grid min-h-0 flex-1 grid-cols-1 " + (canvasRailOpen ? "grid-rows-[minmax(0,0.38fr)_minmax(0,1fr)] lg:grid-cols-[15.5rem_minmax(0,1fr)] lg:grid-rows-1" : "grid-rows-1 lg:grid-cols-[minmax(0,1fr)]")}>
           {canvasRailOpen && <aside className="flex min-h-0 max-h-[38dvh] flex-col overflow-hidden border-b border-slate-200 bg-white lg:max-h-none lg:border-b-0 lg:border-r">
             <div className="shrink-0 border-b border-slate-100 p-3">
-              <div className="flex items-center gap-1.5">
-                <button type="button" onClick={() => setRailTab("canvases")} className={"flex-1 rounded-lg px-2.5 py-2 text-xs font-semibold " + (railTab === "canvases" ? "bg-indigo-50 text-indigo-700" : "text-slate-500 hover:bg-slate-50")}>Canvases <span className="ml-1 text-[10px] opacity-70">{items.length}</span></button>
-                <button type="button" onClick={() => void openHistory()} disabled={!selected} className={"flex-1 rounded-lg px-2.5 py-2 text-xs font-semibold " + (railTab === "history" ? "bg-indigo-50 text-indigo-700" : "text-slate-500 hover:bg-slate-50 disabled:opacity-40")}>History</button>
+              <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Company canvas allowance</p>
+                <p className="mt-1 text-xs font-semibold text-slate-800">{limits.canvasesUsed} of {limits.canvasLimit} canvases used</p>
+                <p className="mt-1 text-[10px] leading-4 text-slate-500">Shared by every employee and workspace in {companyName}. Deleting a canvas frees a slot.</p>
               </div>
-              {railTab === "canvases" && <form onSubmit={createCanvas} className="mt-3 flex gap-1.5">
+              <form onSubmit={createCanvas} className="flex gap-1.5">
                 <input value={newName} onChange={(event) => setNewName(event.target.value)} maxLength={80} required placeholder="New canvas name" aria-label="New canvas name" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-2.5 py-2 text-xs outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100" />
-                <button disabled={creating || newName.trim().length === 0} type="submit" title="Create canvas" className="grid size-9 shrink-0 place-items-center rounded-xl bg-slate-950 text-white hover:bg-indigo-700 disabled:opacity-50"><Plus className="size-4" /></button>
-              </form>}
-              {railTab === "history" && <div className="mt-2 flex items-center justify-between gap-2"><p className="text-[11px] text-slate-500">{selected ? selected.name : "Choose a canvas first"}</p><button type="button" onClick={() => void refreshHistory()} disabled={!selected || historyLoading} title="Refresh history" className="rounded-lg px-2 py-1 text-[10px] font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-40">Refresh</button></div>}
+                <button disabled={creating || newName.trim().length === 0 || limits.canvasesUsed >= limits.canvasLimit} type="submit" title={limits.canvasesUsed >= limits.canvasLimit ? "Company canvas limit reached" : "Create canvas"} className="grid size-9 shrink-0 place-items-center rounded-xl bg-slate-950 text-white hover:bg-indigo-700 disabled:opacity-50"><Plus className="size-4" /></button>
+              </form>
+              {limits.canvasesUsed >= limits.canvasLimit && <p className="mt-2 text-[10px] leading-4 text-amber-700">Limit reached. Ask a company administrator to change the plan allowance or delete an unused canvas.</p>}
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
-              {railTab === "canvases" ? <>
-                {loadingIndex && items.length === 0 && <p className="px-2 py-4 text-xs text-slate-500">Loading canvases…</p>}
-                {!loadingIndex && items.length === 0 && <div className="px-2 py-5 text-center"><FilePlus2 className="mx-auto size-6 text-slate-300" /><p className="mt-2 text-xs font-semibold text-slate-700">No canvases yet</p><p className="mt-1 text-[11px] text-slate-500">Create one to open the drawing workspace.</p></div>}
-                {items.map((item) => <button key={item.id} type="button" onClick={() => { if (item.id !== selectedId) void switchCanvas(item.id); }} className={"mb-1.5 w-full rounded-xl border p-3 text-left transition-colors " + (item.id === selectedId ? "border-indigo-200 bg-indigo-50/70" : "border-transparent bg-white hover:border-slate-200 hover:bg-slate-50")}>
-                  <span className="block truncate text-xs font-semibold text-slate-800">{item.name}</span><span className="mt-1.5 flex items-center justify-between gap-2 text-[10px] text-slate-500"><span>v{item.version}</span><span className="inline-flex items-center gap-1"><UsersRound className="size-3" />{item.memberCount}/{limits.maxCollaborators}</span></span><span className="mt-1 block truncate text-[10px] text-slate-400">{formatDate(item.updatedAt)}</span>
-                </button>)}
-              </> : <>
-                <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Company-wide history</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-800">{limits.historyUsed} of {limits.historyLimit} saved versions used</p>
-                  <p className="mt-1 text-[10px] leading-4 text-slate-500">Shared across all employees, canvases, and workspaces in this company.</p>
-                </div>
-                {!selected && <div className="rounded-xl border border-dashed border-slate-200 px-3 py-5 text-center"><History className="mx-auto size-5 text-slate-300" /><p className="mt-2 text-xs font-semibold text-slate-700">Select a canvas first</p><p className="mt-1 text-[10px] leading-4 text-slate-500">Its saved versions will appear here.</p><button type="button" onClick={() => setRailTab("canvases")} className="mt-3 rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-semibold text-slate-700">Browse canvases</button></div>}
-                {selected && historyLoading && <div className="flex items-center gap-2 px-2 py-5 text-xs text-slate-500"><LoaderCircle className="size-4 animate-spin" /> Loading saved versions…</div>}
-                {selected && !historyLoading && history.length === 0 && <div className="rounded-xl border border-dashed border-slate-200 px-3 py-6 text-center"><History className="mx-auto size-5 text-slate-300" /><p className="mt-2 text-xs font-semibold text-slate-700">No saved versions</p><p className="mt-1 text-[10px] leading-4 text-slate-500">Create a history point from the canvas toolbar.</p></div>}
-                {selected && !historyLoading && history.map((revision) => <article key={revision.id} className={"mb-2 rounded-xl border p-2.5 " + (viewingRevision?.id === revision.id ? "border-indigo-200 bg-indigo-50/70" : "border-slate-200 bg-white")}>
-                  {editingRevisionId === revision.id ? <form onSubmit={(event) => void renameHistoryRevision(event, revision.id)} className="space-y-2">
-                    <input value={revisionNameDraft} onChange={(event) => setRevisionNameDraft(event.target.value)} maxLength={80} required aria-label="History version name" className="w-full min-w-0 rounded-lg border border-slate-200 px-2 py-1.5 text-xs outline-none focus:border-indigo-400" autoFocus />
-                    <div className="flex justify-end gap-1"><button type="button" onClick={() => setEditingRevisionId(null)} className="rounded-lg border border-slate-200 px-2 py-1 text-[10px] text-slate-600">Cancel</button><button type="submit" className="rounded-lg bg-slate-950 px-2 py-1 text-[10px] font-semibold text-white">Save name</button></div>
-                  </form> : <>
-                    <button type="button" onClick={() => void previewRevision(revision.id)} disabled={loadingCanvas} className="block w-full text-left disabled:opacity-50">
-                      <span className="block break-words text-xs font-semibold text-slate-800">{revision.name}</span>
-                      <span className="mt-1 block text-[10px] text-slate-500">Version {revision.version} · {formatDate(revision.createdAt)}</span>
-                      <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-700"><History className="size-3" /> Preview saved version</span>
-                    </button>
-                    <div className="mt-2 flex flex-wrap items-center gap-1 border-t border-slate-100 pt-2">
-                      <button type="button" onClick={() => void restoreRevision(revision.id)} disabled={loadingCanvas} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-[10px] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"><RotateCcw className="size-3" /> Restore</button>
-                      <button type="button" onClick={() => { setRevisionNameDraft(revision.name); setEditingRevisionId(revision.id); }} aria-label={"Edit name for " + revision.name} title="Edit history name" className="grid size-7 place-items-center rounded-lg text-slate-500 hover:bg-slate-100"><Pencil className="size-3.5" /></button>
-                      <button type="button" onClick={() => void deleteHistoryRevision(revision.id)} aria-label={"Delete " + revision.name} title="Delete history version" className="grid size-7 place-items-center rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-700"><Trash2 className="size-3.5" /></button>
-                    </div>
-                  </>}
-                </article>)}
-              </>}
+              {loadingIndex && items.length === 0 && <p className="px-2 py-4 text-xs text-slate-500">Loading canvases…</p>}
+              {!loadingIndex && items.length === 0 && <div className="px-2 py-5 text-center"><FilePlus2 className="mx-auto size-6 text-slate-300" /><p className="mt-2 text-xs font-semibold text-slate-700">No canvases available</p><p className="mt-1 text-[11px] text-slate-500">Create a canvas to start planning, designing, or documenting your work.</p></div>}
+              {items.map((item) => <button key={item.id} type="button" onClick={() => { if (item.id !== selectedId) void switchCanvas(item.id); }} className={"mb-1.5 w-full rounded-xl border p-3 text-left transition-colors " + (item.id === selectedId ? "border-indigo-200 bg-indigo-50/70" : "border-transparent bg-white hover:border-slate-200 hover:bg-slate-50")}>
+                <span className="block truncate text-xs font-semibold text-slate-800">{item.name}</span><span className="mt-1.5 flex items-center justify-between gap-2 text-[10px] text-slate-500"><span className="inline-flex items-center gap-1"><UsersRound className="size-3" />{item.memberCount}/{limits.maxCollaborators} collaborators</span></span><span className="mt-1 block truncate text-[10px] text-slate-400">{formatDate(item.updatedAt)}</span>
+              </button>)}
             </div>
-            <div className="shrink-0 border-t border-slate-100 px-3 py-2.5"><p className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500"><ShieldCheck className="size-3.5 text-emerald-600" /> Isolated to {companyName}</p><p className="mt-1 text-[10px] leading-4 text-slate-400">Up to {limits.maxCollaborators} people/canvas · {limits.historyLimit} retained versions.</p></div>
+            <div className="shrink-0 border-t border-slate-100 px-3 py-2.5"><p className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500"><UsersRound className="size-3.5 text-emerald-600" /> Company workspace: {companyName}</p><p className="mt-1 text-[10px] leading-4 text-slate-400">Up to {limits.maxCollaborators} collaborators per canvas · {limits.canvasLimit} canvases for the whole company.</p></div>
           </aside>}
 
           <section className="flex min-h-0 min-w-0 flex-col overflow-hidden p-2 sm:p-3">
@@ -816,8 +628,7 @@ export default function TaskCanvasDashboard({
                 <div className="flex min-w-0 flex-1 items-center gap-2">
                   {renameOpen && canManageSelected ? <form onSubmit={renameCanvas} className="flex min-w-0 flex-1 gap-2"><input value={renameDraft} onChange={(event) => setRenameDraft(event.target.value)} maxLength={80} required aria-label="Canvas title" className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-sm outline-none focus:border-indigo-400" autoFocus /><button type="submit" className="rounded-lg bg-slate-950 px-2.5 py-1.5 text-xs font-semibold text-white">Save</button><button type="button" onClick={() => setRenameOpen(false)} className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs">Cancel</button></form> : <><h2 className="truncate text-sm font-semibold text-slate-900">{selected.name}</h2>{canManageSelected && <button type="button" title="Rename canvas" onClick={() => { setRenameDraft(selected.name); setRenameOpen(true); }} className="grid size-7 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-800"><Pencil className="size-3.5" /></button>}</>}
                 </div>
-                {viewingHistory && <button type="button" onClick={() => void returnToCurrentCanvas()} className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-indigo-50 px-2.5 py-1.5 text-[10px] font-semibold text-indigo-700 hover:bg-indigo-100"><RotateCcw className="size-3" /> Return to current</button>}
-                {canManageSelected && !viewingHistory && <button type="button" onClick={() => void deleteCanvas()} title="Delete canvas" className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="size-4" /></button>}<span className="shrink-0 text-[10px] text-slate-400">{viewingRevision ? "Preview · version " + viewingRevision.version : "Version " + selected.version}</span>
+                {canManageSelected && <button type="button" onClick={() => void deleteCanvas()} title="Delete canvas" className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="size-4" /></button>}
               </div>
               <div
                 className="min-h-0 flex-1 w-full bg-white"
@@ -826,14 +637,14 @@ export default function TaskCanvasDashboard({
               >
                 {loadingCanvas ? <div className="grid h-full place-items-center text-sm text-slate-500"><LoaderCircle className="mr-2 inline size-4 animate-spin" /> Opening canvas…</div> : <Excalidraw
                   key={selectedId}
-                  initialData={scene as never}
+                  initialData={{ ...scene, appState: { ...scene.appState, showWelcomeScreen: false } } as never}
                   excalidrawAPI={handleExcalidrawAPI}
-                  viewModeEnabled={viewingHistory}
+                  name={selected.name}
                   onChange={handleEditorChange}
                 />}
               </div>
-              <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/70 px-3 py-2 text-[10px] text-slate-500 sm:px-4"><span>{viewingHistory ? "Saved history preview · read-only. Restore it to make this the current canvas." : "Draw, write, connect ideas, add images, and export from Excalidraw’s built-in menus."}</span>{!viewingHistory && <button type="button" onClick={() => void checkpoint()} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 font-semibold text-indigo-700 hover:bg-indigo-50"><Save className="size-3" /> Create history point</button>}</div>
-            </div> : <div className="grid min-h-0 flex-1 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 text-center"><div className="max-w-sm"><div className="mx-auto grid size-12 place-items-center rounded-2xl bg-indigo-50 text-indigo-700"><FilePlus2 className="size-5" /></div><h2 className="mt-4 text-base font-semibold">No canvas open</h2><p className="mt-2 text-sm leading-6 text-slate-500">Choose a canvas or a saved history version from the left panel, or create a new canvas to start drawing. Nothing opens automatically.</p></div></div>}
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/70 px-3 py-2 text-[10px] text-slate-500 sm:px-4"><span>Draw, write, connect ideas, add images, and export from the drawing tools.</span><span className="font-semibold text-slate-400">Changes save automatically</span></div>
+            </div> : <div className="grid min-h-0 flex-1 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 text-center"><div className="max-w-sm"><div className="mx-auto grid size-12 place-items-center rounded-2xl bg-indigo-50 text-indigo-700"><FilePlus2 className="size-5" /></div><h2 className="mt-4 text-base font-semibold">No canvas open</h2><p className="mt-2 text-sm leading-6 text-slate-500">Choose a canvas from the left panel or create one to start drawing. Nothing opens automatically.</p></div></div>}
           </section>
         </div>
 

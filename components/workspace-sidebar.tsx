@@ -292,19 +292,18 @@ export default function WorkspaceSidebar({
                 </Link>
               );
             })}
-            <button type="button" onClick={() => open("meetings")} className={buttonClass(isActive("meetings"))} title={labels.meetings} aria-pressed={isActive("meetings")} data-sidebar-active={isActive("meetings") ? "true" : "false"} data-sidebar-key="meetings">
-              <CalendarDays className={`size-4 shrink-0 ${iconClass(isActive("meetings"))}`} />
-              <span className={collapsed ? "sr-only" : "min-w-0 truncate"}>{labels.meetings}</span>
-            </button>
             <button type="button" onClick={() => open("team")} className={buttonClass(isActive("team"))} title={labels.team} aria-pressed={isActive("team")} data-sidebar-active={isActive("team") ? "true" : "false"} data-sidebar-key="team">
               <UsersRound className={`size-4 shrink-0 ${iconClass(isActive("team"))}`} />
               <span className={collapsed ? "sr-only" : "min-w-0 truncate"}>{labels.team}</span>
             </button>
           </div>
 
-          {(taskManagementEnabled || taskCanvasEnabled || vaultEnabled || liveChatEnabled) && (
-            <div role="group" aria-label="Workspace Tools" className="mt-4">
+          <div role="group" aria-label="Workspace Tools" className="mt-4">
               {groupHeading("Workspace Tools")}
+              <button type="button" onClick={() => open("meetings")} className={buttonClass(isActive("meetings"))} title={labels.meetings} aria-pressed={isActive("meetings")} data-sidebar-active={isActive("meetings") ? "true" : "false"} data-sidebar-key="meetings">
+                <CalendarDays className={`size-4 shrink-0 ${iconClass(isActive("meetings"))}`} />
+                <span className={collapsed ? "sr-only" : "min-w-0 truncate"}>{labels.meetings}</span>
+              </button>
               {taskManagementEnabled && (
                 <Link href={"/dashboard/tasks" as Route} onClick={() => persistScrollPosition()} className={buttonClass(isTasks)} title="Task Management" aria-current={isTasks ? "page" : undefined} data-sidebar-active={isTasks ? "true" : "false"} data-sidebar-key="tasks">
                   <ClipboardList className={`size-4 shrink-0 ${iconClass(isTasks)}`} />
@@ -332,8 +331,7 @@ export default function WorkspaceSidebar({
                   {!collapsed && <span className="ml-auto rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">New</span>}
                 </Link>
               )}
-            </div>
-          )}
+          </div>
 
           {canManage && (
             <div role="group" aria-label="Workspace Management" className="mt-4">
@@ -413,26 +411,24 @@ export default function WorkspaceSidebar({
                 <Link href="/dashboard" onClick={(event) => { persistScrollPosition(); if (onNavigateOverview) { event.preventDefault(); onNavigateOverview(); } }} className={mobileItemClass(isDashboard)} title={labels.dashboard} aria-current={isDashboard ? "page" : undefined}>
                   <BarChart3 className="size-4 shrink-0" /><span className="min-w-0 truncate">{labels.dashboard}</span>
                 </Link>
-                <button type="button" onClick={() => open("meetings")} className={mobileItemClass(isActive("meetings"))} title={labels.meetings} aria-pressed={isActive("meetings")}>
-                  <CalendarDays className="size-4 shrink-0" /><span className="min-w-0 truncate">{labels.meetings}</span>
-                </button>
                 <button type="button" onClick={() => open("team")} className={mobileItemClass(isActive("team"))} title={labels.team} aria-pressed={isActive("team")}>
                   <UsersRound className="size-4 shrink-0" /><span className="min-w-0 truncate">{labels.team}</span>
                 </button>
               </div>
             </div>
 
-            {(taskManagementEnabled || taskCanvasEnabled || vaultEnabled || liveChatEnabled) && (
-              <div role="group" aria-label="Workspace Tools" className="mt-4">
+            <div role="group" aria-label="Workspace Tools" className="mt-4">
                 {mobileGroupHeading("Workspace Tools")}
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <button type="button" onClick={() => open("meetings")} className={mobileItemClass(isActive("meetings"))} title={labels.meetings} aria-pressed={isActive("meetings")}>
+                    <CalendarDays className="size-4 shrink-0" /><span className="min-w-0 truncate">{labels.meetings}</span>
+                  </button>
                   {taskManagementEnabled && <Link href={"/dashboard/tasks" as Route} onClick={() => persistScrollPosition()} className={mobileItemClass(isTasks)} title="Task Management" aria-current={isTasks ? "page" : undefined}><ClipboardList className="size-4 shrink-0" /><span className="min-w-0 truncate">Task Management</span><span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">New</span></Link>}
                   {taskCanvasEnabled && <Link href={"/dashboard/task-canvas" as Route} onClick={() => persistScrollPosition()} className={mobileItemClass(isTaskCanvas)} title="Task Canvas" aria-current={isTaskCanvas ? "page" : undefined}><PenTool className="size-4 shrink-0" /><span className="min-w-0 truncate">Task Canvas</span></Link>}
                   {vaultEnabled && <Link href={"/dashboard/vault" as Route} onClick={() => persistScrollPosition()} className={mobileItemClass(isVault)} title="Cloud Vault" aria-current={isVault ? "page" : undefined}><FolderOpen className="size-4 shrink-0" /><span className="min-w-0 truncate">Cloud Vault</span><span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">New</span></Link>}
                   {liveChatEnabled && <Link href={"/dashboard/live-chat" as Route} onClick={() => persistScrollPosition()} className={mobileItemClass(isLiveChat)} title="Live Chat" aria-current={isLiveChat ? "page" : undefined}><MessageCircle className="size-4 shrink-0" /><span className="min-w-0 truncate">Live Chat</span><span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">New</span></Link>}
                 </div>
               </div>
-            )}
 
             {canManage && (
               <div role="group" aria-label="Workspace Management" className="mt-4">

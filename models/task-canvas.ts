@@ -9,8 +9,7 @@ const taskCanvasSchema = new Schema(
     memberUserIds: { type: [Schema.Types.ObjectId], ref: "User", required: true, default: [] },
     scene: { type: Schema.Types.Mixed, required: true, default: () => ({ elements: [], appState: {}, files: {} }) },
     version: { type: Number, required: true, default: 1, min: 1 },
-    lastEditorUserId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    lastHistoryAt: { type: Date, default: null }
+    lastEditorUserId: { type: Schema.Types.ObjectId, ref: "User", required: true }
   },
   { timestamps: true, minimize: false }
 );

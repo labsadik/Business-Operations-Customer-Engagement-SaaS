@@ -4,9 +4,7 @@ import { jsonError, jsonOk } from "@/lib/http";
 import { Membership } from "@/models/membership";
 import { User } from "@/models/user";
 import { TaskCanvas } from "@/models/task-canvas";
-import { TaskCanvasRevision } from "@/models/task-canvas-revision";
-import { pruneCompanyTaskCanvasHistory } from "@/lib/task-canvas-history";
-import { requireTaskCanvasScope, taskCanvasErrorResponse } from "@/lib/task-canvas-authorization";
+import { getCompanyTaskCanvasCount, reserveTaskCanvasSlot, releaseTaskCanvasSlot, requireTaskCanvasScope, taskCanvasErrorResponse } from "@/lib/task-canvas-authorization";
 import { validateTaskCanvasName } from "@/features/task-canvas/shared/validation";
 
 export const runtime = "nodejs";
@@ -18,8 +16,7 @@ export async function GET() {
     const companyId = new Types.ObjectId(scope.companyId);
     const workspaceId = new Types.ObjectId(scope.workspaceId);
     const memberFilter = scope.isManager ? {} : { memberUserIds: new Types.ObjectId(scope.session.userId) };
-    await pruneCompanyTaskCanvasHistory(companyId, scope.historyLimit);
-    const [canvases, memberships, historyUsed] = await Promise.all([
+    const [canvases, memberships, canvasesUsed] = await Promise.all([
       TaskCanvas.find({ companyId, workspaceId, ...memberFilter })
         .select("name version createdByUserId memberUserIds updatedAt")
         .sort({ updatedAt: -1, _id: -1 })
@@ -30,7 +27,7 @@ export async function GET() {
         .sort({ createdAt: 1, _id: 1 })
         .limit(250)
         .lean(),
-      TaskCanvasRevision.countDocuments({ companyId })
+      getCompanyTaskCanvasCount(scope.companyId)
     ]);
 
     const ids = memberships.map((item) => item.userId);
@@ -68,8 +65,8 @@ export async function GET() {
       people,
       limits: {
         maxCollaborators: scope.maxCollaborators,
-        historyLimit: scope.historyLimit,
-        historyUsed
+        canvasLimit: scope.canvasLimit,
+        canvasesUsed
       }
     });
   } catch (error) {
@@ -86,11 +83,11 @@ export async function POST(request: Request) {
     const name = validateTaskCanvasName(body.name);
     const companyId = new Types.ObjectId(scope.companyId);
     const workspaceId = new Types.ObjectId(scope.workspaceId);
-    const count = await TaskCanvas.countDocuments({ companyId, workspaceId });
-    if (count >= 100) throw new Error("CANVAS_CREATION_LIMIT");
-
+    const canvasesUsed = await reserveTaskCanvasSlot(scope.companyId, scope.canvasLimit);
     const userId = new Types.ObjectId(scope.session.userId);
-    const canvas = await TaskCanvas.create({
+    const canvas = await (async () => {
+      try {
+        return await TaskCanvas.create({
       companyId,
       workspaceId,
       name,
@@ -98,9 +95,13 @@ export async function POST(request: Request) {
       memberUserIds: [userId],
       scene: { elements: [], appState: {}, files: {} },
       version: 1,
-      lastEditorUserId: userId,
-      lastHistoryAt: null
-    });
+      lastEditorUserId: userId
+        });
+      } catch (error) {
+        await releaseTaskCanvasSlot(scope.companyId);
+        throw error;
+      }
+    })();
 
     return jsonOk({
       item: {
@@ -111,6 +112,11 @@ export async function POST(request: Request) {
         memberUserIds: [String(userId)],
         memberCount: 1,
         updatedAt: canvas.updatedAt.toISOString()
+      },
+      limits: {
+        maxCollaborators: scope.maxCollaborators,
+        canvasLimit: scope.canvasLimit,
+        canvasesUsed
       }
     }, 201);
   } catch (error) {
