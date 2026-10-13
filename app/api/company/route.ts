@@ -421,7 +421,7 @@ export async function POST(request: Request) {
       const sequence = await CompanySequence.findOneAndUpdate(
         { _id: "company-public-id" },
         { $inc: { value: 1 } },
-        { new: true, session: tx }
+        { returnDocument: "after", session: tx }
       ).lean();
       if (!sequence || !Number.isSafeInteger(sequence.value) || sequence.value < 100001) {
         throw new Error("COMPANY_PUBLIC_ID_SEQUENCE_NOT_INITIALIZED");
