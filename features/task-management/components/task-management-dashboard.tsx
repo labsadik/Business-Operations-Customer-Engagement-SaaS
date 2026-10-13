@@ -84,7 +84,6 @@ type TaskDetails = {
   description: string;
   priority: TaskPriority;
   status: TaskStatus;
-  sprintId: string | null;
   dueAt: string | null;
   startedAt: string | null;
   completedAt: string | null;
