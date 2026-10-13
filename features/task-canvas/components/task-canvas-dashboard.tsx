@@ -366,7 +366,8 @@ export default function TaskCanvasDashboard({
       apiRef.current?.updateScene(next);
       setHistoryOpen(false);
       setSaveState("saved");
-      await openHistory();
+      const refreshedHistory = await api<{ items: Revision[]; historyLimit: number }>("/api/task-canvas/" + selected.id + "/history");
+      setHistory(refreshedHistory.items);
     } catch (cause) {
       setError(errorText((cause as Error).message));
     }
@@ -431,7 +432,7 @@ export default function TaskCanvasDashboard({
           </aside>
 
           <section className="min-w-0 p-2 sm:p-3">
-            {error && <div role="alert" className="mb-2 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-800"><AlertCircle className="mt-0.5 size-4 shrink-0" /><span className="min-w-0 flex-1">{error}</span><button type="button" aria-label="Dismiss error" onClick={() => setError("")}><X className="size-4" /></button></div>}
+            {error && <div role="alert" className="mb-2 flex flex-wrap items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-800"><AlertCircle className="mt-0.5 size-4 shrink-0" /><span className="min-w-0 flex-1">{error}</span>{saveState === "conflict" && selected && <button type="button" onClick={() => { if (window.confirm("Load the latest saved canvas and discard your unsaved local edits?")) void openCanvas(selected.id); }} className="shrink-0 rounded-lg border border-rose-300 bg-white px-2 py-1 font-semibold hover:bg-rose-100">Load latest</button>}<button type="button" aria-label="Dismiss error" onClick={() => setError("")}><X className="size-4" /></button></div>}
             {selected ? <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3 py-2.5 sm:px-4">
                 <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -446,7 +447,7 @@ export default function TaskCanvasDashboard({
                   excalidrawAPI={(api) => { apiRef.current = api as unknown as CanvasBridge; }}
                   onChange={(elements, appState, files) => {
                     if (Date.now() < suppressUntilRef.current) return;
-                    scheduleSave(getPersistedScene(elements, appState as unknown as Record<string, unknown>, files as unknown as Record<string, unknown>));
+                    scheduleSave(getPersistedScene(elements as unknown[], appState as unknown as Record<string, unknown>, files as unknown as Record<string, unknown>));
                   }}
                 />}
               </div>
