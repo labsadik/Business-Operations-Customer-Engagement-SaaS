@@ -81,6 +81,10 @@ function mergeScenes(local: Scene, remote: Scene): Scene {
   };
 }
 
+function setSuppressionWindow(target: { current: number }, milliseconds: number) {
+  target.current = Date.now() + milliseconds;
+}
+
 function formatDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Recently";
@@ -176,7 +180,7 @@ export default function TaskCanvasDashboard({
       setLimits(data.limits);
       setSaveState("saved");
       setError("");
-      suppressUntilRef.current = Date.now() + 1400;
+      setSuppressionWindow(suppressUntilRef, 1400);
     } catch (cause) {
       if (token === loadTokenRef.current) {
         setError(errorText((cause as Error).message));
@@ -188,7 +192,6 @@ export default function TaskCanvasDashboard({
   }, []);
 
   const refreshIndex = useCallback(async () => {
-    setLoadingIndex(true);
     try {
       const data = await api<{ items: CanvasItem[]; people: Person[]; limits: { maxCollaborators: number; historyLimit: number } }>("/api/task-canvas");
       setItems(data.items);
@@ -241,7 +244,7 @@ export default function TaskCanvasDashboard({
             sceneRef.current = merged;
             setScene(merged);
             apiRef.current?.updateScene(merged);
-            suppressUntilRef.current = Date.now() + 1200;
+            setSuppressionWindow(suppressUntilRef, 1200);
             mergeRetriesRef.current += 1;
             editSerialRef.current += 1;
             dirtyRef.current = true;
@@ -312,7 +315,7 @@ export default function TaskCanvasDashboard({
         sceneRef.current = next;
         setScene(next);
         setItems((current) => current.map((item) => item.id === selectedId ? { ...item, ...latest.item } : item));
-        suppressUntilRef.current = Date.now() + 1400;
+        setSuppressionWindow(suppressUntilRef, 1400);
         apiRef.current?.updateScene(next);
         setSaveState("saved");
       } catch {
@@ -419,7 +422,7 @@ export default function TaskCanvasDashboard({
       setScene(next);
       dirtyRef.current = false;
       setItems((current) => current.map((item) => item.id === selected.id ? { ...item, version: result.version } : item));
-      suppressUntilRef.current = Date.now() + 1400;
+      setSuppressionWindow(suppressUntilRef, 1400);
       apiRef.current?.updateScene(next);
       setHistoryOpen(false);
       setSaveState("saved");
@@ -508,14 +511,14 @@ export default function TaskCanvasDashboard({
                   }}
                 />}
               </div>
-              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/70 px-3 py-2 text-[10px] text-slate-500 sm:px-4"><span>Draw, write, connect ideas, add images, and export from Excalidraw's built-in menus.</span><button type="button" onClick={() => void checkpoint()} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 font-semibold text-indigo-700 hover:bg-indigo-50"><Save className="size-3" /> Create history point</button></div>
-            </div> : <div className="grid min-h-[560px] place-items-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 text-center"><div className="max-w-sm"><div className="mx-auto grid size-12 place-items-center rounded-2xl bg-indigo-50 text-indigo-700"><FilePlus2 className="size-5" /></div><h2 className="mt-4 text-base font-semibold">Your team's visual workspace</h2><p className="mt-2 text-sm leading-6 text-slate-500">Create a canvas to map workflows, brainstorm ideas, sketch diagrams, and keep versioned team notes together.</p></div></div>}
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/70 px-3 py-2 text-[10px] text-slate-500 sm:px-4"><span>Draw, write, connect ideas, add images, and export from Excalidraw&apos;s built-in menus.</span><button type="button" onClick={() => void checkpoint()} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 font-semibold text-indigo-700 hover:bg-indigo-50"><Save className="size-3" /> Create history point</button></div>
+            </div> : <div className="grid min-h-[560px] place-items-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 text-center"><div className="max-w-sm"><div className="mx-auto grid size-12 place-items-center rounded-2xl bg-indigo-50 text-indigo-700"><FilePlus2 className="size-5" /></div><h2 className="mt-4 text-base font-semibold">Your team&apos;s visual workspace</h2><p className="mt-2 text-sm leading-6 text-slate-500">Create a canvas to map workflows, brainstorm ideas, sketch diagrams, and keep versioned team notes together.</p></div></div>}
           </section>
         </div>
 
         {peopleOpen && selected && <div className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/35 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setPeopleOpen(false); }}>
           <section role="dialog" aria-modal="true" aria-labelledby="task-canvas-people-title" className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-t-3xl border border-slate-200 bg-white p-5 shadow-2xl sm:rounded-3xl">
-            <div className="flex items-start justify-between gap-3"><div><h2 id="task-canvas-people-title" className="text-base font-semibold">Canvas collaborators</h2><p className="mt-1 text-xs text-slate-500">Only active members of {companyName}'s workspace can be added.</p></div><button type="button" onClick={() => setPeopleOpen(false)} aria-label="Close collaborators" className="grid size-8 place-items-center rounded-lg hover:bg-slate-100"><X className="size-4" /></button></div>
+            <div className="flex items-start justify-between gap-3"><div><h2 id="task-canvas-people-title" className="text-base font-semibold">Canvas collaborators</h2><p className="mt-1 text-xs text-slate-500">Only active members of {companyName}&apos;s workspace can be added.</p></div><button type="button" onClick={() => setPeopleOpen(false)} aria-label="Close collaborators" className="grid size-8 place-items-center rounded-lg hover:bg-slate-100"><X className="size-4" /></button></div>
             <p className="mt-4 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">Select up to {limits.maxCollaborators} people, including the canvas owner.</p>{!canManageSelected && <p className="mt-3 text-xs text-slate-500">Only the canvas owner or a company administrator can change access.</p>}
             <div className="mt-3 space-y-1">{people.map((person) => {
               const checked = selectedMembers.includes(person.id);
