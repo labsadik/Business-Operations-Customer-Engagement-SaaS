@@ -83,3 +83,65 @@ test("Live Chat remains in the shared sidebar across workspace routes", async ()
   assert.match(profile, /setLiveChatEnabled\(Boolean\(data\.currentPlan\?\.liveChatEnabled\)\)/);
   assert.match(profile, /liveChatEnabled=\{liveChatEnabled\}/);
 });
+
+
+test("every company workspace feature route has its own loading fallback", async () => {
+  const paths = [
+    ["app/dashboard/tasks/loading.tsx", /WorkspaceSectionLoading section="tasks"/],
+    ["app/dashboard/task-canvas/loading.tsx", /WorkspaceSectionLoading section="task-canvas"/],
+    ["app/dashboard/vault/loading.tsx", /WorkspaceSectionLoading section="vault"/],
+    ["app/dashboard/live-chat/loading.tsx", /WorkspaceSectionLoading section="live-chat"/],
+    ["app/dashboard/company-profile/loading.tsx", /CompanyProfileLoading/]
+  ] as const;
+  const [routeLoading, ...entries] = await Promise.all([
+    read("components/route-loading.tsx"),
+    ...paths.map(([path]) => read(path))
+  ]);
+  assert.match(routeLoading, /export function WorkspaceSectionLoading/);
+  for (const [index, [, expected]] of paths.entries()) {
+    assert.match(entries[index], expected);
+  }
+});
+
+test("company workspace long lists load five records at a time with explicit progress feedback", async () => {
+  const paths = [
+    "app/api/task-canvas/route.ts",
+    "features/task-canvas/components/task-canvas-dashboard.tsx",
+    "app/api/live-chat/route.ts",
+    "app/api/live-chat/conversations/[conversationId]/messages/route.ts",
+    "components/live-chat-dashboard.tsx",
+    "app/api/company/announcement/route.ts",
+    "app/api/company/invitations/route.ts",
+    "app/api/billing/invoices/route.ts",
+    "components/workspace-dashboard.tsx",
+    "app/dashboard/vault/page.tsx",
+    "app/api/company/support-tickets/route.ts",
+    "components/workspace-support-tickets.tsx",
+    "app/api/company/feedback/route.ts",
+    "components/workspace-feedback.tsx"
+  ];
+  const [canvasApi, canvasUi, chatApi, messagesApi, chatUi, announcements, invitations, invoices, workspace, vaultPage, supportApi, supportUi, feedbackApi, feedbackUi] = await Promise.all(paths.map(read));
+  assert.match(canvasApi, /parseListLimit/);
+  assert.match(canvasApi, /nextCursor: hasMoreCanvases/);
+  assert.match(canvasUi, /Load 5 more canvases/);
+  assert.match(canvasUi, /Load 5 more members/);
+  assert.match(chatApi, /nextCursor:/);
+  assert.match(chatApi, /\.limit\(limit \+ 1\)/);
+  assert.match(messagesApi, /nextCursor:/);
+  assert.match(chatUi, /Load 5 more conversations/);
+  assert.match(chatUi, /Load 5 older messages/);
+  assert.match(announcements, /encodeListCursor/);
+  assert.match(invitations, /encodeListCursor/);
+  assert.match(invoices, /encodeListCursor/);
+  assert.match(workspace, /Load 5 more announcements/);
+  assert.match(workspace, /Load 5 more invitations/);
+  assert.match(workspace, /Load 5 more invoices/);
+  assert.match(vaultPage, /const PAGE_SIZE = 5/);
+  assert.match(supportApi, /\.limit\(limit \+ 1\)/);
+  assert.match(supportUi, /limit=5/);
+  assert.match(supportUi, /Load 5 more tickets/);
+  assert.match(feedbackApi, /customerHasNext/);
+  assert.match(feedbackApi, /companyHasNext/);
+  assert.match(feedbackUi, /Load 5 more reviews/);
+  assert.match(feedbackUi, /Load 5 more feedback items/);
+});

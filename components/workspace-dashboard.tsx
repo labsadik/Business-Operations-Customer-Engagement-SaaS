@@ -448,6 +448,12 @@ export default function WorkspaceDashboard({
   const [loadingMoreEmployees, setLoadingMoreEmployees] = useState(false);
   const employeesRef = useRef<Employee[]>([]);
   const employeeCursorRef = useRef<string | null>(null);
+  const announcementsRef = useRef<AnnouncementItem[]>([]);
+  const announcementsCursorRef = useRef<string | null>(null);
+  const invitationsRef = useRef<InvitationItem[]>([]);
+  const invitationsCursorRef = useRef<string | null>(null);
+  const invoicesRef = useRef<InvoiceItem[]>([]);
+  const invoicesCursorRef = useRef<string | null>(null);
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [modalRequests, setModalRequests] = useState<RequestItem[]>([]);
   const [modalRequestNextCursor, setModalRequestNextCursor] = useState<string | null>(null);
@@ -464,8 +470,14 @@ export default function WorkspaceDashboard({
   const [meetingDateFilter, setMeetingDateFilter] = useState("");
   const [meetingActivitySummary, setMeetingActivitySummary] = useState<MeetingActivitySummary | null>(null);
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
+  const [announcementsNextCursor, setAnnouncementsNextCursor] = useState<string | null>(null);
+  const [loadingMoreAnnouncements, setLoadingMoreAnnouncements] = useState(false);
   const [invitations, setInvitations] = useState<InvitationItem[]>([]);
+  const [invitationsNextCursor, setInvitationsNextCursor] = useState<string | null>(null);
+  const [loadingMoreInvitations, setLoadingMoreInvitations] = useState(false);
   const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
+  const [invoicesNextCursor, setInvoicesNextCursor] = useState<string | null>(null);
+  const [loadingMoreInvoices, setLoadingMoreInvoices] = useState(false);
   const [teamTab, setTeamTab] = useState<TeamTab>("members");
   const [activeModal, setActiveModal] = useState<ModalName>(null);
   const [settingsSection, setSettingsSection] = useState<"public" | "announcements">("public");
@@ -511,11 +523,17 @@ export default function WorkspaceDashboard({
   useEffect(() => {
     employeesRef.current = employees;
     employeeCursorRef.current = employeeNextCursor;
+    announcementsRef.current = announcements;
+    announcementsCursorRef.current = announcementsNextCursor;
+    invitationsRef.current = invitations;
+    invitationsCursorRef.current = invitationsNextCursor;
+    invoicesRef.current = invoices;
+    invoicesCursorRef.current = invoicesNextCursor;
     modalRequestsRef.current = modalRequests;
     modalRequestCursorRef.current = modalRequestNextCursor;
     modalMeetingHistoryRef.current = modalMeetingHistory;
     meetingHistoryCursorRef.current = meetingHistoryCursor;
-  }, [employees, employeeNextCursor, modalRequests, modalRequestNextCursor, modalMeetingHistory, meetingHistoryCursor]);
+  }, [employees, employeeNextCursor, announcements, announcementsNextCursor, invitations, invitationsNextCursor, invoices, invoicesNextCursor, modalRequests, modalRequestNextCursor, modalMeetingHistory, meetingHistoryCursor]);
   const closeFeedbackModal = useCallback(() => {
     setActiveModal(null);
     router.push("/dashboard");
@@ -604,7 +622,7 @@ export default function WorkspaceDashboard({
         settle(api<CompanyData | null>("/api/company")),
         settle(api<EmployeePage>("/api/company/employees?limit=5")),
         settle(api<RequestItem[]>("/api/employee/requests?limit=5")),
-        settle(api<AnnouncementItem[]>("/api/company/announcement"))
+        settle(api<{ items: AnnouncementItem[]; nextCursor: string | null }>("/api/company/announcement?paginated=true&limit=5"))
       ]);
       if (!companyResult.ok) throw new Error("COMPANY_DATA_LOAD_FAILED");
       const company = companyResult.value;
@@ -618,6 +636,9 @@ export default function WorkspaceDashboard({
         employeesRef.current = [];
         setRequests([]);
         setAnnouncements([]);
+        announcementsRef.current = [];
+        announcementsCursorRef.current = null;
+        setAnnouncementsNextCursor(null);
         setInitialLoadFailed(false);
         setError("");
         return;
@@ -649,7 +670,26 @@ export default function WorkspaceDashboard({
 
       const announcementManager = ["COMPANY_ADMIN"].includes(company.currentRole);
       if (announcementResult.ok) {
-        setAnnouncements(announcementManager ? announcementResult.value : []);
+        const page = announcementResult.value;
+        if (announcementManager) {
+          const previous = announcementsRef.current;
+          const keepLoadedTail = previous.length > 5;
+          const refreshedById = new Map(page.items.map((item) => [item.id, item]));
+          const nextItems = keepLoadedTail
+            ? [...page.items, ...previous.map((item) => refreshedById.get(item.id) ?? item).filter((item) => !refreshedById.has(item.id))]
+            : page.items;
+          announcementsRef.current = nextItems;
+          setAnnouncements(nextItems);
+          if (!keepLoadedTail || !announcementsCursorRef.current) {
+            announcementsCursorRef.current = page.nextCursor;
+            setAnnouncementsNextCursor(page.nextCursor);
+          }
+        } else {
+          announcementsRef.current = [];
+          announcementsCursorRef.current = null;
+          setAnnouncements([]);
+          setAnnouncementsNextCursor(null);
+        }
         setAnnouncementManagementError("");
       } else if (announcementManager) {
         setAnnouncementManagementError("ANNOUNCEMENT_MANAGEMENT_READ_FAILED");
@@ -689,6 +729,75 @@ export default function WorkspaceDashboard({
       setError("MORE_EMPLOYEES_LOAD_FAILED");
     } finally {
       setLoadingMoreEmployees(false);
+    }
+  }
+
+  function resetAnnouncementsPagination() {
+    // Invalidate only the paging cursor. Keep visible rows on screen while the
+    // first page refreshes after a mutation.
+    announcementsCursorRef.current = null;
+    setAnnouncementsNextCursor(null);
+  }
+
+  function resetInvitationsPagination() {
+    invitationsCursorRef.current = null;
+    setInvitationsNextCursor(null);
+  }
+
+  async function loadMoreAnnouncements() {
+    const cursor = announcementsCursorRef.current;
+    if (!cursor || loadingMoreAnnouncements) return;
+    setLoadingMoreAnnouncements(true);
+    try {
+      const page = await api<{ items: AnnouncementItem[]; nextCursor: string | null }>("/api/company/announcement?paginated=true&limit=5&cursor=" + encodeURIComponent(cursor));
+      const known = new Set(announcementsRef.current.map((item) => item.id));
+      const nextItems = [...announcementsRef.current, ...page.items.filter((item) => !known.has(item.id))];
+      announcementsRef.current = nextItems;
+      setAnnouncements(nextItems);
+      announcementsCursorRef.current = page.nextCursor;
+      setAnnouncementsNextCursor(page.nextCursor);
+    } catch {
+      setAnnouncementManagementError("ANNOUNCEMENT_MANAGEMENT_READ_FAILED");
+    } finally {
+      setLoadingMoreAnnouncements(false);
+    }
+  }
+
+  async function loadMoreInvitations() {
+    const cursor = invitationsCursorRef.current;
+    if (!cursor || loadingMoreInvitations) return;
+    setLoadingMoreInvitations(true);
+    try {
+      const page = await api<{ items: InvitationItem[]; nextCursor: string | null }>("/api/company/invitations?paginated=true&limit=5&cursor=" + encodeURIComponent(cursor));
+      const known = new Set(invitationsRef.current.map((item) => item.id));
+      const nextItems = [...invitationsRef.current, ...page.items.filter((item) => !known.has(item.id))];
+      invitationsRef.current = nextItems;
+      setInvitations(nextItems);
+      invitationsCursorRef.current = page.nextCursor;
+      setInvitationsNextCursor(page.nextCursor);
+    } catch {
+      setInvitationsError("INVITATION_LIST_FAILED");
+    } finally {
+      setLoadingMoreInvitations(false);
+    }
+  }
+
+  async function loadMoreInvoices() {
+    const cursor = invoicesCursorRef.current;
+    if (!cursor || loadingMoreInvoices) return;
+    setLoadingMoreInvoices(true);
+    try {
+      const page = await api<{ items: InvoiceItem[]; nextCursor: string | null }>("/api/billing/invoices?paginated=true&limit=5&cursor=" + encodeURIComponent(cursor));
+      const known = new Set(invoicesRef.current.map((item) => item.id));
+      const nextItems = [...invoicesRef.current, ...page.items.filter((item) => !known.has(item.id))];
+      invoicesRef.current = nextItems;
+      setInvoices(nextItems);
+      invoicesCursorRef.current = page.nextCursor;
+      setInvoicesNextCursor(page.nextCursor);
+    } catch {
+      setBillingError("INVOICE_LIST_FAILED");
+    } finally {
+      setLoadingMoreInvoices(false);
     }
   }
 
@@ -894,7 +1003,17 @@ export default function WorkspaceDashboard({
     setInvitesLoading(true);
     setInvitationsError("");
     try {
-      setInvitations(await api<InvitationItem[]>("/api/company/invitations"));
+      const page = await api<{ items: InvitationItem[]; nextCursor: string | null }>("/api/company/invitations?paginated=true&limit=5");
+      const previous = invitationsRef.current;
+      const keepLoadedTail = previous.length > 5;
+      const refreshedIds = new Set(page.items.map((item) => item.id));
+      const nextItems = keepLoadedTail ? [...page.items, ...previous.filter((item) => !refreshedIds.has(item.id))] : page.items;
+      invitationsRef.current = nextItems;
+      setInvitations(nextItems);
+      if (!keepLoadedTail || !invitationsCursorRef.current) {
+        invitationsCursorRef.current = page.nextCursor;
+        setInvitationsNextCursor(page.nextCursor);
+      }
     } catch {
       setInvitationsError("INVITATION_LIST_FAILED");
     } finally {
@@ -907,7 +1026,17 @@ export default function WorkspaceDashboard({
     setBillingLoading(true);
     setBillingError("");
     try {
-      setInvoices(await api<InvoiceItem[]>("/api/billing/invoices"));
+      const page = await api<{ items: InvoiceItem[]; nextCursor: string | null }>("/api/billing/invoices?paginated=true&limit=5");
+      const previous = invoicesRef.current;
+      const keepLoadedTail = previous.length > 5;
+      const refreshedIds = new Set(page.items.map((item) => item.id));
+      const nextItems = keepLoadedTail ? [...page.items, ...previous.filter((item) => !refreshedIds.has(item.id))] : page.items;
+      invoicesRef.current = nextItems;
+      setInvoices(nextItems);
+      if (!keepLoadedTail || !invoicesCursorRef.current) {
+        invoicesCursorRef.current = page.nextCursor;
+        setInvoicesNextCursor(page.nextCursor);
+      }
     } catch {
       setBillingError("INVOICE_LIST_FAILED");
     } finally {
@@ -1156,6 +1285,7 @@ export default function WorkspaceDashboard({
       setAnnouncementEditingId(null);
       setAnnouncementTitle("");
       setAnnouncementMessage("");
+      resetAnnouncementsPagination();
       await refreshAll();
     } catch (err) {
       setError(err instanceof Error ? err.message : "ANNOUNCEMENT_UPDATE_FAILED");
@@ -1171,6 +1301,8 @@ export default function WorkspaceDashboard({
         method: "PATCH",
         body: JSON.stringify({ id: item.id, active: !item.active })
       });
+      setAnnouncements((current) => current.map((entry) => entry.id === item.id ? { ...entry, active: !item.active } : entry));
+      resetAnnouncementsPagination();
       await refreshAll();
     } catch (err) {
       setError(err instanceof Error ? err.message : "ANNOUNCEMENT_UPDATE_FAILED");
@@ -1185,7 +1317,11 @@ export default function WorkspaceDashboard({
       await api(`/api/company/announcement?id=${encodeURIComponent(id)}`, {
         method: "DELETE"
       });
+      const remainingAnnouncements = announcementsRef.current.filter((item) => item.id !== id);
+      announcementsRef.current = remainingAnnouncements;
+      setAnnouncements(remainingAnnouncements);
       if (announcementEditingId === id) setAnnouncementEditorOpen(false);
+      resetAnnouncementsPagination();
       await refreshAll();
     } catch (err) {
       setError(err instanceof Error ? err.message : "ANNOUNCEMENT_DELETE_FAILED");
@@ -1207,6 +1343,7 @@ export default function WorkspaceDashboard({
       });
       setInviteEmail("");
       setInviteLink(result.inviteUrl);
+      resetInvitationsPagination();
       await Promise.all([refreshAll(), loadInvitations()]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "INVITE_FAILED");
@@ -1238,6 +1375,10 @@ export default function WorkspaceDashboard({
       await api(`/api/company/invitations/${encodeURIComponent(id)}`, {
         method: "DELETE"
       });
+      const remainingInvitations = invitationsRef.current.filter((item) => item.id !== id);
+      invitationsRef.current = remainingInvitations;
+      setInvitations(remainingInvitations);
+      resetInvitationsPagination();
       await loadInvitations();
     } catch (err) {
       setError(err instanceof Error ? err.message : "INVITATION_CANCEL_FAILED");
@@ -1255,6 +1396,7 @@ export default function WorkspaceDashboard({
         { method: "POST" }
       );
       setInviteLink(result.inviteUrl);
+      resetInvitationsPagination();
       await loadInvitations();
     } catch (err) {
       setError(err instanceof Error ? err.message : "INVITATION_RESEND_FAILED");
@@ -2591,6 +2733,7 @@ export default function WorkspaceDashboard({
                 ))
               )}
             </div>
+            {announcementsNextCursor && <div className="border-t border-slate-100 p-3 text-center"><button type="button" onClick={() => void loadMoreAnnouncements()} disabled={loadingMoreAnnouncements} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><RefreshCw className={"size-3.5 " + (loadingMoreAnnouncements ? "animate-spin" : "")} />{loadingMoreAnnouncements ? "Loading 5 more announcements…" : "Load 5 more announcements"}</button></div>}
           </section>
         </div>
       </AppModal>
@@ -2793,6 +2936,7 @@ export default function WorkspaceDashboard({
                         </div>
                       </div>
                     ))}
+                    {invitationsNextCursor && <div className="flex justify-center pt-2"><button type="button" onClick={() => void loadMoreInvitations()} disabled={loadingMoreInvitations} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><RefreshCw className={"size-3.5 " + (loadingMoreInvitations ? "animate-spin" : "")} />{loadingMoreInvitations ? "Loading 5 more invitations…" : "Load 5 more invitations"}</button></div>}
                   </div>
                 )}
               </div>
@@ -3051,6 +3195,7 @@ export default function WorkspaceDashboard({
                     </div>
                   );
                 })}
+                {invoicesNextCursor && <div className="border-t border-slate-100 p-4 text-center"><button type="button" onClick={() => void loadMoreInvoices()} disabled={loadingMoreInvoices} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><RefreshCw className={"size-3.5 " + (loadingMoreInvoices ? "animate-spin" : "")} />{loadingMoreInvoices ? "Loading 5 more invoices…" : "Load 5 more invoices"}</button></div>}
               </div>
             )}
           </section>

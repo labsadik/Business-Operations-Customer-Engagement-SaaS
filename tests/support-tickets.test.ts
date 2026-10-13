@@ -174,8 +174,8 @@ test("company support ticket UI has accessible modal controls, counters, paginat
   has(ui, "Submit ticket");
   has(ui, "Cancel");
   has(ui, "Your signed-in company identity and workspace are attached automatically");
-  has(ui, "Previous");
-  has(ui, "Next");
+  has(ui, "Load 5 more tickets");
+  has(ui, "Loading 5 more tickets…");
   has(ui, "SUPPORT_TICKET_DUPLICATE");
   has(ui, "SUPPORT_TICKET_RATE_LIMITED");
 });

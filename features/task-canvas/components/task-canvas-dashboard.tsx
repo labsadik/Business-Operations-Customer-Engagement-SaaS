@@ -209,6 +209,10 @@ export default function TaskCanvasDashboard({
   const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useWorkspaceSidebarState();
   const [items, setItems] = useState<CanvasItem[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [peopleNextCursor, setPeopleNextCursor] = useState<string | null>(null);
+  const [loadingMoreCanvases, setLoadingMoreCanvases] = useState(false);
+  const [loadingMorePeople, setLoadingMorePeople] = useState(false);
   const [limits, setLimits] = useState({ maxCollaborators, canvasLimit, canvasesUsed: 0 });
   const [selectedId, setSelectedId] = useState("");
   const [scene, setScene] = useState<Scene>(EMPTY_SCENE);
@@ -293,9 +297,11 @@ export default function TaskCanvasDashboard({
 
   const refreshIndex = useCallback(async () => {
     try {
-      const data = await api<{ items: CanvasItem[]; people: Person[]; limits: { maxCollaborators: number; canvasLimit: number; canvasesUsed: number } }>("/api/task-canvas");
+      const data = await api<{ items: CanvasItem[]; people: Person[]; nextCursor: string | null; peopleNextCursor: string | null; limits: { maxCollaborators: number; canvasLimit: number; canvasesUsed: number } }>("/api/task-canvas?limit=5");
       setItems(data.items);
       setPeople(data.people);
+      setNextCursor(data.nextCursor);
+      setPeopleNextCursor(data.peopleNextCursor);
       setLimits(data.limits);
       setError("");
     } catch (cause) {
@@ -304,6 +310,44 @@ export default function TaskCanvasDashboard({
       setLoadingIndex(false);
     }
   }, []);
+
+  const loadMoreCanvases = async () => {
+    if (!nextCursor || loadingMoreCanvases) return;
+    setLoadingMoreCanvases(true);
+    try {
+      const data = await api<{ items: CanvasItem[]; nextCursor: string | null; limits: { maxCollaborators: number; canvasLimit: number; canvasesUsed: number } }>("/api/task-canvas?list=canvases&limit=5&cursor=" + encodeURIComponent(nextCursor));
+      setItems((current) => {
+        const known = new Set(current.map((item) => item.id));
+        return [...current, ...data.items.filter((item) => !known.has(item.id))];
+      });
+      setNextCursor(data.nextCursor);
+      setLimits(data.limits);
+      setError("");
+    } catch (cause) {
+      setError(errorText((cause as Error).message));
+    } finally {
+      setLoadingMoreCanvases(false);
+    }
+  };
+
+  const loadMorePeople = async () => {
+    if (!peopleNextCursor || loadingMorePeople) return;
+    setLoadingMorePeople(true);
+    try {
+      const data = await api<{ people: Person[]; peopleNextCursor: string | null; limits: { maxCollaborators: number; canvasLimit: number; canvasesUsed: number } }>("/api/task-canvas?list=people&limit=5&peopleCursor=" + encodeURIComponent(peopleNextCursor));
+      setPeople((current) => {
+        const known = new Set(current.map((person) => person.id));
+        return [...current, ...data.people.filter((person) => !known.has(person.id))];
+      });
+      setPeopleNextCursor(data.peopleNextCursor);
+      setLimits(data.limits);
+      setError("");
+    } catch (cause) {
+      setError(errorText((cause as Error).message));
+    } finally {
+      setLoadingMorePeople(false);
+    }
+  };
 
   const persistScene = useCallback(async (nextScene: Scene) => {
     const canvasId = selectedIdRef.current;
@@ -617,6 +661,7 @@ export default function TaskCanvasDashboard({
               {items.map((item) => <button key={item.id} type="button" onClick={() => { if (item.id !== selectedId) void switchCanvas(item.id); }} className={"mb-1.5 w-full rounded-xl border p-3 text-left transition-colors " + (item.id === selectedId ? "border-indigo-200 bg-indigo-50/70" : "border-transparent bg-white hover:border-slate-200 hover:bg-slate-50")}>
                 <span className="block truncate text-xs font-semibold text-slate-800">{item.name}</span><span className="mt-1.5 flex items-center justify-between gap-2 text-[10px] text-slate-500"><span className="inline-flex items-center gap-1"><UsersRound className="size-3" />{item.memberCount}/{limits.maxCollaborators} collaborators</span></span><span className="mt-1 block truncate text-[10px] text-slate-400">{formatDate(item.updatedAt)}</span>
               </button>)}
+              {nextCursor && <button type="button" onClick={() => void loadMoreCanvases()} disabled={loadingMoreCanvases} className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">{loadingMoreCanvases && <LoaderCircle className="size-3.5 animate-spin" />}{loadingMoreCanvases ? "Loading 5 more canvases…" : "Load 5 more canvases"}</button>}
             </div>
             <div className="shrink-0 border-t border-slate-100 px-3 py-2.5"><p className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500"><UsersRound className="size-3.5 text-emerald-600" /> Company workspace: {companyName}</p><p className="mt-1 text-[10px] leading-4 text-slate-400">Up to {limits.maxCollaborators} collaborators per canvas · {limits.canvasLimit} canvases for the whole company.</p></div>
           </aside>}
@@ -644,7 +689,7 @@ export default function TaskCanvasDashboard({
                 />}
               </div>
               <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/70 px-3 py-2 text-[10px] text-slate-500 sm:px-4"><span>Draw, write, connect ideas, add images, and export from the drawing tools.</span><span className="font-semibold text-slate-400">Changes save automatically</span></div>
-            </div> : <div className="grid min-h-0 flex-1 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 text-center"><div className="max-w-sm"><div className="mx-auto grid size-12 place-items-center rounded-2xl bg-indigo-50 text-indigo-700"><FilePlus2 className="size-5" /></div><h2 className="mt-4 text-base font-semibold">No canvas open</h2><p className="mt-2 text-sm leading-6 text-slate-500">Choose a canvas from the left panel or create one to start drawing. Nothing opens automatically.</p></div></div>}
+            </div> : loadingIndex ? <div role="status" className="grid min-h-0 flex-1 place-items-center rounded-2xl border border-slate-200 bg-white px-6 text-center"><div className="max-w-sm"><LoaderCircle className="mx-auto size-6 animate-spin text-indigo-600" /><h2 className="mt-3 text-sm font-semibold text-slate-800">Loading your canvases</h2><p className="mt-1 text-xs text-slate-500">Your boards and workspace members are being loaded.</p></div></div> : <div className="grid min-h-0 flex-1 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 text-center"><div className="max-w-sm"><div className="mx-auto grid size-12 place-items-center rounded-2xl bg-indigo-50 text-indigo-700"><FilePlus2 className="size-5" /></div><h2 className="mt-4 text-base font-semibold">No canvas open</h2><p className="mt-2 text-sm leading-6 text-slate-500">Choose a canvas from the left panel or create one to start drawing. Nothing opens automatically.</p></div></div>}
           </section>
         </div>
 
@@ -661,7 +706,7 @@ export default function TaskCanvasDashboard({
                 <UserAvatar name={person.name} email={person.email} image={person.image} size={32} className="border-indigo-100 bg-indigo-50 text-indigo-700" />
                 <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-slate-800">{person.name}{owner ? " · Owner" : ""}</span><span className="block truncate text-[10px] text-slate-500">{person.email}</span></span><span className="text-[10px] text-slate-400">{person.role.replaceAll("_", " ").toLocaleLowerCase()}</span>
               </label>;
-            })}{people.length === 0 && <p className="px-3 py-5 text-xs text-slate-500">No active workspace members found.</p>}</div>
+            })}{people.length === 0 && <p className="px-3 py-5 text-xs text-slate-500">No active workspace members found.</p>}{peopleNextCursor && <button type="button" onClick={() => void loadMorePeople()} disabled={loadingMorePeople} className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">{loadingMorePeople && <LoaderCircle className="size-3.5 animate-spin" />}{loadingMorePeople ? "Loading 5 more members…" : "Load 5 more members"}</button>}</div>
             <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4"><button type="button" onClick={() => setPeopleOpen(false)} className="rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-700">Cancel</button>{canManageSelected && <button type="button" onClick={() => void saveMembers()} className="inline-flex items-center gap-1.5 rounded-xl bg-slate-950 px-3.5 py-2 text-xs font-semibold text-white"><Check className="size-3.5" /> Save access</button>}</div>
           </section>
         </div>}

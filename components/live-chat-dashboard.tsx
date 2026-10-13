@@ -166,9 +166,16 @@ export default function LiveChatDashboard({
   const [userDetailsOpen, setUserDetailsOpen] = useState(false);
   const [tab, setTab] = useState<"inbox" | "settings">("inbox");
   const [items, setItems] = useState<Conversation[]>([]);
+  const itemsRef = useRef<Conversation[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMoreConversations, setLoadingMoreConversations] = useState(false);
   const [usage, setUsage] = useState<Usage | null>(null);
   const [selectedId, setSelectedId] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const messagesRef = useRef<ChatMessage[]>([]);
+  const [messagesNextCursor, setMessagesNextCursor] = useState<string | null>(null);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [loadingMoreMessages, setLoadingMoreMessages] = useState(false);
   const [reply, setReply] = useState("");
   const [settings, setSettings] = useState<ChatSettings | null>(null);
   const [embedCode, setEmbedCode] = useState("");
@@ -186,6 +193,10 @@ export default function LiveChatDashboard({
   const [savedSettings, setSavedSettings] = useState<ChatSettings | null>(null);
   const [savedDomainsText, setSavedDomainsText] = useState("");
   const messagesPaneRef = useRef<HTMLDivElement | null>(null);
+  const inboxRequestRef = useRef(0);
+  const inboxFilterRef = useRef({ status: conversationTab, search: conversationSearch });
+  const selectedChatRef = useRef(selectedId);
+  const preserveMessageScrollRef = useRef<{ height: number; top: number } | null>(null);
 
   const hasUnsavedSettings = Boolean(settings && savedSettings && (
     JSON.stringify(settings) !== JSON.stringify(savedSettings) || domainsText !== savedDomainsText
@@ -239,36 +250,80 @@ export default function LiveChatDashboard({
   }, [hasUnsavedSettings]);
 
   const selected = useMemo(() => items.find((item) => item.id === selectedId) ?? null, [items, selectedId]);
-  const visibleItems = useMemo(() => {
-    const query = conversationSearch.trim().toLocaleLowerCase();
-    return items.filter((item) => {
-      const inTab = conversationTab === "CLOSED"
-        ? item.status === "CLOSED"
-        : conversationTab === "UNASSIGNED"
-          ? item.status === "OPEN" && !item.assignedAgentId
-          : item.status === "OPEN";
-      if (!inTab) return false;
-      if (!query) return true;
-      return [item.customerName, item.customerEmail, item.customerPhone, item.geoCountry, countryName(item.geoCountry), item.geoCity, item.geoRegion, item.lastMessagePreview]
-        .some((value) => value?.toLocaleLowerCase().includes(query));
-    });
-  }, [items, conversationTab, conversationSearch]);
+  const visibleItems = useMemo(() => items.filter((item) => {
+    if (conversationTab === "CLOSED") return item.status === "CLOSED";
+    if (conversationTab === "UNASSIGNED") return item.status === "OPEN" && !item.assignedAgentId;
+    return item.status === "OPEN";
+  }), [items, conversationTab]);
 
   const loadInbox = useCallback(async (quiet = false) => {
+    const requestId = ++inboxRequestRef.current;
+    const status = conversationTab;
+    const search = conversationSearch.trim();
     if (!quiet) setRefreshing(true);
     try {
-      const data = await api<{ items: Conversation[]; usage: Usage }>("/api/live-chat");
-      setItems(data.items);
+      const params = new URLSearchParams({ limit: "5", status });
+      if (search) params.set("search", search);
+      const data = await api<{ items: Conversation[]; nextCursor: string | null; usage: Usage }>("/api/live-chat?" + params.toString());
+      const latestFilter = inboxFilterRef.current;
+      if (requestId !== inboxRequestRef.current || latestFilter.status !== status || latestFilter.search !== search) return;
+      if (quiet && itemsRef.current.length > 5) {
+        setItems((current) => {
+          const previous = new Map(current.map((item) => [item.id, item]));
+          const refreshedIds = new Set(data.items.map((item) => item.id));
+          return [
+            ...data.items.map((item) => ({ ...previous.get(item.id), ...item })),
+            ...current.slice(5).filter((item) => !refreshedIds.has(item.id))
+          ];
+        });
+      } else {
+        // With only the first page loaded, advance its cursor quietly as the
+        // newest conversations change. Once older pages are loaded, keep their
+        // boundary so background polling never skips unseen conversations.
+        setItems((current) => {
+          const previous = new Map(current.map((item) => [item.id, item]));
+          return data.items.map((item) => ({ ...previous.get(item.id), ...item }));
+        });
+        if (!quiet || itemsRef.current.length <= 5) setNextCursor(data.nextCursor);
+        if (!quiet) setSelectedId((current) => current && data.items.some((item) => item.id === current) ? current : "");
+      }
       setUsage(data.usage);
       setError("");
-      setSelectedId((current) => current && data.items.some((item) => item.id === current) ? current : "");
+    } catch (cause) {
+      if (requestId === inboxRequestRef.current) setError((cause as Error & { code?: string }).code ?? (cause as Error).message);
+    } finally {
+      if (requestId === inboxRequestRef.current) {
+        setLoading(false);
+        if (!quiet) setRefreshing(false);
+      }
+    }
+  }, [conversationTab, conversationSearch]);
+
+  const loadMoreConversations = async () => {
+    if (!nextCursor || loadingMoreConversations) return;
+    const cursor = nextCursor;
+    const status = conversationTab;
+    const search = conversationSearch.trim();
+    const requestId = inboxRequestRef.current;
+    setLoadingMoreConversations(true);
+    try {
+      const params = new URLSearchParams({ limit: "5", status, cursor });
+      if (search) params.set("search", search);
+      const data = await api<{ items: Conversation[]; nextCursor: string | null; usage: Usage }>("/api/live-chat?" + params.toString());
+      const latestFilter = inboxFilterRef.current;
+      if (requestId !== inboxRequestRef.current || latestFilter.status !== status || latestFilter.search !== search) return;
+      setItems((current) => {
+        const known = new Set(current.map((item) => item.id));
+        return [...current, ...data.items.filter((item) => !known.has(item.id))];
+      });
+      setNextCursor(data.nextCursor);
+      setUsage(data.usage);
     } catch (cause) {
       setError((cause as Error & { code?: string }).code ?? (cause as Error).message);
     } finally {
-      setLoading(false);
-      if (!quiet) setRefreshing(false);
+      setLoadingMoreConversations(false);
     }
-  }, []);
+  };
 
   const loadSettings = useCallback(async () => {
     try {
@@ -286,22 +341,78 @@ export default function LiveChatDashboard({
   }, []);
 
   const loadMessages = useCallback(async (conversationId: string, quiet = false) => {
+    if (!quiet) setLoadingMessages(true);
     try {
-      const data = await api<{ conversation: Conversation; messages: ChatMessage[] }>(`/api/live-chat/conversations/${encodeURIComponent(conversationId)}/messages`);
-      setMessages(data.messages);
-      setItems((current) => current.map((item) => item.id === conversationId ? { ...item, ...data.conversation, messageCount: Math.max(item.messageCount, data.messages.length) } : item));
+      const data = await api<{ conversation: Conversation; messages: ChatMessage[]; nextCursor: string | null }>(
+        "/api/live-chat/conversations/" + encodeURIComponent(conversationId) + "/messages?limit=5"
+      );
+      if (selectedChatRef.current !== conversationId) return;
+      if (quiet) {
+        const onlyFirstPageLoaded = messagesRef.current.length <= 5;
+        setMessages((current) => {
+          const merged = new Map(current.map((message) => [message.id, message]));
+          for (const message of data.messages) merged.set(message.id, { ...merged.get(message.id), ...message });
+          return [...merged.values()].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        });
+        if (onlyFirstPageLoaded) setMessagesNextCursor(data.nextCursor);
+      } else {
+        setMessages(data.messages);
+        setMessagesNextCursor(data.nextCursor);
+      }
+      setItems((current) => current.map((item) => item.id === conversationId ? { ...item, ...data.conversation, messageCount: Math.max(item.messageCount, data.conversation.messageCount ?? data.messages.length) } : item));
     } catch (cause) {
       if (!quiet) setError((cause as Error & { code?: string }).code ?? (cause as Error).message);
+    } finally {
+      if (!quiet) setLoadingMessages(false);
     }
   }, []);
 
+  const loadOlderMessages = async () => {
+    const conversationId = selectedId;
+    const cursor = messagesNextCursor;
+    const pane = messagesPaneRef.current;
+    if (!conversationId || !cursor || loadingMoreMessages) return;
+    if (pane) preserveMessageScrollRef.current = { height: pane.scrollHeight, top: pane.scrollTop };
+    setLoadingMoreMessages(true);
+    try {
+      const url = "/api/live-chat/conversations/" + encodeURIComponent(conversationId) + "/messages?limit=5&cursor=" + encodeURIComponent(cursor);
+      const data = await api<{ conversation: Conversation; messages: ChatMessage[]; nextCursor: string | null }>(url);
+      if (selectedChatRef.current !== conversationId) {
+        preserveMessageScrollRef.current = null;
+        return;
+      }
+      setMessages((current) => {
+        const merged = new Map(data.messages.map((message) => [message.id, message]));
+        for (const message of current) merged.set(message.id, { ...merged.get(message.id), ...message });
+        return [...merged.values()].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      });
+      setMessagesNextCursor(data.nextCursor);
+    } catch (cause) {
+      preserveMessageScrollRef.current = null;
+      setError((cause as Error & { code?: string }).code ?? (cause as Error).message);
+    } finally {
+      setLoadingMoreMessages(false);
+    }
+  };
+
+
   useEffect(() => {
-    // Load the inbox and settings once; changing selection must not refetch settings.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadInbox();
+    itemsRef.current = items;
+    messagesRef.current = messages;
+    inboxFilterRef.current = { status: conversationTab, search: conversationSearch.trim() };
+    selectedChatRef.current = selectedId;
+  }, [items, messages, conversationTab, conversationSearch, selectedId]);
+
+  useEffect(() => {
+    // Changing inbox filters must not re-fetch widget settings.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadSettings();
-  }, [loadInbox, loadSettings]);
+  }, [loadSettings]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadInbox(), conversationSearch.trim() ? 250 : 0);
+    return () => window.clearTimeout(timer);
+  }, [loadInbox, conversationSearch]);
 
   useEffect(() => {
     const pollInterval = selectedId && tab === "inbox" ? 3000 : 12000;
@@ -319,13 +430,22 @@ export default function LiveChatDashboard({
   }, [loadInbox, loadMessages, selectedId, tab]);
 
   useEffect(() => {
-    if (!messagesPaneRef.current) return;
-    messagesPaneRef.current.scrollTo({ top: messagesPaneRef.current.scrollHeight, behavior: "smooth" });
+    const pane = messagesPaneRef.current;
+    if (!pane) return;
+    const previous = preserveMessageScrollRef.current;
+    if (previous) {
+      pane.scrollTo({ top: previous.top + pane.scrollHeight - previous.height, behavior: "auto" });
+      preserveMessageScrollRef.current = null;
+      return;
+    }
+    pane.scrollTo({ top: pane.scrollHeight, behavior: "smooth" });
   }, [messages, selectedId]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMessages([]);
+    setMessagesNextCursor(null);
+    setLoadingMessages(Boolean(selectedId && tab === "inbox"));
     if (selectedId && tab === "inbox") {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       void loadMessages(selectedId);
@@ -453,7 +573,17 @@ export default function LiveChatDashboard({
         onToggleCollapsed={toggleSidebar}
       />
       <main className={`relative min-h-screen bg-slate-50 transition-all duration-300 ${sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"}`}>
-        <div className="grid min-h-screen place-items-center p-5"><div className="grid min-h-[420px] w-full max-w-[1600px] place-items-center rounded-3xl border border-slate-200 bg-white"><LoaderCircle className="size-6 animate-spin text-blue-600" /></div></div>
+        <div className="mx-auto max-w-[1600px] space-y-5 p-3 sm:p-5">
+          <section className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div className="w-full max-w-md"><div className="h-3 w-36 animate-pulse rounded bg-slate-200" /><div className="mt-3 h-7 w-48 animate-pulse rounded bg-slate-200" /><div className="mt-2 h-3 w-72 max-w-full animate-pulse rounded bg-slate-100" /></div>
+            <div className="flex gap-2"><div className="h-10 w-24 animate-pulse rounded-xl bg-slate-100" /><div className="h-10 w-24 animate-pulse rounded-xl bg-slate-100" /></div>
+          </section>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 4 }, (_, index) => <div key={index} className="h-24 animate-pulse rounded-2xl border border-slate-200 bg-white" />)}</div>
+          <div className="grid min-h-[60vh] gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
+            <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white"><div className="border-b border-slate-100 p-4"><div className="h-4 w-32 animate-pulse rounded bg-slate-200" /><div className="mt-3 h-9 animate-pulse rounded-xl bg-slate-100" /><div className="mt-3 h-9 animate-pulse rounded-xl bg-slate-100" /></div><div className="divide-y divide-slate-100">{Array.from({ length: 5 }, (_, index) => <div key={index} className="flex gap-3 p-4"><div className="size-10 animate-pulse rounded-full bg-slate-100" /><div className="flex-1"><div className="h-3 w-32 animate-pulse rounded bg-slate-200" /><div className="mt-2 h-3 w-full animate-pulse rounded bg-slate-100" /><div className="mt-2 h-2.5 w-24 animate-pulse rounded bg-slate-100" /></div></div>)}</div></section>
+            <section className="rounded-3xl border border-slate-200 bg-white p-5"><div className="h-12 animate-pulse rounded-xl bg-slate-100" /><div className="mt-5 h-[38vh] animate-pulse rounded-2xl bg-slate-50" /><div className="mt-4 h-12 animate-pulse rounded-xl bg-slate-100" /></section>
+          </div>
+        </div>
       </main>
     </>
   );
@@ -524,10 +654,12 @@ export default function LiveChatDashboard({
           <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-slate-400 focus-within:border-blue-400"><SearchIcon className="size-4 shrink-0" /><input value={conversationSearch} onChange={(event) => setConversationSearch(event.target.value)} placeholder="Search name, email, location, message" className="min-w-0 w-full bg-transparent text-xs text-slate-800 outline-none placeholder:text-slate-400" /></label>
         </div>
         <div className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto overscroll-contain">
+          {refreshing && visibleItems.length === 0 && <p className="flex items-center justify-center gap-2 px-4 py-8 text-xs text-slate-500"><LoaderCircle className="size-4 animate-spin" /> Loading conversations…</p>}
           {visibleItems.map((item) => <button key={item.id} onClick={() => setSelectedId(item.id)} className={`block w-full px-4 py-4 text-left transition ${selectedId === item.id ? "bg-blue-50/70" : "hover:bg-slate-50"}`}>
             <div className="flex items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-full bg-blue-50 text-sm font-semibold text-blue-700">{item.customerName.slice(0,1).toUpperCase() || "A"}</span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><span className="truncate text-sm font-semibold text-slate-900">{item.customerName || "Anonymous customer"}</span><span className="flex shrink-0 items-center gap-1.5"><span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${item.status === "CLOSED" ? "bg-slate-100 text-slate-500" : item.assignedAgentId ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{item.status === "CLOSED" ? "Closed" : item.assignedAgentId ? "Open" : "Unassigned"}</span><span className="text-[10px] text-slate-400">{new Date(item.lastMessageAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span></span></span><span className="mt-1 block truncate text-xs text-slate-500">{item.customerEmail || item.customerPhone || "Anonymous visitor"}</span><span className="mt-2 flex items-center gap-1.5 text-[10px] text-slate-500"><span>{countryFlag(item.geoCountry)}</span><span className="truncate">{item.geoCity || countryName(item.geoCountry) || "Unknown location"}</span><span>·</span><MessageCircle className="size-3" /> {item.messageCount}{item.unreadAgentCount > 0 && <span className="ml-auto grid min-w-5 place-items-center rounded-full bg-blue-600 px-1.5 py-0.5 font-bold text-white">{item.unreadAgentCount}</span>}</span><span className="mt-1 block truncate text-xs text-slate-500">{item.lastMessagePreview || "No messages yet"}</span></span></div>
           </button>)}
-          {visibleItems.length === 0 && <div className="px-5 py-12 text-center"><MessageCircle className="mx-auto size-7 text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-800">{conversationSearch ? "No matching conversations" : conversationTab === "CLOSED" ? "No closed chats" : conversationTab === "UNASSIGNED" ? "No unassigned chats" : "No open chats"}</p><p className="mx-auto mt-1 max-w-[220px] text-xs leading-5 text-slate-500">Conversations matching this view will appear here.</p>{canManageSettings && <button onClick={() => setTab("settings")} className="mt-4 text-xs font-semibold text-blue-700">Configure widget →</button>}</div>}
+          {visibleItems.length === 0 && !refreshing && <div className="px-5 py-12 text-center"><MessageCircle className="mx-auto size-7 text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-800">{conversationSearch ? "No matching conversations" : conversationTab === "CLOSED" ? "No closed chats" : conversationTab === "UNASSIGNED" ? "No unassigned chats" : "No open chats"}</p><p className="mx-auto mt-1 max-w-[220px] text-xs leading-5 text-slate-500">Conversations matching this view will appear here.</p>{canManageSettings && <button onClick={() => setTab("settings")} className="mt-4 text-xs font-semibold text-blue-700">Configure widget →</button>}</div>}
+          {nextCursor && <div className="p-3 text-center"><button type="button" onClick={() => void loadMoreConversations()} disabled={loadingMoreConversations || refreshing} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">{loadingMoreConversations && <LoaderCircle className="size-3.5 animate-spin" />}{loadingMoreConversations ? "Loading 5 more conversations…" : "Load 5 more conversations"}</button></div>}
         </div>
       </section>
 
@@ -541,6 +673,8 @@ export default function LiveChatDashboard({
           </div></div>
           <div ref={messagesPaneRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-[#fbfbfd] px-4 py-5 sm:px-6">
             <p className="mx-auto mb-4 w-fit rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[10px] text-slate-500">Conversation started {formatDate(selected.createdAt)}</p>
+            {messagesNextCursor && <div className="text-center"><button type="button" onClick={() => void loadOlderMessages()} disabled={loadingMoreMessages || loadingMessages} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">{loadingMoreMessages && <LoaderCircle className="size-3.5 animate-spin" />}{loadingMoreMessages ? "Loading 5 older messages…" : "Load 5 older messages"}</button></div>}
+            {loadingMessages && messages.length === 0 && <p className="flex items-center justify-center gap-2 py-10 text-xs text-slate-500"><LoaderCircle className="size-4 animate-spin" /> Loading messages…</p>}
             {messages.map((message) => <div key={message.id} className={`flex items-end gap-2 ${message.senderType === "AGENT" ? "justify-end" : "justify-start"}`}>
               {message.senderType === "CUSTOMER" && <span className="grid size-7 shrink-0 place-items-center rounded-full bg-slate-200 text-[10px] font-semibold text-slate-700">{selected.customerName.slice(0, 1).toUpperCase() || "V"}</span>}
               <div className={`max-w-[88%] rounded-2xl px-4 py-3 shadow-sm ${message.senderType === "AGENT" ? "rounded-br-md bg-blue-600 text-white" : "rounded-bl-md border border-slate-200 bg-slate-100 text-slate-900"} ${message.pending ? "opacity-70" : ""}`}>
@@ -548,7 +682,7 @@ export default function LiveChatDashboard({
               </div>
               {message.senderType === "AGENT" && message.senderAvatar && <img src={message.senderAvatar} alt="" referrerPolicy="no-referrer" className="mb-1 size-7 shrink-0 rounded-full object-cover" />}
             </div>)}
-            {messages.length === 0 && <p className="py-10 text-center text-xs text-slate-400">No messages to display.</p>}
+            {messages.length === 0 && !loadingMessages && <p className="py-10 text-center text-xs text-slate-400">No messages to display.</p>}
           </div>
           {selected.status === "CLOSED" ? <div className="border-t border-slate-100 bg-slate-50 px-4 py-4 text-center text-xs text-slate-500">This conversation is closed. It remains available in history until the retention period expires.</div> : <form className="border-t border-slate-100 p-3 sm:p-4" onSubmit={(event) => { event.preventDefault(); void sendReply(); }}>
             <div className="flex items-end gap-2"><textarea rows={1} maxLength={2000} value={reply} onChange={(event) => { setReply(event.target.value); event.currentTarget.style.height = "auto"; event.currentTarget.style.height = Math.min(event.currentTarget.scrollHeight, 112) + "px"; }} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void sendReply(); } }} placeholder="Reply to this customer… (Enter to send · Shift+Enter for a new line)" className="max-h-28 min-h-12 flex-1 resize-none overflow-y-auto rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /><button disabled={sending || !reply.trim()} type="submit" className="grid size-12 shrink-0 place-items-center rounded-xl bg-blue-600 text-white shadow-sm hover:bg-blue-700 disabled:opacity-50" aria-label="Send reply">{sending ? <LoaderCircle className="size-4 animate-spin" /> : <Send className="size-4" />}</button></div>

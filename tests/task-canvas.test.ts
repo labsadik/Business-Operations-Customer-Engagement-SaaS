@@ -80,8 +80,11 @@ test("Task Canvas list, scene, rename and delete queries are scoped to company a
     readFile(new URL("../lib/task-canvas-authorization.ts", import.meta.url), "utf8")
   ]);
 
-  assert.match(listRoute, /TaskCanvas\.find\(\{ companyId, workspaceId/);
-  assert.match(listRoute, /companyId, workspaceId, active: true/);
+  assert.match(listRoute, /const canvasFilter = \{\s*companyId,\s*workspaceId,\s*\.\.\.memberFilter/);
+  assert.match(listRoute, /TaskCanvas\.find\(canvasFilter\)/);
+  assert.match(listRoute, /\.limit\(limit \+ 1\)/);
+  assert.match(listRoute, /nextCursor: hasMoreCanvases/);
+  assert.match(listRoute, /companyId,\s*workspaceId,\s*active: true/);
   assert.match(listRoute, /companyId,\s*workspaceId,\s*name,/);
   assert.match(canvasRoute, /companyId: new Types\.ObjectId\(scope\.companyId\)/);
   assert.match(canvasRoute, /workspaceId: new Types\.ObjectId\(scope\.workspaceId\)/);

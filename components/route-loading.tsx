@@ -344,6 +344,60 @@ export function CompanyProfileLoading() {
   );
 }
 
+
+export function WorkspaceSectionLoading({ section }: { section: "tasks" | "task-canvas" | "vault" | "live-chat" }) {
+  const title = section === "tasks" ? "Task management" : section === "task-canvas" ? "Task Canvas" : section === "vault" ? "Company vault" : "Live Chat";
+  return (
+    <main className="min-h-screen bg-[#faf9f1] text-slate-950">
+      <div className="flex min-h-screen">
+        <SidebarSkeleton />
+        <section className="min-w-0 flex-1">
+          <MobileWorkspaceNavSkeleton />
+          <header className="border-b border-slate-200 bg-[#faf9f1]">
+            <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
+              <div><Pulse className="h-2.5 w-24" /><Pulse className="mt-2 h-6 w-48 max-w-full" /></div>
+              <Pulse className="size-9 rounded-xl" />
+            </div>
+          </header>
+          <div className="mx-auto max-w-[1400px] space-y-5 p-4 sm:p-6 lg:p-8">
+            <div className="flex flex-col justify-between gap-4 rounded-3xl border border-slate-200 bg-white p-5 sm:flex-row sm:items-center sm:p-6">
+              <div><Pulse className="h-3 w-28" /><h1 className="sr-only">{title}</h1><Pulse className="mt-3 h-7 w-56 max-w-full" /><Pulse className="mt-2 h-3 w-80 max-w-full" /></div>
+              <div className="flex gap-2"><Pulse className="h-10 w-28 rounded-xl" /><Pulse className="h-10 w-28 rounded-xl" /></div>
+            </div>
+            {section === "tasks" ? (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 4 }, (_, i) => <Pulse key={i} className="h-24 rounded-2xl" />)}</div>
+                <div className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-5">
+                  <div className="mb-4 flex flex-wrap gap-2"><Pulse className="h-10 w-full max-w-xs rounded-xl" /><Pulse className="h-10 w-28 rounded-xl" /><Pulse className="h-10 w-28 rounded-xl" /></div>
+                  <div className="space-y-3">{Array.from({ length: 5 }, (_, i) => <div key={i} className="grid gap-3 rounded-2xl border border-slate-100 p-4 sm:grid-cols-[minmax(0,1fr)_100px_120px]"><div><Pulse className="h-4 w-52 max-w-full" /><Pulse className="mt-2 h-3 w-72 max-w-full" /></div><Pulse className="h-7 w-20 rounded-full" /><Pulse className="h-9 w-28 rounded-xl" /></div>)}</div>
+                </div>
+              </>
+            ) : section === "task-canvas" ? (
+              <div className="grid min-h-[65vh] gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+                <section className="space-y-3 rounded-3xl border border-slate-200 bg-white p-4"><Pulse className="h-4 w-40" /><Pulse className="h-10 w-full rounded-xl" />{Array.from({ length: 5 }, (_, i) => <Pulse key={i} className="h-16 w-full rounded-xl" />)}</section>
+                <section className="rounded-3xl border border-slate-200 bg-white p-5"><Pulse className="h-5 w-48" /><Pulse className="mt-4 h-[52vh] w-full rounded-2xl" /></section>
+              </div>
+            ) : section === "vault" ? (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 4 }, (_, i) => <Pulse key={i} className="h-24 rounded-2xl" />)}</div>
+                <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-4"><Pulse className="h-4 w-36" /><Pulse className="h-10 w-36 rounded-xl" /></div><div className="divide-y divide-slate-100">{Array.from({ length: 5 }, (_, i) => <div key={i} className="flex items-center gap-3 p-4"><Pulse className="size-10 rounded-xl" /><div className="flex-1"><Pulse className="h-3 w-48 max-w-full" /><Pulse className="mt-2 h-2.5 w-32" /></div><Pulse className="h-8 w-16 rounded-lg" /></div>)}</div></section>
+              </>
+            ) : (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 4 }, (_, i) => <Pulse key={i} className="h-20 rounded-2xl" />)}</div>
+                <div className="grid min-h-[60vh] gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
+                  <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white"><div className="border-b border-slate-100 p-4"><Pulse className="h-4 w-32" /><Pulse className="mt-3 h-9 w-full rounded-xl" /><Pulse className="mt-3 h-9 w-full rounded-xl" /></div><div className="divide-y divide-slate-100">{Array.from({ length: 5 }, (_, i) => <div key={i} className="flex gap-3 p-4"><Pulse className="size-10 rounded-full" /><div className="flex-1"><Pulse className="h-3 w-32" /><Pulse className="mt-2 h-3 w-full" /><Pulse className="mt-2 h-2.5 w-24" /></div></div>)}</div></section>
+                  <section className="rounded-3xl border border-slate-200 bg-white p-5"><Pulse className="h-12 w-full" /><Pulse className="mt-5 h-[38vh] w-full rounded-2xl" /><Pulse className="mt-4 h-12 w-full rounded-xl" /></section>
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}
+
 function AdminHeroSkeleton() {
   return (
     <>

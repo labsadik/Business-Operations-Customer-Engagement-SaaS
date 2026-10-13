@@ -124,16 +124,23 @@ async function serialize(items: Array<{
 export async function GET(request: Request) {
   try {
     const session = await requireCompanyFeedbackViewer();
-    const rawLimit = Number(new URL(request.url).searchParams.get("limit") ?? "25");
+    const params = new URL(request.url).searchParams;
+    const rawLimit = Number(params.get("limit") ?? "25");
     const limit = Number.isFinite(rawLimit) ? Math.min(50, Math.max(1, Math.floor(rawLimit))) : 25;
-
-    const [customer, company] = await Promise.all([
+    const parsePage = (value: string | null) => {
+      const raw = Number(value ?? "1");
+      return Number.isFinite(raw) ? Math.min(1000, Math.max(1, Math.floor(raw))) : 1;
+    };
+    const customerPage = parsePage(params.get("customerPage"));
+    const companyPage = parsePage(params.get("companyPage"));
+    const [customerRows, companyRows] = await Promise.all([
       Feedback.find({
         source: { $in: ["CUSTOMER_BOOKING", "PUBLIC_EMBED"] },
         companyId: session.companyId
       })
         .sort({ createdAt: -1, _id: -1 })
-        .limit(limit)
+        .skip((customerPage - 1) * limit)
+        .limit(limit + 1)
         .select("_id source rating description createdAt reviewStatus submitterUserId submitterName submitterEmail submitterPhone")
         .lean(),
       Feedback.find({
@@ -141,14 +148,24 @@ export async function GET(request: Request) {
         companyId: session.companyId
       })
         .sort({ createdAt: -1, _id: -1 })
-        .limit(limit)
+        .skip((companyPage - 1) * limit)
+        .limit(limit + 1)
         .select("_id source rating description createdAt reviewStatus submitterUserId submitterName submitterEmail submitterPhone")
         .lean()
     ]);
+    const customerHasNext = customerRows.length > limit;
+    const companyHasNext = companyRows.length > limit;
+    const customer = customerHasNext ? customerRows.slice(0, limit) : customerRows;
+    const company = companyHasNext ? companyRows.slice(0, limit) : companyRows;
 
     return jsonOk({
       customerFeedback: await serialize(customer),
-      companyFeedback: await serialize(company)
+      companyFeedback: await serialize(company),
+      customerHasNext,
+      companyHasNext,
+      customerPage,
+      companyPage,
+      limit
     });
   } catch (error) {
     const code = error instanceof Error ? error.message : "FEEDBACK_LIST_FAILED";

@@ -4,25 +4,63 @@ import { jsonError, jsonOk } from "@/lib/http";
 import { LiveChatConversation } from "@/models/live-chat-conversation";
 import { LiveChatMonthlyUsage } from "@/models/live-chat-monthly-usage";
 import { currentPeriodKey, liveChatError, requireLiveChatScope } from "@/lib/live-chat";
+import { decodeListCursor, encodeListCursor, parseListLimit } from "@/lib/list-pagination";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const scope = await requireLiveChatScope({ allowSuspendedRead: true });
     await getMongo();
+    const url = new URL(request.url);
+    const limit = parseListLimit(url.searchParams.get("limit"));
+    const cursorValue = url.searchParams.get("cursor");
+    const cursor = decodeListCursor(cursorValue);
+    if (cursorValue && !cursor) return jsonError("INVALID_LIVE_CHAT_CURSOR", 400);
+    const cursorDate = cursor ? new Date(cursor.key) : null;
+    if (cursorDate && !Number.isFinite(cursorDate.getTime())) return jsonError("INVALID_LIVE_CHAT_CURSOR", 400);
+
+    const status = url.searchParams.get("status");
+    if (status && !["OPEN", "UNASSIGNED", "CLOSED"].includes(status)) return jsonError("LIVE_CHAT_STATUS_INVALID", 400);
+    const search = (url.searchParams.get("search") ?? "").trim().slice(0, 100);
+    const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, (character) => "\\" + character);
+    const matchFilters: Record<string, unknown>[] = [];
+    if (escapedSearch) {
+      matchFilters.push({ $or: [
+        { customerName: { $regex: escapedSearch, $options: "i" } },
+        { customerEmail: { $regex: escapedSearch, $options: "i" } },
+        { customerPhone: { $regex: escapedSearch, $options: "i" } },
+        { geoCountry: { $regex: escapedSearch, $options: "i" } },
+        { geoCity: { $regex: escapedSearch, $options: "i" } },
+        { geoRegion: { $regex: escapedSearch, $options: "i" } },
+        { lastMessagePreview: { $regex: escapedSearch, $options: "i" } }
+      ] });
+    }
+    if (cursor && cursorDate) {
+      matchFilters.push({ $or: [
+        { lastMessageAt: { $lt: cursorDate } },
+        { lastMessageAt: cursorDate, _id: { $lt: cursor.id } }
+      ] });
+    }
+    const conversationFilter = {
+      status: status === "CLOSED" ? "CLOSED" : status === "UNASSIGNED" ? "OPEN" : status === "OPEN" ? "OPEN" : { $in: ["OPEN", "CLOSED"] },
+      ...(status === "UNASSIGNED" ? { assignedAgentId: null } : {}),
+      ...(matchFilters.length ? { $and: matchFilters } : {})
+    };
     const now = new Date();
     const tenant = { companyId: new Types.ObjectId(scope.companyId), workspaceId: new Types.ObjectId(scope.workspaceId) };
-    const conversations = await LiveChatConversation.find({
+    const rows = await LiveChatConversation.find({
       ...tenant,
-      status: { $in: ["OPEN", "CLOSED"] },
+      ...conversationFilter,
       expiresAt: { $gt: now }
     })
       .sort({ lastMessageAt: -1, _id: -1 })
-      .limit(100)
+      .limit(limit + 1)
       .select("_id customerName customerEmail customerPhone status messageCount lastMessageAt nextCustomerMessageAt expiresAt createdAt geoCountry geoCity geoRegion ipDisplay browser os deviceType referrer assignedAgentId unreadAgentCount lastMessagePreview")
       .lean();
+    const hasMore = rows.length > limit;
+    const conversations = hasMore ? rows.slice(0, limit) : rows;
 
     const [monthlyUsage, openChats] = await Promise.all([
       LiveChatMonthlyUsage.findOne({ companyId: tenant.companyId, periodKey: currentPeriodKey(now) }).select("chatCount customerCount").lean(),
@@ -53,6 +91,9 @@ export async function GET() {
         unreadAgentCount: item.unreadAgentCount ?? 0,
         lastMessagePreview: item.lastMessagePreview || ""
       })),
+      nextCursor: hasMore && conversations.length
+        ? encodeListCursor(conversations[conversations.length - 1].lastMessageAt, conversations[conversations.length - 1]._id)
+        : null,
       usage: {
         monthlyChats: monthlyUsage?.chatCount ?? 0,
         uniqueCustomers: monthlyUsage?.customerCount ?? 0,
