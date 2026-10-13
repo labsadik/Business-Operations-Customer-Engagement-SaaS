@@ -20,22 +20,11 @@ export async function GET(request: Request) {
     if (cursorValue && !cursor) return jsonError("INVALID_LIVE_CHAT_CURSOR", 400);
     const cursorDate = cursor ? new Date(cursor.key) : null;
     if (cursorDate && !Number.isFinite(cursorDate.getTime())) return jsonError("INVALID_LIVE_CHAT_CURSOR", 400);
+
     const status = url.searchParams.get("status");
     if (status && !["OPEN", "UNASSIGNED", "CLOSED"].includes(status)) return jsonError("LIVE_CHAT_STATUS_INVALID", 400);
     const search = (url.searchParams.get("search") ?? "").trim().slice(0, 100);
-    const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\    const scope = await requireLiveChatScope({ allowSuspendedRead: true });
-    await getMongo();
-    const now = new Date();
-    const tenant = { companyId: new Types.ObjectId(scope.companyId), workspaceId: new Types.ObjectId(scope.workspaceId) };
-    const conversations = await LiveChatConversation.find({
-      ...tenant,
-      status: { $in: ["OPEN", "CLOSED"] },
-      expiresAt: { $gt: now }
-    })
-      .sort({ lastMessageAt: -1, _id: -1 })
-      .limit(100)
-      .select("_id customerName customerEmail customerPhone status messageCount lastMessageAt nextCustomerMessageAt expiresAt createdAt geoCountry geoCity geoRegion ipDisplay browser os deviceType referrer assignedAgentId unreadAgentCount lastMessagePreview")
-      .lean();");
+    const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, (character) => "\\" + character);
     const conversationFilter = {
       status: status === "CLOSED" ? "CLOSED" : status === "UNASSIGNED" ? "OPEN" : status === "OPEN" ? "OPEN" : { $in: ["OPEN", "CLOSED"] },
       ...(status === "UNASSIGNED" ? { assignedAgentId: null } : {}),
@@ -53,11 +42,12 @@ export async function GET(request: Request) {
         { lastMessageAt: cursorDate, _id: { $lt: cursor.id } }
       ] } : {})
     };
+    const now = new Date();
     const tenant = { companyId: new Types.ObjectId(scope.companyId), workspaceId: new Types.ObjectId(scope.workspaceId) };
     const rows = await LiveChatConversation.find({
       ...tenant,
       ...conversationFilter,
-      expiresAt: { $gt: new Date() }
+      expiresAt: { $gt: now }
     })
       .sort({ lastMessageAt: -1, _id: -1 })
       .limit(limit + 1)
