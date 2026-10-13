@@ -475,13 +475,14 @@ test("task realtime events are isolated by company and workspace", () => {
 
 
 test("local task realtime ticket signing works without AUTH_SECRET", () => {
+  const mutableEnv = process.env as Record<string, string | undefined>;
   const env = {
-    nodeEnv: process.env.NODE_ENV,
+    nodeEnv: mutableEnv.NODE_ENV,
     authSecret: process.env.AUTH_SECRET,
     taskSecret: process.env.TASK_REALTIME_SECRET,
     nextAuthSecret: process.env.NEXTAUTH_SECRET
   };
-  process.env.NODE_ENV = "development";
+  mutableEnv.NODE_ENV = "development";
   delete process.env.AUTH_SECRET;
   delete process.env.TASK_REALTIME_SECRET;
   delete process.env.NEXTAUTH_SECRET;
@@ -496,7 +497,7 @@ test("local task realtime ticket signing works without AUTH_SECRET", () => {
     assert.ok(expiresAt > Date.now());
     assert.ok(verifyTaskRealtimeTicket(ticket));
   } finally {
-    if (env.nodeEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = env.nodeEnv;
+    if (env.nodeEnv === undefined) delete mutableEnv.NODE_ENV; else mutableEnv.NODE_ENV = env.nodeEnv;
     if (env.authSecret === undefined) delete process.env.AUTH_SECRET; else process.env.AUTH_SECRET = env.authSecret;
     if (env.taskSecret === undefined) delete process.env.TASK_REALTIME_SECRET; else process.env.TASK_REALTIME_SECRET = env.taskSecret;
     if (env.nextAuthSecret === undefined) delete process.env.NEXTAUTH_SECRET; else process.env.NEXTAUTH_SECRET = env.nextAuthSecret;
