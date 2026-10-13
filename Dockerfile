@@ -57,7 +57,10 @@ RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 --ingroup
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/server.mjs ./server.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/lib/task-realtime.ts ./lib/task-realtime.ts
+COPY --from=builder --chown=nextjs:nodejs /app/lib/task-realtime-auth.ts ./lib/task-realtime-auth.ts
 
 USER nextjs
 EXPOSE 8080
-CMD ["node", "server.js"]
+CMD ["node", "--experimental-strip-types", "server.mjs"]
