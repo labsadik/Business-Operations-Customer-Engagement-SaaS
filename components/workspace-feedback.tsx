@@ -537,6 +537,7 @@ export default function WorkspaceFeedback({
                       </article>
                     ))}
                   </div>
+                  {companyHasNext && <div className="mt-3 flex justify-center"><button type="button" onClick={() => void loadMoreCompanyFeedback()} disabled={loadingMoreCompany} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">{loadingMoreCompany && <span className="size-3 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" />}{loadingMoreCompany ? "Loading 5 more feedback items…" : "Load 5 more feedback items"}</button></div>}
                 </section>
               )}
               </>
@@ -592,6 +593,7 @@ export default function WorkspaceFeedback({
                 </article>
               ))}
             </div>
+            {customerHasNext && <div className="mt-3 flex justify-center"><button type="button" onClick={() => void loadMoreCustomerFeedback()} disabled={loadingMoreCustomer} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">{loadingMoreCustomer && <span className="size-3 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" />}{loadingMoreCustomer ? "Loading 5 more reviews…" : "Load 5 more reviews"}</button></div>}
           ) : (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
               <MessageSquareText className="mx-auto size-5 text-slate-300" aria-hidden="true" />
