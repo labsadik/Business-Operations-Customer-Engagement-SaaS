@@ -159,7 +159,7 @@ export default function TaskCanvasDashboard({
   const conflictRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlightRef = useRef(false);
-  const queuedSceneRef = useRef<Scene | null>(null);
+  const queuedSceneRef = useRef<{ canvasId: string; scene: Scene } | null>(null);
   const loadTokenRef = useRef(0);
   const persistRef = useRef<(next: Scene) => Promise<void>>(async () => undefined);
   const mergeRetriesRef = useRef(0);
@@ -220,7 +220,7 @@ export default function TaskCanvasDashboard({
     const canvasId = selectedIdRef.current;
     if (!canvasId) return;
     if (inFlightRef.current) {
-      queuedSceneRef.current = nextScene;
+      queuedSceneRef.current = { canvasId: selectedIdRef.current, scene: nextScene };
       return;
     }
     inFlightRef.current = true;
@@ -258,7 +258,7 @@ export default function TaskCanvasDashboard({
             mergeRetriesRef.current += 1;
             editSerialRef.current += 1;
             dirtyRef.current = true;
-            queuedSceneRef.current = merged;
+            queuedSceneRef.current = { canvasId, scene: merged };
             conflictRef.current = false;
             setSaveState("saving");
             setError("");
@@ -281,7 +281,9 @@ export default function TaskCanvasDashboard({
       inFlightRef.current = false;
       const queued = queuedSceneRef.current;
       queuedSceneRef.current = null;
-      if (queued && selectedIdRef.current === canvasId && !conflictRef.current) void persistRef.current(queued);
+      if (queued && queued.canvasId === selectedIdRef.current && !conflictRef.current) {
+        void persistRef.current(queued.scene);
+      }
     }
   }, []);
   useEffect(() => { persistRef.current = persistScene; }, [persistScene]);
