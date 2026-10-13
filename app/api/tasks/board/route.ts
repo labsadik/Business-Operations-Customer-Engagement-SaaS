@@ -16,7 +16,7 @@ function filterFor(scope: { companyId: string; workspaceId: string }) {
 async function ensureBoard(scope: { companyId: string; workspaceId: string; session: { userId: string } }) {
   const filter = filterFor(scope);
   try {
-    return await TaskBoard.findOneAndUpdate(
+    const board = await TaskBoard.findOneAndUpdate(
       filter,
       { $setOnInsert: {
         ...filter,
@@ -29,6 +29,8 @@ async function ensureBoard(scope: { companyId: string; workspaceId: string; sess
       } },
       { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
     ).lean();
+    if (!board) throw new Error("TASK_BOARD_UPSERT_FAILED");
+    return board;
   } catch (error) {
     // Simultaneous first reads can race the unique company/workspace index.
     const existing = await TaskBoard.findOne(filter).lean();
