@@ -634,6 +634,47 @@ export default function TaskManagementDashboard({
     }
   }
 
+  async function createTask(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setNotice("");
+    setError("");
+    if (dailyLimitReached) {
+      setError("Today’s task-assignment limit has been reached. You can assign more tasks after the workspace day resets.");
+      return;
+    }
+    if (!selectedAssigneeIds.length) {
+      setError("Choose at least one employee to assign this task to.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const created = await api<TaskItem>("/api/tasks", {
+        method: "POST",
+        body: JSON.stringify({
+          title,
+          description,
+          priority,
+          dueAt: dueAt ? new Date(dueAt).toISOString() : null,
+          assigneeUserIds: selectedAssigneeIds
+        })
+      });
+      setTasks((current) => [created, ...current.filter((task) => task.id !== created.id)]);
+      setTitle("");
+      setDescription("");
+      setPriority("MEDIUM");
+      setDueAt("");
+      setShowCreateForm(false);
+      setNotice("Task created and assigned.");
+      void load(false);
+      void playTaskSoundIfEnabled("created");
+    } catch (createError) {
+      setError(errorMessage(createError));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function syncTaskFromDetail(taskId: string, detail: TaskDetails) {
     const completed = detail.assignments.filter((assignment) => assignment.status === "COMPLETED").length;
     setTasks((current) => current.map((task) => task.id === taskId ? {
@@ -1184,7 +1225,7 @@ export default function TaskManagementDashboard({
                   </label>
                   {hasActiveFilters && <button type="button" onClick={() => { setSearchTerm(""); setStatusFilter("ALL"); setPriorityFilter("ALL"); setOwnerFilter("ALL"); }} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"><RotateCcw className="size-3.5" aria-hidden="true" />Clear filters</button>}
                   <div className="ml-auto inline-flex flex-wrap rounded-xl border border-slate-200 bg-slate-50 p-1" aria-label="Task view">
-                    <button type="button" aria-label="Kanban board view" aria-pressed={viewMode === "BOARD"} onClick={() => setViewMode("BOARD")} className={"inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (viewMode === "BOARD" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800")}><LayoutGrid className="size-3.5" aria-hidden="true" />Board</button>
+                    <button type="button" aria-label="Board view" aria-pressed={viewMode === "BOARD"} onClick={() => setViewMode("BOARD")} className={"inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (viewMode === "BOARD" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800")}><LayoutGrid className="size-3.5" aria-hidden="true" />Board</button>
                     <button type="button" aria-label="Calendar view" aria-pressed={viewMode === "CALENDAR"} onClick={() => setViewMode("CALENDAR")} className={"inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (viewMode === "CALENDAR" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800")}><CalendarDays className="size-3.5" aria-hidden="true" />Calendar</button>
                     <button type="button" aria-label="Timeline view" aria-pressed={viewMode === "TIMELINE"} onClick={() => setViewMode("TIMELINE")} className={"inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (viewMode === "TIMELINE" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800")}><Activity className="size-3.5" aria-hidden="true" />Timeline</button>
                     <button type="button" aria-label="List view" aria-pressed={viewMode === "LIST"} onClick={() => setViewMode("LIST")} className={"inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (viewMode === "LIST" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800")}><List className="size-3.5" aria-hidden="true" />List</button>
