@@ -14,4 +14,7 @@ const invitationSchema = new Schema(
   { timestamps: true }
 );
 
+// Tenant-first access paths for the company's invitation list and email lookup.
+invitationSchema.index({ companyId: 1, workspaceId: 1, createdAt: -1, _id: -1 });
+
 export const Invitation = models.Invitation ?? model("Invitation", invitationSchema);

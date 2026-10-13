@@ -4,6 +4,8 @@ import { createAddressSchema } from "@/models/address-schema";
 const companySchema = new Schema(
   {
     name: { type: String, required: true, trim: true, maxlength: 100 },
+    // Stable tenant-facing identifier; MongoDB _id remains the internal foreign key.
+    publicId: { type: Number, min: 100001, immutable: true },
     slug: { type: String, required: true, lowercase: true, trim: true, unique: true, index: true },
     email: { type: String, lowercase: true, trim: true, maxlength: 254 },
     phone: { type: String, trim: true, maxlength: 32 },
@@ -28,5 +30,7 @@ const companySchema = new Schema(
   },
   { timestamps: true }
 );
+
+companySchema.index({ publicId: 1 }, { unique: true, sparse: true, name: "uniq_company_public_id" });
 
 export const Company = models.Company ?? model("Company", companySchema);
