@@ -25,10 +25,9 @@ export async function GET(request: Request) {
     if (status && !["OPEN", "UNASSIGNED", "CLOSED"].includes(status)) return jsonError("LIVE_CHAT_STATUS_INVALID", 400);
     const search = (url.searchParams.get("search") ?? "").trim().slice(0, 100);
     const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, (character) => "\\" + character);
-    const conversationFilter = {
-      status: status === "CLOSED" ? "CLOSED" : status === "UNASSIGNED" ? "OPEN" : status === "OPEN" ? "OPEN" : { $in: ["OPEN", "CLOSED"] },
-      ...(status === "UNASSIGNED" ? { assignedAgentId: null } : {}),
-      ...(escapedSearch ? { $or: [
+    const matchFilters: Record<string, unknown>[] = [];
+    if (escapedSearch) {
+      matchFilters.push({ $or: [
         { customerName: { $regex: escapedSearch, $options: "i" } },
         { customerEmail: { $regex: escapedSearch, $options: "i" } },
         { customerPhone: { $regex: escapedSearch, $options: "i" } },
@@ -36,11 +35,18 @@ export async function GET(request: Request) {
         { geoCity: { $regex: escapedSearch, $options: "i" } },
         { geoRegion: { $regex: escapedSearch, $options: "i" } },
         { lastMessagePreview: { $regex: escapedSearch, $options: "i" } }
-      ] } : {}),
-      ...(cursor && cursorDate ? { $or: [
+      ] });
+    }
+    if (cursor && cursorDate) {
+      matchFilters.push({ $or: [
         { lastMessageAt: { $lt: cursorDate } },
         { lastMessageAt: cursorDate, _id: { $lt: cursor.id } }
-      ] } : {})
+      ] });
+    }
+    const conversationFilter = {
+      status: status === "CLOSED" ? "CLOSED" : status === "UNASSIGNED" ? "OPEN" : status === "OPEN" ? "OPEN" : { $in: ["OPEN", "CLOSED"] },
+      ...(status === "UNASSIGNED" ? { assignedAgentId: null } : {}),
+      ...(matchFilters.length ? { $and: matchFilters } : {})
     };
     const now = new Date();
     const tenant = { companyId: new Types.ObjectId(scope.companyId), workspaceId: new Types.ObjectId(scope.workspaceId) };
