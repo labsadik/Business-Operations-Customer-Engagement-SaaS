@@ -31,6 +31,9 @@ export type PlanDraftInput = {
   maxConcurrentMeetings: unknown;
   taskManagementEnabled?: unknown;
   taskManagementDailyLimit?: unknown;
+  taskCanvasEnabled?: unknown;
+  taskCanvasMaxCollaborators?: unknown;
+  taskCanvasHistoryLimit?: unknown;
   vaultEnabled?: unknown;
   vaultQuotaBytes?: unknown;
   vaultMaxFileBytes?: unknown;
@@ -226,6 +229,16 @@ export function validatePlanDraft(input: PlanDraftInput) {
             1000000
           );
 
+  const taskCanvasEnabled = input.taskCanvasEnabled == null
+    ? false
+    : assertBoolean(input.taskCanvasEnabled, "task_canvas_enabled");
+  const taskCanvasMaxCollaborators = input.taskCanvasMaxCollaborators === undefined
+    ? 2
+    : assertIntegerRange(input.taskCanvasMaxCollaborators, "task_canvas_max_collaborators", 2, 200);
+  const taskCanvasHistoryLimit = input.taskCanvasHistoryLimit === undefined
+    ? 10
+    : assertIntegerRange(input.taskCanvasHistoryLimit, "task_canvas_history_limit", 1, 100);
+
   const vaultEnabled = input.vaultEnabled == null
     ? false
     : assertBoolean(input.vaultEnabled, "vault_enabled");
@@ -287,6 +300,9 @@ export function validatePlanDraft(input: PlanDraftInput) {
     maxConcurrentMeetings,
     taskManagementEnabled,
     taskManagementDailyLimit,
+    taskCanvasEnabled,
+    taskCanvasMaxCollaborators,
+    taskCanvasHistoryLimit,
     vaultEnabled,
     vaultQuotaBytes,
     vaultMaxFileBytes,

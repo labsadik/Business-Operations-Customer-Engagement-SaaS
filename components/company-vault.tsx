@@ -181,7 +181,7 @@ async function prepareLosslessUpload(file: File): Promise<PreparedUpload> {
   return { blob: file, contentEncoding: "identity" };
 }
 
-export default function CompanyVault({ companyName, currentRole, taskManagementEnabled, liveChatEnabled, initialSnapshot }: { companyName: string; currentRole: string; taskManagementEnabled: boolean; liveChatEnabled: boolean; initialSnapshot: VaultSnapshot }) {
+export default function CompanyVault({ companyName, currentRole, taskManagementEnabled, taskCanvasEnabled = false, liveChatEnabled, initialSnapshot }: { companyName: string; currentRole: string; taskManagementEnabled: boolean; taskCanvasEnabled?: boolean; liveChatEnabled: boolean; initialSnapshot: VaultSnapshot }) {
   const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useWorkspaceSidebarState();
   const [folderId, setFolderId] = useState<string | null>(initialSnapshot.currentFolder?.id ?? null);
   const [snapshot, setSnapshot] = useState<VaultSnapshot | null>(initialSnapshot);
@@ -495,6 +495,7 @@ export default function CompanyVault({ companyName, currentRole, taskManagementE
       <WorkspaceSidebar
         companyName={companyName}
         taskManagementEnabled={taskManagementEnabled}
+        taskCanvasEnabled={taskCanvasEnabled}
         vaultEnabled
         liveChatEnabled={liveChatEnabled}
         canManage={canManage}

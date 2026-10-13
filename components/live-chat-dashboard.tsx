@@ -149,12 +149,14 @@ export default function LiveChatDashboard({
   canManageSettings = true,
   companyName,
   taskManagementEnabled = false,
+  taskCanvasEnabled = false,
   vaultEnabled = false,
   sessionRole = "EMPLOYEE"
 }: {
   canManageSettings?: boolean;
   companyName: string;
   taskManagementEnabled?: boolean;
+  taskCanvasEnabled?: boolean;
   vaultEnabled?: boolean;
   sessionRole?: string;
 }) {
@@ -442,6 +444,7 @@ export default function LiveChatDashboard({
       <WorkspaceSidebar
         companyName={companyName}
         taskManagementEnabled={taskManagementEnabled}
+        taskCanvasEnabled={taskCanvasEnabled}
         vaultEnabled={vaultEnabled}
         liveChatEnabled
         canManage={canManageSettings}
@@ -460,6 +463,7 @@ export default function LiveChatDashboard({
         <WorkspaceSidebar
         companyName={companyName}
         taskManagementEnabled={taskManagementEnabled}
+        taskCanvasEnabled={taskCanvasEnabled}
         vaultEnabled={vaultEnabled}
         liveChatEnabled
         canManage={canManageSettings}
@@ -481,6 +485,7 @@ export default function LiveChatDashboard({
       <WorkspaceSidebar
         companyName={companyName}
         taskManagementEnabled={taskManagementEnabled}
+        taskCanvasEnabled={taskCanvasEnabled}
         vaultEnabled={vaultEnabled}
         liveChatEnabled
         canManage={canManageSettings}

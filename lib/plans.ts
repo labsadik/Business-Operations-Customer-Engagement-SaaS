@@ -14,6 +14,9 @@ export type PlanEntitlements = {
   maxConcurrentMeetings: number;
   taskManagementEnabled: boolean;
   taskManagementDailyLimit: number | null;
+  taskCanvasEnabled: boolean;
+  taskCanvasMaxCollaborators: number;
+  taskCanvasHistoryLimit: number;
   vaultEnabled: boolean;
   vaultQuotaBytes: number;
   vaultMaxFileBytes: number;
@@ -44,6 +47,9 @@ export const PLANS: Record<PlanId, PlanEntitlements> = {
     maxConcurrentMeetings: 1,
     taskManagementEnabled: false,
     taskManagementDailyLimit: 10,
+    taskCanvasEnabled: false,
+    taskCanvasMaxCollaborators: 2,
+    taskCanvasHistoryLimit: 10,
     vaultEnabled: false,
     vaultQuotaBytes: 5368709120,
     vaultMaxFileBytes: 104857600,
@@ -72,6 +78,9 @@ export const PLANS: Record<PlanId, PlanEntitlements> = {
     maxConcurrentMeetings: 10,
     taskManagementEnabled: false,
     taskManagementDailyLimit: 10,
+    taskCanvasEnabled: false,
+    taskCanvasMaxCollaborators: 2,
+    taskCanvasHistoryLimit: 10,
     vaultEnabled: false,
     vaultQuotaBytes: 5368709120,
     vaultMaxFileBytes: 104857600,
@@ -100,6 +109,9 @@ export const PLANS: Record<PlanId, PlanEntitlements> = {
     maxConcurrentMeetings: 25,
     taskManagementEnabled: false,
     taskManagementDailyLimit: 10,
+    taskCanvasEnabled: false,
+    taskCanvasMaxCollaborators: 2,
+    taskCanvasHistoryLimit: 10,
     vaultEnabled: false,
     vaultQuotaBytes: 5368709120,
     vaultMaxFileBytes: 104857600,
@@ -128,6 +140,9 @@ export const PLANS: Record<PlanId, PlanEntitlements> = {
     maxConcurrentMeetings: 50,
     taskManagementEnabled: false,
     taskManagementDailyLimit: 10,
+    taskCanvasEnabled: false,
+    taskCanvasMaxCollaborators: 2,
+    taskCanvasHistoryLimit: 10,
     vaultEnabled: false,
     vaultQuotaBytes: 5368709120,
     vaultMaxFileBytes: 104857600,
@@ -156,6 +171,9 @@ export const PLANS: Record<PlanId, PlanEntitlements> = {
     maxConcurrentMeetings: 100,
     taskManagementEnabled: false,
     taskManagementDailyLimit: 10,
+    taskCanvasEnabled: false,
+    taskCanvasMaxCollaborators: 2,
+    taskCanvasHistoryLimit: 10,
     vaultEnabled: false,
     vaultQuotaBytes: 5368709120,
     vaultMaxFileBytes: 104857600,

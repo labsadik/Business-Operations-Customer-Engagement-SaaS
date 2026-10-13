@@ -107,6 +107,7 @@ type TaskPageProps = {
   userId: string;
   currentRole: string;
   taskManagementEnabled: boolean;
+  taskCanvasEnabled?: boolean;
   vaultEnabled: boolean;
   liveChatEnabled: boolean;
 };
@@ -199,6 +200,7 @@ export default function TaskManagementDashboard({
   userId,
   currentRole,
   taskManagementEnabled,
+  taskCanvasEnabled = false,
   vaultEnabled,
   liveChatEnabled
 }: TaskPageProps) {
@@ -747,6 +749,7 @@ export default function TaskManagementDashboard({
       <WorkspaceSidebar
         companyName={companyName}
         taskManagementEnabled={taskManagementEnabled}
+        taskCanvasEnabled={taskCanvasEnabled}
         vaultEnabled={vaultEnabled}
         liveChatEnabled={liveChatEnabled}
         canManage={canManage}
