@@ -91,6 +91,7 @@ export default function WorkspaceSupportTickets({
   const [page, setPage] = useState(1);
   const [hasNext, setHasNext] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [subject, setSubject] = useState("");
@@ -145,29 +146,38 @@ export default function WorkspaceSupportTickets({
     };
   }, [open, onClose, asPage]);
 
-  const loadTickets = useCallback(async (nextPage = page) => {
-    setLoading(true);
+  const loadTickets = useCallback(async (nextPage = page, append = false) => {
+    if (append) setLoadingMore(true);
+    else setLoading(true);
     setError("");
     try {
       const data = await request<{
         items: SupportTicketItem[];
         page: number;
         hasNext: boolean;
-      }>(`/api/company/support-tickets?page=${nextPage}&limit=8`);
-      setItems(data.items);
+      }>(`/api/company/support-tickets?page=${nextPage}&limit=5`);
+      if (append) {
+        setItems((current) => {
+          const known = new Set(current.map((item) => item.id));
+          return [...current, ...data.items.filter((item) => !known.has(item.id))];
+        });
+      } else {
+        setItems(data.items);
+      }
       setPage(data.page);
       setHasNext(data.hasNext);
     } catch (errorValue) {
       setError(errorValue instanceof Error ? errorValue.message : "SUPPORT_TICKET_LIST_FAILED");
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [page]);
 
   useEffect(() => {
     if (!open || view !== "list") return;
     const timer = window.setTimeout(() => {
-      void loadTickets(page);
+      void loadTickets(page, page > 1);
     }, 0);
     return () => window.clearTimeout(timer);
   }, [loadTickets, open, page, view]);
@@ -371,26 +381,16 @@ export default function WorkspaceSupportTickets({
                 </div>
               )}
 
-              {(page > 1 || hasNext) && (
-                <div className="mt-5 flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3">
+              {hasNext && (
+                <div className="mt-5 flex justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3">
                   <button
                     type="button"
-                    disabled={page <= 1 || loading}
-                    onClick={() => setPage((current) => Math.max(1, current - 1))}
-                    className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-40"
-                  >
-                    <ChevronLeft className="size-3.5" aria-hidden="true" />
-                    Previous
-                  </button>
-                  <span className="text-xs font-semibold text-slate-500">Page {page}</span>
-                  <button
-                    type="button"
-                    disabled={!hasNext || loading}
+                    disabled={loadingMore || loading}
                     onClick={() => setPage((current) => current + 1)}
-                    className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-40"
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-700 disabled:opacity-40"
                   >
-                    Next
-                    <ChevronRight className="size-3.5" aria-hidden="true" />
+                    {loadingMore && <span className="size-3.5 animate-spin rounded-full border-2 border-slate-400 border-t-transparent" />}
+                    {loadingMore ? "Loading 5 more tickets…" : "Load 5 more tickets"}
                   </button>
                 </div>
               )}
