@@ -2,6 +2,7 @@
   "name": "canvas",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Canvas by AlgoQuit — company scheduling and collaboration workspace.",
   "scripts": {
     "dev": "next dev",
@@ -53,5 +54,6 @@
   },
   "allowScripts": {
     "unrs-resolver@1.12.2": true
-  }
+  },
+  "type": "module"
 }
