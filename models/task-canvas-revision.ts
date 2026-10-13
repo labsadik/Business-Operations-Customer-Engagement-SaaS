@@ -14,4 +14,5 @@ const taskCanvasRevisionSchema = new Schema(
 );
 
 taskCanvasRevisionSchema.index({ canvasId: 1, companyId: 1, workspaceId: 1, createdAt: -1 });
+taskCanvasRevisionSchema.index({ companyId: 1, createdAt: -1, _id: -1 });
 export const TaskCanvasRevision = models.TaskCanvasRevision ?? model("TaskCanvasRevision", taskCanvasRevisionSchema);
