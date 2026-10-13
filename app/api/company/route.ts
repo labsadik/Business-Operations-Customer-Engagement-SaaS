@@ -1,6 +1,7 @@
 import { getMongo } from "@/lib/mongodb";
 import { getSession, updateSessionScope } from "@/lib/session";
 import { Company } from "@/models/company";
+import { CompanySequence } from "@/models/company-sequence";
 import { Workspace } from "@/models/workspace";
 import { Membership } from "@/models/membership";
 import { Subscription } from "@/models/subscription";
@@ -55,6 +56,7 @@ function cleanPhone(value: string) {
 
 function profilePayload(company: {
   _id: unknown;
+  publicId: number;
   name: string;
   slug: string;
   email?: string;
@@ -74,6 +76,7 @@ function profilePayload(company: {
   const phone = company.phone ?? "";
   return {
     id: String(company._id),
+    publicId: company.publicId,
     name: company.name,
     slug: company.slug,
     email,
@@ -413,7 +416,18 @@ export async function POST(request: Request) {
   const tx = await db.startSession();
   try {
     const createdIds = await tx.withTransaction(async () => {
-      const [company] = await Company.create([{
+      // Allocate from one MongoDB counter inside the same transaction as company creation.
+      // The migration seeds this counter before this version is deployed.
+      const sequence = await CompanySequence.findOneAndUpdate(
+        { _id: "company-public-id" },
+        { $inc: { value: 1 } },
+        { new: true, session: tx }
+      ).lean();
+      if (!sequence || !Number.isSafeInteger(sequence.value) || sequence.value < 100001) {
+        throw new Error("COMPANY_PUBLIC_ID_SEQUENCE_NOT_INITIALIZED");
+      }
+
+      const [company] = await Company.create([{\n        publicId: sequence.value,
         name,
         slug,
         email,
@@ -466,7 +480,7 @@ export async function POST(request: Request) {
       }));
       await AvailabilityRule.insertMany(rules, { session: tx });
 
-      return { companyId: String(company._id), workspaceId: String(workspace._id) };
+      return { companyId: String(company._id), workspaceId: String(workspace._id), publicId: company.publicId };
     });
 
     if (!createdIds) throw new Error("COMPANY_CREATE_FAILED");
@@ -484,10 +498,10 @@ export async function POST(request: Request) {
       );
     }
 
-    return jsonOk({ companyId: createdIds.companyId, workspaceId: createdIds.workspaceId, slug }, 201);
+    return jsonOk({ companyId: createdIds.companyId, workspaceId: createdIds.workspaceId, publicId: createdIds.publicId, slug }, 201);
   } catch (error) {
     const message = error instanceof Error ? error.message : "COMPANY_CREATE_FAILED";
-    return jsonError(message, 500);
+    return jsonError(message, message === "COMPANY_PUBLIC_ID_SEQUENCE_NOT_INITIALIZED" ? 503 : 500);
   } finally {
     await tx.endSession();
   }
