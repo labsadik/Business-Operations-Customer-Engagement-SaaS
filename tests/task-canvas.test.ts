@@ -73,11 +73,10 @@ test("Task Canvas uses a crosshair cursor only for the selection tool", async ()
 });
 
 
-test("Task Canvas list, scene and history queries are scoped to both company and workspace", async () => {
-  const [listRoute, canvasRoute, historyRoute, auth] = await Promise.all([
+test("Task Canvas list, scene, rename and delete queries are scoped to company and workspace", async () => {
+  const [listRoute, canvasRoute, auth] = await Promise.all([
     readFile(new URL("../app/api/task-canvas/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/task-canvas/[canvasId]/route.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/api/task-canvas/[canvasId]/history/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/task-canvas-authorization.ts", import.meta.url), "utf8")
   ]);
 
@@ -86,20 +85,12 @@ test("Task Canvas list, scene and history queries are scoped to both company and
   assert.match(listRoute, /companyId,\s*workspaceId,\s*name,/);
   assert.match(canvasRoute, /companyId: new Types\.ObjectId\(scope\.companyId\)/);
   assert.match(canvasRoute, /workspaceId: new Types\.ObjectId\(scope\.workspaceId\)/);
-  assert.match(historyRoute, /canvasId: canvas\.\_id,[\s\S]*?companyId: filter\.companyId,[\s\S]*?workspaceId: filter\.workspaceId/);
+  assert.match(canvasRoute, /TaskCanvas\.findOneAndUpdate\(\s*filter/);
+  assert.match(canvasRoute, /TaskCanvas\.deleteOne\(filter\)/);
+  assert.match(canvasRoute, /releaseTaskCanvasSlot\(scope\.companyId\)/);
   assert.match(auth, /const companyId = session\.companyId/);
   assert.match(auth, /const workspaceId = session\.workspaceId/);
   assert.match(auth, /String\(canvas\.createdByUserId\) === userId/);
-});
-
-test("history preview, rename and delete operations keep revision IDs tenant scoped", async () => {
-  const historyRoute = await readFile(
-    new URL("../app/api/task-canvas/[canvasId]/history/route.ts", import.meta.url),
-    "utf8"
-  );
-  assert.match(historyRoute, /searchParams\.get\("revisionId"\)/);
-  assert.match(historyRoute, /findOneAndUpdate\([\s\S]*?canvasId: canvas\.\_id,[\s\S]*?companyId: filter\.companyId,[\s\S]*?workspaceId: filter\.workspaceId/);
-  assert.match(historyRoute, /deleteOne\([\s\S]*?canvasId: canvas\.\_id,[\s\S]*?companyId: filter\.companyId,[\s\S]*?workspaceId: filter\.workspaceId/);
 });
 
 test("Task Canvas keeps the canvas unselected on first load and uses in-app confirmation", async () => {
