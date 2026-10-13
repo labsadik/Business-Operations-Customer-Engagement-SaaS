@@ -3,6 +3,7 @@ import { TaskActivity } from "@/models/task-activity";
 import { TaskNotification } from "@/models/task-notification";
 import type { TaskActivityEventType, TaskNotificationType } from "../shared/constants";
 import type { TaskScope } from "./task-authorization";
+import { publishTaskRealtime } from "@/lib/task-realtime";
 
 export type TaskNotificationDraft = {
   recipientUserId: string;
@@ -54,4 +55,11 @@ export async function recordTaskEvent(input: {
     : Promise.resolve([]);
 
   await Promise.all([activityPromise, notificationPromise]);
+  publishTaskRealtime({
+    companyId: input.scope.companyId,
+    workspaceId: input.scope.workspaceId,
+    taskId: input.taskId,
+    eventType: input.eventType,
+    occurredAt: now.toISOString()
+  });
 }
