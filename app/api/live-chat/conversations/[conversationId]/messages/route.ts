@@ -78,7 +78,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ conv
         createdAt: row.createdAt
       })),
       nextCursor: hasMore && page.length
-        ? encodeListCursor(page[page.length - 1].createdAt, page[page.length - 1]._id)
+        ? encodeListCursor(page[0].createdAt, page[0]._id)
         : null
     });
   } catch (error) {
