@@ -25,8 +25,6 @@ import {
   List,
   RotateCcw,
   Volume2,
-  Wifi,
-  WifiOff,
   X
 } from "lucide-react";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
@@ -97,7 +95,6 @@ type TaskDetails = {
 type TaskViewMode = "BOARD" | "CALENDAR" | "TIMELINE" | "LIST";
 type StatusOverviewFilter = "ALL" | "ACTIVE" | TaskStatus;
 type TeamDirectoryFilter = "ALL" | "ACTIVE" | "ON_LEAVE" | "INACTIVE";
-type RealtimeStatus = "CONNECTING" | "CONNECTED" | "POLLING";
 type TaskSortMode = "UPDATED" | "DUE_DATE" | "PRIORITY";
 type TaskOwnerFilter = "ALL" | "ASSIGNED_TO_ME" | "CREATED_BY_ME" | "OVERDUE";
 type TaskCleanupPeriod = "WEEKLY" | "MONTHLY" | "YEARLY";
@@ -226,7 +223,6 @@ export default function TaskManagementDashboard({
   const [ownerFilter, setOwnerFilter] = useState<TaskOwnerFilter>("ALL");
   const [sortMode, setSortMode] = useState<TaskSortMode>("UPDATED");
   const [viewMode, setViewMode] = useState<TaskViewMode>("BOARD");
-  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("CONNECTING");
   const [workViewOpen, setWorkViewOpen] = useState(false);
   const [teamDirectoryOpen, setTeamDirectoryOpen] = useState(false);
   const [statusOverviewOpen, setStatusOverviewOpen] = useState(false);
@@ -448,86 +444,7 @@ export default function TaskManagementDashboard({
   }, []);
 
   useEffect(() => {
-    if (!taskManagementEnabled) return;
-    let cancelled = false;
-    let socket: WebSocket | null = null;
-    let reconnectTimer: number | undefined;
-    let connectionTimer: number | undefined;
-    let attempt = 0;
-
-    const scheduleReconnect = () => {
-      if (cancelled || reconnectTimer !== undefined) return;
-      setRealtimeStatus("POLLING");
-      const delay = Math.min(1_000 * (2 ** Math.min(attempt, 5)), 30_000);
-      attempt += 1;
-      reconnectTimer = window.setTimeout(() => {
-        reconnectTimer = undefined;
-        setRealtimeStatus("CONNECTING");
-        void connect();
-      }, delay);
-    };
-
-    const connect = async () => {
-      try {
-        const result = await api<{ enabled: boolean; ticket: string | null }>("/api/tasks/realtime-ticket");
-        if (cancelled) return;
-        if (!result.enabled || !result.ticket) {
-          setRealtimeStatus("POLLING");
-          return;
-        }
-
-        const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const currentSocket = new WebSocket(
-          `${scheme}//${window.location.host}/api/tasks/realtime`,
-          ["canvas-tasks", `ticket.${result.ticket}`]
-        );
-        socket = currentSocket;
-        connectionTimer = window.setTimeout(() => {
-          if (currentSocket.readyState === WebSocket.CONNECTING) currentSocket.close();
-        }, 10_000);
-
-        currentSocket.onopen = () => {
-          if (cancelled) return currentSocket.close();
-          if (connectionTimer !== undefined) window.clearTimeout(connectionTimer);
-          connectionTimer = undefined;
-          attempt = 0;
-          setRealtimeStatus("CONNECTED");
-        };
-        currentSocket.onmessage = (event) => {
-          try {
-            const message = JSON.parse(String(event.data)) as { type?: string };
-            if (message.type === "task.changed") void load(false);
-            if (message.type === "board.changed") void load(false);
-          } catch {
-            // Ignore malformed frames; the authenticated refresh path repairs the view.
-          }
-        };
-        currentSocket.onerror = () => currentSocket.close();
-        currentSocket.onclose = () => {
-          if (connectionTimer !== undefined) window.clearTimeout(connectionTimer);
-          connectionTimer = undefined;
-          if (socket === currentSocket) socket = null;
-          scheduleReconnect();
-        };
-      } catch {
-        scheduleReconnect();
-      }
-    };
-
-    void connect();
-    return () => {
-      cancelled = true;
-      if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer);
-      if (connectionTimer !== undefined) window.clearTimeout(connectionTimer);
-      if (socket) {
-        socket.onclose = null;
-        socket.close();
-      }
-    };
-  }, [taskManagementEnabled, load]);
-
-  useEffect(() => {
-    // Authenticated polling remains a recovery path for serverless deployments and network interruptions.
+    // Keep task data current without a persistent connection.
     const refreshVisibleTasks = () => {
       if (document.visibilityState === "visible") void load(false);
     };
@@ -912,9 +829,9 @@ export default function TaskManagementDashboard({
                     Clear task history
                   </button>
                 )}
-                <div className={"inline-flex items-center gap-2 rounded-xl border px-3.5 py-3 text-xs font-medium " + (realtimeStatus === "CONNECTED" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : realtimeStatus === "CONNECTING" ? "border-amber-200 bg-amber-50 text-amber-800" : "border-slate-200 bg-slate-50 text-slate-600")} aria-live="polite" aria-label={realtimeStatus === "CONNECTED" ? "Real-time task updates connected" : realtimeStatus === "CONNECTING" ? "Connecting to real-time task updates" : "Polling fallback is active"}>
-                  {realtimeStatus === "CONNECTED" ? <Wifi className="size-4" aria-hidden="true" /> : realtimeStatus === "CONNECTING" ? <WifiOff className="size-4" aria-hidden="true" /> : <RefreshCw className="size-4" aria-hidden="true" />}
-                  {realtimeStatus === "CONNECTED" ? "Live updates connected" : realtimeStatus === "CONNECTING" ? "Connecting live updates" : "Polling fallback active"}
+                <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-xs font-medium text-slate-600" aria-live="polite" aria-label="Task updates refresh automatically every 30 seconds">
+                  <RefreshCw className="size-4" aria-hidden="true" />
+                  Live updates active · refreshes every 30 seconds
                 </div>
                 <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-xs font-medium text-slate-600" aria-label="Task action sounds are enabled automatically">
                   <Volume2 className="size-4 text-blue-600" aria-hidden="true" />
