@@ -12,9 +12,6 @@ FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Standalone output is enabled only for this container build; Vercel stays on its default mode.
-ENV NEXT_OUTPUT_STANDALONE=1
-
 # NEXT_PUBLIC_* variables are embedded into browser bundles at build time.
 ARG NEXT_PUBLIC_APP_URL
 ARG NEXT_PUBLIC_APP_NAME=Canvas
@@ -54,12 +51,21 @@ ENV PORT=8080
 
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 --ingroup nodejs nextjs
 
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --no-audit --no-fund
+
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+COPY --from=builder --chown=nextjs:nodejs /app/app ./app
+COPY --from=builder --chown=nextjs:nodejs /app/components ./components
+COPY --from=builder --chown=nextjs:nodejs /app/features ./features
+COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
+COPY --from=builder --chown=nextjs:nodejs /app/models ./models
+COPY --from=builder --chown=nextjs:nodejs /app/types ./types
+COPY --from=builder --chown=nextjs:nodejs /app/proxy.ts ./proxy.ts
+COPY --from=builder --chown=nextjs:nodejs /app/next.config.ts ./next.config.ts
+COPY --from=builder --chown=nextjs:nodejs /app/*.ts ./
 COPY --from=builder --chown=nextjs:nodejs /app/server.mjs ./server.mjs
-COPY --from=builder --chown=nextjs:nodejs /app/lib/task-realtime.ts ./lib/task-realtime.ts
-COPY --from=builder --chown=nextjs:nodejs /app/lib/task-realtime-auth.ts ./lib/task-realtime-auth.ts
 
 USER nextjs
 EXPOSE 8080
