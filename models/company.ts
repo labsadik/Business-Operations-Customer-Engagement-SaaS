@@ -23,6 +23,7 @@ const companySchema = new Schema(
     planExpiryTestActive: { type: Boolean, default: false },
     // Initialized from the real company name and immutable database ID on first vault access.
     vaultStorageRoot: { type: String, trim: true, maxlength: 140 },
+    taskCanvasCount: { type: Number, min: 0 },
     ownerUserId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true }
   },
   { timestamps: true }

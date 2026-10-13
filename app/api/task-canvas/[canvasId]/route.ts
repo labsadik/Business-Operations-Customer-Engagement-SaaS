@@ -2,15 +2,16 @@ import { Types } from "mongoose";
 import { assertSameOrigin } from "@/lib/security";
 import { jsonError, jsonOk } from "@/lib/http";
 import { TaskCanvas } from "@/models/task-canvas";
-import { TaskCanvasRevision } from "@/models/task-canvas-revision";
-import { pruneCompanyTaskCanvasHistory } from "@/lib/task-canvas-history";
+
 import { Membership } from "@/models/membership";
 import { User } from "@/models/user";
 import {
   canManageTaskCanvas,
   canReadTaskCanvas,
   requireTaskCanvasScope,
-  taskCanvasErrorResponse
+  taskCanvasErrorResponse,
+  getCompanyTaskCanvasCount,
+  releaseTaskCanvasSlot
 } from "@/lib/task-canvas-authorization";
 import {
   validateCanvasMembers,
@@ -33,11 +34,6 @@ function idsFor(scope: { companyId: string; workspaceId: string }, canvasId: str
   };
 }
 
-function meaningfulScene(scene: unknown) {
-  if (!scene || typeof scene !== "object") return false;
-  const elements = (scene as { elements?: unknown }).elements;
-  return Array.isArray(elements) && elements.length > 0;
-}
 
 export async function GET(request: Request, { params }: Params) {
   try {
@@ -59,15 +55,14 @@ export async function GET(request: Request, { params }: Params) {
       lastEditorUserId: canvas.lastEditorUserId ? String(canvas.lastEditorUserId) : null
     };
     if (new URL(request.url).searchParams.get("meta") === "1") return jsonOk({ item });
-    await pruneCompanyTaskCanvasHistory(filter.companyId, scope.historyLimit);
-    const historyUsed = await TaskCanvasRevision.countDocuments({ companyId: filter.companyId });
+    const canvasesUsed = await getCompanyTaskCanvasCount(scope.companyId);
     return jsonOk({
       item,
       scene: canvas.scene ?? { elements: [], appState: {}, files: {} },
       limits: {
         maxCollaborators: scope.maxCollaborators,
-        historyLimit: scope.historyLimit,
-        historyUsed
+        canvasLimit: scope.canvasLimit,
+        canvasesUsed
       }
     });
   } catch (error) {
@@ -96,17 +91,14 @@ export async function PATCH(request: Request, { params }: Params) {
       if (expectedVersion !== canvas.version) {
         return jsonError("CANVAS_VERSION_CONFLICT", 409, { currentVersion: canvas.version });
       }
-      const now = new Date();
-      const lastHistoryAt = canvas.lastHistoryAt ? new Date(canvas.lastHistoryAt).getTime() : 0;
-      const shouldSnapshot = meaningfulScene(canvas.scene) && (!lastHistoryAt || now.getTime() - lastHistoryAt >= 120_000);
+
       const updated = await TaskCanvas.findOneAndUpdate(
         { ...filter, version: expectedVersion },
         {
           $set: {
             scene,
             version: expectedVersion + 1,
-            lastEditorUserId: actorId,
-            ...(shouldSnapshot ? { lastHistoryAt: now } : {})
+            lastEditorUserId: actorId
           }
         },
         { returnDocument: "after", runValidators: true }
@@ -115,46 +107,10 @@ export async function PATCH(request: Request, { params }: Params) {
         const latest = await TaskCanvas.findOne(filter).select("version").lean();
         return jsonError("CANVAS_VERSION_CONFLICT", 409, { currentVersion: latest?.version ?? null });
       }
-      if (shouldSnapshot) {
-        await TaskCanvasRevision.create({
-          companyId: filter.companyId,
-          workspaceId: filter.workspaceId,
-          canvasId: canvas._id,
-          version: canvas.version,
-          name: canvas.name,
-          scene: canvas.scene,
-          createdByUserId: actorId
-        });
-        await pruneCompanyTaskCanvasHistory(filter.companyId, scope.historyLimit);
-      }
+
       return jsonOk({ version: updated.version, updatedAt: new Date(updated.updatedAt).toISOString() });
     }
 
-    if (body.action === "checkpoint") {
-      const expectedVersion = validateCanvasVersion(body.expectedVersion);
-      if (expectedVersion !== canvas.version) {
-        return jsonError("CANVAS_VERSION_CONFLICT", 409, { currentVersion: canvas.version });
-      }
-      const revision = await TaskCanvasRevision.create({
-        companyId: filter.companyId,
-        workspaceId: filter.workspaceId,
-        canvasId: canvas._id,
-        version: canvas.version,
-        name: canvas.name,
-        scene: canvas.scene,
-        createdByUserId: actorId
-      });
-      await pruneCompanyTaskCanvasHistory(filter.companyId, scope.historyLimit);
-      return jsonOk({
-        revision: {
-          id: String(revision._id),
-          version: revision.version,
-          name: revision.name,
-          createdAt: revision.createdAt.toISOString(),
-          createdByUserId: String(revision.createdByUserId)
-        }
-      }, 201);
-    }
 
     if (body.action === "rename") {
       if (!canManageTaskCanvas(scope, canvas)) throw new Error("FORBIDDEN");
@@ -222,15 +178,13 @@ export async function DELETE(request: Request, { params }: Params) {
     if (!canvas || !canReadTaskCanvas(scope, canvas)) throw new Error("TASK_CANVAS_NOT_FOUND");
     if (!canManageTaskCanvas(scope, canvas)) throw new Error("FORBIDDEN");
 
-    await Promise.all([
-      TaskCanvas.deleteOne(filter),
-      TaskCanvasRevision.deleteMany({
-        canvasId: canvas._id,
-        companyId: filter.companyId,
-        workspaceId: filter.workspaceId
-      })
-    ]);
-    return jsonOk({ deleted: true });
+    const result = await TaskCanvas.deleteOne(filter);
+    if (result.deletedCount) await releaseTaskCanvasSlot(scope.companyId);
+    const canvasesUsed = await getCompanyTaskCanvasCount(scope.companyId);
+    return jsonOk({
+      deleted: Boolean(result.deletedCount),
+      limits: { maxCollaborators: scope.maxCollaborators, canvasLimit: scope.canvasLimit, canvasesUsed }
+    });
   } catch (error) {
     return taskCanvasErrorResponse(error, "TASK_CANVAS_DELETE_FAILED");
   }

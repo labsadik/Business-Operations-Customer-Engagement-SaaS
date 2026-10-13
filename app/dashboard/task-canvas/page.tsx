@@ -8,7 +8,7 @@ import { Membership } from "@/models/membership";
 import TaskCanvasDashboard from "@/features/task-canvas/components/task-canvas-dashboard";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Task Canvas · Excalidraw whiteboards" };
+export const metadata = { title: "Task Canvas · Team whiteboards" };
 
 export default async function TaskCanvasPage() {
   const session = await getSession();
@@ -51,7 +51,7 @@ export default async function TaskCanvasPage() {
     redirect("/dashboard?notice=task_canvas_not_included");
   }
   const maxCollaborators = Math.min(200, Math.max(2, entitlements.taskCanvasMaxCollaborators ?? 2));
-  const historyLimit = Math.min(100, Math.max(1, entitlements.taskCanvasHistoryLimit ?? 10));
+  const canvasLimit = Math.min(100, Math.max(1, entitlements.taskCanvasHistoryLimit ?? 10));
 
   return (
     <PlanAccessGuard
@@ -64,8 +64,11 @@ export default async function TaskCanvasPage() {
         currentRole={session.role}
         currentUserId={session.userId}
         taskCanvasEnabled={Boolean(entitlements.taskCanvasEnabled)}
+        taskManagementEnabled={Boolean(entitlements.taskManagementEnabled)}
+        vaultEnabled={Boolean(entitlements.vaultEnabled)}
+        liveChatEnabled={Boolean(entitlements.liveChatEnabled)}
         maxCollaborators={maxCollaborators}
-        historyLimit={historyLimit}
+        canvasLimit={canvasLimit}
       />
     </PlanAccessGuard>
   );

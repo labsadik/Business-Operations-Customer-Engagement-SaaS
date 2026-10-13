@@ -127,39 +127,41 @@ test("large embedded images are compressed client-side before bounded scene writ
 });
 
 
-test("Task Canvas history retention is company-wide and safely prunes legacy per-canvas overages", async () => {
-  const [historyHelper, revisionModel, listRoute, canvasRoute, historyRoute, adminPlans, dashboard, authorization, page] = await Promise.all([
-    readFile(new URL("../lib/task-canvas-history.ts", import.meta.url), "utf8"),
-    readFile(new URL("../models/task-canvas-revision.ts", import.meta.url), "utf8"),
+test("Task Canvas creation is limited company-wide while collaborators remain limited per canvas", async () => {
+  const [companyModel, canvasModel, listRoute, canvasRoute, adminPlans, dashboard, authorization, page, sidebar] = await Promise.all([
+    readFile(new URL("../models/company.ts", import.meta.url), "utf8"),
+    readFile(new URL("../models/task-canvas.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/task-canvas/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/task-canvas/[canvasId]/route.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/api/task-canvas/[canvasId]/history/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../components/admin-plans.tsx", import.meta.url), "utf8"),
     readFile(new URL("../features/task-canvas/components/task-canvas-dashboard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../lib/task-canvas-authorization.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/dashboard/task-canvas/page.tsx", import.meta.url), "utf8")
+    readFile(new URL("../app/dashboard/task-canvas/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/workspace-sidebar.tsx", import.meta.url), "utf8")
   ]);
 
-  assert.match(historyHelper, /TaskCanvasRevision\.find\(\{ companyId: tenantId \}\)/);
-  assert.match(historyHelper, /\.limit\(safeLimit\)/);
-  assert.match(historyHelper, /const oldestKept = keep\[keep\.length - 1\]/);
-  assert.match(historyHelper, /createdAt: \{ \$lt: oldestKept\.createdAt \}/);
-  assert.match(historyHelper, /_id: \{ \$lt: oldestKept\._id \}/);
-  assert.match(revisionModel, /index\(\{ companyId: 1, createdAt: -1, _id: -1 \}\)/);
-  assert.match(listRoute, /pruneCompanyTaskCanvasHistory\(companyId, scope\.historyLimit\)/);
-  assert.match(listRoute, /TaskCanvasRevision\.countDocuments\(\{ companyId \}\)/);
-  assert.match(historyRoute, /historyUsed/);
-  assert.match(canvasRoute, /pruneCompanyTaskCanvasHistory\(filter\.companyId, scope\.historyLimit\)/);
-  assert.doesNotMatch(canvasRoute, /\bnew:\s*true\b/);
-  assert.doesNotMatch(historyRoute, /\bnew:\s*true\b/);
-  assert.match(canvasRoute, /returnDocument: "after"/);
-  assert.match(historyRoute, /returnDocument: "after"/);
-  assert.match(adminPlans, /Saved history versions per company/);
-  assert.match(dashboard, /Company-wide history/);
-  assert.match(authorization, /const plan = await getCompanyEntitlements\(companyId\)/);
-  assert.doesNotMatch(authorization, /maxCollaborators: 200, historyLimit: 100/);
-  assert.match(page, /if \(!entitlements\.taskCanvasEnabled\)/);
-  assert.doesNotMatch(page, /session\.role === "PLATFORM_ADMIN"\s*\?\s*200/);
+  assert.match(companyModel, /taskCanvasCount/);
+  assert.match(canvasModel, /companyId:[\s\S]*workspaceId:/);
+  assert.match(authorization, /reserveTaskCanvasSlot\(companyId: string, limit: number\)/);
+  assert.match(authorization, /taskCanvasCount: \{ \$lt: limit \}/);
+  assert.match(authorization, /canvasLimit: Math\.min\(100, Math\.max\(1, plan\.taskCanvasHistoryLimit \?\? 10\)\)/);
+  assert.match(listRoute, /reserveTaskCanvasSlot\(scope\.companyId, scope\.canvasLimit\)/);
+  assert.match(listRoute, /getCompanyTaskCanvasCount\(scope\.companyId\)/);
+  assert.match(canvasRoute, /releaseTaskCanvasSlot\(scope\.companyId\)/);
+  assert.match(adminPlans, /Canvases per company/);
+  assert.match(adminPlans, /canvas creation allowance is shared across every employee and workspace/);
+  assert.match(dashboard, /Company canvas allowance/);
+  assert.match(dashboard, /limits\.canvasesUsed >= limits\.canvasLimit/);
+  assert.doesNotMatch(dashboard, /historyLimit|historyUsed|setHistory|checkpoint\(/);
+  assert.doesNotMatch(listRoute, /TaskCanvasRevision|pruneCompanyTaskCanvasHistory/);
+  assert.doesNotMatch(canvasRoute, /TaskCanvasRevision|pruneCompanyTaskCanvasHistory|checkpoint/);
+  assert.match(page, /canvasLimit=\{canvasLimit\}/);
+  assert.match(sidebar, /aria-label="Workspace Tools"/);
+  assert.match(sidebar, /data-sidebar-key="meetings"/);
+  assert.match(dashboard, /taskManagementEnabled=\{taskManagementEnabled\}/);
+  assert.match(dashboard, /vaultEnabled=\{vaultEnabled\}/);
+  assert.match(dashboard, /liveChatEnabled=\{liveChatEnabled\}/);
+  assert.match(dashboard, /showWelcomeScreen: false/);
 });
 
 test("Task Canvas collaborator profiles render Google avatars and legacy member duplicates are hidden", async () => {
