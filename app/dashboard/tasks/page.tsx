@@ -63,6 +63,7 @@ export default async function TaskManagementPage() {
         userId={session.userId}
         currentRole={session.role}
         taskManagementEnabled={Boolean(plan.taskManagementEnabled)}
+        taskCanvasEnabled={session.role === "PLATFORM_ADMIN" || Boolean(plan.taskCanvasEnabled)}
         vaultEnabled={Boolean(plan.vaultEnabled)}
         liveChatEnabled={Boolean(plan.liveChatEnabled)}
       />

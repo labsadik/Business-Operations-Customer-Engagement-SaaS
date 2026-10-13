@@ -43,6 +43,7 @@ export default async function LiveChatPage() {
         canManageSettings={session.role === "COMPANY_ADMIN"}
         companyName={company.name}
         taskManagementEnabled={Boolean(entitlements.taskManagementEnabled)}
+        taskCanvasEnabled={Boolean(entitlements.taskCanvasEnabled)}
         vaultEnabled={Boolean(entitlements.vaultEnabled)}
         sessionRole={session.role}
       />
