@@ -166,6 +166,7 @@ export default function LiveChatDashboard({
   const [userDetailsOpen, setUserDetailsOpen] = useState(false);
   const [tab, setTab] = useState<"inbox" | "settings">("inbox");
   const [items, setItems] = useState<Conversation[]>([]);
+  const itemsRef = useRef<Conversation[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMoreConversations, setLoadingMoreConversations] = useState(false);
   const [usage, setUsage] = useState<Usage | null>(null);
@@ -265,19 +266,25 @@ export default function LiveChatDashboard({
       const data = await api<{ items: Conversation[]; nextCursor: string | null; usage: Usage }>("/api/live-chat?" + params.toString());
       const latestFilter = inboxFilterRef.current;
       if (requestId !== inboxRequestRef.current || latestFilter.status !== status || latestFilter.search !== search) return;
-      if (quiet) {
+      if (quiet && itemsRef.current.length > 5) {
         setItems((current) => {
           const previous = new Map(current.map((item) => [item.id, item]));
           const refreshedIds = new Set(data.items.map((item) => item.id));
           return [
             ...data.items.map((item) => ({ ...previous.get(item.id), ...item })),
-            ...current.filter((item) => !refreshedIds.has(item.id))
+            ...current.slice(5).filter((item) => !refreshedIds.has(item.id))
           ];
         });
       } else {
-        setItems(data.items);
-        setNextCursor(data.nextCursor);
-        setSelectedId((current) => current && data.items.some((item) => item.id === current) ? current : "");
+        // With only the first page loaded, advance its cursor quietly as the
+        // newest conversations change. Once older pages are loaded, keep their
+        // boundary so background polling never skips unseen conversations.
+        setItems((current) => {
+          const previous = new Map(current.map((item) => [item.id, item]));
+          return data.items.map((item) => ({ ...previous.get(item.id), ...item }));
+        });
+        if (!quiet || itemsRef.current.length <= 5) setNextCursor(data.nextCursor);
+        if (!quiet) setSelectedId((current) => current && data.items.some((item) => item.id === current) ? current : "");
       }
       setUsage(data.usage);
       setError("");
@@ -387,9 +394,10 @@ export default function LiveChatDashboard({
 
 
   useEffect(() => {
+    itemsRef.current = items;
     inboxFilterRef.current = { status: conversationTab, search: conversationSearch.trim() };
     selectedChatRef.current = selectedId;
-  }, [conversationTab, conversationSearch, selectedId]);
+  }, [items, conversationTab, conversationSearch, selectedId]);
 
   useEffect(() => {
     // Changing inbox filters must not re-fetch widget settings.
