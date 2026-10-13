@@ -3,8 +3,9 @@ import { TaskCanvasRevision } from "@/models/task-canvas-revision";
 
 /**
  * Keep only the newest plan-allowed revisions across the entire company.
- * Fetch at most the small retention window and let MongoDB delete the overflow,
- * avoiding unbounded application memory and repeated scans of older history.
+ * Retain at most the configured number of IDs in application memory and use
+ * the company/createdAt index to delete older records without scanning their
+ * scene payloads or loading a company's complete revision history.
  */
 export async function pruneCompanyTaskCanvasHistory(companyId: string | Types.ObjectId, limit: number) {
   const tenantId = new Types.ObjectId(String(companyId));
@@ -13,17 +14,20 @@ export async function pruneCompanyTaskCanvasHistory(companyId: string | Types.Ob
   const keep = await TaskCanvasRevision.find({ companyId: tenantId })
     .sort({ createdAt: -1, _id: -1 })
     .limit(safeLimit)
-    .select("_id")
+    .select("_id createdAt")
     .lean();
 
-  const hasExcess = await TaskCanvasRevision.exists({
-    companyId: tenantId,
-    _id: { $nin: keep.map((revision) => revision._id) }
-  });
-  if (!hasExcess) return;
+  if (keep.length < safeLimit) return;
 
-  await TaskCanvasRevision.deleteMany({
+  const oldestKept = keep[keep.length - 1];
+  const overflow = {
     companyId: tenantId,
-    _id: { $nin: keep.map((revision) => revision._id) }
-  });
+    $or: [
+      { createdAt: { $lt: oldestKept.createdAt } },
+      { createdAt: oldestKept.createdAt, _id: { $lt: oldestKept._id } }
+    ]
+  };
+
+  if (!(await TaskCanvasRevision.exists(overflow))) return;
+  await TaskCanvasRevision.deleteMany(overflow);
 }
