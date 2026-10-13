@@ -41,6 +41,9 @@ type Plan = {
   maxConcurrentMeetings: number;
   taskManagementEnabled: boolean;
   taskManagementDailyLimit: number | null;
+  taskCanvasEnabled: boolean;
+  taskCanvasMaxCollaborators: number;
+  taskCanvasHistoryLimit: number;
   vaultEnabled: boolean;
   vaultQuotaBytes: number;
   vaultMaxFileBytes: number;
@@ -85,6 +88,9 @@ type Draft = {
   taskManagementEnabled: boolean;
   taskManagementDailyLimit: string;
   taskManagementUnlimitedDaily: boolean;
+  taskCanvasEnabled: boolean;
+  taskCanvasMaxCollaborators: string;
+  taskCanvasHistoryLimit: string;
   vaultEnabled: boolean;
   vaultQuotaAmount: string;
   vaultQuotaUnit: "GB" | "TB";
@@ -121,6 +127,9 @@ const emptyDraft: Draft = {
   taskManagementEnabled: false,
   taskManagementDailyLimit: "10",
   taskManagementUnlimitedDaily: false,
+  taskCanvasEnabled: false,
+  taskCanvasMaxCollaborators: "2",
+  taskCanvasHistoryLimit: "10",
   vaultEnabled: false,
   vaultQuotaAmount: "5",
   vaultQuotaUnit: "GB",
@@ -178,6 +187,9 @@ function toDraft(plan: Plan): Draft {
     taskManagementEnabled: Boolean(plan.taskManagementEnabled),
     taskManagementDailyLimit: String(plan.taskManagementDailyLimit ?? 10),
     taskManagementUnlimitedDaily: plan.taskManagementDailyLimit === null,
+    taskCanvasEnabled: Boolean(plan.taskCanvasEnabled),
+    taskCanvasMaxCollaborators: String(plan.taskCanvasMaxCollaborators ?? 2),
+    taskCanvasHistoryLimit: String(plan.taskCanvasHistoryLimit ?? 10),
     vaultEnabled: Boolean(plan.vaultEnabled),
     vaultQuotaAmount: String((plan.vaultQuotaBytes ?? 5368709120) >= 1024 ** 4
       ? (plan.vaultQuotaBytes ?? 5368709120) / (1024 ** 4)
@@ -222,6 +234,9 @@ function draftPayload(draft: Draft) {
     maxConcurrentMeetings: parseNumber(draft.maxConcurrentMeetings),
     taskManagementEnabled: draft.taskManagementEnabled,
     taskManagementDailyLimit: draft.taskManagementUnlimitedDaily ? null : parseNumber(draft.taskManagementDailyLimit),
+    taskCanvasEnabled: draft.taskCanvasEnabled,
+    taskCanvasMaxCollaborators: parseNumber(draft.taskCanvasMaxCollaborators),
+    taskCanvasHistoryLimit: parseNumber(draft.taskCanvasHistoryLimit),
     vaultEnabled: draft.vaultEnabled,
     vaultQuotaBytes: Math.round(parseNumber(draft.vaultQuotaAmount) * (draft.vaultQuotaUnit === "TB" ? 1024 ** 4 : 1024 ** 3)),
     vaultMaxFileBytes: Math.round(parseNumber(draft.vaultMaxFileMiB) * (1024 ** 2)),
@@ -708,6 +723,15 @@ export default function AdminPlans() {
                   </div>
 
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-3">
+                    <p className="text-[10px] uppercase tracking-[0.11em] text-slate-400">Task Canvas</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-800">
+                      {item.taskCanvasEnabled
+                        ? "Included · " + item.taskCanvasMaxCollaborators + " people/canvas · " + item.taskCanvasHistoryLimit + " history versions"
+                        : "Not included"}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-3">
                     <p className="text-[10px] uppercase tracking-[0.11em] text-slate-400">Cloud vault</p>
                     <p className="mt-1 text-xs font-semibold text-slate-800">
                       {item.vaultEnabled
@@ -932,6 +956,16 @@ export default function AdminPlans() {
                           </p>
                         </div>
                       )}
+                      <div className="mt-5 border-t border-slate-200 pt-4">
+                        <Toggle label="Task Canvas · Excalidraw team whiteboards" value={draft.taskCanvasEnabled} onChange={(value) => setDraft((current) => ({ ...current, taskCanvasEnabled: value }))} />
+                        {draft.taskCanvasEnabled && (
+                          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                            <Field label="People per canvas (includes owner)" type="number" min="2" max="200" step="1" value={draft.taskCanvasMaxCollaborators} onChange={(value) => setDraft((current) => ({ ...current, taskCanvasMaxCollaborators: value }))} />
+                            <Field label="Saved history versions per canvas" type="number" min="1" max="100" step="1" value={draft.taskCanvasHistoryLimit} onChange={(value) => setDraft((current) => ({ ...current, taskCanvasHistoryLimit: value }))} />
+                            <p className="text-[11px] leading-5 text-slate-500 sm:col-span-2">The server enforces these limits for every company on this plan. Each board is private to its company, and only invited active workspace members can edit it.</p>
+                          </div>
+                        )}
+                      </div>
                       <div className="mt-5 border-t border-slate-200 pt-4">
                         <Toggle label="Cloud vault & private company storage" value={draft.vaultEnabled} onChange={(value) => setDraft((current) => ({ ...current, vaultEnabled: value }))} />
                         {draft.vaultEnabled && (
