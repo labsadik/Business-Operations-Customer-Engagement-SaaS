@@ -516,7 +516,7 @@ test("same-port Node server and task client include real-time transport and poll
   assert.ok(dashboard.includes("/api/tasks/realtime-ticket"));
   assert.match(dashboard, /Live updates connected/);
   assert.match(dashboard, /Polling fallback active/);
-  assert.doesNotMatch(server, /url\\.parse|parse\\(request\\.url/);
+  assert.doesNotMatch(server, /url\.parse|parse\(request\.url/);
   assert.match(ticketRoute, /requireTaskScope/);
   assert.match(eventRecorder, /publishTaskRealtime/);
 });
