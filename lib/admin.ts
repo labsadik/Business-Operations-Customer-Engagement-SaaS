@@ -25,6 +25,7 @@ import { decodeListCursor, encodeListCursor } from "@/lib/list-pagination";
 
 export type AdminCompanyListItem = {
   id: string;
+  publicId: number | null;
   name: string;
   slug: string;
   email: string;
@@ -173,6 +174,7 @@ function escapeRegex(value: string) {
 async function buildCompanyRows(
   companies: Array<{
     _id: Types.ObjectId;
+    publicId?: number | null;
     name: string;
     slug: string;
     email?: string;
@@ -264,6 +266,7 @@ async function buildCompanyRows(
 
     return {
       id,
+      publicId: company.publicId ?? null,
       name: company.name,
       slug: company.slug,
       email: company.email ?? "",
