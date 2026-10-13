@@ -3,6 +3,7 @@ import { assertSameOrigin } from "@/lib/security";
 import { jsonError, jsonOk } from "@/lib/http";
 import { TaskCanvas } from "@/models/task-canvas";
 import { TaskCanvasRevision } from "@/models/task-canvas-revision";
+import { pruneCompanyTaskCanvasHistory } from "@/lib/task-canvas-history";
 import {
   canReadTaskCanvas,
   requireTaskCanvasScope,
@@ -24,17 +25,6 @@ function scopedFilter(scope: { companyId: string; workspaceId: string }, canvasI
   };
 }
 
-async function pruneHistory(filter: { canvasId: Types.ObjectId; companyId: Types.ObjectId; workspaceId: Types.ObjectId }, limit: number) {
-  const excess = await TaskCanvasRevision.find(filter)
-    .sort({ createdAt: -1, _id: -1 })
-    .skip(limit)
-    .select("_id")
-    .lean();
-  if (excess.length) {
-    await TaskCanvasRevision.deleteMany({ ...filter, _id: { $in: excess.map((item) => item._id) } });
-  }
-}
-
 export async function GET(request: Request, { params }: Params) {
   try {
     const scope = await requireTaskCanvasScope();
@@ -48,6 +38,7 @@ export async function GET(request: Request, { params }: Params) {
       companyId: filter.companyId,
       workspaceId: filter.workspaceId
     };
+    await pruneCompanyTaskCanvasHistory(filter.companyId, scope.historyLimit);
     const revisionId = new URL(request.url).searchParams.get("revisionId");
     if (revisionId) {
       if (!Types.ObjectId.isValid(revisionId)) throw new Error("CANVAS_REVISION_ID_INVALID");
@@ -68,15 +59,7 @@ export async function GET(request: Request, { params }: Params) {
       });
     }
 
-    const excess = await TaskCanvasRevision.find(revisionFilter)
-      .sort({ createdAt: -1, _id: -1 })
-      .skip(scope.historyLimit)
-      .select("_id")
-      .lean();
-    if (excess.length) {
-      await TaskCanvasRevision.deleteMany({ ...revisionFilter, _id: { $in: excess.map((revision) => revision._id) } });
-    }
-
+    const historyUsed = await TaskCanvasRevision.countDocuments({ companyId: filter.companyId });
     const items = await TaskCanvasRevision.find(revisionFilter)
       .sort({ createdAt: -1, _id: -1 })
       .limit(scope.historyLimit)
@@ -92,6 +75,7 @@ export async function GET(request: Request, { params }: Params) {
         createdByUserId: String(revision.createdByUserId)
       })),
       historyLimit: scope.historyLimit,
+      historyUsed,
       currentVersion: canvas.version
     });
   } catch (error) {
@@ -112,6 +96,7 @@ export async function POST(request: Request, { params }: Params) {
     const expectedVersion = validateCanvasVersion(body.expectedVersion);
     const canvas = await TaskCanvas.findOne(filter).lean();
     if (!canvas || !canReadTaskCanvas(scope, canvas)) throw new Error("TASK_CANVAS_NOT_FOUND");
+    await pruneCompanyTaskCanvasHistory(filter.companyId, scope.historyLimit);
     if (expectedVersion !== canvas.version) {
       return jsonError("CANVAS_VERSION_CONFLICT", 409, { currentVersion: canvas.version });
     }
@@ -135,7 +120,7 @@ export async function POST(request: Request, { params }: Params) {
           lastHistoryAt: now
         }
       },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     ).lean();
     if (!updated) {
       const latest = await TaskCanvas.findOne(filter).select("version").lean();
@@ -151,11 +136,7 @@ export async function POST(request: Request, { params }: Params) {
       scene: canvas.scene,
       createdByUserId: new Types.ObjectId(scope.session.userId)
     });
-    await pruneHistory({
-      canvasId: canvas._id,
-      companyId: filter.companyId,
-      workspaceId: filter.workspaceId
-    }, scope.historyLimit);
+    await pruneCompanyTaskCanvasHistory(filter.companyId, scope.historyLimit);
 
     return jsonOk({
       version: updated.version,
@@ -186,6 +167,7 @@ export async function PATCH(request: Request, { params }: Params) {
 
     const canvas = await TaskCanvas.findOne(filter).lean();
     if (!canvas || !canReadTaskCanvas(scope, canvas)) throw new Error("TASK_CANVAS_NOT_FOUND");
+    await pruneCompanyTaskCanvasHistory(filter.companyId, scope.historyLimit);
 
     const revision = await TaskCanvasRevision.findOneAndUpdate(
       {
@@ -195,7 +177,7 @@ export async function PATCH(request: Request, { params }: Params) {
         workspaceId: filter.workspaceId
       },
       { $set: { name: validateTaskCanvasName(body.name) } },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     ).lean();
     if (!revision) throw new Error("CANVAS_REVISION_NOT_FOUND");
 
@@ -226,6 +208,7 @@ export async function DELETE(request: Request, { params }: Params) {
 
     const canvas = await TaskCanvas.findOne(filter).lean();
     if (!canvas || !canReadTaskCanvas(scope, canvas)) throw new Error("TASK_CANVAS_NOT_FOUND");
+    await pruneCompanyTaskCanvasHistory(filter.companyId, scope.historyLimit);
 
     const deleted = await TaskCanvasRevision.deleteOne({
       _id: new Types.ObjectId(body.revisionId),
