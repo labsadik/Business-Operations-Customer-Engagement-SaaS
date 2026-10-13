@@ -83,6 +83,9 @@ test("task update accepts only mutable fields", () => {
   assert.equal(update.priority, "HIGH");
   assert.equal(update.dueAt, null);
   assert.throws(() => validateTaskPatchInput({ companyId: "64b000000000000000000099" }), /TASK_FIELDS_INVALID/);
+  assert.equal(validateTaskPatchInput({ sprintId: "64b000000000000000000099" }).sprintId, "64b000000000000000000099");
+  assert.equal(validateTaskPatchInput({ sprintId: null }).sprintId, null);
+  assert.throws(() => validateTaskPatchInput({ sprintId: "not-an-object-id" }), /TASK_SPRINT_ID_INVALID/);
   assert.throws(() => validateTaskPatchInput({}), /TASK_UPDATE_EMPTY/);
 });
 
@@ -483,4 +486,21 @@ test("same-port Node server and task client include real-time transport and poll
   assert.match(dashboard, /Live updates reconnecting/);
   assert.match(ticketRoute, /requireTaskScope/);
   assert.match(eventRecorder, /publishTaskRealtime/);
+});
+
+
+test("Scrum backlog membership is tenant-scoped and visible in the board UI", () => {
+  const taskModel = source("models/task.ts");
+  const patchRoute = source("app/api/tasks/[taskId]/route.ts");
+  const listRoute = source("app/api/tasks/route.ts");
+  const dashboard = source("features/task-management/components/task-management-dashboard.tsx");
+  assert.match(taskModel, /sprintId: \{ type: Schema\.Types\.ObjectId, ref: "TaskBoard"/);
+  assert.ok(patchRoute.includes('if (update.sprintId !== undefined)'));
+  assert.ok(patchRoute.includes('scope.session.role !== "COMPANY_ADMIN"'));
+  assert.ok(patchRoute.includes('workspaceId: existing.workspaceId'));
+  assert.ok(listRoute.includes('sprintId: task.sprintId ? String(task.sprintId) : null'));
+  assert.ok(dashboard.includes('aria-label="Sprint work"'));
+  assert.ok(dashboard.includes('aria-label="Product backlog"'));
+  assert.ok(dashboard.includes("Add to sprint"));
+  assert.ok(dashboard.includes("Move to backlog"));
 });
