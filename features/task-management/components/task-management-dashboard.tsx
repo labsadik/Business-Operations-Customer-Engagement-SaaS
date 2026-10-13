@@ -501,8 +501,7 @@ export default function TaskManagementDashboard({
     const refreshVisibleTasks = () => {
       if (document.visibilityState === "visible") void load(false);
     };
-    const pollInterval = realtimeStatus === "CONNECTED" ? 120_000 : 30_000;
-    const poll = window.setInterval(refreshVisibleTasks, pollInterval);
+    const poll = window.setInterval(refreshVisibleTasks, 30_000);
     document.addEventListener("visibilitychange", refreshVisibleTasks);
     window.addEventListener("focus", refreshVisibleTasks);
     return () => {
@@ -510,7 +509,7 @@ export default function TaskManagementDashboard({
       document.removeEventListener("visibilitychange", refreshVisibleTasks);
       window.removeEventListener("focus", refreshVisibleTasks);
     };
-  }, [load, realtimeStatus]);
+  }, [load]);
 
   useEffect(() => {
     if (!showCreateForm && !searchOpen && !cleanupOpen && !cancelConfirm) return;
