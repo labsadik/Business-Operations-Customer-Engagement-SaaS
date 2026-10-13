@@ -105,12 +105,14 @@ function errorText(code: string) {
 export default function TaskCanvasDashboard({
   companyName,
   currentRole,
+  currentUserId,
   taskCanvasEnabled,
   maxCollaborators,
   historyLimit
 }: {
   companyName: string;
   currentRole: string;
+  currentUserId: string;
   taskCanvasEnabled: boolean;
   maxCollaborators: number;
   historyLimit: number;
@@ -149,6 +151,7 @@ export default function TaskCanvasDashboard({
   const mergeRetriesRef = useRef(0);
   const selected = useMemo(() => items.find((item) => item.id === selectedId) ?? null, [items, selectedId]);
   const canManage = currentRole === "COMPANY_ADMIN" || currentRole === "PLATFORM_ADMIN";
+  const canManageSelected = canManage || Boolean(selected && selected.createdByUserId === currentUserId);
 
   const openCanvas = useCallback(async (id: string) => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -490,9 +493,9 @@ export default function TaskCanvasDashboard({
             {selected ? <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3 py-2.5 sm:px-4">
                 <div className="flex min-w-0 flex-1 items-center gap-2">
-                  {renameOpen && canManage ? <form onSubmit={renameCanvas} className="flex min-w-0 flex-1 gap-2"><input value={renameDraft} onChange={(event) => setRenameDraft(event.target.value)} maxLength={80} required aria-label="Canvas title" className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-sm outline-none focus:border-indigo-400" autoFocus /><button type="submit" className="rounded-lg bg-slate-950 px-2.5 py-1.5 text-xs font-semibold text-white">Save</button><button type="button" onClick={() => setRenameOpen(false)} className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs">Cancel</button></form> : <><h2 className="truncate text-sm font-semibold text-slate-900">{selected.name}</h2>{canManage && <button type="button" title="Rename canvas" onClick={() => { setRenameDraft(selected.name); setRenameOpen(true); }} className="grid size-7 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-800"><Pencil className="size-3.5" /></button>}</>}
+                  {renameOpen && canManageSelected ? <form onSubmit={renameCanvas} className="flex min-w-0 flex-1 gap-2"><input value={renameDraft} onChange={(event) => setRenameDraft(event.target.value)} maxLength={80} required aria-label="Canvas title" className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-sm outline-none focus:border-indigo-400" autoFocus /><button type="submit" className="rounded-lg bg-slate-950 px-2.5 py-1.5 text-xs font-semibold text-white">Save</button><button type="button" onClick={() => setRenameOpen(false)} className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs">Cancel</button></form> : <><h2 className="truncate text-sm font-semibold text-slate-900">{selected.name}</h2>{canManageSelected && <button type="button" title="Rename canvas" onClick={() => { setRenameDraft(selected.name); setRenameOpen(true); }} className="grid size-7 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-800"><Pencil className="size-3.5" /></button>}</>}
                 </div>
-                {canManage && <button type="button" onClick={() => void deleteCanvas()} title="Delete canvas" className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="size-4" /></button>}<span className="shrink-0 text-[10px] text-slate-400">Version {selected.version}</span>
+                {canManageSelected && <button type="button" onClick={() => void deleteCanvas()} title="Delete canvas" className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="size-4" /></button>}<span className="shrink-0 text-[10px] text-slate-400">Version {selected.version}</span>
               </div>
               <div className="h-[calc(100vh-11.5rem)] min-h-[560px] w-full bg-white">
                 {loadingCanvas ? <div className="grid h-full place-items-center text-sm text-slate-500"><LoaderCircle className="mr-2 inline size-4 animate-spin" /> Opening canvas…</div> : <Excalidraw
@@ -513,18 +516,18 @@ export default function TaskCanvasDashboard({
         {peopleOpen && selected && <div className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/35 p-0 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setPeopleOpen(false); }}>
           <section role="dialog" aria-modal="true" aria-labelledby="task-canvas-people-title" className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-t-3xl border border-slate-200 bg-white p-5 shadow-2xl sm:rounded-3xl">
             <div className="flex items-start justify-between gap-3"><div><h2 id="task-canvas-people-title" className="text-base font-semibold">Canvas collaborators</h2><p className="mt-1 text-xs text-slate-500">Only active members of {companyName}'s workspace can be added.</p></div><button type="button" onClick={() => setPeopleOpen(false)} aria-label="Close collaborators" className="grid size-8 place-items-center rounded-lg hover:bg-slate-100"><X className="size-4" /></button></div>
-            <p className="mt-4 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">Select up to {limits.maxCollaborators} people, including the canvas owner.</p>{!canManage && <p className="mt-3 text-xs text-slate-500">Only the canvas owner or a company administrator can change access.</p>}
+            <p className="mt-4 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">Select up to {limits.maxCollaborators} people, including the canvas owner.</p>{!canManageSelected && <p className="mt-3 text-xs text-slate-500">Only the canvas owner or a company administrator can change access.</p>}
             <div className="mt-3 space-y-1">{people.map((person) => {
               const checked = selectedMembers.includes(person.id);
               const owner = person.id === selected.createdByUserId;
-              const blocked = !canManage || owner || (!checked && selectedMembers.length >= limits.maxCollaborators);
+              const blocked = !canManageSelected || owner || (!checked && selectedMembers.length >= limits.maxCollaborators);
               return <label key={person.id} className={"flex items-center gap-3 rounded-xl px-3 py-2.5 " + (blocked ? "opacity-70" : "hover:bg-slate-50")}>
                 <input type="checkbox" checked={checked} disabled={blocked} onChange={(event) => toggleMember(person.id, event.target.checked)} className="size-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
                 <span className="grid size-8 shrink-0 place-items-center rounded-full bg-indigo-50 text-xs font-bold text-indigo-700">{person.name.slice(0,1).toLocaleUpperCase()}</span>
                 <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-slate-800">{person.name}{owner ? " · Owner" : ""}</span><span className="block truncate text-[10px] text-slate-500">{person.email}</span></span><span className="text-[10px] text-slate-400">{person.role.replaceAll("_", " ").toLocaleLowerCase()}</span>
               </label>;
             })}{people.length === 0 && <p className="px-3 py-5 text-xs text-slate-500">No active workspace members found.</p>}</div>
-            <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4"><button type="button" onClick={() => setPeopleOpen(false)} className="rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-700">Cancel</button>{canManage && <button type="button" onClick={() => void saveMembers()} className="inline-flex items-center gap-1.5 rounded-xl bg-slate-950 px-3.5 py-2 text-xs font-semibold text-white"><Check className="size-3.5" /> Save access</button>}</div>
+            <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4"><button type="button" onClick={() => setPeopleOpen(false)} className="rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-700">Cancel</button>{canManageSelected && <button type="button" onClick={() => void saveMembers()} className="inline-flex items-center gap-1.5 rounded-xl bg-slate-950 px-3.5 py-2 text-xs font-semibold text-white"><Check className="size-3.5" /> Save access</button>}</div>
           </section>
         </div>}
 

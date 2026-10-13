@@ -66,6 +66,7 @@ export default async function TaskCanvasPage() {
       <TaskCanvasDashboard
         companyName={company.name}
         currentRole={session.role}
+        currentUserId={session.userId}
         taskCanvasEnabled={session.role === "PLATFORM_ADMIN" || Boolean(entitlements.taskCanvasEnabled)}
         maxCollaborators={maxCollaborators}
         historyLimit={historyLimit}
