@@ -2708,6 +2708,7 @@ export default function WorkspaceDashboard({
                 ))
               )}
             </div>
+            {announcementsNextCursor && <div className="border-t border-slate-100 p-3 text-center"><button type="button" onClick={() => void loadMoreAnnouncements()} disabled={loadingMoreAnnouncements} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><RefreshCw className={"size-3.5 " + (loadingMoreAnnouncements ? "animate-spin" : "")} />{loadingMoreAnnouncements ? "Loading 5 more announcements…" : "Load 5 more announcements"}</button></div>}
           </section>
         </div>
       </AppModal>
@@ -2910,6 +2911,7 @@ export default function WorkspaceDashboard({
                         </div>
                       </div>
                     ))}
+                    {invitationsNextCursor && <div className="flex justify-center pt-2"><button type="button" onClick={() => void loadMoreInvitations()} disabled={loadingMoreInvitations} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><RefreshCw className={"size-3.5 " + (loadingMoreInvitations ? "animate-spin" : "")} />{loadingMoreInvitations ? "Loading 5 more invitations…" : "Load 5 more invitations"}</button></div>}
                   </div>
                 )}
               </div>
@@ -3168,6 +3170,7 @@ export default function WorkspaceDashboard({
                     </div>
                   );
                 })}
+                {invoicesNextCursor && <div className="border-t border-slate-100 p-4 text-center"><button type="button" onClick={() => void loadMoreInvoices()} disabled={loadingMoreInvoices} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><RefreshCw className={"size-3.5 " + (loadingMoreInvoices ? "animate-spin" : "")} />{loadingMoreInvoices ? "Loading 5 more invoices…" : "Load 5 more invoices"}</button></div>}
               </div>
             )}
           </section>
