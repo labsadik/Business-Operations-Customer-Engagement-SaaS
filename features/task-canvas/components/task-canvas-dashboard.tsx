@@ -16,7 +16,10 @@ type CanvasItem = { id: string; name: string; version: number; createdByUserId: 
 type Person = { id: string; name: string; email: string; image: string | null; role: string };
 type Revision = { id: string; version: number; name: string; createdAt: string; createdByUserId: string };
 type Envelope<T> = { ok: boolean; data?: T; error?: string };
-type CanvasBridge = { updateScene: (scene: unknown) => void };
+type CanvasBridge = {
+  updateScene: (scene: { elements?: unknown[]; appState?: Record<string, unknown> }) => void;
+  addFiles?: (files: unknown[]) => void;
+};
 const EMPTY_SCENE: Scene = { elements: [], appState: {}, files: {} };
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
@@ -79,6 +82,13 @@ function mergeScenes(local: Scene, remote: Scene): Scene {
     appState: local.appState,
     files: { ...remote.files, ...local.files }
   };
+}
+
+function applySceneToEditor(api: CanvasBridge | null, scene: Scene) {
+  if (!api) return;
+  const files = Object.values(scene.files);
+  if (files.length) api.addFiles?.(files);
+  api.updateScene({ elements: scene.elements, appState: scene.appState });
 }
 
 function setSuppressionWindow(target: { current: number }, milliseconds: number) {
@@ -243,7 +253,7 @@ export default function TaskCanvasDashboard({
             versionRef.current = latest.item.version;
             sceneRef.current = merged;
             setScene(merged);
-            apiRef.current?.updateScene(merged);
+            applySceneToEditor(apiRef.current, merged);
             setSuppressionWindow(suppressUntilRef, 1200);
             mergeRetriesRef.current += 1;
             editSerialRef.current += 1;
@@ -296,6 +306,26 @@ export default function TaskCanvasDashboard({
     if (dirtyRef.current) await persistRef.current(sceneRef.current);
   }, []);
 
+  const prepareCanvasSwitch = useCallback(async () => {
+    if (!dirtyRef.current) return true;
+    await saveNow();
+    if (!dirtyRef.current && !conflictRef.current) return true;
+    const discard = window.confirm("Some edits could not be saved. Load another canvas and discard those local edits?");
+    if (!discard) return false;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = null;
+    queuedSceneRef.current = null;
+    dirtyRef.current = false;
+    conflictRef.current = false;
+    return true;
+  }, [saveNow]);
+
+  const switchCanvas = useCallback(async (id: string) => {
+    if (id === selectedIdRef.current) return;
+    if (!(await prepareCanvasSwitch())) return;
+    await openCanvas(id);
+  }, [openCanvas, prepareCanvasSwitch]);
+
   useEffect(() => {
     void refreshIndex();
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
@@ -316,7 +346,7 @@ export default function TaskCanvasDashboard({
         setScene(next);
         setItems((current) => current.map((item) => item.id === selectedId ? { ...item, ...latest.item } : item));
         setSuppressionWindow(suppressUntilRef, 1400);
-        apiRef.current?.updateScene(next);
+        applySceneToEditor(apiRef.current, next);
         setSaveState("saved");
       } catch {
         // Polling is best effort. The next visible refresh can retry without blocking editing.
@@ -333,6 +363,7 @@ export default function TaskCanvasDashboard({
 
   const createCanvas = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!(await prepareCanvasSwitch())) return;
     setCreating(true);
     setError("");
     try {
@@ -423,7 +454,7 @@ export default function TaskCanvasDashboard({
       dirtyRef.current = false;
       setItems((current) => current.map((item) => item.id === selected.id ? { ...item, version: result.version } : item));
       setSuppressionWindow(suppressUntilRef, 1400);
-      apiRef.current?.updateScene(next);
+      applySceneToEditor(apiRef.current, next);
       setHistoryOpen(false);
       setSaveState("saved");
       const refreshedHistory = await api<{ items: Revision[]; historyLimit: number }>("/api/task-canvas/" + selected.id + "/history");
@@ -484,7 +515,7 @@ export default function TaskCanvasDashboard({
             <div className="flex gap-2 overflow-x-auto p-3 lg:block lg:space-y-1 lg:overflow-visible">
               {loadingIndex && items.length === 0 && <p className="px-2 py-4 text-xs text-slate-500">Loading canvases…</p>}
               {!loadingIndex && items.length === 0 && <div className="min-w-52 px-2 py-5 text-center lg:min-w-0"><FilePlus2 className="mx-auto size-6 text-slate-300" /><p className="mt-2 text-xs font-semibold text-slate-700">Start with a blank canvas</p><p className="mt-1 text-[11px] text-slate-500">Sketch ideas, flows and team plans.</p></div>}
-              {items.map((item) => <button key={item.id} type="button" onClick={() => { if (item.id !== selectedId) void openCanvas(item.id); }} className={"min-w-52 rounded-xl border p-3 text-left transition-colors lg:mb-1 lg:min-w-0 lg:w-full " + (item.id === selectedId ? "border-indigo-200 bg-indigo-50/70" : "border-transparent bg-white hover:border-slate-200 hover:bg-slate-50")}>
+              {items.map((item) => <button key={item.id} type="button" onClick={() => { if (item.id !== selectedId) void switchCanvas(item.id); }} className={"min-w-52 rounded-xl border p-3 text-left transition-colors lg:mb-1 lg:min-w-0 lg:w-full " + (item.id === selectedId ? "border-indigo-200 bg-indigo-50/70" : "border-transparent bg-white hover:border-slate-200 hover:bg-slate-50")}>
                 <span className="block truncate text-xs font-semibold text-slate-800">{item.name}</span><span className="mt-1.5 flex items-center justify-between gap-2 text-[10px] text-slate-500"><span>v{item.version}</span><span className="inline-flex items-center gap-1"><UsersRound className="size-3" />{item.memberCount}/{limits.maxCollaborators}</span></span><span className="mt-1 block truncate text-[10px] text-slate-400">{formatDate(item.updatedAt)}</span>
               </button>)}
             </div>
