@@ -507,12 +507,15 @@ export default function WorkspaceDashboard({
   const meetingHistoryCursorRef = useRef<string | null>(null);
   const router = useRouter();
   const { labels } = useNavigationLabels();
-  employeesRef.current = employees;
-  employeeCursorRef.current = employeeNextCursor;
-  modalRequestsRef.current = modalRequests;
-  modalRequestCursorRef.current = modalRequestNextCursor;
-  modalMeetingHistoryRef.current = modalMeetingHistory;
-  meetingHistoryCursorRef.current = meetingHistoryCursor;
+
+  useEffect(() => {
+    employeesRef.current = employees;
+    employeeCursorRef.current = employeeNextCursor;
+    modalRequestsRef.current = modalRequests;
+    modalRequestCursorRef.current = modalRequestNextCursor;
+    modalMeetingHistoryRef.current = modalMeetingHistory;
+    meetingHistoryCursorRef.current = meetingHistoryCursor;
+  }, [employees, employeeNextCursor, modalRequests, modalRequestNextCursor, modalMeetingHistory, meetingHistoryCursor]);
   const closeFeedbackModal = useCallback(() => {
     setActiveModal(null);
     router.push("/dashboard");

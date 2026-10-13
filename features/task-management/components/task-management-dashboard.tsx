@@ -368,12 +368,15 @@ export default function TaskManagementDashboard({
   const taskCursorRef = useRef<string | null>(null);
   const employeesRef = useRef<Employee[]>([]);
   const employeeCursorRef = useRef<string | null>(null);
-  tasksRef.current = tasks;
-  taskCursorRef.current = nextCursor;
-  employeesRef.current = employees;
-  employeeCursorRef.current = employeeNextCursor;
   const loadQueuedRef = useRef(false);
   const loadTaskRef = useRef<((showSpinner?: boolean) => Promise<void>) | null>(null);
+
+  useEffect(() => {
+    tasksRef.current = tasks;
+    taskCursorRef.current = nextCursor;
+    employeesRef.current = employees;
+    employeeCursorRef.current = employeeNextCursor;
+  }, [tasks, nextCursor, employees, employeeNextCursor]);
 
   const load = useCallback(async function loadTasks(showSpinner = true) {
     // Collapse overlapping reads, but remember that a mutation/focus refresh arrived
