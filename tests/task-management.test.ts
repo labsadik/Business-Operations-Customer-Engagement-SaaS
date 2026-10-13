@@ -165,7 +165,7 @@ test("task management provides enterprise filters, list/board views, pagination 
     'aria-label="Filter by task ownership"',
     'aria-label="List view"',
     'aria-label="Board view"',
-    "Load 50 more tasks",
+    "Load 5 more tasks",
     "Overdue",
     "syncTaskFromDetail",
     "Something went wrong while working with tasks"
@@ -227,7 +227,7 @@ test("members can save their own work availability and only active members can b
   assert.ok(dashboard.includes("canvas:employment-status-updated"));
   assert.ok(auth.includes('employmentStatus: "ACTIVE"'));
   assert.ok(auth.includes('{ employmentStatus: { $exists: false } }'));
-  assert.ok(employeeRoute.includes('employmentStatus: membership?.employmentStatus ?? "ACTIVE"'));
+  assert.ok(employeeRoute.includes('employmentStatus: member.employmentStatus ?? "ACTIVE"'));
 });
 
 

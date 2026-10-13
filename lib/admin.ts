@@ -21,6 +21,7 @@ import { getAdminVaultUsage, type AdminVaultUsageItem } from "@/lib/admin-vault-
 import { VaultFile } from "@/models/vault-file";
 import { VaultFolder } from "@/models/vault-folder";
 import { VaultUpload } from "@/models/vault-upload";
+import { decodeListCursor, encodeListCursor } from "@/lib/list-pagination";
 
 export type AdminCompanyListItem = {
   id: string;
@@ -371,34 +372,65 @@ export async function getAdminOverview() {
   };
 }
 
-export async function getAdminCompanies(search = "") {
+export async function getAdminCompanies({
+  search = "",
+  cursor = null,
+  limit = 5
+}: {
+  search?: string;
+  cursor?: string | null;
+  limit?: number;
+} = {}) {
   await requirePlatformAdmin();
 
+  const safeLimit = Math.min(50, Math.max(1, Math.floor(limit) || 5));
   const cleaned = search.trim().slice(0, 80);
   const safeSearch = escapeRegex(cleaned);
-  const query = safeSearch
-    ? {
-        $or: [
-          { name: { $regex: safeSearch, $options: "i" } },
-          { slug: { $regex: safeSearch, $options: "i" } },
-          { email: { $regex: safeSearch, $options: "i" } }
-        ]
-      }
-    : {};
+  const clauses: Record<string, unknown>[] = [];
+  if (safeSearch) {
+    clauses.push({
+      $or: [
+        { name: { $regex: safeSearch, $options: "i" } },
+        { slug: { $regex: safeSearch, $options: "i" } },
+        { email: { $regex: safeSearch, $options: "i" } },
+        { phone: { $regex: safeSearch, $options: "i" } }
+      ]
+    });
+  }
 
-  const companies = await Company.find(query)
+  const decoded = decodeListCursor(cursor);
+  if (cursor && !decoded) throw new Error("INVALID_LIST_CURSOR");
+  if (decoded) {
+    clauses.push({
+      $or: [
+        { name: { $gt: decoded.key } },
+        { name: decoded.key, _id: { $gt: decoded.id } }
+      ]
+    });
+  }
+
+  const filter = clauses.length > 1 ? { $and: clauses } : clauses[0] ?? {};
+  const rows = await Company.find(filter)
     .sort({ name: 1, _id: 1 })
+    .limit(safeLimit + 1)
     .lean();
-
-  const [rows, vaultSnapshot] = await Promise.all([
+  const hasMore = rows.length > safeLimit;
+  const companies = rows.slice(0, safeLimit);
+  const [companyRows, vaultSnapshot] = await Promise.all([
     buildCompanyRows(companies as typeof companies),
     getAdminVaultUsage(companies.map((company) => String(company._id)))
   ]);
   const vaultByCompany = new Map(vaultSnapshot.items.map((item) => [item.companyId, item]));
-  return rows.map((row) => ({
+  const items = companyRows.map((row) => ({
     ...row,
     vaultUsage: vaultByCompany.get(row.id) ?? null
   }));
+  const last = companies[companies.length - 1];
+
+  return {
+    items,
+    nextCursor: hasMore && last ? encodeListCursor(last.name, last._id) : null
+  };
 }
 
 export async function getAdminCompanyDetails(companyId: string) {
@@ -642,30 +674,138 @@ export async function getAdminCompanyDetails(companyId: string) {
   } satisfies AdminCompanyDetails;
 }
 
-export async function getAdminUsers() {
+export async function getAdminUsers({
+  search = "",
+  cursor = null,
+  limit = 5
+}: {
+  search?: string;
+  cursor?: string | null;
+  limit?: number;
+} = {}) {
   await requirePlatformAdmin();
 
-  const requestStats = await BookingRequest.aggregate<{
+  const safeLimit = Math.min(50, Math.max(1, Math.floor(limit) || 5));
+  const cleaned = search.trim().slice(0, 80);
+  const safeSearch = escapeRegex(cleaned);
+  const decoded = decodeListCursor(cursor);
+  if (cursor && !decoded) throw new Error("INVALID_LIST_CURSOR");
+
+  const userFilters: Record<string, unknown>[] = [{ role: "CUSTOMER" }];
+  if (decoded) {
+    const createdAt = new Date(decoded.key);
+    if (!Number.isFinite(createdAt.getTime())) throw new Error("INVALID_LIST_CURSOR");
+    userFilters.push({
+      $or: [
+        { createdAt: { $lt: createdAt } },
+        { createdAt, _id: { $lt: decoded.id } }
+      ]
+    });
+  }
+
+  if (safeSearch) {
+    const companyIds = await Company.distinct("_id", {
+      name: { $regex: safeSearch, $options: "i" }
+    });
+    const companyCustomerIds = companyIds.length
+      ? await BookingRequest.distinct("customerId", { companyId: { $in: companyIds } })
+      : [];
+    const searchTerms: Record<string, unknown>[] = [
+      { name: { $regex: safeSearch, $options: "i" } },
+      { email: { $regex: safeSearch, $options: "i" } }
+    ];
+    if (companyCustomerIds.length) searchTerms.push({ _id: { $in: companyCustomerIds } });
+    userFilters.push({ $or: searchTerms });
+  }
+
+  const MAX_CANDIDATES_PER_REQUEST = 100;
+  const CANDIDATE_BATCH_SIZE = 25;
+  type CandidateUser = {
+    _id: Types.ObjectId;
+    name: string;
+    email: string;
+    image?: string | null;
+    createdAt: Date;
+    lastLoginAt?: Date | null;
+  };
+  type RequestStats = {
     _id: Types.ObjectId;
     totalRequests: number;
     companyIds: Types.ObjectId[];
-    lastBookingAt: Date | null;
-  }>([
-    { $group: {
-      _id: "$customerId",
-      totalRequests: { $sum: 1 },
-      companyIds: { $addToSet: "$companyId" },
-      lastBookingAt: { $max: "$createdAt" }
-    } },
-    { $sort: { lastBookingAt: -1 } },
-    { $limit: 200 }
-  ]);
+    lastBookingAt: Date;
+  };
+  const matches: Array<{ user: CandidateUser; stats: RequestStats }> = [];
+  let scanned = 0;
+  let lastScanned: CandidateUser | null = null;
+  let moreCandidates = true;
+  let scanCursor = decoded
+    ? { createdAt: new Date(decoded.key), id: decoded.id }
+    : null;
 
-  const customerIds = requestStats.map((item) => item._id);
-  if (!customerIds.length) return [] as AdminUserListItem[];
+  // Search through bounded user batches and aggregate booking metrics only for those
+  // candidates. This avoids grouping every booking request for the entire database
+  // on each "load five more" click.
+  while (
+    matches.length < safeLimit + 1 &&
+    moreCandidates &&
+    scanned < MAX_CANDIDATES_PER_REQUEST
+  ) {
+    const batchSize = Math.min(CANDIDATE_BATCH_SIZE, MAX_CANDIDATES_PER_REQUEST - scanned);
+    const filters = [...userFilters];
+    if (scanCursor) {
+      filters.push({
+        $or: [
+          { createdAt: { $lt: scanCursor.createdAt } },
+          { createdAt: scanCursor.createdAt, _id: { $lt: scanCursor.id } }
+        ]
+      });
+    }
 
-  const [users, meetingStats, companies] = await Promise.all([
-    User.find({ _id: { $in: customerIds }, role: "CUSTOMER" }).select("name email image createdAt lastLoginAt").lean(),
+    const rows = await User.find({ $and: filters })
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(batchSize + 1)
+      .select("name email image createdAt lastLoginAt")
+      .lean();
+    moreCandidates = rows.length > batchSize;
+    const candidates = rows.slice(0, batchSize) as CandidateUser[];
+    if (!candidates.length) {
+      moreCandidates = false;
+      break;
+    }
+
+    scanned += candidates.length;
+    lastScanned = candidates[candidates.length - 1];
+    scanCursor = { createdAt: new Date(lastScanned.createdAt), id: lastScanned._id };
+
+    const requestStats = await BookingRequest.aggregate<RequestStats>([
+      { $match: { customerId: { $in: candidates.map((user) => user._id) } } },
+      { $group: {
+        _id: "$customerId",
+        totalRequests: { $sum: 1 },
+        companyIds: { $addToSet: "$companyId" },
+        lastBookingAt: { $max: "$createdAt" }
+      } }
+    ]);
+    const statsByCustomer = new Map(requestStats.map((item) => [String(item._id), item]));
+    for (const user of candidates) {
+      const stats = statsByCustomer.get(String(user._id));
+      if (stats) matches.push({ user, stats });
+    }
+  }
+
+  const visibleMatches = matches.slice(0, safeLimit);
+  if (!visibleMatches.length) {
+    return {
+      items: [] as AdminUserListItem[],
+      nextCursor: moreCandidates && lastScanned
+        ? encodeListCursor(lastScanned.createdAt, lastScanned._id)
+        : null
+    };
+  }
+
+  const customerIds = visibleMatches.map((item) => item.user._id);
+  const companyIds = [...new Set(visibleMatches.flatMap((item) => item.stats.companyIds.map(String)))];
+  const [meetingStats, companies] = await Promise.all([
     Meeting.aggregate<{
       _id: Types.ObjectId;
       totalMeetings: number;
@@ -680,38 +820,41 @@ export async function getAdminUsers() {
         cancelledMeetings: { $sum: { $cond: [{ $eq: ["$status", "CANCELLED"] }, 1, 0] } }
       } }
     ]),
-    Company.find({ _id: { $in: requestStats.flatMap((item) => item.companyIds) } }).select("name").lean()
+    Company.find({ _id: { $in: companyIds.map((id) => new Types.ObjectId(id)) } }).select("name").lean()
   ]);
 
-  const requestMap = new Map(requestStats.map((item) => [String(item._id), item]));
   const meetingMap = new Map(meetingStats.map((item) => [String(item._id), item]));
   const companyMap = new Map(companies.map((item) => [String(item._id), item.name]));
+  const items: AdminUserListItem[] = visibleMatches.map(({ user, stats }) => {
+    const meeting = meetingMap.get(String(user._id));
+    return {
+      id: String(user._id),
+      name: user.name,
+      email: user.email,
+      image: user.image ?? "",
+      createdAt: user.createdAt,
+      lastLoginAt: user.lastLoginAt ?? null,
+      companyIds: stats.companyIds.map(String),
+      companies: stats.companyIds.map((id) => companyMap.get(String(id))).filter((name): name is string => Boolean(name)),
+      totalRequests: stats.totalRequests ?? 0,
+      totalMeetings: meeting?.totalMeetings ?? 0,
+      completedMeetings: meeting?.completedMeetings ?? 0,
+      cancelledMeetings: meeting?.cancelledMeetings ?? 0,
+      lastBookingAt: stats.lastBookingAt ?? null
+    };
+  });
 
-  return users
-    .map((user) => {
-      const request = requestMap.get(String(user._id));
-      const meeting = meetingMap.get(String(user._id));
-      const companyIds = request?.companyIds ?? [];
-
-      return {
-        id: String(user._id),
-        name: user.name,
-        email: user.email,
-        image: user.image ?? "",
-        createdAt: user.createdAt,
-        lastLoginAt: user.lastLoginAt ?? null,
-        companyIds: companyIds.map(String),
-        companies: companyIds.map((id) => companyMap.get(String(id))).filter((name): name is string => Boolean(name)),
-        totalRequests: request?.totalRequests ?? 0,
-        totalMeetings: meeting?.totalMeetings ?? 0,
-        completedMeetings: meeting?.completedMeetings ?? 0,
-        cancelledMeetings: meeting?.cancelledMeetings ?? 0,
-        lastBookingAt: request?.lastBookingAt ?? null
-      };
-    })
-    .sort((a, b) => (b.lastBookingAt?.getTime() ?? 0) - (a.lastBookingAt?.getTime() ?? 0));
+  const hasMore = matches.length > safeLimit || moreCandidates;
+  // When the look-ahead record is already known, resume after the last visible
+  // customer so the extra record is not skipped. Otherwise resume after the last
+  // scanned candidate to avoid rechecking a page of users without bookings.
+  const lastVisible = visibleMatches[visibleMatches.length - 1].user;
+  const cursorUser = matches.length > safeLimit ? lastVisible : lastScanned;
+  return {
+    items,
+    nextCursor: hasMore && cursorUser ? encodeListCursor(cursorUser.createdAt, cursorUser._id) : null
+  };
 }
-
 
 export type AdminAccessUserListItem = {
   id: string;
@@ -725,28 +868,58 @@ export type AdminAccessUserListItem = {
   companies: string[];
 };
 
-export async function getAdminAccessUsers(search = "") {
+export async function getAdminAccessUsers({
+  search = "",
+  cursor = null,
+  limit = 5
+}: {
+  search?: string;
+  cursor?: string | null;
+  limit?: number;
+} = {}) {
   await requirePlatformAdmin();
 
+  const safeLimit = Math.min(50, Math.max(1, Math.floor(limit) || 5));
   const cleaned = search.trim().slice(0, 80);
   const safeSearch = escapeRegex(cleaned);
-  const query = safeSearch
-    ? {
-        $or: [
-          { name: { $regex: safeSearch, $options: "i" } },
-          { email: { $regex: safeSearch, $options: "i" } },
-          { role: { $regex: safeSearch, $options: "i" } }
-        ]
-      }
-    : {};
+  const clauses: Record<string, unknown>[] = [];
+  if (safeSearch) {
+    const companyIds = await Company.distinct("_id", { name: { $regex: safeSearch, $options: "i" } });
+    const companyUserIds = companyIds.length
+      ? await Membership.distinct("userId", { companyId: { $in: companyIds }, active: true })
+      : [];
+    clauses.push({
+      $or: [
+        { name: { $regex: safeSearch, $options: "i" } },
+        { email: { $regex: safeSearch, $options: "i" } },
+        { role: { $regex: safeSearch, $options: "i" } },
+        { _id: { $in: companyUserIds } }
+      ]
+    });
+  }
 
-  const users = await User.find(query)
-    .sort({ createdAt: -1 })
-    .limit(200)
+  const decoded = decodeListCursor(cursor);
+  if (cursor && !decoded) throw new Error("INVALID_LIST_CURSOR");
+  if (decoded) {
+    const at = new Date(decoded.key);
+    if (!Number.isFinite(at.getTime())) throw new Error("INVALID_LIST_CURSOR");
+    clauses.push({
+      $or: [
+        { createdAt: { $lt: at } },
+        { createdAt: at, _id: { $lt: decoded.id } }
+      ]
+    });
+  }
+
+  const filter = clauses.length > 1 ? { $and: clauses } : clauses[0] ?? {};
+  const rows = await User.find(filter)
+    .sort({ createdAt: -1, _id: -1 })
+    .limit(safeLimit + 1)
     .select("name email image role active createdAt lastLoginAt")
     .lean();
-
-  if (!users.length) return [] as AdminAccessUserListItem[];
+  const hasMore = rows.length > safeLimit;
+  const users = rows.slice(0, safeLimit);
+  if (!users.length) return { items: [] as AdminAccessUserListItem[], nextCursor: null };
 
   const userIds = users.map((user) => user._id);
   const memberships = await Membership.find({
@@ -758,7 +931,6 @@ export async function getAdminAccessUsers(search = "") {
   const companies = companyIds.length
     ? await Company.find({ _id: { $in: companyIds } }).select("name").lean()
     : [];
-
   const companyMap = new Map(companies.map((company) => [String(company._id), company.name]));
   const userCompanyMap = new Map<string, string[]>();
 
@@ -771,7 +943,7 @@ export async function getAdminAccessUsers(search = "") {
     userCompanyMap.set(userId, current);
   }
 
-  return users.map((user) => ({
+  const items = users.map((user) => ({
     id: String(user._id),
     name: user.name,
     email: user.email,
@@ -782,4 +954,10 @@ export async function getAdminAccessUsers(search = "") {
     lastLoginAt: user.lastLoginAt ?? null,
     companies: userCompanyMap.get(String(user._id)) ?? []
   }));
+  const last = users[users.length - 1];
+
+  return {
+    items,
+    nextCursor: hasMore && last ? encodeListCursor(last.createdAt, last._id) : null
+  };
 }

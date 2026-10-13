@@ -174,19 +174,22 @@ export async function GET(request: Request) {
 
   if (!session.companyId) return jsonError("COMPANY_NOT_CONFIGURED", 403);
 
-  const requestedLimit = Number(url.searchParams.get("limit") ?? "100");
+  const paginated = url.searchParams.get("paginated") === "true";
+  const requestedLimit = Number(url.searchParams.get("limit") ?? (paginated ? "5" : "100"));
   const limit = Number.isFinite(requestedLimit)
     ? Math.min(100, Math.max(1, Math.floor(requestedLimit)))
-    : 100;
+    : paginated ? 5 : 100;
+  const cursorValue = url.searchParams.get("cursor");
+  const cursor = paginated ? decodeHistoryCursor(cursorValue) : null;
+  if (paginated && cursorValue && (!cursor || !Types.ObjectId.isValid(cursor.id))) {
+    return jsonError("INVALID_HISTORY_CURSOR", 400);
+  }
 
-  const roleAllowsAllActive = [
-    "COMPANY_ADMIN",
-    "PLATFORM_ADMIN"
-  ].includes(session.role);
+  if (!session.companyId) return jsonError("COMPANY_NOT_CONFIGURED", 403);
+
+  const roleAllowsAllActive = ["COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role);
   const now = new Date();
-
-  const bookings = await BookingRequest.find({
-    companyId: session.companyId,
+  const activeStatusFilter = {
     $or: [
       {
         status: { $in: ["REQUESTED", "RETRYING"] },
@@ -196,22 +199,34 @@ export async function GET(request: Request) {
       {
         status: { $in: ["ASSIGNED", "CREATING_MEETING"] },
         expiresAt: { $gt: now },
-        ...(roleAllowsAllActive
-          ? {}
-          : { assignedEmployeeId: session.userId })
+        ...(roleAllowsAllActive ? {} : { assignedEmployeeId: session.userId })
       },
       {
         status: { $in: ["CONFIRMED", "IN_PROGRESS"] },
         requestedEndAt: { $gt: now },
-        ...(roleAllowsAllActive
-          ? {}
-          : { assignedEmployeeId: session.userId })
+        ...(roleAllowsAllActive ? {} : { assignedEmployeeId: session.userId })
       }
     ]
-  })
+  };
+  const filters: Record<string, unknown>[] = [
+    { companyId: session.companyId },
+    activeStatusFilter
+  ];
+  if (cursor) {
+    filters.push({
+      $or: [
+        { requestedStartAt: { $gt: cursor.at } },
+        { requestedStartAt: cursor.at, _id: { $gt: new Types.ObjectId(cursor.id) } }
+      ]
+    });
+  }
+
+  const rows = await BookingRequest.find({ $and: filters })
     .sort({ requestedStartAt: 1, _id: 1 })
-    .limit(limit)
+    .limit(paginated ? limit + 1 : limit)
     .lean();
+  const hasMore = paginated && rows.length > limit;
+  const bookings = hasMore ? rows.slice(0, limit) : rows;
 
   const customers = await User.find({
     _id: { $in: bookings.map((b) => b.customerId) }
@@ -231,30 +246,39 @@ export async function GET(request: Request) {
   );
   const map = new Map(customers.map((u) => [String(u._id), u]));
 
-  return jsonOk(
-    bookings.map((booking) => {
-      const customer = map.get(String(booking.customerId));
-      const meeting = meetingMap.get(String(booking._id));
-      return {
-        id: String(booking._id),
-        startAt: booking.requestedStartAt,
-        endAt: booking.requestedEndAt,
-        durationMinutes: booking.requestedDurationMinutes,
-        status: booking.status,
-        assignedEmployeeId: booking.assignedEmployeeId
-          ? String(booking.assignedEmployeeId)
-          : null,
-        expiresAt: booking.expiresAt,
-        customer: customer
-          ? { name: customer.name, email: customer.email, image: customer.image }
-          : null,
-        meeting: meeting
-          ? {
-              status: meeting.status,
-              meetingUri: meeting.googleMeetingUri ?? null
-            }
-          : null
-      };
-    })
-  );
+  const items = bookings.map((booking) => {
+    const customer = map.get(String(booking.customerId));
+    const meeting = meetingMap.get(String(booking._id));
+    return {
+      id: String(booking._id),
+      startAt: booking.requestedStartAt,
+      endAt: booking.requestedEndAt,
+      durationMinutes: booking.requestedDurationMinutes,
+      status: booking.status,
+      assignedEmployeeId: booking.assignedEmployeeId
+        ? String(booking.assignedEmployeeId)
+        : null,
+      expiresAt: booking.expiresAt,
+      customer: customer
+        ? { name: customer.name, email: customer.email, image: customer.image }
+        : null,
+      meeting: meeting
+        ? {
+            status: meeting.status,
+            meetingUri: meeting.googleMeetingUri ?? null
+          }
+        : null
+    };
+  });
+
+  if (paginated) {
+    const last = bookings[bookings.length - 1];
+    return jsonOk({
+      items,
+      nextCursor: hasMore && last
+        ? encodeHistoryCursor(last.requestedStartAt, String(last._id))
+        : null
+    });
+  }
+  return jsonOk(items);
 }

@@ -171,6 +171,10 @@ type Employee = {
   googleConnected: boolean;
 };
 
+type EmployeePage = { items: Employee[]; nextCursor: string | null };
+
+type ActiveRequestPage = { items: RequestItem[]; nextCursor: string | null };
+
 type RequestItem = {
   id: string;
   startAt: string;
@@ -440,9 +444,17 @@ export default function WorkspaceDashboard({
   const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useWorkspaceSidebarState();
   const [data, setData] = useState<CompanyData | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employeeNextCursor, setEmployeeNextCursor] = useState<string | null>(null);
+  const [loadingMoreEmployees, setLoadingMoreEmployees] = useState(false);
+  const employeesRef = useRef<Employee[]>([]);
+  const employeeCursorRef = useRef<string | null>(null);
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [modalRequests, setModalRequests] = useState<RequestItem[]>([]);
+  const [modalRequestNextCursor, setModalRequestNextCursor] = useState<string | null>(null);
+  const [modalRequestLoadingMore, setModalRequestLoadingMore] = useState(false);
   const [modalMeetingHistory, setModalMeetingHistory] = useState<MeetingHistoryItem[]>([]);
+  const [meetingHistoryCursor, setMeetingHistoryCursor] = useState<string | null>(null);
+  const [meetingHistoryLoadingMore, setMeetingHistoryLoadingMore] = useState(false);
   const [meetingHistoryTotalCount, setMeetingHistoryTotalCount] = useState(0);
   const [modalRequestHistory, setModalRequestHistory] = useState<RequestHistoryItem[]>([]);
   const [requestHistoryCursor, setRequestHistoryCursor] = useState<string | null>(null);
@@ -489,8 +501,21 @@ export default function WorkspaceDashboard({
   const dataLoadedRef = useRef(false);
   const initializedRequestsRef = useRef(false);
   const seenRequestIdsRef = useRef(new Set<string>());
+  const modalRequestsRef = useRef<RequestItem[]>([]);
+  const modalRequestCursorRef = useRef<string | null>(null);
+  const modalMeetingHistoryRef = useRef<MeetingHistoryItem[]>([]);
+  const meetingHistoryCursorRef = useRef<string | null>(null);
   const router = useRouter();
   const { labels } = useNavigationLabels();
+
+  useEffect(() => {
+    employeesRef.current = employees;
+    employeeCursorRef.current = employeeNextCursor;
+    modalRequestsRef.current = modalRequests;
+    modalRequestCursorRef.current = modalRequestNextCursor;
+    modalMeetingHistoryRef.current = modalMeetingHistory;
+    meetingHistoryCursorRef.current = meetingHistoryCursor;
+  }, [employees, employeeNextCursor, modalRequests, modalRequestNextCursor, modalMeetingHistory, meetingHistoryCursor]);
   const closeFeedbackModal = useCallback(() => {
     setActiveModal(null);
     router.push("/dashboard");
@@ -577,8 +602,8 @@ export default function WorkspaceDashboard({
       // Start independent reads together: one optional endpoint must not blank the whole workspace.
       const [companyResult, staffResult, pendingResult, announcementResult] = await Promise.all([
         settle(api<CompanyData | null>("/api/company")),
-        settle(api<Employee[]>("/api/company/employees")),
-        settle(api<RequestItem[]>("/api/employee/requests?limit=6")),
+        settle(api<EmployeePage>("/api/company/employees?limit=5")),
+        settle(api<RequestItem[]>("/api/employee/requests?limit=5")),
         settle(api<AnnouncementItem[]>("/api/company/announcement"))
       ]);
       if (!companyResult.ok) throw new Error("COMPANY_DATA_LOAD_FAILED");
@@ -588,6 +613,9 @@ export default function WorkspaceDashboard({
         dataLoadedRef.current = false;
         setData(null);
         setEmployees([]);
+        setEmployeeNextCursor(null);
+        employeeCursorRef.current = null;
+        employeesRef.current = [];
         setRequests([]);
         setAnnouncements([]);
         setInitialLoadFailed(false);
@@ -598,8 +626,24 @@ export default function WorkspaceDashboard({
       const alreadyLoaded = dataLoadedRef.current;
       dataLoadedRef.current = true;
       setData(company);
-      if (staffResult.ok) setEmployees(staffResult.value);
-      else if (!alreadyLoaded) setEmployees([]);
+      if (staffResult.ok) {
+        const page = staffResult.value;
+        const previous = employeesRef.current;
+        const keepLoadedTail = previous.length > 5;
+        const refreshedById = new Map(page.items.map((employee) => [employee.id, employee]));
+        const nextItems = keepLoadedTail
+          ? [...page.items, ...previous.slice(5).map((employee) => refreshedById.get(employee.id) ?? employee).filter((employee) => !refreshedById.has(employee.id))]
+          : page.items;
+        employeesRef.current = nextItems;
+        setEmployees(nextItems);
+        if (!keepLoadedTail || !employeeCursorRef.current) {
+          employeeCursorRef.current = page.nextCursor;
+          setEmployeeNextCursor(page.nextCursor);
+        }
+      } else if (!alreadyLoaded) {
+        employeesRef.current = [];
+        setEmployees([]);
+      }
       if (pendingResult.ok) setRequests(pendingResult.value);
       else if (!alreadyLoaded) setRequests([]);
 
@@ -628,6 +672,26 @@ export default function WorkspaceDashboard({
     }
   }, []);
 
+  async function loadMoreEmployees() {
+    const cursor = employeeCursorRef.current;
+    if (!cursor || loadingMoreEmployees) return;
+    setLoadingMoreEmployees(true);
+    try {
+      const params = new URLSearchParams({ limit: "5", cursor });
+      const page = await api<EmployeePage>("/api/company/employees?" + params.toString());
+      const known = new Set(employeesRef.current.map((employee) => employee.id));
+      const nextItems = [...employeesRef.current, ...page.items.filter((employee) => !known.has(employee.id))];
+      employeesRef.current = nextItems;
+      setEmployees(nextItems);
+      employeeCursorRef.current = page.nextCursor;
+      setEmployeeNextCursor(page.nextCursor);
+    } catch {
+      setError("MORE_EMPLOYEES_LOAD_FAILED");
+    } finally {
+      setLoadingMoreEmployees(false);
+    }
+  }
+
   const refreshLive = useCallback(async function refreshLive() {
     if (liveRefreshingRef.current) return;
     liveRefreshingRef.current = true;
@@ -636,10 +700,10 @@ export default function WorkspaceDashboard({
       const panel = activeModalRef.current;
       const view = meetingModalViewRef.current;
       const dateFilter = meetingDateFilterRef.current;
-      const requestLimit = panel === "meetings" ? 100 : 6;
-      const historyUrl = "/api/employee/meetings?paginated=true&limit=50" +
+      const requestLimit = 5;
+      const historyUrl = "/api/employee/meetings?paginated=true&limit=5" +
         (dateFilter ? "&date=" + encodeURIComponent(dateFilter) : "");
-      const pendingRequest = api<RequestItem[]>("/api/employee/requests?limit=" + requestLimit);
+      const pendingRequest = api<ActiveRequestPage>("/api/employee/requests?limit=" + requestLimit + "&paginated=true");
       const summaryRequest = panel === "meetings"
         ? api<MeetingActivitySummary>("/api/employee/meetings/summary")
         : Promise.resolve(null);
@@ -654,9 +718,21 @@ export default function WorkspaceDashboard({
       ] as const);
 
       if (pendingResult.status === "fulfilled") {
-        setRequests(pendingResult.value.slice(0, 6));
+        const page = pendingResult.value;
+        setRequests(page.items);
         if (panel === "meetings" && activeModalRef.current === "meetings") {
-          setModalRequests(pendingResult.value);
+          const previous = modalRequestsRef.current;
+          const keepTail = previous.length > 5;
+          const firstIds = new Set(page.items.map((item) => item.id));
+          const nextItems = keepTail
+            ? [...page.items, ...previous.filter((item) => !firstIds.has(item.id))]
+            : page.items;
+          modalRequestsRef.current = nextItems;
+          setModalRequests(nextItems);
+          if (!keepTail || !modalRequestCursorRef.current) {
+            modalRequestCursorRef.current = page.nextCursor;
+            setModalRequestNextCursor(page.nextCursor);
+          }
         }
       }
 
@@ -665,8 +741,20 @@ export default function WorkspaceDashboard({
       }
 
       if (historyResult.status === "fulfilled" && historyResult.value && activeModalRef.current === "meetings") {
-        setModalMeetingHistory(historyResult.value.items);
-        setMeetingHistoryTotalCount(historyResult.value.totalCount ?? historyResult.value.items.length);
+        const page = historyResult.value;
+        const previous = modalMeetingHistoryRef.current;
+        const keepTail = previous.length > 5;
+        const firstIds = new Set(page.items.map((item) => item.id));
+        const nextItems = keepTail
+          ? [...page.items, ...previous.filter((item) => !firstIds.has(item.id))]
+          : page.items;
+        modalMeetingHistoryRef.current = nextItems;
+        setModalMeetingHistory(nextItems);
+        setMeetingHistoryTotalCount(page.totalCount ?? page.items.length);
+        if (!keepTail || !meetingHistoryCursorRef.current) {
+          meetingHistoryCursorRef.current = page.nextCursor;
+          setMeetingHistoryCursor(page.nextCursor);
+        }
       }
     } catch {
       // Preserve the last good state during transient polling failures.
@@ -681,13 +769,13 @@ export default function WorkspaceDashboard({
     setMeetingsError("");
 
     try {
-      const historyUrl = "/api/employee/meetings?paginated=true&limit=50" +
+      const historyUrl = "/api/employee/meetings?paginated=true&limit=5" +
         (dateFilter ? "&date=" + encodeURIComponent(dateFilter) : "");
       const [requestsResult, meetingHistoryResult, requestHistoryResult, summaryResult] = await Promise.allSettled([
-        api<RequestItem[]>("/api/employee/requests?limit=100"),
+        api<ActiveRequestPage>("/api/employee/requests?limit=5&paginated=true"),
         api<{ items: MeetingHistoryItem[]; nextCursor: string | null; totalCount?: number }>(historyUrl),
         api<{ items: RequestHistoryItem[]; nextCursor: string | null }>(
-          "/api/employee/requests?history=true&limit=25"
+          "/api/employee/requests?history=true&limit=5"
         ),
         api<MeetingActivitySummary>("/api/employee/meetings/summary")
       ]);
@@ -695,12 +783,19 @@ export default function WorkspaceDashboard({
       if (requestVersion !== meetingLoadVersionRef.current) return;
 
       let hasPartialFailure = false;
-      if (requestsResult.status === "fulfilled") setModalRequests(requestsResult.value);
-      else hasPartialFailure = true;
+      if (requestsResult.status === "fulfilled") {
+        modalRequestsRef.current = requestsResult.value.items;
+        setModalRequests(requestsResult.value.items);
+        modalRequestCursorRef.current = requestsResult.value.nextCursor;
+        setModalRequestNextCursor(requestsResult.value.nextCursor);
+      } else hasPartialFailure = true;
 
       if (meetingHistoryResult.status === "fulfilled") {
+        modalMeetingHistoryRef.current = meetingHistoryResult.value.items;
         setModalMeetingHistory(meetingHistoryResult.value.items);
         setMeetingHistoryTotalCount(meetingHistoryResult.value.totalCount ?? meetingHistoryResult.value.items.length);
+        meetingHistoryCursorRef.current = meetingHistoryResult.value.nextCursor;
+        setMeetingHistoryCursor(meetingHistoryResult.value.nextCursor);
       } else hasPartialFailure = true;
 
       if (requestHistoryResult.status === "fulfilled") {
@@ -719,12 +814,54 @@ export default function WorkspaceDashboard({
     }
   }, [meetingDateFilter]);
 
+  async function loadMoreModalRequests() {
+    const cursor = modalRequestCursorRef.current;
+    if (!cursor || modalRequestLoadingMore) return;
+    setModalRequestLoadingMore(true);
+    try {
+      const params = new URLSearchParams({ limit: "5", paginated: "true", cursor });
+      const page = await api<ActiveRequestPage>("/api/employee/requests?" + params.toString());
+      const knownIds = new Set(modalRequestsRef.current.map((item) => item.id));
+      const nextItems = [...modalRequestsRef.current, ...page.items.filter((item) => !knownIds.has(item.id))];
+      modalRequestsRef.current = nextItems;
+      setModalRequests(nextItems);
+      modalRequestCursorRef.current = page.nextCursor;
+      setModalRequestNextCursor(page.nextCursor);
+    } catch {
+      setMeetingsError("MEETING_LIST_FAILED");
+    } finally {
+      setModalRequestLoadingMore(false);
+    }
+  }
+
+  async function loadMoreMeetingHistory() {
+    const cursor = meetingHistoryCursorRef.current;
+    if (!cursor || meetingHistoryLoadingMore) return;
+    setMeetingHistoryLoadingMore(true);
+    try {
+      const params = new URLSearchParams({ paginated: "true", limit: "5", cursor });
+      if (meetingDateFilterRef.current) params.set("date", meetingDateFilterRef.current);
+      const page = await api<{ items: MeetingHistoryItem[]; nextCursor: string | null; totalCount?: number }>("/api/employee/meetings?" + params.toString());
+      const knownIds = new Set(modalMeetingHistoryRef.current.map((item) => item.id));
+      const nextItems = [...modalMeetingHistoryRef.current, ...page.items.filter((item) => !knownIds.has(item.id))];
+      modalMeetingHistoryRef.current = nextItems;
+      setModalMeetingHistory(nextItems);
+      setMeetingHistoryTotalCount(page.totalCount ?? nextItems.length);
+      meetingHistoryCursorRef.current = page.nextCursor;
+      setMeetingHistoryCursor(page.nextCursor);
+    } catch {
+      setMeetingsError("MEETING_LIST_FAILED");
+    } finally {
+      setMeetingHistoryLoadingMore(false);
+    }
+  }
+
   async function loadOlderRequestHistory() {
     if (!requestHistoryCursor || requestHistoryLoadingMore) return;
     setRequestHistoryLoadingMore(true);
     try {
       const page = await api<{ items: RequestHistoryItem[]; nextCursor: string | null }>(
-        `/api/employee/requests?history=true&limit=25&cursor=${encodeURIComponent(requestHistoryCursor)}`
+        `/api/employee/requests?history=true&limit=5&cursor=${encodeURIComponent(requestHistoryCursor)}`
       );
       setModalRequestHistory((current) => [...current, ...page.items]);
       setRequestHistoryCursor(page.nextCursor);
@@ -1158,7 +1295,7 @@ export default function WorkspaceDashboard({
     }
 
     try {
-      const pending = await api<RequestItem[]>("/api/employee/requests?limit=6");
+      const pending = await api<RequestItem[]>("/api/employee/requests?limit=5");
       setRequests(pending);
 
       let latestMessage = actionError?.message ?? "";
@@ -1910,9 +2047,9 @@ export default function WorkspaceDashboard({
                 )}
               </div>
 
-              {employees.length > 5 && (
+              {(data.memberCount > employees.length || employeeNextCursor) && (
                 <button type="button" onClick={() => openModal("team")} className="mt-3 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                  See all {employees.length} members
+                  See all {data.memberCount} members
                 </button>
               )}
             </section>
@@ -2201,6 +2338,7 @@ export default function WorkspaceDashboard({
                     </div>
                   );
                 })}
+                {modalRequestNextCursor && <div className="flex justify-center pt-2"><button type="button" onClick={() => void loadMoreModalRequests()} disabled={modalRequestLoadingMore} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 disabled:opacity-50">{modalRequestLoadingMore ? "Loading 5 more requests…" : "Load 5 more requests"}</button></div>}
               </div>
             )
           ) : meetingModalView === "meeting-history" ? (
@@ -2270,6 +2408,7 @@ export default function WorkspaceDashboard({
                     </div>
                   );
                 })}
+                {meetingHistoryCursor && <div className="flex justify-center pt-2"><button type="button" onClick={() => void loadMoreMeetingHistory()} disabled={meetingHistoryLoadingMore} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 disabled:opacity-50">{meetingHistoryLoadingMore ? "Loading 5 more meetings…" : "Load 5 more meetings"}</button></div>}
               </div>
             )
           ) : modalRequestHistory.length === 0 ? (
@@ -2468,7 +2607,7 @@ export default function WorkspaceDashboard({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
               <button type="button" onClick={() => setTeamTab("members")} className={`rounded-lg px-4 py-2 text-xs font-semibold ${teamTab === "members" ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200" : "text-slate-500"}`}>
-                Members ({employees.length})
+                Members ({data.memberCount}) · {employees.length} loaded
               </button>
               {canManage && (
                 <button type="button" onClick={() => setTeamTab("invitations")} className={`rounded-lg px-4 py-2 text-xs font-semibold ${teamTab === "invitations" ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200" : "text-slate-500"}`}>
@@ -2577,6 +2716,7 @@ export default function WorkspaceDashboard({
                   No team members yet.
                 </div>
               )}
+              {employeeNextCursor && <div className="flex justify-center border-t border-slate-100 pt-4"><button type="button" onClick={() => void loadMoreEmployees()} disabled={loadingMoreEmployees} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">{loadingMoreEmployees ? "Loading 5 more members…" : "Load 5 more members"}</button></div>}
               </div>
             </div>
           ) : (

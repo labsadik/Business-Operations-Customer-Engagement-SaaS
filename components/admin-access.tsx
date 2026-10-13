@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { clientApi } from "@/lib/client-api";
 import UserAvatar from "@/components/user-avatar";
 import {
   CheckCircle2,
@@ -24,17 +25,72 @@ function roleLabel(role: string) {
   return role.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+type AdminAccessPage = { items: AdminAccessUserListItem[]; nextCursor: string | null };
+
 export default function AdminAccess({
   users,
+  nextCursor: initialCursor,
   currentUserId
 }: {
   users: AdminAccessUserListItem[];
+  nextCursor: string | null;
   currentUserId: string;
 }) {
   const [query, setQuery] = useState("");
   const [items, setItems] = useState(users);
+  const [nextCursor, setNextCursor] = useState(initialCursor);
+  const [loadingSearch, setLoadingSearch] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const requestIdRef = useRef(0);
+  const searchMountedRef = useRef(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    const requestId = ++requestIdRef.current;
+    if (!searchMountedRef.current && !query.trim()) {
+      searchMountedRef.current = true;
+      return;
+    }
+    searchMountedRef.current = true;
+    const timer = window.setTimeout(async () => {
+      setLoadingSearch(true);
+      try {
+        const params = new URLSearchParams({ limit: "5" });
+        if (query.trim()) params.set("search", query.trim());
+        const page = await clientApi<AdminAccessPage>("/api/admin/access/users?" + params.toString());
+        if (requestIdRef.current !== requestId) return;
+        setItems(page.items);
+        setNextCursor(page.nextCursor);
+      } catch {
+        if (requestIdRef.current === requestId) setItems([]);
+      } finally {
+        if (requestIdRef.current === requestId) setLoadingSearch(false);
+      }
+    }, query.trim() ? 250 : 0);
+    return () => window.clearTimeout(timer);
+  }, [query, users, initialCursor]);
+
+  async function loadMore() {
+    if (!nextCursor || loadingMore) return;
+    const requestId = requestIdRef.current;
+    setLoadingMore(true);
+    try {
+      const params = new URLSearchParams({ limit: "5", cursor: nextCursor });
+      if (query.trim()) params.set("search", query.trim());
+      const page = await clientApi<AdminAccessPage>("/api/admin/access/users?" + params.toString());
+      if (requestIdRef.current !== requestId) return;
+      setItems((current) => {
+        const ids = new Set(current.map((item) => item.id));
+        return [...current, ...page.items.filter((item) => !ids.has(item.id))];
+      });
+      setNextCursor(page.nextCursor);
+    } catch {
+      setNotice("More accounts could not be loaded. Please retry.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -105,11 +161,11 @@ export default function AdminAccess({
 
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-              <p className="text-[10px] uppercase tracking-[0.14em] text-white/45">Active admins</p>
+              <p className="text-[10px] uppercase tracking-[0.14em] text-white/45">Active admins shown</p>
               <p className="mt-1 text-xl font-semibold">{admins}</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-              <p className="text-[10px] uppercase tracking-[0.14em] text-white/45">Accounts</p>
+              <p className="text-[10px] uppercase tracking-[0.14em] text-white/45">Accounts loaded</p>
               <p className="mt-1 text-xl font-semibold">{items.length}</p>
             </div>
           </div>
@@ -130,7 +186,7 @@ export default function AdminAccess({
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-600">Database users</p>
             <h2 className="mt-1 text-base font-semibold">Role access control</h2>
-            <p className="mt-1 text-xs text-slate-500">Search by account, current role, or company membership.</p>
+            <p className="mt-1 text-xs text-slate-500">Search by account, current role, or company membership. Five accounts load at a time.</p>
           </div>
           <div className="relative w-full sm:max-w-md">
             <Search className="pointer-events-none absolute left-3 top-3 size-4 text-slate-400" />
@@ -139,7 +195,9 @@ export default function AdminAccess({
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search users..."
               className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-10 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+              aria-label="Search admin access accounts"
             />
+            {loadingSearch && <span className="absolute right-3 top-3"><Loader2 className="size-4 animate-spin text-blue-600" /></span>}
           </div>
         </div>
 
@@ -212,7 +270,8 @@ export default function AdminAccess({
             );
           })}
 
-          {!visible.length && (
+          {nextCursor && <div className="border-t border-slate-200 p-4 text-center"><button type="button" onClick={() => void loadMore()} disabled={loadingMore || loadingSearch} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">{loadingMore ? <Loader2 className="size-4 animate-spin" /> : null}{loadingMore ? "Loading 5 more accounts…" : "Load 5 more accounts"}</button></div>}
+          {!visible.length && !loadingSearch && (
             <div className="p-12 text-center">
               <CheckCircle2 className="mx-auto size-5 text-slate-300" />
               <p className="mt-3 text-sm font-semibold">No matching accounts</p>

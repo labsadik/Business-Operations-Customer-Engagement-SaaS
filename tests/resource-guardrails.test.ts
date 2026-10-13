@@ -86,7 +86,11 @@ test("task board avoids reloading the whole employee directory on every task pol
 
   assert.ok(dashboard.includes("EMPLOYEE_DIRECTORY_REFRESH_MS = 5 * 60_000"));
   assert.ok(dashboard.includes("Date.now() - employeeDirectoryLoadedAtRef.current >= EMPLOYEE_DIRECTORY_REFRESH_MS"));
-  assert.ok(employees.includes('.select("userId role employmentStatus")'));
+  assert.ok(employees.includes('.select("userId role employmentStatus createdAt")'));
+  assert.ok(employees.includes(".limit(limit + 1)"));
+  assert.ok(employees.includes("nextCursor: hasMore"));
+  assert.ok(dashboard.includes('api<EmployeePage>("/api/company/employees?limit=5")'));
+  assert.ok(dashboard.includes("Load 5 more members"));
   assert.ok(employees.includes('.select("_id name email image role jobTitle department")'));
   assert.ok(employees.includes('jobTitle: user.jobTitle ?? ""'));
   assert.ok(employees.includes('department: user.department ?? ""'));
@@ -120,7 +124,7 @@ test("job title and department are owned by users, while employment status stays
   assert.match(userModel, /jobTitle:[\s\S]*?department:/);
   assert.doesNotMatch(membershipModel, /jobTitle|department|googleConnectionStatus/);
   assert.doesNotMatch(userModel, /googleSubject|googleEmail/);
-  assert.ok(employeeDirectory.includes('.select("userId role employmentStatus")'));
+  assert.ok(employeeDirectory.includes('.select("userId role employmentStatus createdAt")'));
   assert.ok(employeeDirectory.includes('.select("_id name email image role jobTitle department")'));
   assert.ok(employeeDirectory.includes('jobTitle: user.jobTitle ?? ""'));
   assert.ok(employeeDirectory.includes('department: user.department ?? ""'));
@@ -496,7 +500,7 @@ test("vault listing and usage reads are bounded for very large tenants", () => {
   );
   const download = source("app/api/vault/files/[fileId]/route.ts");
 
-  assert.ok(listing.includes("const PAGE_SIZE = 100"));
+  assert.ok(listing.includes("const PAGE_SIZE = 5"));
   assert.ok(listing.includes(".limit(PAGE_SIZE + 1)"));
   assert.ok(listing.includes("nextFolderCursor"));
   assert.ok(listing.includes("nextFileCursor"));
@@ -984,4 +988,51 @@ test("Canvas is the product identity and AlgoQuit is the company and merchant id
   assert.ok(migration.includes("MONGODB_DB_NAME_REQUIRED_FOR_BRAND_MIGRATION"));
   assert.ok(legal.includes('companyName: "AlgoQuit"'));
   assert.ok(legal.includes("registered legal entity name before launch"));
+});
+
+
+test("large directories use five-row cursor pages and keep refreshes data-only", () => {
+  const pagination = source("lib/list-pagination.ts");
+  const admin = source("lib/admin.ts");
+  const adminUsers = source("components/admin-users.tsx");
+  const adminAccess = source("components/admin-access.tsx");
+  const adminCompanies = source("components/admin-companies.tsx");
+  const employeeRoute = source("app/api/company/employees/route.ts");
+  const workspace = source("components/workspace-dashboard.tsx");
+  const taskDashboard = source("features/task-management/components/task-management-dashboard.tsx");
+  const taskPagination = source("features/task-management/server/task-pagination.ts");
+  const vault = source("app/api/vault/route.ts");
+  const sidebar = source("components/workspace-sidebar.tsx");
+  const profile = source("components/company-profile.tsx");
+
+  assert.ok(pagination.includes("DEFAULT_LIST_PAGE_SIZE = 5"));
+  assert.ok(admin.includes(".limit(safeLimit + 1)"));
+  assert.ok(admin.includes("MAX_CANDIDATES_PER_REQUEST = 100"));
+  assert.ok(admin.includes("customerId: { $in: candidates.map((user) => user._id) }"));
+  assert.ok(admin.includes("nextCursor: hasMore"));
+  assert.ok(adminUsers.includes("Load 5 more users"));
+  assert.ok(adminAccess.includes("Load 5 more accounts"));
+  assert.ok(adminCompanies.includes("Load 5 more companies"));
+  assert.ok(employeeRoute.includes(".limit(limit + 1)"));
+  assert.ok(employeeRoute.includes("nextCursor: hasMore"));
+  const activeRequestsRoute = source("app/api/employee/requests/route.ts");
+  assert.ok(activeRequestsRoute.includes('searchParams.get("paginated") === "true"'));
+  assert.ok(activeRequestsRoute.includes("encodeHistoryCursor(last.requestedStartAt"));
+  assert.ok(activeRequestsRoute.includes("limit + 1"));
+  assert.ok(workspace.includes('api<EmployeePage>("/api/company/employees?limit=5")'));
+  assert.ok(workspace.includes("Load 5 more members"));
+  assert.ok(taskDashboard.includes('"/api/tasks?limit=5"'));
+  assert.ok(taskDashboard.includes("Load 5 more tasks"));
+  assert.ok(taskDashboard.includes('api<EmployeePage>("/api/company/employees?limit=5")'));
+  assert.ok(taskDashboard.includes("Load 5 more employees"));
+  assert.ok(taskDashboard.includes("void load(false)"));
+  assert.ok(taskPagination.includes("TASK_PAGE_SIZE_DEFAULT = 5"));
+  assert.ok(vault.includes("const PAGE_SIZE = 5"));
+  assert.ok(sidebar.includes('aria-label="Workspace Tools"'));
+  assert.ok(sidebar.includes('data-sidebar-key="meetings"'));
+  assert.ok(sidebar.includes("labels.meetings"));
+  assert.ok(sidebar.includes("taskCanvasEnabled &&"));
+  assert.ok(profile.includes("taskCanvasEnabled={taskCanvasEnabled}"));
+  assert.doesNotMatch(workspace, /window\.location\.reload\(/);
+  assert.doesNotMatch(taskDashboard, /window\.location\.reload\(/);
 });

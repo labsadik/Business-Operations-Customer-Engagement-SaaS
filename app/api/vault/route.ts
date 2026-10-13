@@ -13,7 +13,7 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 5;
 
 type ListingCursor = { name: string; id: string };
 

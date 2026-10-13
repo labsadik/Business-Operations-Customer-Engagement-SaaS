@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import type { Route } from "next";
-import { useMemo, useState } from "react";
-import { ArrowUpRight, Building2, HardDrive, Search } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowUpRight, Building2, HardDrive, LoaderCircle, Search } from "lucide-react";
+import { clientApi } from "@/lib/client-api";
 import type { AdminCompanyListItem } from "@/lib/admin";
 
 function dateLabel(value: Date | null) {
@@ -27,18 +28,62 @@ function formatBytes(value: number) {
   return `${amount >= 100 || index === 0 ? amount.toFixed(0) : amount >= 10 ? amount.toFixed(1) : amount.toFixed(2)} ${units[index]}`;
 }
 
-export default function AdminCompanies({ companies }: { companies: AdminCompanyListItem[] }) {
+type AdminCompanyPage = { items: AdminCompanyListItem[]; nextCursor: string | null };
+
+export default function AdminCompanies({ companies, nextCursor: initialCursor }: { companies: AdminCompanyListItem[]; nextCursor: string | null }) {
   const [query, setQuery] = useState("");
-  const visible = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return companies;
-    return companies.filter((company) =>
-      [company.name, company.slug, company.email, company.phone, company.planName]
-        .join(" ")
-        .toLowerCase()
-        .includes(needle)
-    );
-  }, [companies, query]);
+  const [items, setItems] = useState(companies);
+  const [nextCursor, setNextCursor] = useState(initialCursor);
+  const [loadingSearch, setLoadingSearch] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const requestIdRef = useRef(0);
+  const searchMountedRef = useRef(false);
+
+  useEffect(() => {
+    const requestId = ++requestIdRef.current;
+    if (!searchMountedRef.current && !query.trim()) {
+      searchMountedRef.current = true;
+      return;
+    }
+    searchMountedRef.current = true;
+    const timer = window.setTimeout(async () => {
+      setLoadingSearch(true);
+      try {
+        const params = new URLSearchParams({ limit: "5" });
+        if (query.trim()) params.set("search", query.trim());
+        const page = await clientApi<AdminCompanyPage>("/api/admin/companies?" + params.toString());
+        if (requestIdRef.current !== requestId) return;
+        setItems(page.items);
+        setNextCursor(page.nextCursor);
+      } catch {
+        if (requestIdRef.current === requestId) setItems([]);
+      } finally {
+        if (requestIdRef.current === requestId) setLoadingSearch(false);
+      }
+    }, query.trim() ? 250 : 0);
+    return () => window.clearTimeout(timer);
+  }, [query, companies, initialCursor]);
+
+  async function loadMore() {
+    if (!nextCursor || loadingMore) return;
+    const requestId = requestIdRef.current;
+    setLoadingMore(true);
+    try {
+      const params = new URLSearchParams({ limit: "5", cursor: nextCursor });
+      if (query.trim()) params.set("search", query.trim());
+      const page = await clientApi<AdminCompanyPage>("/api/admin/companies?" + params.toString());
+      if (requestIdRef.current !== requestId) return;
+      setItems((current) => {
+        const ids = new Set(current.map((item) => item.id));
+        return [...current, ...page.items.filter((item) => !ids.has(item.id))];
+      });
+      setNextCursor(page.nextCursor);
+    } catch {
+      // Preserve already loaded companies when a subsequent page fails.
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -46,7 +91,7 @@ export default function AdminCompanies({ companies }: { companies: AdminCompanyL
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-600">Companies</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">Company directory</h1>
-          <p className="mt-2 text-sm text-slate-500">Every company, sorted A–Z, with plan, billing, scheduling, and live vault storage details.</p>
+          <p className="mt-2 text-sm text-slate-500">Company records and vault usage are loaded five at a time, ordered A–Z.</p>
         </div>
         <div className="relative w-full max-w-md">
           <Search className="pointer-events-none absolute left-3 top-3 size-4 text-slate-400" />
@@ -54,15 +99,17 @@ export default function AdminCompanies({ companies }: { companies: AdminCompanyL
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search company, slug, email..."
+            aria-label="Search companies"
             className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-10 pr-3 text-sm outline-none focus:border-blue-500"
           />
+          {loadingSearch && <LoaderCircle className="absolute right-3 top-3 size-4 animate-spin text-blue-600" />}
         </div>
       </section>
 
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-5 py-4">
-          <p className="text-xs font-semibold text-slate-900">{visible.length} companies shown</p>
-          <p className="mt-1 text-[11px] text-slate-500">All matching companies are loaded A–Z. Vault usage includes stored bytes and active upload reservations.</p>
+          <p className="text-xs font-semibold text-slate-900">{items.length} companies loaded</p>
+          <p className="mt-1 text-[11px] text-slate-500">Five records are fetched per request. Vault usage includes stored bytes and active upload reservations.</p>
         </div>
         <div className="hidden overflow-x-auto lg:block">
           <table className="min-w-[1450px] w-full text-left">
@@ -74,7 +121,7 @@ export default function AdminCompanies({ companies }: { companies: AdminCompanyL
               </tr>
             </thead>
             <tbody>
-              {visible.map((company) => (
+              {items.map((company) => (
                 <tr key={company.id} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/70">
                   <td className="px-4 py-4">
                     <div className="flex items-center gap-3">
@@ -113,7 +160,7 @@ export default function AdminCompanies({ companies }: { companies: AdminCompanyL
         </div>
 
         <div className="divide-y divide-slate-100 lg:hidden">
-          {visible.map((company) => (
+          {items.map((company) => (
             <Link key={company.id} href={`/admin/companies/${company.id}` as Route} className="block p-4 hover:bg-slate-50">
               <div className="flex items-start gap-3">
                 <span className="grid size-10 place-items-center rounded-xl bg-slate-950 text-white"><Building2 className="size-4" /></span>
@@ -137,7 +184,8 @@ export default function AdminCompanies({ companies }: { companies: AdminCompanyL
           ))}
         </div>
 
-        {!visible.length && <div className="p-12 text-center text-sm text-slate-500">No companies match the search.</div>}
+        {!items.length && !loadingSearch && <div className="p-12 text-center text-sm text-slate-500">No companies match the search.</div>}
+        {nextCursor && <div className="border-t border-slate-200 p-4 text-center"><button type="button" onClick={() => void loadMore()} disabled={loadingMore || loadingSearch} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">{loadingMore ? <LoaderCircle className="size-4 animate-spin" /> : null}{loadingMore ? "Loading 5 more companies…" : "Load 5 more companies"}</button></div>}
       </section>
     </div>
   );
