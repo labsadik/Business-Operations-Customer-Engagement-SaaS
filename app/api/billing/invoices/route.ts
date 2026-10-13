@@ -7,11 +7,12 @@ import { jsonError, jsonOk } from "@/lib/http";
 import { ensureInvoicesForCapturedPayments } from "@/lib/billing";
 import { getCompanySubscription } from "@/lib/plans-server";
 import { resolveInvoiceBillingPeriod } from "@/lib/invoicing";
+import { decodeListCursor, encodeListCursor, parseListLimit } from "@/lib/list-pagination";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getSession();
   if (!session) return jsonError("UNAUTHENTICATED", 401);
   if (!session.companyId || !["COMPANY_ADMIN", "PLATFORM_ADMIN"].includes(session.role)) {
@@ -30,15 +31,34 @@ export async function GET() {
     if (!membership) return jsonError("FORBIDDEN", 403);
   }
 
-  await ensureInvoicesForCapturedPayments(session.companyId);
+  const url = new URL(request.url);
+  const paginated = url.searchParams.get("paginated") === "true";
+  const limit = paginated ? parseListLimit(url.searchParams.get("limit")) : 50;
+  const cursorValue = url.searchParams.get("cursor");
+  const cursor = paginated ? decodeListCursor(cursorValue) : null;
+  if (paginated && cursorValue && !cursor) return jsonError("INVALID_INVOICE_CURSOR", 400);
+  const cursorDate = cursor ? new Date(cursor.key) : null;
+  if (cursorDate && !Number.isFinite(cursorDate.getTime())) return jsonError("INVALID_INVOICE_CURSOR", 400);
 
-  const [invoices, subscription] = await Promise.all([
-    Invoice.find({ companyId: session.companyId })
-      .sort({ issuedAt: -1 })
-      .limit(50)
+  // Invoice backfill runs on the first page only; paging older invoices must not
+  // repeat the reconciliation pass for every button click.
+  if (!paginated || !cursor) await ensureInvoicesForCapturedPayments(session.companyId);
+
+  const [rows, subscription] = await Promise.all([
+    Invoice.find({
+      companyId: session.companyId,
+      ...(cursor && cursorDate ? { $or: [
+        { issuedAt: { $lt: cursorDate } },
+        { issuedAt: cursorDate, _id: { $lt: cursor.id } }
+      ] } : {})
+    })
+      .sort({ issuedAt: -1, _id: -1 })
+      .limit(paginated ? limit + 1 : limit)
       .lean(),
     getCompanySubscription(session.companyId)
   ]);
+  const hasMore = paginated && rows.length > limit;
+  const invoices = hasMore ? rows.slice(0, limit) : rows;
 
   const currentPlanId = subscription?.status === "ACTIVE" &&
     subscription.currentPeriodEnd.getTime() > Date.now()
@@ -103,5 +123,10 @@ export async function GET() {
     };
   }));
 
-  return jsonOk(response);
+  if (!paginated) return jsonOk(response);
+  const last = invoices[invoices.length - 1];
+  return jsonOk({
+    items: response,
+    nextCursor: hasMore && last ? encodeListCursor(last.issuedAt, last._id) : null
+  });
 }
