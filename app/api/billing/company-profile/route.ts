@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     const company = await Company.findOneAndUpdate(
       { _id: session.companyId },
       { $set: { name, email, phone } },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     ).select("_id name email phone").lean();
     if (!company) return jsonError("COMPANY_NOT_FOUND", 404);
 
