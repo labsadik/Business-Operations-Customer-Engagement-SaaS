@@ -1,5 +1,5 @@
 export const TASK_CANVAS_TITLE_MAX_LENGTH = 80;
-export const TASK_CANVAS_SCENE_MAX_BYTES = 1_000_000;
+export const TASK_CANVAS_SCENE_MAX_BYTES = 2_000_000;
 export const TASK_CANVAS_MAX_ELEMENTS = 5_000;
 
 export type TaskCanvasScene = {

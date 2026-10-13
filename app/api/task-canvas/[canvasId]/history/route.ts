@@ -8,7 +8,7 @@ import {
   requireTaskCanvasScope,
   taskCanvasErrorResponse
 } from "@/lib/task-canvas-authorization";
-import { validateCanvasVersion } from "@/features/task-canvas/shared/validation";
+import { validateCanvasVersion, validateTaskCanvasName } from "@/features/task-canvas/shared/validation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,7 +35,7 @@ async function pruneHistory(filter: { canvasId: Types.ObjectId; companyId: Types
   }
 }
 
-export async function GET(_request: Request, { params }: Params) {
+export async function GET(request: Request, { params }: Params) {
   try {
     const scope = await requireTaskCanvasScope();
     const { canvasId } = await params;
@@ -48,6 +48,26 @@ export async function GET(_request: Request, { params }: Params) {
       companyId: filter.companyId,
       workspaceId: filter.workspaceId
     };
+    const revisionId = new URL(request.url).searchParams.get("revisionId");
+    if (revisionId) {
+      if (!Types.ObjectId.isValid(revisionId)) throw new Error("CANVAS_REVISION_ID_INVALID");
+      const revision = await TaskCanvasRevision.findOne({
+        ...revisionFilter,
+        _id: new Types.ObjectId(revisionId)
+      }).select("+scene version name createdAt createdByUserId").lean();
+      if (!revision) throw new Error("CANVAS_REVISION_NOT_FOUND");
+      return jsonOk({
+        revision: {
+          id: String(revision._id),
+          version: revision.version,
+          name: revision.name,
+          createdAt: new Date(revision.createdAt).toISOString(),
+          createdByUserId: String(revision.createdByUserId)
+        },
+        scene: revision.scene
+      });
+    }
+
     const excess = await TaskCanvasRevision.find(revisionFilter)
       .sort({ createdAt: -1, _id: -1 })
       .skip(scope.historyLimit)
@@ -144,5 +164,78 @@ export async function POST(request: Request, { params }: Params) {
     });
   } catch (error) {
     return taskCanvasErrorResponse(error, "CANVAS_HISTORY_RESTORE_FAILED");
+  }
+}
+
+
+export async function PATCH(request: Request, { params }: Params) {
+  try {
+    assertSameOrigin(request);
+    const scope = await requireTaskCanvasScope();
+    const { canvasId } = await params;
+    const filter = scopedFilter(scope, canvasId);
+    const body = await request.json().catch(() => null) as Record<string, unknown> | null;
+    if (
+      !body ||
+      body.action !== "rename" ||
+      typeof body.revisionId !== "string" ||
+      !Types.ObjectId.isValid(body.revisionId)
+    ) {
+      return jsonError("CANVAS_REVISION_ID_INVALID", 400);
+    }
+
+    const canvas = await TaskCanvas.findOne(filter).lean();
+    if (!canvas || !canReadTaskCanvas(scope, canvas)) throw new Error("TASK_CANVAS_NOT_FOUND");
+
+    const revision = await TaskCanvasRevision.findOneAndUpdate(
+      {
+        _id: new Types.ObjectId(body.revisionId),
+        canvasId: canvas._id,
+        companyId: filter.companyId,
+        workspaceId: filter.workspaceId
+      },
+      { $set: { name: validateTaskCanvasName(body.name) } },
+      { new: true, runValidators: true }
+    ).lean();
+    if (!revision) throw new Error("CANVAS_REVISION_NOT_FOUND");
+
+    return jsonOk({
+      revision: {
+        id: String(revision._id),
+        version: revision.version,
+        name: revision.name,
+        createdAt: new Date(revision.createdAt).toISOString(),
+        createdByUserId: String(revision.createdByUserId)
+      }
+    });
+  } catch (error) {
+    return taskCanvasErrorResponse(error, "CANVAS_HISTORY_RENAME_FAILED");
+  }
+}
+
+export async function DELETE(request: Request, { params }: Params) {
+  try {
+    assertSameOrigin(request);
+    const scope = await requireTaskCanvasScope();
+    const { canvasId } = await params;
+    const filter = scopedFilter(scope, canvasId);
+    const body = await request.json().catch(() => null) as Record<string, unknown> | null;
+    if (!body || typeof body.revisionId !== "string" || !Types.ObjectId.isValid(body.revisionId)) {
+      return jsonError("CANVAS_REVISION_ID_INVALID", 400);
+    }
+
+    const canvas = await TaskCanvas.findOne(filter).lean();
+    if (!canvas || !canReadTaskCanvas(scope, canvas)) throw new Error("TASK_CANVAS_NOT_FOUND");
+
+    const deleted = await TaskCanvasRevision.deleteOne({
+      _id: new Types.ObjectId(body.revisionId),
+      canvasId: canvas._id,
+      companyId: filter.companyId,
+      workspaceId: filter.workspaceId
+    });
+    if (!deleted.deletedCount) throw new Error("CANVAS_REVISION_NOT_FOUND");
+    return jsonOk({ deleted: true, revisionId: body.revisionId });
+  } catch (error) {
+    return taskCanvasErrorResponse(error, "CANVAS_HISTORY_DELETE_FAILED");
   }
 }
