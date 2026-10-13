@@ -409,7 +409,10 @@ export default function TaskManagementDashboard({
   }, [load]);
 
   useEffect(() => {
-    void loadSprintBoard();
+    const frame = window.requestAnimationFrame(() => {
+      void loadSprintBoard();
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [loadSprintBoard]);
 
   useEffect(() => {
@@ -1304,7 +1307,7 @@ export default function TaskManagementDashboard({
                               {canManage && <button type="button" disabled={movingTaskId === task.id || Boolean(movingTaskId)} onClick={() => void updateTaskSprint(task, null)} className="shrink-0 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">Move to backlog</button>}
                             </article>
                           ))}
-                          {filteredTasks.filter((task) => Boolean(sprintConfig) && task.sprintId === sprintConfig?.id).length === 0 && <p className="rounded-lg border border-dashed border-slate-200 p-5 text-center text-xs text-slate-500">Add work from the product backlog to define this sprint's scope.</p>}
+                          {filteredTasks.filter((task) => Boolean(sprintConfig) && task.sprintId === sprintConfig?.id).length === 0 && <p className="rounded-lg border border-dashed border-slate-200 p-5 text-center text-xs text-slate-500">Add work from the product backlog to define this sprint&apos;s scope.</p>}
                         </div>
                       </section>
                       <section aria-label="Product backlog" className="rounded-xl border border-slate-200 bg-white/85 p-3">
