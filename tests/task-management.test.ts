@@ -2,6 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { createTaskRealtimeTicket, verifyTaskRealtimeTicket } from "../lib/task-realtime-auth.ts";
+import { publishTaskRealtime, subscribeTaskRealtime } from "../lib/task-realtime.ts";
+import { validateSprintPatch } from "../features/task-management/shared/sprint-validation.ts";
 
 function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), "utf8");
@@ -380,4 +383,104 @@ test("TaskAssignment is the single source of truth for persisted task assignees"
   assert.ok(migration.includes("TASK_ASSIGNEE_SOURCE_DRIFT"));
   assert.ok(migration.includes('$unset: { assigneeUserIds: "" }'));
   assert.equal(packageJson.scripts["task-assignees:migrate"], "node scripts/migrate-task-assignees.mjs");
+});
+
+
+test("Scrum sprint settings accept valid patches and reject invalid fields", () => {
+  const patch = validateSprintPatch({
+    name: " Sprint 7 ",
+    goal: "Deliver account settings",
+    startsAt: "2026-10-01T00:00:00.000Z",
+    endsAt: "2026-10-14T23:59:59.999Z",
+    status: "ACTIVE"
+  });
+  assert.equal(patch.name, "Sprint 7");
+  assert.equal(patch.goal, "Deliver account settings");
+  assert.equal(patch.status, "ACTIVE");
+  assert.equal(patch.startsAt?.toISOString(), "2026-10-01T00:00:00.000Z");
+  assert.throws(() => validateSprintPatch({ companyId: "64b000000000000000000099" }), /SPRINT_FIELDS_INVALID/);
+  assert.throws(() => validateSprintPatch({ name: "  " }), /SPRINT_NAME_REQUIRED/);
+  assert.throws(() => validateSprintPatch({ status: "RUNNING" }), /SPRINT_STATUS_INVALID/);
+  assert.throws(() => validateSprintPatch({ name: "Sprint", startsAt: "not-a-date" }), /SPRINT_START_INVALID/);
+});
+
+test("real-time tickets are signed, short-lived, and reject tampering", () => {
+  const previous = process.env.AUTH_SECRET;
+  process.env.AUTH_SECRET = "task-realtime-test-secret-that-is-long-enough-123456";
+  try {
+    const now = 1_800_000_000_000;
+    const { ticket, expiresAt } = createTaskRealtimeTicket({
+      userId: employeeA,
+      companyId: "64b000000000000000000010",
+      workspaceId: "64b000000000000000000020",
+      role: "COMPANY_ADMIN"
+    }, now);
+    assert.equal(expiresAt, now + 90_000);
+    assert.equal(verifyTaskRealtimeTicket(ticket, now)?.companyId, "64b000000000000000000010");
+    assert.equal(verifyTaskRealtimeTicket(ticket, now + 90_001), null);
+    assert.equal(verifyTaskRealtimeTicket(ticket + "bad", now), null);
+    assert.throws(() => createTaskRealtimeTicket({
+      userId: "not-an-id",
+      companyId: "64b000000000000000000010",
+      workspaceId: "64b000000000000000000020",
+      role: "COMPANY_ADMIN"
+    }, now), /TASK_REALTIME_SCOPE_INVALID/);
+  } finally {
+    if (previous === undefined) delete process.env.AUTH_SECRET;
+    else process.env.AUTH_SECRET = previous;
+  }
+});
+
+test("task realtime events are isolated by company and workspace", () => {
+  const companyA = "64b000000000000000000010";
+  const workspaceA = "64b000000000000000000020";
+  const seenA: unknown[] = [];
+  const seenB: unknown[] = [];
+  const unsubscribeA = subscribeTaskRealtime({
+    companyId: companyA,
+    workspaceId: workspaceA,
+    send: (message) => seenA.push(message)
+  });
+  const unsubscribeB = subscribeTaskRealtime({
+    companyId: "64b000000000000000000011",
+    workspaceId: workspaceA,
+    send: (message) => seenB.push(message)
+  });
+  try {
+    publishTaskRealtime({
+      companyId: companyA,
+      workspaceId: workspaceA,
+      taskId: "64b000000000000000000030",
+      eventType: "TASK_UPDATED",
+      occurredAt: "2026-10-13T00:00:00.000Z"
+    });
+    publishTaskRealtime({
+      companyId: companyA,
+      workspaceId: "64b000000000000000000010",
+      taskId: "64b000000000000000000031",
+      eventType: "TASK_UPDATED"
+    });
+    assert.equal(seenA.length, 1);
+    assert.equal(seenB.length, 0);
+    assert.equal((seenA[0] as { type: string }).type, "task.changed");
+  } finally {
+    unsubscribeA();
+    unsubscribeB();
+  }
+});
+
+test("same-port Node server and task client include real-time transport and polling fallback", () => {
+  const server = source("server.mjs");
+  const dashboard = source("features/task-management/components/task-management-dashboard.tsx");
+  const ticketRoute = source("app/api/tasks/realtime-ticket/route.ts");
+  const eventRecorder = source("features/task-management/server/task-events.ts");
+  assert.match(server, /process\\.env\\.PORT \\?\\? "3000"/);
+  assert.match(server, /\\/api\\/tasks\\/realtime/);
+  assert.match(server, /Sec-WebSocket-Accept/);
+  assert.match(server, /verifyTaskRealtimeTicket/);
+  assert.match(dashboard, /new WebSocket/);
+  assert.match(dashboard, /\\/api\\/tasks\\/realtime-ticket/);
+  assert.match(dashboard, /Live updates reconnecting/);
+  assert.match(ticketRoute, /requireTaskScope/);
+  assert.match(eventRecorder, /publishTaskRealtime/);
 });
