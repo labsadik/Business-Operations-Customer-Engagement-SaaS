@@ -20,6 +20,17 @@ function money(value: number) {
   }).format(value);
 }
 
+function storageLimitLabel(bytes: number) {
+  const units = [
+    { size: 1024 ** 4, label: "TB" },
+    { size: 1024 ** 3, label: "GB" },
+    { size: 1024 ** 2, label: "MB" },
+    { size: 1024, label: "KB" }
+  ];
+  const unit = units.find((candidate) => bytes >= candidate.size) ?? { size: 1, label: "B" };
+  return new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(bytes / unit.size) + " " + unit.label;
+}
+
 function dateLabel(value: Date | null | undefined) {
   if (!value) return "Not recorded";
   return new Intl.DateTimeFormat("en-IN", {
@@ -102,9 +113,46 @@ export default async function BillingRenewalPage() {
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {purchasablePlans.map((plan) => {
               const included = [
-                { label: "Task Management", enabled: Boolean(plan.taskManagementEnabled) },
-                { label: "Cloud Vault", enabled: Boolean(plan.vaultEnabled) },
-                { label: "Live Chat", enabled: Boolean(plan.liveChatEnabled) }
+                {
+                  label: "Task Management",
+                  enabled: Boolean(plan.taskManagementEnabled),
+                  detail: plan.taskManagementEnabled
+                    ? plan.taskManagementDailyLimit === null
+                      ? "Unlimited assignments/day"
+                      : plan.taskManagementDailyLimit + " assignments/day"
+                    : ""
+                },
+                {
+                  label: "Task Canvas",
+                  enabled: Boolean(plan.taskCanvasEnabled),
+                  detail: plan.taskCanvasEnabled
+                    ? plan.taskCanvasMaxCollaborators + " people/canvas · " + plan.taskCanvasHistoryLimit + " saved history versions"
+                    : ""
+                },
+                {
+                  label: "Cloud Vault",
+                  enabled: Boolean(plan.vaultEnabled),
+                  detail: plan.vaultEnabled
+                    ? storageLimitLabel(plan.vaultQuotaBytes) + " storage · " + storageLimitLabel(plan.vaultMaxFileBytes) + "/file · " + plan.vaultMaxItems.toLocaleString("en-IN") + " items"
+                    : ""
+                },
+                {
+                  label: "Live Chat",
+                  enabled: Boolean(plan.liveChatEnabled),
+                  detail: plan.liveChatEnabled
+                    ? plan.liveChatMonthlyLimit.toLocaleString("en-IN") + " chats/month · " + plan.liveChatRetentionDays + "-day history · " + plan.liveChatMessageCooldownSeconds + "s cooldown"
+                    : ""
+                },
+                {
+                  label: "Live Chat PDF exports",
+                  enabled: Boolean(plan.liveChatEnabled && plan.liveChatPdfExportEnabled),
+                  detail: ""
+                },
+                {
+                  label: "Member Live Chat deletion",
+                  enabled: Boolean(plan.liveChatEnabled && plan.liveChatDeleteEnabled),
+                  detail: ""
+                }
               ];
               return (
                 <section key={plan.id} className="flex flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -120,9 +168,14 @@ export default async function BillingRenewalPage() {
                   <p className="mt-1 text-xs text-slate-500">{money(plan.priceInr)} listed price before any promotion</p>
                   <ul className="mt-5 space-y-2 border-t border-slate-100 pt-4 text-sm">
                     {included.map((feature) => (
-                      <li key={feature.label} className="flex items-center gap-2">
-                        <CheckCircle2 className={"size-4 " + (feature.enabled ? "text-emerald-600" : "text-slate-300")} />
-                        <span className={feature.enabled ? "text-slate-800" : "text-slate-400"}>{feature.label}{feature.enabled ? "" : " — not included"}</span>
+                      <li key={feature.label} className="flex items-start gap-2">
+                        <CheckCircle2 className={"mt-0.5 size-4 shrink-0 " + (feature.enabled ? "text-emerald-600" : "text-slate-300")} />
+                        <div className="min-w-0">
+                          <p className={feature.enabled ? "text-slate-800" : "text-slate-400"}>{feature.label}{feature.enabled ? "" : " — not included"}</p>
+                          {feature.enabled && feature.detail && (
+                            <p className="mt-0.5 text-xs leading-5 text-slate-500">{feature.detail}</p>
+                          )}
+                        </div>
                       </li>
                     ))}
                   </ul>
