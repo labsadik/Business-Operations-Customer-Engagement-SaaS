@@ -864,7 +864,7 @@ test("MongoDB database name is environment-configured and Free plan seeding is v
 });
 
 
-test("Google Cloud Run container runs the same-port custom server and keeps runtime secrets out of its image", () => {
+test("Google Cloud Run container runs the standard Next.js server and keeps runtime secrets out of its image", () => {
   const nextConfig = source("next.config.ts");
   const dockerfile = source("Dockerfile");
   const dockerignore = source(".dockerignore");
@@ -876,8 +876,9 @@ test("Google Cloud Run container runs the same-port custom server and keeps runt
   assert.ok(dockerfile.includes("npm ci --no-audit --no-fund"));
   assert.ok(dockerfile.includes("npm ci --omit=dev --no-audit --no-fund"));
   assert.ok(dockerfile.includes("/app/.next ./.next"));
-  assert.ok(dockerfile.includes("/app/server.mjs ./server.mjs"));
-  assert.ok(dockerfile.includes('CMD ["node", "--experimental-strip-types", "server.mjs"]'));
+  assert.ok(dockerfile.includes('CMD ["npm", "run", "start"]'));
+  assert.equal(JSON.parse(source("package.json")).scripts.start, "next start");
+  assert.doesNotMatch(dockerfile, /server\.mjs|WebSocket/);
   assert.doesNotMatch(dockerfile, /NEXT_OUTPUT_STANDALONE=1|\.next\/standalone/);
   assert.ok(dockerfile.includes('ENV PORT=8080'));
   assert.ok(dockerfile.includes('ENV HOSTNAME=0.0.0.0'));
