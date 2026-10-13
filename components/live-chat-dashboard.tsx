@@ -166,9 +166,14 @@ export default function LiveChatDashboard({
   const [userDetailsOpen, setUserDetailsOpen] = useState(false);
   const [tab, setTab] = useState<"inbox" | "settings">("inbox");
   const [items, setItems] = useState<Conversation[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMoreConversations, setLoadingMoreConversations] = useState(false);
   const [usage, setUsage] = useState<Usage | null>(null);
   const [selectedId, setSelectedId] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messagesNextCursor, setMessagesNextCursor] = useState<string | null>(null);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [loadingMoreMessages, setLoadingMoreMessages] = useState(false);
   const [reply, setReply] = useState("");
   const [settings, setSettings] = useState<ChatSettings | null>(null);
   const [embedCode, setEmbedCode] = useState("");
@@ -186,6 +191,10 @@ export default function LiveChatDashboard({
   const [savedSettings, setSavedSettings] = useState<ChatSettings | null>(null);
   const [savedDomainsText, setSavedDomainsText] = useState("");
   const messagesPaneRef = useRef<HTMLDivElement | null>(null);
+  const inboxRequestRef = useRef(0);
+  const inboxFilterRef = useRef({ status: conversationTab, search: conversationSearch });
+  const selectedChatRef = useRef(selectedId);
+  const preserveMessageScrollRef = useRef<{ height: number; top: number } | null>(null);
 
   const hasUnsavedSettings = Boolean(settings && savedSettings && (
     JSON.stringify(settings) !== JSON.stringify(savedSettings) || domainsText !== savedDomainsText
@@ -239,36 +248,74 @@ export default function LiveChatDashboard({
   }, [hasUnsavedSettings]);
 
   const selected = useMemo(() => items.find((item) => item.id === selectedId) ?? null, [items, selectedId]);
-  const visibleItems = useMemo(() => {
-    const query = conversationSearch.trim().toLocaleLowerCase();
-    return items.filter((item) => {
-      const inTab = conversationTab === "CLOSED"
-        ? item.status === "CLOSED"
-        : conversationTab === "UNASSIGNED"
-          ? item.status === "OPEN" && !item.assignedAgentId
-          : item.status === "OPEN";
-      if (!inTab) return false;
-      if (!query) return true;
-      return [item.customerName, item.customerEmail, item.customerPhone, item.geoCountry, countryName(item.geoCountry), item.geoCity, item.geoRegion, item.lastMessagePreview]
-        .some((value) => value?.toLocaleLowerCase().includes(query));
-    });
-  }, [items, conversationTab, conversationSearch]);
+  const visibleItems = useMemo(() => items.filter((item) => {
+    if (conversationTab === "CLOSED") return item.status === "CLOSED";
+    if (conversationTab === "UNASSIGNED") return item.status === "OPEN" && !item.assignedAgentId;
+    return item.status === "OPEN";
+  }), [items, conversationTab]);
 
   const loadInbox = useCallback(async (quiet = false) => {
+    const requestId = ++inboxRequestRef.current;
+    const status = conversationTab;
+    const search = conversationSearch.trim();
     if (!quiet) setRefreshing(true);
     try {
-      const data = await api<{ items: Conversation[]; usage: Usage }>("/api/live-chat");
-      setItems(data.items);
+      const params = new URLSearchParams({ limit: "5", status });
+      if (search) params.set("search", search);
+      const data = await api<{ items: Conversation[]; nextCursor: string | null; usage: Usage }>("/api/live-chat?" + params.toString());
+      const latestFilter = inboxFilterRef.current;
+      if (requestId !== inboxRequestRef.current || latestFilter.status !== status || latestFilter.search !== conversationSearch) return;
+      if (quiet) {
+        setItems((current) => {
+          const previous = new Map(current.map((item) => [item.id, item]));
+          const refreshedIds = new Set(data.items.map((item) => item.id));
+          return [
+            ...data.items.map((item) => ({ ...previous.get(item.id), ...item })),
+            ...current.filter((item) => !refreshedIds.has(item.id))
+          ];
+        });
+      } else {
+        setItems(data.items);
+        setNextCursor(data.nextCursor);
+        setSelectedId((current) => current && data.items.some((item) => item.id === current) ? current : "");
+      }
       setUsage(data.usage);
       setError("");
-      setSelectedId((current) => current && data.items.some((item) => item.id === current) ? current : "");
+    } catch (cause) {
+      if (requestId === inboxRequestRef.current) setError((cause as Error & { code?: string }).code ?? (cause as Error).message);
+    } finally {
+      if (requestId === inboxRequestRef.current) {
+        setLoading(false);
+        if (!quiet) setRefreshing(false);
+      }
+    }
+  }, [conversationTab, conversationSearch]);
+
+  const loadMoreConversations = async () => {
+    if (!nextCursor || loadingMoreConversations) return;
+    const cursor = nextCursor;
+    const status = conversationTab;
+    const search = conversationSearch.trim();
+    const requestId = inboxRequestRef.current;
+    setLoadingMoreConversations(true);
+    try {
+      const params = new URLSearchParams({ limit: "5", status, cursor });
+      if (search) params.set("search", search);
+      const data = await api<{ items: Conversation[]; nextCursor: string | null; usage: Usage }>("/api/live-chat?" + params.toString());
+      const latestFilter = inboxFilterRef.current;
+      if (requestId !== inboxRequestRef.current || latestFilter.status !== status || latestFilter.search !== conversationSearch) return;
+      setItems((current) => {
+        const known = new Set(current.map((item) => item.id));
+        return [...current, ...data.items.filter((item) => !known.has(item.id))];
+      });
+      setNextCursor(data.nextCursor);
+      setUsage(data.usage);
     } catch (cause) {
       setError((cause as Error & { code?: string }).code ?? (cause as Error).message);
     } finally {
-      setLoading(false);
-      if (!quiet) setRefreshing(false);
+      setLoadingMoreConversations(false);
     }
-  }, []);
+  };
 
   const loadSettings = useCallback(async () => {
     try {
@@ -286,22 +333,74 @@ export default function LiveChatDashboard({
   }, []);
 
   const loadMessages = useCallback(async (conversationId: string, quiet = false) => {
+    if (!quiet) setLoadingMessages(true);
     try {
-      const data = await api<{ conversation: Conversation; messages: ChatMessage[] }>(`/api/live-chat/conversations/${encodeURIComponent(conversationId)}/messages`);
-      setMessages(data.messages);
-      setItems((current) => current.map((item) => item.id === conversationId ? { ...item, ...data.conversation, messageCount: Math.max(item.messageCount, data.messages.length) } : item));
+      const data = await api<{ conversation: Conversation; messages: ChatMessage[]; nextCursor: string | null }>(
+        "/api/live-chat/conversations/" + encodeURIComponent(conversationId) + "/messages?limit=5"
+      );
+      if (selectedChatRef.current !== conversationId) return;
+      if (quiet) {
+        setMessages((current) => {
+          const merged = new Map(current.map((message) => [message.id, message]));
+          for (const message of data.messages) merged.set(message.id, { ...merged.get(message.id), ...message });
+          return [...merged.values()].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        });
+      } else {
+        setMessages(data.messages);
+        setMessagesNextCursor(data.nextCursor);
+      }
+      setItems((current) => current.map((item) => item.id === conversationId ? { ...item, ...data.conversation } : item));
     } catch (cause) {
       if (!quiet) setError((cause as Error & { code?: string }).code ?? (cause as Error).message);
+    } finally {
+      if (!quiet) setLoadingMessages(false);
     }
   }, []);
 
+  const loadOlderMessages = async () => {
+    const conversationId = selectedId;
+    const cursor = messagesNextCursor;
+    const pane = messagesPaneRef.current;
+    if (!conversationId || !cursor || loadingMoreMessages) return;
+    if (pane) preserveMessageScrollRef.current = { height: pane.scrollHeight, top: pane.scrollTop };
+    setLoadingMoreMessages(true);
+    try {
+      const url = "/api/live-chat/conversations/" + encodeURIComponent(conversationId) + "/messages?limit=5&cursor=" + encodeURIComponent(cursor);
+      const data = await api<{ conversation: Conversation; messages: ChatMessage[]; nextCursor: string | null }>(url);
+      if (selectedChatRef.current !== conversationId) {
+        preserveMessageScrollRef.current = null;
+        return;
+      }
+      setMessages((current) => {
+        const merged = new Map(data.messages.map((message) => [message.id, message]));
+        for (const message of current) merged.set(message.id, { ...merged.get(message.id), ...message });
+        return [...merged.values()].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      });
+      setMessagesNextCursor(data.nextCursor);
+    } catch (cause) {
+      preserveMessageScrollRef.current = null;
+      setError((cause as Error & { code?: string }).code ?? (cause as Error).message);
+    } finally {
+      setLoadingMoreMessages(false);
+    }
+  };
+
+
   useEffect(() => {
-    // Load the inbox and settings once; changing selection must not refetch settings.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadInbox();
+    inboxFilterRef.current = { status: conversationTab, search: conversationSearch };
+    selectedChatRef.current = selectedId;
+  }, [conversationTab, conversationSearch, selectedId]);
+
+  useEffect(() => {
+    // Changing inbox filters must not re-fetch widget settings.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadSettings();
-  }, [loadInbox, loadSettings]);
+  }, [loadSettings]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadInbox(), conversationSearch.trim() ? 250 : 0);
+    return () => window.clearTimeout(timer);
+  }, [loadInbox, conversationSearch]);
 
   useEffect(() => {
     const pollInterval = selectedId && tab === "inbox" ? 3000 : 12000;
@@ -319,13 +418,22 @@ export default function LiveChatDashboard({
   }, [loadInbox, loadMessages, selectedId, tab]);
 
   useEffect(() => {
-    if (!messagesPaneRef.current) return;
-    messagesPaneRef.current.scrollTo({ top: messagesPaneRef.current.scrollHeight, behavior: "smooth" });
+    const pane = messagesPaneRef.current;
+    if (!pane) return;
+    const previous = preserveMessageScrollRef.current;
+    if (previous) {
+      pane.scrollTo({ top: previous.top + pane.scrollHeight - previous.height, behavior: "auto" });
+      preserveMessageScrollRef.current = null;
+      return;
+    }
+    pane.scrollTo({ top: pane.scrollHeight, behavior: "smooth" });
   }, [messages, selectedId]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMessages([]);
+    setMessagesNextCursor(null);
+    setLoadingMessages(Boolean(selectedId && tab === "inbox"));
     if (selectedId && tab === "inbox") {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       void loadMessages(selectedId);
