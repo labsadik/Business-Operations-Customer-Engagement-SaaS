@@ -729,7 +729,7 @@ export default function AdminPlans() {
                     <p className="text-[10px] uppercase tracking-[0.11em] text-slate-400">Task Canvas</p>
                     <p className="mt-1 text-xs font-semibold text-slate-800">
                       {item.taskCanvasEnabled
-                        ? "Included · " + item.taskCanvasMaxCollaborators + " people/canvas · " + item.taskCanvasHistoryLimit + " history versions"
+                        ? "Included · " + item.taskCanvasMaxCollaborators + " people/canvas · " + item.taskCanvasHistoryLimit + " history versions/company"
                         : "Not included"}
                     </p>
                   </div>
@@ -964,8 +964,8 @@ export default function AdminPlans() {
                         {draft.taskCanvasEnabled && (
                           <div className="mt-4 grid gap-3 sm:grid-cols-2">
                             <Field label="People per canvas (includes owner)" type="number" min="2" max="200" step="1" value={draft.taskCanvasMaxCollaborators} onChange={(value) => setDraft((current) => ({ ...current, taskCanvasMaxCollaborators: value }))} />
-                            <Field label="Saved history versions per canvas" type="number" min="1" max="100" step="1" value={draft.taskCanvasHistoryLimit} onChange={(value) => setDraft((current) => ({ ...current, taskCanvasHistoryLimit: value }))} />
-                            <p className="text-[11px] leading-5 text-slate-500 sm:col-span-2">The server enforces these limits for every company on this plan. Each board is private to its company, and only invited active workspace members can edit it.</p>
+                            <Field label="Saved history versions per company" type="number" min="1" max="100" step="1" value={draft.taskCanvasHistoryLimit} onChange={(value) => setDraft((current) => ({ ...current, taskCanvasHistoryLimit: value }))} />
+                            <p className="text-[11px] leading-5 text-slate-500 sm:col-span-2">The server enforces these limits for every company on this plan. The history allowance is shared across employees, canvases, and workspaces within each company; the collaborator cap applies per canvas. Only active members of the same company workspace can be invited.</p>
                           </div>
                         )}
                       </div>
