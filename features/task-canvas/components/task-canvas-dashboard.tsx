@@ -261,6 +261,8 @@ export default function TaskCanvasDashboard({
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = null;
     queuedSceneRef.current = null;
+    // Release the previous editor instance while loading another board.
+    apiRef.current = null;
     const token = ++loadTokenRef.current;
     selectedIdRef.current = id;
     setSelectedId(id);
@@ -279,7 +281,6 @@ export default function TaskCanvasDashboard({
       sceneRef.current = next;
       setScene(next);
       setSuppressionWindow(suppressUntilRef, 1400);
-      applySceneToEditor(apiRef.current, next);
       setItems((current) => current.map((item) => item.id === id ? { ...item, ...data.item } : item));
       setSelectedMembers(data.item.memberUserIds ?? []);
       setLimits(data.limits);
@@ -543,6 +544,7 @@ export default function TaskCanvasDashboard({
     try {
       await api<{ deleted: boolean }>("/api/task-canvas/" + selected.id, { method: "DELETE" });
       selectedIdRef.current = "";
+      apiRef.current = null;
       setSelectedId("");
       setItems((current) => current.filter((item) => item.id !== selected.id));
       viewingHistoryRef.current = false;
