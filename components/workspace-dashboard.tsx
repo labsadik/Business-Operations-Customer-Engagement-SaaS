@@ -732,6 +732,63 @@ export default function WorkspaceDashboard({
     }
   }
 
+  async function loadMoreAnnouncements() {
+    const cursor = announcementsCursorRef.current;
+    if (!cursor || loadingMoreAnnouncements) return;
+    setLoadingMoreAnnouncements(true);
+    try {
+      const page = await api<{ items: AnnouncementItem[]; nextCursor: string | null }>("/api/company/announcement?paginated=true&limit=5&cursor=" + encodeURIComponent(cursor));
+      const known = new Set(announcementsRef.current.map((item) => item.id));
+      const nextItems = [...announcementsRef.current, ...page.items.filter((item) => !known.has(item.id))];
+      announcementsRef.current = nextItems;
+      setAnnouncements(nextItems);
+      announcementsCursorRef.current = page.nextCursor;
+      setAnnouncementsNextCursor(page.nextCursor);
+    } catch {
+      setAnnouncementManagementError("ANNOUNCEMENT_MANAGEMENT_READ_FAILED");
+    } finally {
+      setLoadingMoreAnnouncements(false);
+    }
+  }
+
+  async function loadMoreInvitations() {
+    const cursor = invitationsCursorRef.current;
+    if (!cursor || loadingMoreInvitations) return;
+    setLoadingMoreInvitations(true);
+    try {
+      const page = await api<{ items: InvitationItem[]; nextCursor: string | null }>("/api/company/invitations?paginated=true&limit=5&cursor=" + encodeURIComponent(cursor));
+      const known = new Set(invitationsRef.current.map((item) => item.id));
+      const nextItems = [...invitationsRef.current, ...page.items.filter((item) => !known.has(item.id))];
+      invitationsRef.current = nextItems;
+      setInvitations(nextItems);
+      invitationsCursorRef.current = page.nextCursor;
+      setInvitationsNextCursor(page.nextCursor);
+    } catch {
+      setInvitationsError("INVITATION_LIST_FAILED");
+    } finally {
+      setLoadingMoreInvitations(false);
+    }
+  }
+
+  async function loadMoreInvoices() {
+    const cursor = invoicesCursorRef.current;
+    if (!cursor || loadingMoreInvoices) return;
+    setLoadingMoreInvoices(true);
+    try {
+      const page = await api<{ items: InvoiceItem[]; nextCursor: string | null }>("/api/billing/invoices?paginated=true&limit=5&cursor=" + encodeURIComponent(cursor));
+      const known = new Set(invoicesRef.current.map((item) => item.id));
+      const nextItems = [...invoicesRef.current, ...page.items.filter((item) => !known.has(item.id))];
+      invoicesRef.current = nextItems;
+      setInvoices(nextItems);
+      invoicesCursorRef.current = page.nextCursor;
+      setInvoicesNextCursor(page.nextCursor);
+    } catch {
+      setBillingError("INVOICE_LIST_FAILED");
+    } finally {
+      setLoadingMoreInvoices(false);
+    }
+  }
+
   const refreshLive = useCallback(async function refreshLive() {
     if (liveRefreshingRef.current) return;
     liveRefreshingRef.current = true;
@@ -934,7 +991,17 @@ export default function WorkspaceDashboard({
     setInvitesLoading(true);
     setInvitationsError("");
     try {
-      setInvitations(await api<InvitationItem[]>("/api/company/invitations"));
+      const page = await api<{ items: InvitationItem[]; nextCursor: string | null }>("/api/company/invitations?paginated=true&limit=5");
+      const previous = invitationsRef.current;
+      const keepLoadedTail = previous.length > 5;
+      const refreshedIds = new Set(page.items.map((item) => item.id));
+      const nextItems = keepLoadedTail ? [...page.items, ...previous.slice(5).filter((item) => !refreshedIds.has(item.id))] : page.items;
+      invitationsRef.current = nextItems;
+      setInvitations(nextItems);
+      if (!keepLoadedTail || !invitationsCursorRef.current) {
+        invitationsCursorRef.current = page.nextCursor;
+        setInvitationsNextCursor(page.nextCursor);
+      }
     } catch {
       setInvitationsError("INVITATION_LIST_FAILED");
     } finally {
@@ -947,7 +1014,17 @@ export default function WorkspaceDashboard({
     setBillingLoading(true);
     setBillingError("");
     try {
-      setInvoices(await api<InvoiceItem[]>("/api/billing/invoices"));
+      const page = await api<{ items: InvoiceItem[]; nextCursor: string | null }>("/api/billing/invoices?paginated=true&limit=5");
+      const previous = invoicesRef.current;
+      const keepLoadedTail = previous.length > 5;
+      const refreshedIds = new Set(page.items.map((item) => item.id));
+      const nextItems = keepLoadedTail ? [...page.items, ...previous.slice(5).filter((item) => !refreshedIds.has(item.id))] : page.items;
+      invoicesRef.current = nextItems;
+      setInvoices(nextItems);
+      if (!keepLoadedTail || !invoicesCursorRef.current) {
+        invoicesCursorRef.current = page.nextCursor;
+        setInvoicesNextCursor(page.nextCursor);
+      }
     } catch {
       setBillingError("INVOICE_LIST_FAILED");
     } finally {
