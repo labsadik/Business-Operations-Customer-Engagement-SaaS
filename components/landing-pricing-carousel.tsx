@@ -25,6 +25,9 @@ type PublicPlan = {
   maxConcurrentMeetings: number;
   taskManagementEnabled: boolean;
   taskManagementDailyLimit: number | null;
+  taskCanvasEnabled: boolean;
+  taskCanvasMaxCollaborators: number;
+  taskCanvasHistoryLimit: number;
   vaultEnabled: boolean;
   vaultQuotaBytes: number;
   vaultMaxFileBytes: number;
@@ -34,6 +37,9 @@ type PublicPlan = {
   liveChatCustomerLimit: number;
   liveChatAgentLimit: number;
   liveChatRetentionDays: number;
+  liveChatMessageCooldownSeconds: number;
+  liveChatPdfExportEnabled: boolean;
+  liveChatDeleteEnabled: boolean;
   validityDays: number;
   freeFeatureDays: number | null;
   requiresPayment: boolean;
@@ -266,6 +272,20 @@ export default function LandingPricingCarousel({ plans }: { plans: PublicPlan[] 
                   </span>
                 </div>
                 <div className="flex items-start gap-2 text-sm text-slate-700">
+                  {plan.taskCanvasEnabled ? (
+                    <Check className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden="true" />
+                  ) : (
+                    <X className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden="true" />
+                  )}
+                  <span>
+                    Task Canvas · team whiteboards
+                    {plan.taskCanvasEnabled
+                      ? " (" + plan.taskCanvasMaxCollaborators + " people/canvas; " + plan.taskCanvasHistoryLimit + " saved history versions)"
+                      : " (not included)"}
+                  </span>
+                  <span className="sr-only">{plan.taskCanvasEnabled ? "Included" : "Not included"}</span>
+                </div>
+                <div className="flex items-start gap-2 text-sm text-slate-700">
                   {plan.liveChatEnabled ? (
                     <Check className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden="true" />
                   ) : (
@@ -274,12 +294,28 @@ export default function LandingPricingCarousel({ plans }: { plans: PublicPlan[] 
                   <span>
                     Live Chat &amp; customer support
                     {plan.liveChatEnabled
-                      ? " (" + plan.liveChatMonthlyLimit.toLocaleString("en-IN") + " chats/month; " + plan.liveChatCustomerLimit.toLocaleString("en-IN") + " unique customers/month; " + plan.liveChatAgentLimit.toLocaleString("en-IN") + " agents; " + plan.liveChatRetentionDays + "-day history)"
+                      ? " (" + plan.liveChatMonthlyLimit.toLocaleString("en-IN") + " chats/month; " + plan.liveChatCustomerLimit.toLocaleString("en-IN") + " unique customers/month; " + plan.liveChatAgentLimit.toLocaleString("en-IN") + " agents; " + plan.liveChatRetentionDays + "-day history; " + plan.liveChatMessageCooldownSeconds + "s cooldown)"
                       : " (not included)"}
                   </span>
                   <span className="sr-only">
                     {plan.liveChatEnabled ? "Included" : "Not included"}
                   </span>
+                </div>
+                <div className="flex items-start gap-2 text-sm text-slate-700">
+                  {plan.liveChatEnabled && plan.liveChatPdfExportEnabled ? (
+                    <Check className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden="true" />
+                  ) : (
+                    <X className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden="true" />
+                  )}
+                  <span>Formatted Live Chat PDF exports {plan.liveChatEnabled && plan.liveChatPdfExportEnabled ? "(included)" : "(not included)"}</span>
+                </div>
+                <div className="flex items-start gap-2 text-sm text-slate-700">
+                  {plan.liveChatEnabled && plan.liveChatDeleteEnabled ? (
+                    <Check className="mt-0.5 size-4 shrink-0 text-blue-600" aria-hidden="true" />
+                  ) : (
+                    <X className="mt-0.5 size-4 shrink-0 text-slate-400" aria-hidden="true" />
+                  )}
+                  <span>Member Live Chat deletion {plan.liveChatEnabled && plan.liveChatDeleteEnabled ? "(allowed)" : "(not allowed)"}</span>
                 </div>
               </div>
             </button>
