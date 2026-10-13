@@ -11,6 +11,9 @@ export const TASK_STATUSES = [
 ] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 
+export const TASK_SPRINT_STATUSES = ["PLANNING", "ACTIVE", "COMPLETED"] as const;
+export type TaskSprintStatus = (typeof TASK_SPRINT_STATUSES)[number];
+
 export const TASK_NOTIFICATION_TYPES = [
   "TASK_ASSIGNMENT_CONFIRMED",
   "TASK_ASSIGNED",
