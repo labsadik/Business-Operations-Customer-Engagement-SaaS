@@ -194,6 +194,7 @@ export default function WorkspaceSupportTickets({
   function closeModal() {
     if (saving) return;
     setView("list");
+    setPage(1);
     setSelected(null);
     setSubject("");
     setDescription("");
@@ -239,6 +240,7 @@ export default function WorkspaceSupportTickets({
       setSubject("");
       setDescription("");
       setNotice(`Ticket ${ticketNumber(data.id)} was submitted to Canvas support.`);
+      setPage(1);
       setView("list");
       await loadTickets(1);
     } catch (errorValue) {
