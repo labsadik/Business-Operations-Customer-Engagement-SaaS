@@ -327,8 +327,11 @@ export default function TaskCanvasDashboard({
   }, [openCanvas, prepareCanvasSwitch]);
 
   useEffect(() => {
-    void refreshIndex();
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+    const loadTimer = window.setTimeout(() => { void refreshIndex(); }, 0);
+    return () => {
+      window.clearTimeout(loadTimer);
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, [refreshIndex]);
 
   useEffect(() => {
