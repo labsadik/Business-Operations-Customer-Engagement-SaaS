@@ -32,6 +32,21 @@ export function validateTaskCanvasScene(value: unknown): TaskCanvasScene {
   ) {
     throw new Error("CANVAS_SCENE_INVALID");
   }
+  for (const element of scene.elements) {
+    if (!element || typeof element !== "object" || Array.isArray(element)) throw new Error("CANVAS_SCENE_INVALID");
+    const record = element as Record<string, unknown>;
+    if (
+      typeof record.id !== "string" || record.id.length < 1 || record.id.length > 256 ||
+      typeof record.type !== "string" || record.type.length < 1 || record.type.length > 48
+    ) throw new Error("CANVAS_SCENE_INVALID");
+  }
+  const fileEntries = Object.entries((scene.files ?? {}) as Record<string, unknown>);
+  if (fileEntries.length > 100) throw new Error("CANVAS_SCENE_INVALID");
+  for (const [fileId, file] of fileEntries) {
+    if (!fileId || fileId.length > 256 || !file || typeof file !== "object" || Array.isArray(file)) {
+      throw new Error("CANVAS_SCENE_INVALID");
+    }
+  }
 
   let serialized: string;
   try {

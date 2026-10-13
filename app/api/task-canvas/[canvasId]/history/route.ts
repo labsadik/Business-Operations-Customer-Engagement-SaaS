@@ -43,11 +43,21 @@ export async function GET(_request: Request, { params }: Params) {
     const canvas = await TaskCanvas.findOne(filter).lean();
     if (!canvas || !canReadTaskCanvas(scope, canvas)) throw new Error("TASK_CANVAS_NOT_FOUND");
 
-    const items = await TaskCanvasRevision.find({
+    const revisionFilter = {
       canvasId: canvas._id,
       companyId: filter.companyId,
       workspaceId: filter.workspaceId
-    })
+    };
+    const excess = await TaskCanvasRevision.find(revisionFilter)
+      .sort({ createdAt: -1, _id: -1 })
+      .skip(scope.historyLimit)
+      .select("_id")
+      .lean();
+    if (excess.length) {
+      await TaskCanvasRevision.deleteMany({ ...revisionFilter, _id: { $in: excess.map((revision) => revision._id) } });
+    }
+
+    const items = await TaskCanvasRevision.find(revisionFilter)
       .sort({ createdAt: -1, _id: -1 })
       .limit(scope.historyLimit)
       .select("version name createdAt createdByUserId")
