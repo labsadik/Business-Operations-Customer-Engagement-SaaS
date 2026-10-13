@@ -7,11 +7,12 @@ import { LiveChatMessage } from "@/models/live-chat-message";
 import { User } from "@/models/user";
 import { addRetentionDays, liveChatError, requireLiveChatScope } from "@/lib/live-chat";
 import { validateChatMessage } from "@/features/live-chat/shared/validation";
+import { decodeListCursor, encodeListCursor, parseListLimit } from "@/lib/list-pagination";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(_request: Request, { params }: { params: Promise<{ conversationId: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ conversationId: string }> }) {
   try {
     const scope = await requireLiveChatScope({ allowSuspendedRead: true });
     const { conversationId } = await params;
@@ -23,10 +24,25 @@ export async function GET(_request: Request, { params }: { params: Promise<{ con
     }).select("_id customerName customerEmail customerPhone status createdAt lastMessageAt nextCustomerMessageAt expiresAt geoCountry geoCity geoRegion ipDisplay browser os deviceType referrer assignedAgentId unreadAgentCount lastMessagePreview").lean();
     if (!conversation) return jsonError("LIVE_CHAT_CONVERSATION_NOT_FOUND", 404);
     await LiveChatConversation.updateOne({ ...tenant, _id: conversation._id }, { $set: { unreadAgentCount: 0 } });
+    const url = new URL(request.url);
+    const limit = parseListLimit(url.searchParams.get("limit"));
+    const cursorValue = url.searchParams.get("cursor");
+    const cursor = decodeListCursor(cursorValue);
+    if (cursorValue && !cursor) return jsonError("INVALID_LIVE_CHAT_MESSAGE_CURSOR", 400);
+    const cursorDate = cursor ? new Date(cursor.key) : null;
+    if (cursorDate && !Number.isFinite(cursorDate.getTime())) return jsonError("INVALID_LIVE_CHAT_MESSAGE_CURSOR", 400);
     const rows = await LiveChatMessage.find({
-      ...tenant, conversationId: conversation._id, expiresAt: { $gt: new Date() }
-    }).sort({ createdAt: -1, _id: -1 }).limit(100).lean();
-    const agentIds = [...new Set(rows.filter((row) => row.senderType === "AGENT" && row.senderUserId).map((row) => String(row.senderUserId)))];
+      ...tenant,
+      conversationId: conversation._id,
+      expiresAt: { $gt: new Date() },
+      ...(cursor && cursorDate ? { $or: [
+        { createdAt: { $lt: cursorDate } },
+        { createdAt: cursorDate, _id: { $lt: cursor.id } }
+      ] } : {})
+    }).sort({ createdAt: -1, _id: -1 }).limit(limit + 1).lean();
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const agentIds = [...new Set(page.filter((row) => row.senderType === "AGENT" && row.senderUserId).map((row) => String(row.senderUserId)))];
     const agents = agentIds.length ? await User.find({ _id: { $in: agentIds }, active: true }).select("_id name image").lean() : [];
     const agentById = new Map(agents.map((agent) => [String(agent._id), { name: agent.name || "Support agent", image: agent.image || "" }]));
     return jsonOk({
@@ -52,7 +68,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ con
         assignedAgentId: conversation.assignedAgentId ? String(conversation.assignedAgentId) : null,
         lastMessagePreview: conversation.lastMessagePreview || ""
       },
-      messages: rows.reverse().map((row) => ({
+      messages: page.reverse().map((row) => ({
         id: String(row._id),
         senderType: row.senderType,
         senderUserId: row.senderUserId ? String(row.senderUserId) : null,
@@ -60,7 +76,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ con
         senderAvatar: row.senderType === "AGENT" && row.senderUserId ? agentById.get(String(row.senderUserId))?.image ?? "" : "",
         body: row.body,
         createdAt: row.createdAt
-      }))
+      })),
+      nextCursor: hasMore && page.length
+        ? encodeListCursor(page[page.length - 1].createdAt, page[page.length - 1]._id)
+        : null
     });
   } catch (error) {
     const { code, status } = liveChatError(error, "LIVE_CHAT_MESSAGES_LOAD_FAILED");
