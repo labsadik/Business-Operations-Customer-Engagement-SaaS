@@ -6,6 +6,7 @@ import {
   AlertCircle,
   CalendarClock,
   CheckCircle2,
+  CircleDot,
   ChevronDown,
   ClipboardList,
   GripVertical,
@@ -20,6 +21,8 @@ import {
   List,
   RotateCcw,
   Volume2,
+  Wifi,
+  WifiOff,
   X
 } from "lucide-react";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
@@ -87,7 +90,10 @@ type TaskDetails = {
   assignments: TaskAssignmentItem[];
 };
 
-type TaskViewMode = "BOARD" | "LIST";
+type TaskViewMode = "BOARD" | "SCRUM" | "LIST";
+type RealtimeStatus = "CONNECTING" | "CONNECTED" | "POLLING";
+type SprintStatus = "PLANNING" | "ACTIVE" | "COMPLETED";
+type SprintConfiguration = { id: string; name: string; goal: string; startsAt: string | null; endsAt: string | null; status: SprintStatus; updatedAt: string | null };
 type TaskSortMode = "UPDATED" | "DUE_DATE" | "PRIORITY";
 type TaskOwnerFilter = "ALL" | "ASSIGNED_TO_ME" | "CREATED_BY_ME" | "OVERDUE";
 type TaskCleanupPeriod = "WEEKLY" | "MONTHLY" | "YEARLY";
@@ -209,6 +215,15 @@ export default function TaskManagementDashboard({
   const [ownerFilter, setOwnerFilter] = useState<TaskOwnerFilter>("ALL");
   const [sortMode, setSortMode] = useState<TaskSortMode>("UPDATED");
   const [viewMode, setViewMode] = useState<TaskViewMode>("BOARD");
+  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("CONNECTING");
+  const [sprintConfig, setSprintConfig] = useState<SprintConfiguration | null>(null);
+  const [sprintName, setSprintName] = useState("Sprint 1");
+  const [sprintGoal, setSprintGoal] = useState("");
+  const [sprintStartsAt, setSprintStartsAt] = useState("");
+  const [sprintEndsAt, setSprintEndsAt] = useState("");
+  const [sprintStatus, setSprintStatus] = useState<SprintStatus>("PLANNING");
+  const [editingSprint, setEditingSprint] = useState(false);
+  const [savingSprint, setSavingSprint] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [cleanupOpen, setCleanupOpen] = useState(false);
   const [cleanupPeriod, setCleanupPeriod] = useState<TaskCleanupPeriod>("WEEKLY");
@@ -366,6 +381,20 @@ export default function TaskManagementDashboard({
     }
   }, [taskManagementEnabled, userId]);
 
+  const loadSprintBoard = useCallback(async () => {
+    try {
+      const response = await api<{ sprint: SprintConfiguration }>("/api/tasks/board");
+      setSprintConfig(response.sprint);
+      setSprintName(response.sprint.name);
+      setSprintGoal(response.sprint.goal);
+      setSprintStartsAt(response.sprint.startsAt ? response.sprint.startsAt.slice(0, 10) : "");
+      setSprintEndsAt(response.sprint.endsAt ? response.sprint.endsAt.slice(0, 10) : "");
+      setSprintStatus(response.sprint.status);
+    } catch {
+      // Task lists remain usable if sprint settings are temporarily unavailable.
+    }
+  }, []);
+
   useEffect(() => {
     loadTaskRef.current = load;
   }, [load]);
@@ -378,17 +407,105 @@ export default function TaskManagementDashboard({
   }, [load]);
 
   useEffect(() => {
+    void loadSprintBoard();
+  }, [loadSprintBoard]);
+
+  useEffect(() => {
     const timer = window.setInterval(() => setNowMs(Date.now()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
 
   useEffect(() => {
-    // Keep cross-user task edits/status changes current without unmounting the page
-    // or flashing the initial loading shell every polling cycle.
+    if (!taskManagementEnabled) {
+      queueMicrotask(() => setRealtimeStatus("POLLING"));
+      return;
+    }
+    let cancelled = false;
+    let socket: WebSocket | null = null;
+    let reconnectTimer: number | undefined;
+    let connectionTimer: number | undefined;
+    let attempt = 0;
+
+    const scheduleReconnect = () => {
+      if (cancelled || reconnectTimer !== undefined) return;
+      setRealtimeStatus("POLLING");
+      const delay = Math.min(1_000 * (2 ** Math.min(attempt, 5)), 30_000);
+      attempt += 1;
+      reconnectTimer = window.setTimeout(() => {
+        reconnectTimer = undefined;
+        void connect();
+      }, delay);
+    };
+
+    const connect = async () => {
+      try {
+        const result = await api<{ enabled: boolean; ticket: string | null }>("/api/tasks/realtime-ticket");
+        if (cancelled) return;
+        if (!result.enabled || !result.ticket) {
+          setRealtimeStatus("POLLING");
+          return;
+        }
+
+        const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const currentSocket = new WebSocket(
+          `${scheme}//${window.location.host}/api/tasks/realtime`,
+          ["canvas-tasks", `ticket.${result.ticket}`]
+        );
+        socket = currentSocket;
+        connectionTimer = window.setTimeout(() => {
+          if (currentSocket.readyState === WebSocket.CONNECTING) currentSocket.close();
+        }, 10_000);
+
+        currentSocket.onopen = () => {
+          if (cancelled) return currentSocket.close();
+          if (connectionTimer !== undefined) window.clearTimeout(connectionTimer);
+          connectionTimer = undefined;
+          attempt = 0;
+          setRealtimeStatus("CONNECTED");
+        };
+        currentSocket.onmessage = (event) => {
+          try {
+            const message = JSON.parse(String(event.data)) as { type?: string };
+            if (message.type === "task.changed") void load(false);
+            if (message.type === "board.changed") {
+              void loadSprintBoard();
+              void load(false);
+            }
+          } catch {
+            // Ignore malformed frames; the authenticated refresh path repairs the view.
+          }
+        };
+        currentSocket.onerror = () => currentSocket.close();
+        currentSocket.onclose = () => {
+          if (connectionTimer !== undefined) window.clearTimeout(connectionTimer);
+          connectionTimer = undefined;
+          if (socket === currentSocket) socket = null;
+          scheduleReconnect();
+        };
+      } catch {
+        scheduleReconnect();
+      }
+    };
+
+    void connect();
+    return () => {
+      cancelled = true;
+      if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer);
+      if (connectionTimer !== undefined) window.clearTimeout(connectionTimer);
+      if (socket) {
+        socket.onclose = null;
+        socket.close();
+      }
+    };
+  }, [taskManagementEnabled, load, loadSprintBoard]);
+
+  useEffect(() => {
+    // Authenticated polling remains a recovery path for serverless deployments and network interruptions.
     const refreshVisibleTasks = () => {
       if (document.visibilityState === "visible") void load(false);
     };
-    const poll = window.setInterval(refreshVisibleTasks, 30_000);
+    const pollInterval = realtimeStatus === "CONNECTED" ? 120_000 : 30_000;
+    const poll = window.setInterval(refreshVisibleTasks, pollInterval);
     document.addEventListener("visibilitychange", refreshVisibleTasks);
     window.addEventListener("focus", refreshVisibleTasks);
     return () => {
@@ -396,7 +513,7 @@ export default function TaskManagementDashboard({
       document.removeEventListener("visibilitychange", refreshVisibleTasks);
       window.removeEventListener("focus", refreshVisibleTasks);
     };
-  }, [load]);
+  }, [load, realtimeStatus]);
 
   useEffect(() => {
     if (!showCreateForm && !searchOpen && !cleanupOpen && !cancelConfirm) return;
@@ -486,6 +603,37 @@ export default function TaskManagementDashboard({
       setError(errorMessage(cleanupError));
     } finally {
       setCleaningTasks(false);
+    }
+  }
+
+  async function saveSprint(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setNotice("");
+    setSavingSprint(true);
+    try {
+      const response = await api<{ sprint: SprintConfiguration }>("/api/tasks/board", {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: sprintName,
+          goal: sprintGoal,
+          startsAt: sprintStartsAt ? new Date(`${sprintStartsAt}T00:00:00`).toISOString() : null,
+          endsAt: sprintEndsAt ? new Date(`${sprintEndsAt}T23:59:59.999`).toISOString() : null,
+          status: sprintStatus
+        })
+      });
+      setSprintConfig(response.sprint);
+      setSprintName(response.sprint.name);
+      setSprintGoal(response.sprint.goal);
+      setSprintStartsAt(response.sprint.startsAt ? response.sprint.startsAt.slice(0, 10) : "");
+      setSprintEndsAt(response.sprint.endsAt ? response.sprint.endsAt.slice(0, 10) : "");
+      setSprintStatus(response.sprint.status);
+      setEditingSprint(false);
+      setNotice("Sprint settings saved for this workspace.");
+    } catch (saveError) {
+      setError(errorMessage(saveError));
+    } finally {
+      setSavingSprint(false);
     }
   }
 
@@ -766,6 +914,10 @@ export default function TaskManagementDashboard({
                     Clear task history
                   </button>
                 )}
+                <div className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-3 text-xs font-medium ${realtimeStatus === "CONNECTED" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-800"}`} aria-live="polite" aria-label={realtimeStatus === "CONNECTED" ? "Real-time task updates connected" : "Real-time task updates use polling fallback"}>
+                  {realtimeStatus === "CONNECTED" ? <Wifi className="size-4" aria-hidden="true" /> : <WifiOff className="size-4" aria-hidden="true" />}
+                  {realtimeStatus === "CONNECTED" ? "Live updates connected" : "Live updates reconnecting"}
+                </div>
                 <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-xs font-medium text-slate-600" aria-label="Task action sounds are enabled automatically">
                   <Volume2 className="size-4 text-blue-600" aria-hidden="true" />
                   Action sounds on automatically
@@ -1066,9 +1218,10 @@ export default function TaskManagementDashboard({
                     </select>
                   </label>
                   {hasActiveFilters && <button type="button" onClick={() => { setSearchTerm(""); setStatusFilter("ALL"); setPriorityFilter("ALL"); setOwnerFilter("ALL"); }} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"><RotateCcw className="size-3.5" aria-hidden="true" />Clear filters</button>}
-                  <div className="ml-auto inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1" aria-label="Task view">
-                    <button type="button" aria-label="Board view" aria-pressed={viewMode === "BOARD"} onClick={() => setViewMode("BOARD")} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold ${viewMode === "BOARD" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}><LayoutGrid className="size-3.5" aria-hidden="true" />Board</button>
-                    <button type="button" aria-label="List view" aria-pressed={viewMode === "LIST"} onClick={() => setViewMode("LIST")} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold ${viewMode === "LIST" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}><List className="size-3.5" aria-hidden="true" />List</button>
+                  <div className="ml-auto inline-flex flex-wrap rounded-xl border border-slate-200 bg-slate-50 p-1" aria-label="Task view">
+                    <button type="button" aria-label="Board view" aria-pressed={viewMode === "BOARD"} onClick={() => { setViewMode("BOARD"); setEditingSprint(false); }} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold ${viewMode === "BOARD" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}><LayoutGrid className="size-3.5" aria-hidden="true" />Kanban</button>
+                    <button type="button" aria-label="Scrum canvas view" aria-pressed={viewMode === "SCRUM"} onClick={() => setViewMode("SCRUM")} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold ${viewMode === "SCRUM" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}><CircleDot className="size-3.5" aria-hidden="true" />Scrum</button>
+                    <button type="button" aria-label="List view" aria-pressed={viewMode === "LIST"} onClick={() => { setViewMode("LIST"); setEditingSprint(false); }} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold ${viewMode === "LIST" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}><List className="size-3.5" aria-hidden="true" />List</button>
                   </div>
                 </div>
 
@@ -1079,6 +1232,45 @@ export default function TaskManagementDashboard({
                   </div>
                   <p className="text-[11px] text-slate-500" aria-live="polite">{filteredTasks.length} matching · {tasks.length} loaded</p>
                 </div>
+
+                {viewMode === "SCRUM" && (
+                  <section aria-label="Scrum sprint canvas" className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-blue-50 p-4 sm:p-5">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-700"><CircleDot className="size-3" /> Scrum canvas</span>
+                          <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${sprintConfig?.status === "ACTIVE" ? "bg-emerald-100 text-emerald-800" : sprintConfig?.status === "COMPLETED" ? "bg-slate-200 text-slate-700" : "bg-amber-100 text-amber-800"}`}>{labelStatus(sprintConfig?.status ?? "PLANNING")}</span>
+                        </div>
+                        <h3 className="mt-2 text-lg font-bold tracking-tight text-slate-950">{sprintConfig?.name ?? sprintName}</h3>
+                        <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">{sprintConfig?.goal || "Define a clear sprint goal so the team can align on a measurable outcome."}</p>
+                        <p className="mt-2 text-xs text-slate-500">
+                          {sprintConfig?.startsAt ? new Date(sprintConfig.startsAt).toLocaleDateString() : "Start date not set"}
+                          {" — "}
+                          {sprintConfig?.endsAt ? new Date(sprintConfig.endsAt).toLocaleDateString() : "End date not set"}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                        <div className="rounded-xl border border-white/80 bg-white/80 px-3 py-2 text-center"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Sprint scope</p><p className="text-lg font-bold text-slate-950">{filteredTasks.length}</p></div>
+                        <div className="rounded-xl border border-white/80 bg-white/80 px-3 py-2 text-center"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">In progress</p><p className="text-lg font-bold text-slate-950">{filteredTasks.filter((task) => task.status === "IN_PROGRESS").length}</p></div>
+                        <div className="rounded-xl border border-white/80 bg-white/80 px-3 py-2 text-center"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Done</p><p className="text-lg font-bold text-slate-950">{filteredTasks.filter((task) => task.status === "COMPLETED").length}</p></div>
+                        {canManage && <button type="button" onClick={() => setEditingSprint((current) => !current)} className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-white px-3 py-2.5 text-xs font-semibold text-indigo-800 shadow-sm transition hover:bg-indigo-50"><CalendarClock className="size-4" />{editingSprint ? "Close sprint settings" : "Manage sprint"}</button>}
+                      </div>
+                    </div>
+                    {editingSprint && canManage && (
+                      <form onSubmit={saveSprint} className="mt-4 grid gap-3 rounded-xl border border-indigo-100 bg-white/90 p-4 md:grid-cols-2">
+                        <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-700">Sprint name</span><input required maxLength={80} value={sprintName} onChange={(event) => setSprintName(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" /></label>
+                        <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-700">Sprint status</span><select value={sprintStatus} onChange={(event) => setSprintStatus(event.target.value as SprintStatus)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-500"><option value="PLANNING">Planning</option><option value="ACTIVE">Active</option><option value="COMPLETED">Completed</option></select></label>
+                        <label className="block md:col-span-2"><span className="mb-1.5 block text-xs font-semibold text-slate-700">Sprint goal</span><textarea maxLength={500} rows={2} value={sprintGoal} onChange={(event) => setSprintGoal(event.target.value)} placeholder="What outcome should this sprint deliver?" className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" /></label>
+                        <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-700">Starts</span><input type="date" value={sprintStartsAt} onChange={(event) => setSprintStartsAt(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-indigo-500" /></label>
+                        <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-700">Ends</span><input type="date" value={sprintEndsAt} onChange={(event) => setSprintEndsAt(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-indigo-500" /></label>
+                        <div className="flex flex-wrap justify-end gap-2 md:col-span-2">
+                          <button type="button" disabled={savingSprint} onClick={() => { setEditingSprint(false); void loadSprintBoard(); }} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">Cancel</button>
+                          <button type="submit" disabled={savingSprint} className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:cursor-wait disabled:opacity-60">{savingSprint && <LoaderCircle className="size-3.5 animate-spin" />}Save sprint</button>
+                        </div>
+                      </form>
+                    )}
+                  </section>
+                )}
 
                 {loading ? (
                   <div className="flex items-center justify-center gap-2 rounded-3xl border border-slate-200 bg-white p-12 text-sm text-slate-500">
@@ -1098,7 +1290,7 @@ export default function TaskManagementDashboard({
                   <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
                     No tasks match “{searchTerm}”. Try another search.
                   </div>
-                ) : viewMode === "BOARD" ? (
+                ) : viewMode !== "LIST" ? (
                   <div aria-label="Task status board" className="grid grid-flow-col auto-cols-[minmax(18rem,21rem)] gap-4 overflow-x-auto pb-4">
                     {TASK_STATUSES.map((status) => {
                       const columnTasks = tasksByStatus[status];
