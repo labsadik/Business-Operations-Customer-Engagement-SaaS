@@ -12,6 +12,7 @@ import {
   MessageCircle,
   CalendarDays,
   ClipboardList,
+  PenTool,
   CreditCard,
   FolderOpen,
   LifeBuoy,
@@ -29,6 +30,7 @@ type Panel = "meetings" | "team" | "settings" | "billing" | "feedback" | "suppor
 type WorkspaceSidebarProps = {
   companyName: string;
   taskManagementEnabled?: boolean;
+  taskCanvasEnabled?: boolean;
   vaultEnabled?: boolean;
   liveChatEnabled?: boolean;
   canManage?: boolean;
@@ -53,6 +55,7 @@ type SidebarKey =
   | "meetings"
   | "team"
   | "tasks"
+  | "task-canvas"
   | "vault"
   | "live-chat"
   | "profile"
@@ -65,6 +68,7 @@ type SidebarKey =
 export default function WorkspaceSidebar({
   companyName,
   taskManagementEnabled = false,
+  taskCanvasEnabled = false,
   vaultEnabled = false,
   liveChatEnabled = false,
   canManage = false,
@@ -86,6 +90,7 @@ export default function WorkspaceSidebar({
 
   const isDashboard = pathname === "/dashboard" && !activePanel;
   const isTasks = pathname === "/dashboard/tasks" || pathname.startsWith("/dashboard/tasks/");
+  const isTaskCanvas = pathname === "/dashboard/task-canvas" || pathname.startsWith("/dashboard/task-canvas/");
   const isVault = pathname === "/dashboard/vault";
   const isLiveChat = pathname === "/dashboard/live-chat" || pathname.startsWith("/dashboard/live-chat/");
   const isProfile = activeProfile || pathname === "/dashboard/company-profile" || pathname.startsWith("/dashboard/company-profile/");
@@ -98,6 +103,7 @@ export default function WorkspaceSidebar({
       case "meetings": return activePanel === "meetings";
       case "team": return activePanel === "team";
       case "tasks": return isTasks;
+      case "task-canvas": return isTaskCanvas;
       case "vault": return isVault;
       case "live-chat": return isLiveChat;
       case "profile": return isProfile;
@@ -296,7 +302,7 @@ export default function WorkspaceSidebar({
             </button>
           </div>
 
-          {(taskManagementEnabled || vaultEnabled || liveChatEnabled) && (
+          {(taskManagementEnabled || taskCanvasEnabled || vaultEnabled || liveChatEnabled) && (
             <div role="group" aria-label="Workspace Tools" className="mt-4">
               {groupHeading("Workspace Tools")}
               {taskManagementEnabled && (
@@ -304,6 +310,12 @@ export default function WorkspaceSidebar({
                   <ClipboardList className={`size-4 shrink-0 ${iconClass(isTasks)}`} />
                   <span className={collapsed ? "sr-only" : "min-w-0 truncate"}>Task Management</span>
                   {!collapsed && <span className="ml-auto rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">New</span>}
+                </Link>
+              )}
+              {taskCanvasEnabled && (
+                <Link href={"/dashboard/task-canvas" as Route} onClick={() => persistScrollPosition()} className={buttonClass(isTaskCanvas)} title="Task Canvas" aria-current={isTaskCanvas ? "page" : undefined} data-sidebar-active={isTaskCanvas ? "true" : "false"} data-sidebar-key="task-canvas">
+                  <PenTool className={`size-4 shrink-0 ${iconClass(isTaskCanvas)}`} />
+                  <span className={collapsed ? "sr-only" : "min-w-0 truncate"}>Task Canvas</span>
                 </Link>
               )}
               {vaultEnabled && (
@@ -410,11 +422,12 @@ export default function WorkspaceSidebar({
               </div>
             </div>
 
-            {(taskManagementEnabled || vaultEnabled || liveChatEnabled) && (
+            {(taskManagementEnabled || taskCanvasEnabled || vaultEnabled || liveChatEnabled) && (
               <div role="group" aria-label="Workspace Tools" className="mt-4">
                 {mobileGroupHeading("Workspace Tools")}
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {taskManagementEnabled && <Link href={"/dashboard/tasks" as Route} onClick={() => persistScrollPosition()} className={mobileItemClass(isTasks)} title="Task Management" aria-current={isTasks ? "page" : undefined}><ClipboardList className="size-4 shrink-0" /><span className="min-w-0 truncate">Task Management</span><span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">New</span></Link>}
+                  {taskCanvasEnabled && <Link href={"/dashboard/task-canvas" as Route} onClick={() => persistScrollPosition()} className={mobileItemClass(isTaskCanvas)} title="Task Canvas" aria-current={isTaskCanvas ? "page" : undefined}><PenTool className="size-4 shrink-0" /><span className="min-w-0 truncate">Task Canvas</span></Link>}
                   {vaultEnabled && <Link href={"/dashboard/vault" as Route} onClick={() => persistScrollPosition()} className={mobileItemClass(isVault)} title="Cloud Vault" aria-current={isVault ? "page" : undefined}><FolderOpen className="size-4 shrink-0" /><span className="min-w-0 truncate">Cloud Vault</span><span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">New</span></Link>}
                   {liveChatEnabled && <Link href={"/dashboard/live-chat" as Route} onClick={() => persistScrollPosition()} className={mobileItemClass(isLiveChat)} title="Live Chat" aria-current={isLiveChat ? "page" : undefined}><MessageCircle className="size-4 shrink-0" /><span className="min-w-0 truncate">Live Chat</span><span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">New</span></Link>}
                 </div>

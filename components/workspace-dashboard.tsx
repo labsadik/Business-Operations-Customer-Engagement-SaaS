@@ -76,6 +76,9 @@ type DashboardPlan = {
   maxConcurrentMeetings: number;
   taskManagementEnabled?: boolean;
   taskManagementDailyLimit?: number | null;
+  taskCanvasEnabled?: boolean;
+  taskCanvasMaxCollaborators?: number;
+  taskCanvasHistoryLimit?: number;
   vaultEnabled: boolean;
   vaultQuotaBytes: number;
   vaultMaxFileBytes: number;
@@ -1371,6 +1374,7 @@ export default function WorkspaceDashboard({
       <WorkspaceSidebar
         companyName={data.company.name}
         taskManagementEnabled={Boolean(data.currentPlan.taskManagementEnabled)}
+        taskCanvasEnabled={Boolean(data.currentPlan.taskCanvasEnabled)}
         vaultEnabled={Boolean(data.currentPlan.vaultEnabled)}
         liveChatEnabled={Boolean(data.currentPlan.liveChatEnabled)}
         canManage={canManage}
