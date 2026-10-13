@@ -56,7 +56,7 @@ function cleanPhone(value: string) {
 
 function profilePayload(company: {
   _id: unknown;
-  publicId: number;
+  publicId?: number;
   name: string;
   slug: string;
   email?: string;
@@ -76,7 +76,7 @@ function profilePayload(company: {
   const phone = company.phone ?? "";
   return {
     id: String(company._id),
-    publicId: company.publicId,
+    publicId: company.publicId ?? null,
     name: company.name,
     slug: company.slug,
     email,
