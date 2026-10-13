@@ -47,15 +47,11 @@ export default async function TaskCanvasPage() {
   }
 
   const entitlements = await getCompanyEntitlements(String(company._id));
-  if (session.role !== "PLATFORM_ADMIN" && !entitlements.taskCanvasEnabled) {
+  if (!entitlements.taskCanvasEnabled) {
     redirect("/dashboard?notice=task_canvas_not_included");
   }
-  const maxCollaborators = session.role === "PLATFORM_ADMIN"
-    ? 200
-    : Math.min(200, Math.max(2, entitlements.taskCanvasMaxCollaborators ?? 2));
-  const historyLimit = session.role === "PLATFORM_ADMIN"
-    ? 100
-    : Math.min(100, Math.max(1, entitlements.taskCanvasHistoryLimit ?? 10));
+  const maxCollaborators = Math.min(200, Math.max(2, entitlements.taskCanvasMaxCollaborators ?? 2));
+  const historyLimit = Math.min(100, Math.max(1, entitlements.taskCanvasHistoryLimit ?? 10));
 
   return (
     <PlanAccessGuard
@@ -67,7 +63,7 @@ export default async function TaskCanvasPage() {
         companyName={company.name}
         currentRole={session.role}
         currentUserId={session.userId}
-        taskCanvasEnabled={session.role === "PLATFORM_ADMIN" || Boolean(entitlements.taskCanvasEnabled)}
+        taskCanvasEnabled={Boolean(entitlements.taskCanvasEnabled)}
         maxCollaborators={maxCollaborators}
         historyLimit={historyLimit}
       />

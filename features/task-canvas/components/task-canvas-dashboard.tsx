@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, Check, CheckCircle2, Clock3, FilePlus2, History, LoaderCircle, PanelLeftClose, PanelLeftOpen, Pencil, Plus, RotateCcw, Save, ShieldCheck, Trash2, UsersRound, X } from "lucide-react";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
+import UserAvatar from "@/components/user-avatar";
 import { useWorkspaceSidebarState } from "@/components/use-workspace-sidebar-state";
 
 const Excalidraw = dynamic(async () => (await import("@excalidraw/excalidraw")).Excalidraw, {
@@ -203,7 +204,7 @@ export default function TaskCanvasDashboard({
   const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useWorkspaceSidebarState();
   const [items, setItems] = useState<CanvasItem[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
-  const [limits, setLimits] = useState({ maxCollaborators, historyLimit });
+  const [limits, setLimits] = useState({ maxCollaborators, historyLimit, historyUsed: 0 });
   const [selectedId, setSelectedId] = useState("");
   const [scene, setScene] = useState<Scene>(EMPTY_SCENE);
   const [loadingIndex, setLoadingIndex] = useState(true);
@@ -274,7 +275,7 @@ export default function TaskCanvasDashboard({
     dirtyRef.current = false;
     conflictRef.current = false;
     try {
-      const data = await api<{ item: CanvasItem; scene: unknown; limits: { maxCollaborators: number; historyLimit: number } }>("/api/task-canvas/" + id);
+      const data = await api<{ item: CanvasItem; scene: unknown; limits: { maxCollaborators: number; historyLimit: number; historyUsed: number } }>("/api/task-canvas/" + id);
       if (token !== loadTokenRef.current) return;
       const next = toScene(data.scene);
       versionRef.current = data.item.version;
@@ -298,7 +299,7 @@ export default function TaskCanvasDashboard({
 
   const refreshIndex = useCallback(async () => {
     try {
-      const data = await api<{ items: CanvasItem[]; people: Person[]; limits: { maxCollaborators: number; historyLimit: number } }>("/api/task-canvas");
+      const data = await api<{ items: CanvasItem[]; people: Person[]; limits: { maxCollaborators: number; historyLimit: number; historyUsed: number } }>("/api/task-canvas");
       setItems(data.items);
       setPeople(data.people);
       setLimits(data.limits);
@@ -567,9 +568,9 @@ export default function TaskCanvasDashboard({
     }
     setHistoryLoading(true);
     try {
-      const data = await api<{ items: Revision[]; historyLimit: number }>("/api/task-canvas/" + selected.id + "/history");
+      const data = await api<{ items: Revision[]; historyLimit: number; historyUsed: number }>("/api/task-canvas/" + selected.id + "/history");
       setHistory(data.items);
-      setLimits((current) => ({ ...current, historyLimit: data.historyLimit }));
+      setLimits((current) => ({ ...current, historyLimit: data.historyLimit, historyUsed: data.historyUsed }));
       setError("");
     } catch (cause) {
       setError(errorText((cause as Error).message));
@@ -582,9 +583,9 @@ export default function TaskCanvasDashboard({
     if (!selected) return;
     setHistoryLoading(true);
     try {
-      const data = await api<{ items: Revision[]; historyLimit: number }>("/api/task-canvas/" + selected.id + "/history");
+      const data = await api<{ items: Revision[]; historyLimit: number; historyUsed: number }>("/api/task-canvas/" + selected.id + "/history");
       setHistory(data.items);
-      setLimits((current) => ({ ...current, historyLimit: data.historyLimit }));
+      setLimits((current) => ({ ...current, historyLimit: data.historyLimit, historyUsed: data.historyUsed }));
     } catch (cause) {
       setError(errorText((cause as Error).message));
     } finally {
@@ -707,7 +708,7 @@ export default function TaskCanvasDashboard({
       setSuppressionWindow(suppressUntilRef, 1400);
       applySceneToEditor(apiRef.current, next);
       setSaveState("saved");
-      const refreshedHistory = await api<{ items: Revision[]; historyLimit: number }>("/api/task-canvas/" + selected.id + "/history");
+      const refreshedHistory = await api<{ items: Revision[]; historyLimit: number; historyUsed: number }>("/api/task-canvas/" + selected.id + "/history");
       setHistory(refreshedHistory.items);
     } catch (cause) {
       setError(errorText((cause as Error).message));
@@ -778,6 +779,11 @@ export default function TaskCanvasDashboard({
                   <span className="block truncate text-xs font-semibold text-slate-800">{item.name}</span><span className="mt-1.5 flex items-center justify-between gap-2 text-[10px] text-slate-500"><span>v{item.version}</span><span className="inline-flex items-center gap-1"><UsersRound className="size-3" />{item.memberCount}/{limits.maxCollaborators}</span></span><span className="mt-1 block truncate text-[10px] text-slate-400">{formatDate(item.updatedAt)}</span>
                 </button>)}
               </> : <>
+                <div className="mb-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Company-wide history</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-800">{limits.historyUsed} of {limits.historyLimit} saved versions used</p>
+                  <p className="mt-1 text-[10px] leading-4 text-slate-500">Shared across all employees, canvases, and workspaces in this company.</p>
+                </div>
                 {!selected && <div className="rounded-xl border border-dashed border-slate-200 px-3 py-5 text-center"><History className="mx-auto size-5 text-slate-300" /><p className="mt-2 text-xs font-semibold text-slate-700">Select a canvas first</p><p className="mt-1 text-[10px] leading-4 text-slate-500">Its saved versions will appear here.</p><button type="button" onClick={() => setRailTab("canvases")} className="mt-3 rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-semibold text-slate-700">Browse canvases</button></div>}
                 {selected && historyLoading && <div className="flex items-center gap-2 px-2 py-5 text-xs text-slate-500"><LoaderCircle className="size-4 animate-spin" /> Loading saved versions…</div>}
                 {selected && !historyLoading && history.length === 0 && <div className="rounded-xl border border-dashed border-slate-200 px-3 py-6 text-center"><History className="mx-auto size-5 text-slate-300" /><p className="mt-2 text-xs font-semibold text-slate-700">No saved versions</p><p className="mt-1 text-[10px] leading-4 text-slate-500">Create a history point from the canvas toolbar.</p></div>}
@@ -841,7 +847,7 @@ export default function TaskCanvasDashboard({
               const blocked = !canManageSelected || owner || (!checked && selectedMembers.length >= limits.maxCollaborators);
               return <label key={person.id} className={"flex items-center gap-3 rounded-xl px-3 py-2.5 " + (blocked ? "opacity-70" : "hover:bg-slate-50")}>
                 <input type="checkbox" checked={checked} disabled={blocked} onChange={(event) => toggleMember(person.id, event.target.checked)} className="size-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
-                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-indigo-50 text-xs font-bold text-indigo-700">{person.name.slice(0,1).toLocaleUpperCase()}</span>
+                <UserAvatar name={person.name} email={person.email} image={person.image} size={32} className="border-indigo-100 bg-indigo-50 text-indigo-700" />
                 <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold text-slate-800">{person.name}{owner ? " · Owner" : ""}</span><span className="block truncate text-[10px] text-slate-500">{person.email}</span></span><span className="text-[10px] text-slate-400">{person.role.replaceAll("_", " ").toLocaleLowerCase()}</span>
               </label>;
             })}{people.length === 0 && <p className="px-3 py-5 text-xs text-slate-500">No active workspace members found.</p>}</div>

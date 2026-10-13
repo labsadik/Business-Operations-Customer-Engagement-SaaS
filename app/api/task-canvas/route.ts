@@ -4,6 +4,8 @@ import { jsonError, jsonOk } from "@/lib/http";
 import { Membership } from "@/models/membership";
 import { User } from "@/models/user";
 import { TaskCanvas } from "@/models/task-canvas";
+import { TaskCanvasRevision } from "@/models/task-canvas-revision";
+import { pruneCompanyTaskCanvasHistory } from "@/lib/task-canvas-history";
 import { requireTaskCanvasScope, taskCanvasErrorResponse } from "@/lib/task-canvas-authorization";
 import { validateTaskCanvasName } from "@/features/task-canvas/shared/validation";
 
@@ -16,7 +18,8 @@ export async function GET() {
     const companyId = new Types.ObjectId(scope.companyId);
     const workspaceId = new Types.ObjectId(scope.workspaceId);
     const memberFilter = scope.isManager ? {} : { memberUserIds: new Types.ObjectId(scope.session.userId) };
-    const [canvases, memberships] = await Promise.all([
+    await pruneCompanyTaskCanvasHistory(companyId, scope.historyLimit);
+    const [canvases, memberships, historyUsed] = await Promise.all([
       TaskCanvas.find({ companyId, workspaceId, ...memberFilter })
         .select("name version createdByUserId memberUserIds updatedAt")
         .sort({ updatedAt: -1, _id: -1 })
@@ -26,7 +29,8 @@ export async function GET() {
         .select("userId role")
         .sort({ createdAt: 1, _id: 1 })
         .limit(250)
-        .lean()
+        .lean(),
+      TaskCanvasRevision.countDocuments({ companyId })
     ]);
 
     const ids = memberships.map((item) => item.userId);
@@ -49,19 +53,23 @@ export async function GET() {
     });
 
     return jsonOk({
-      items: canvases.map((canvas) => ({
-        id: String(canvas._id),
-        name: canvas.name,
-        version: canvas.version,
-        createdByUserId: String(canvas.createdByUserId),
-        memberUserIds: (canvas.memberUserIds ?? []).map(String),
-        memberCount: (canvas.memberUserIds ?? []).length,
-        updatedAt: new Date(canvas.updatedAt).toISOString()
-      })),
+      items: canvases.map((canvas) => {
+        const memberUserIds = [...new Set((canvas.memberUserIds ?? []).map(String))];
+        return {
+          id: String(canvas._id),
+          name: canvas.name,
+          version: canvas.version,
+          createdByUserId: String(canvas.createdByUserId),
+          memberUserIds,
+          memberCount: memberUserIds.length,
+          updatedAt: new Date(canvas.updatedAt).toISOString()
+        };
+      }),
       people,
       limits: {
         maxCollaborators: scope.maxCollaborators,
-        historyLimit: scope.historyLimit
+        historyLimit: scope.historyLimit,
+        historyUsed
       }
     });
   } catch (error) {
