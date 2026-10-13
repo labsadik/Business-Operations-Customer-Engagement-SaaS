@@ -6,6 +6,7 @@ import { jsonError, jsonOk } from "@/lib/http";
 import { assertSameOrigin } from "@/lib/security";
 import { Types } from "mongoose";
 import { isCompanyPlanSuspended } from "@/lib/plans-server";
+import { decodeListCursor, encodeListCursor, parseListLimit } from "@/lib/list-pagination";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,16 +49,37 @@ function serialize(item: {
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await requireManager();
-    const announcements = await Announcement.find({ companyId: session.companyId })
-      .sort({ createdAt: -1 })
-      .limit(50)
+    const url = new URL(request.url);
+    const paginated = url.searchParams.get("paginated") === "true";
+    const limit = paginated ? parseListLimit(url.searchParams.get("limit")) : 50;
+    const cursorValue = url.searchParams.get("cursor");
+    const cursor = paginated ? decodeListCursor(cursorValue) : null;
+    if (paginated && cursorValue && !cursor) return jsonError("INVALID_ANNOUNCEMENT_CURSOR", 400);
+    const cursorDate = cursor ? new Date(cursor.key) : null;
+    if (cursorDate && !Number.isFinite(cursorDate.getTime())) return jsonError("INVALID_ANNOUNCEMENT_CURSOR", 400);
+    const rows = await Announcement.find({
+      companyId: session.companyId,
+      ...(cursor && cursorDate ? { $or: [
+        { createdAt: { $lt: cursorDate } },
+        { createdAt: cursorDate, _id: { $lt: cursor.id } }
+      ] } : {})
+    })
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(paginated ? limit + 1 : limit)
       .select("_id title message active createdAt")
       .lean();
-
-    return jsonOk(announcements.map(serialize));
+    const hasMore = paginated && rows.length > limit;
+    const items = hasMore ? rows.slice(0, limit) : rows;
+    const serialized = items.map(serialize);
+    if (!paginated) return jsonOk(serialized);
+    const last = items[items.length - 1];
+    return jsonOk({
+      items: serialized,
+      nextCursor: hasMore && last ? encodeListCursor(last.createdAt, last._id) : null
+    });
   } catch (error) {
     const code = error instanceof Error ? error.message : "ANNOUNCEMENT_FAILED";
     const status = code === "UNAUTHENTICATED" ? 401 : code === "FORBIDDEN" ? 403 : code === "PLAN_SUSPENDED" ? 423 : 500;
