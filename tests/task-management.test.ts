@@ -227,7 +227,7 @@ test("members can save their own work availability and only active members can b
   assert.ok(dashboard.includes("canvas:employment-status-updated"));
   assert.ok(auth.includes('employmentStatus: "ACTIVE"'));
   assert.ok(auth.includes('{ employmentStatus: { $exists: false } }'));
-  assert.ok(employeeRoute.includes('employmentStatus: membership?.employmentStatus ?? "ACTIVE"'));
+  assert.ok(employeeRoute.includes('employmentStatus: member.employmentStatus ?? "ACTIVE"'));
 });
 
 

@@ -33,7 +33,7 @@ test("meeting panel loads from a direct dashboard URL and polls live state witho
   assert.ok(dashboard.includes('if (activeModal !== "meetings") return;'));
   assert.ok(dashboard.includes("const timer = window.setTimeout(() => void loadAllMeetings(), 0)"));
   assert.ok(dashboard.includes("const requestLimit = 5"));
-  assert.ok(dashboard.includes("setModalRequests(pendingResult.value)"));
+  assert.ok(dashboard.includes("setModalRequests(nextItems)"));
   assert.ok(dashboard.includes("setMeetingActivitySummary(summaryResult.value)"));
   assert.ok(dashboard.includes('api<ActiveRequestPage>("/api/employee/requests?limit=5&paginated=true")'));
   assert.ok(dashboard.includes("Load 5 more requests"));

@@ -124,7 +124,7 @@ test("job title and department are owned by users, while employment status stays
   assert.match(userModel, /jobTitle:[\s\S]*?department:/);
   assert.doesNotMatch(membershipModel, /jobTitle|department|googleConnectionStatus/);
   assert.doesNotMatch(userModel, /googleSubject|googleEmail/);
-  assert.ok(employeeDirectory.includes('.select("userId role employmentStatus")'));
+  assert.ok(employeeDirectory.includes('.select("userId role employmentStatus createdAt")'));
   assert.ok(employeeDirectory.includes('.select("_id name email image role jobTitle department")'));
   assert.ok(employeeDirectory.includes('jobTitle: user.jobTitle ?? ""'));
   assert.ok(employeeDirectory.includes('department: user.department ?? ""'));
