@@ -732,6 +732,20 @@ export default function WorkspaceDashboard({
     }
   }
 
+  function resetAnnouncementsPagination() {
+    announcementsRef.current = [];
+    announcementsCursorRef.current = null;
+    setAnnouncements([]);
+    setAnnouncementsNextCursor(null);
+  }
+
+  function resetInvitationsPagination() {
+    invitationsRef.current = [];
+    invitationsCursorRef.current = null;
+    setInvitations([]);
+    setInvitationsNextCursor(null);
+  }
+
   async function loadMoreAnnouncements() {
     const cursor = announcementsCursorRef.current;
     if (!cursor || loadingMoreAnnouncements) return;
@@ -1273,6 +1287,7 @@ export default function WorkspaceDashboard({
       setAnnouncementEditingId(null);
       setAnnouncementTitle("");
       setAnnouncementMessage("");
+      resetAnnouncementsPagination();
       await refreshAll();
     } catch (err) {
       setError(err instanceof Error ? err.message : "ANNOUNCEMENT_UPDATE_FAILED");
@@ -1288,6 +1303,8 @@ export default function WorkspaceDashboard({
         method: "PATCH",
         body: JSON.stringify({ id: item.id, active: !item.active })
       });
+      setAnnouncements((current) => current.map((entry) => entry.id === item.id ? { ...entry, active: !item.active } : entry));
+      resetAnnouncementsPagination();
       await refreshAll();
     } catch (err) {
       setError(err instanceof Error ? err.message : "ANNOUNCEMENT_UPDATE_FAILED");
@@ -1303,6 +1320,7 @@ export default function WorkspaceDashboard({
         method: "DELETE"
       });
       if (announcementEditingId === id) setAnnouncementEditorOpen(false);
+      resetAnnouncementsPagination();
       await refreshAll();
     } catch (err) {
       setError(err instanceof Error ? err.message : "ANNOUNCEMENT_DELETE_FAILED");
@@ -1324,6 +1342,7 @@ export default function WorkspaceDashboard({
       });
       setInviteEmail("");
       setInviteLink(result.inviteUrl);
+      resetInvitationsPagination();
       await Promise.all([refreshAll(), loadInvitations()]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "INVITE_FAILED");
@@ -1355,6 +1374,7 @@ export default function WorkspaceDashboard({
       await api(`/api/company/invitations/${encodeURIComponent(id)}`, {
         method: "DELETE"
       });
+      resetInvitationsPagination();
       await loadInvitations();
     } catch (err) {
       setError(err instanceof Error ? err.message : "INVITATION_CANCEL_FAILED");
@@ -1372,6 +1392,7 @@ export default function WorkspaceDashboard({
         { method: "POST" }
       );
       setInviteLink(result.inviteUrl);
+      resetInvitationsPagination();
       await loadInvitations();
     } catch (err) {
       setError(err instanceof Error ? err.message : "INVITATION_RESEND_FAILED");
