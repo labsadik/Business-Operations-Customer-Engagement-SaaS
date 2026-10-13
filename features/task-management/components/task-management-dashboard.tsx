@@ -4,10 +4,13 @@ import { clientApi } from "@/lib/client-api";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   AlertCircle,
-  CalendarClock,
   CheckCircle2,
-  CircleDot,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  CalendarDays,
+  Activity,
+  FolderOpen,
   ClipboardList,
   GripVertical,
   LoaderCircle,
@@ -54,7 +57,6 @@ type TaskItem = {
   description: string;
   priority: TaskPriority;
   status: TaskStatus;
-  sprintId: string | null;
   dueAt: string | null;
   startedAt: string | null;
   completedAt: string | null;
@@ -92,10 +94,10 @@ type TaskDetails = {
   assignments: TaskAssignmentItem[];
 };
 
-type TaskViewMode = "BOARD" | "SCRUM" | "LIST";
+type TaskViewMode = "BOARD" | "CALENDAR" | "TIMELINE" | "LIST";
+type StatusOverviewFilter = "ALL" | "ACTIVE" | TaskStatus;
+type TeamDirectoryFilter = "ALL" | "ACTIVE" | "ON_LEAVE" | "INACTIVE";
 type RealtimeStatus = "CONNECTING" | "CONNECTED" | "POLLING";
-type SprintStatus = "PLANNING" | "ACTIVE" | "COMPLETED";
-type SprintConfiguration = { id: string; name: string; goal: string; startsAt: string | null; endsAt: string | null; status: SprintStatus; updatedAt: string | null };
 type TaskSortMode = "UPDATED" | "DUE_DATE" | "PRIORITY";
 type TaskOwnerFilter = "ALL" | "ASSIGNED_TO_ME" | "CREATED_BY_ME" | "OVERDUE";
 type TaskCleanupPeriod = "WEEKLY" | "MONTHLY" | "YEARLY";
@@ -151,6 +153,13 @@ function formatDate(value: string | null) {
   return Number.isNaN(date.getTime())
     ? "No due date"
     : date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
+
+function calendarDateKey(value: Date | string | null) {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") + "-" + String(date.getDate()).padStart(2, "0");
 }
 
 function priorityClasses(priority: TaskPriority) {
@@ -217,15 +226,14 @@ export default function TaskManagementDashboard({
   const [ownerFilter, setOwnerFilter] = useState<TaskOwnerFilter>("ALL");
   const [sortMode, setSortMode] = useState<TaskSortMode>("UPDATED");
   const [viewMode, setViewMode] = useState<TaskViewMode>("BOARD");
-  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("POLLING");
-  const [sprintConfig, setSprintConfig] = useState<SprintConfiguration | null>(null);
-  const [sprintName, setSprintName] = useState("Sprint 1");
-  const [sprintGoal, setSprintGoal] = useState("");
-  const [sprintStartsAt, setSprintStartsAt] = useState("");
-  const [sprintEndsAt, setSprintEndsAt] = useState("");
-  const [sprintStatus, setSprintStatus] = useState<SprintStatus>("PLANNING");
-  const [editingSprint, setEditingSprint] = useState(false);
-  const [savingSprint, setSavingSprint] = useState(false);
+  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("CONNECTING");
+  const [workViewOpen, setWorkViewOpen] = useState(false);
+  const [teamDirectoryOpen, setTeamDirectoryOpen] = useState(false);
+  const [statusOverviewOpen, setStatusOverviewOpen] = useState(false);
+  const [teamDirectoryFilter, setTeamDirectoryFilter] = useState<TeamDirectoryFilter>("ALL");
+  const [statusOverviewFilter, setStatusOverviewFilter] = useState<StatusOverviewFilter>("ALL");
+  const [calendarMonth, setCalendarMonth] = useState(() => { const today = new Date(); return new Date(today.getFullYear(), today.getMonth(), 1); });
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState(() => { const today = new Date(); return new Date(today.getFullYear(), today.getMonth(), today.getDate()); });
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [cleanupOpen, setCleanupOpen] = useState(false);
   const [cleanupPeriod, setCleanupPeriod] = useState<TaskCleanupPeriod>("WEEKLY");
@@ -306,16 +314,52 @@ export default function TaskManagementDashboard({
 
   const tasksByStatus = useMemo(() => {
     const grouped: Record<TaskStatus, TaskItem[]> = {
-      TODO: [],
-      IN_PROGRESS: [],
-      BLOCKED: [],
-      IN_REVIEW: [],
-      COMPLETED: [],
-      CANCELLED: []
+      TODO: [], IN_PROGRESS: [], BLOCKED: [], IN_REVIEW: [], COMPLETED: [], CANCELLED: []
     };
     for (const task of filteredTasks) grouped[task.status].push(task);
     return grouped;
   }, [filteredTasks]);
+
+  const calendarTasksByDate = useMemo(() => {
+    const grouped = new Map<string, TaskItem[]>();
+    for (const task of filteredTasks) {
+      const key = calendarDateKey(task.dueAt);
+      if (!key) continue;
+      const dayTasks = grouped.get(key) ?? [];
+      dayTasks.push(task);
+      grouped.set(key, dayTasks);
+    }
+    return grouped;
+  }, [filteredTasks]);
+  const calendarDays = useMemo(() => {
+    const first = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+    first.setDate(first.getDate() - first.getDay());
+    return Array.from({ length: 42 }, (_, index) => {
+      const day = new Date(first);
+      day.setDate(first.getDate() + index);
+      return day;
+    });
+  }, [calendarMonth]);
+  const selectedCalendarTasks = calendarTasksByDate.get(calendarDateKey(selectedCalendarDate)) ?? [];
+  const timelineTasks = useMemo(() => [...filteredTasks].sort((left, right) =>
+    new Date(left.dueAt ?? left.startedAt ?? left.createdAt).getTime() -
+    new Date(right.dueAt ?? right.startedAt ?? right.createdAt).getTime()
+  ), [filteredTasks]);
+  const statusOverviewTasks = useMemo(() => filteredTasks.filter((task) => {
+    if (statusOverviewFilter === "ALL") return true;
+    if (statusOverviewFilter === "ACTIVE") return !["COMPLETED", "CANCELLED"].includes(task.status);
+    return task.status === statusOverviewFilter;
+  }), [filteredTasks, statusOverviewFilter]);
+  const statusOverviewOptions: Array<{ value: StatusOverviewFilter; label: string; count: number; tone: string }> = [
+    { value: "ALL", label: "Tasks loaded", count: tasks.length, tone: "text-slate-900" },
+    { value: "ACTIVE", label: "Active work", count: taskMetrics.active, tone: "text-blue-700" },
+    { value: "TODO", label: "To do / queued", count: tasksByStatus.TODO.length, tone: "text-slate-700" },
+    { value: "IN_PROGRESS", label: "In progress", count: tasksByStatus.IN_PROGRESS.length, tone: "text-indigo-700" },
+    { value: "BLOCKED", label: "Locked / blocked", count: tasksByStatus.BLOCKED.length, tone: "text-rose-700" },
+    { value: "IN_REVIEW", label: "In review", count: tasksByStatus.IN_REVIEW.length, tone: "text-violet-700" },
+    { value: "COMPLETED", label: "Completed", count: tasksByStatus.COMPLETED.length, tone: "text-emerald-700" },
+    { value: "CANCELLED", label: "Cancelled", count: tasksByStatus.CANCELLED.length, tone: "text-slate-500" }
+  ];
 
   const loadInFlightRef = useRef<Promise<void> | null>(null);
   const employeeDirectoryLoadedAtRef = useRef(0);
@@ -383,19 +427,7 @@ export default function TaskManagementDashboard({
     }
   }, [taskManagementEnabled, userId]);
 
-  const loadSprintBoard = useCallback(async () => {
-    try {
-      const response = await api<{ sprint: SprintConfiguration }>("/api/tasks/board");
-      setSprintConfig(response.sprint);
-      setSprintName(response.sprint.name);
-      setSprintGoal(response.sprint.goal);
-      setSprintStartsAt(response.sprint.startsAt ? response.sprint.startsAt.slice(0, 10) : "");
-      setSprintEndsAt(response.sprint.endsAt ? response.sprint.endsAt.slice(0, 10) : "");
-      setSprintStatus(response.sprint.status);
-    } catch {
-      // Task lists remain usable if sprint settings are temporarily unavailable.
-    }
-  }, []);
+
 
   useEffect(() => {
     loadTaskRef.current = load;
@@ -408,12 +440,7 @@ export default function TaskManagementDashboard({
     return () => window.cancelAnimationFrame(frame);
   }, [load]);
 
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      void loadSprintBoard();
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [loadSprintBoard]);
+
 
   useEffect(() => {
     const timer = window.setInterval(() => setNowMs(Date.now()), 60_000);
@@ -435,6 +462,7 @@ export default function TaskManagementDashboard({
       attempt += 1;
       reconnectTimer = window.setTimeout(() => {
         reconnectTimer = undefined;
+        setRealtimeStatus("CONNECTING");
         void connect();
       }, delay);
     };
@@ -469,10 +497,7 @@ export default function TaskManagementDashboard({
           try {
             const message = JSON.parse(String(event.data)) as { type?: string };
             if (message.type === "task.changed") void load(false);
-            if (message.type === "board.changed") {
-              void loadSprintBoard();
-              void load(false);
-            }
+            if (message.type === "board.changed") void load(false);
           } catch {
             // Ignore malformed frames; the authenticated refresh path repairs the view.
           }
@@ -499,7 +524,7 @@ export default function TaskManagementDashboard({
         socket.close();
       }
     };
-  }, [taskManagementEnabled, load, loadSprintBoard]);
+  }, [taskManagementEnabled, load]);
 
   useEffect(() => {
     // Authenticated polling remains a recovery path for serverless deployments and network interruptions.
@@ -517,17 +542,20 @@ export default function TaskManagementDashboard({
   }, [load]);
 
   useEffect(() => {
-    if (!showCreateForm && !searchOpen && !cleanupOpen && !cancelConfirm) return;
+    if (!showCreateForm && !searchOpen && !cleanupOpen && !cancelConfirm && !workViewOpen && !teamDirectoryOpen && !statusOverviewOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || cleaningTasks || saving) return;
       setShowCreateForm(false);
       setSearchOpen(false);
       setCleanupOpen(false);
       setCancelConfirm(null);
+      setWorkViewOpen(false);
+      setTeamDirectoryOpen(false);
+      setStatusOverviewOpen(false);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [showCreateForm, searchOpen, cleanupOpen, cancelConfirm, cleaningTasks, saving]);
+  }, [showCreateForm, searchOpen, cleanupOpen, cancelConfirm, workViewOpen, teamDirectoryOpen, statusOverviewOpen, cleaningTasks, saving]);
 
   useEffect(() => {
     const syncOwnEmploymentStatus = (event: Event) => {
@@ -607,104 +635,11 @@ export default function TaskManagementDashboard({
     }
   }
 
-  async function updateTaskSprint(task: TaskItem, sprintId: string | null) {
-    if (!canManage || movingTaskId || task.sprintId === sprintId) return;
-    setError("");
-    setNotice("");
-    setMovingTaskId(task.id);
-    try {
-      await api<{ sprintId: string | null }>(`/api/tasks/${task.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ sprintId })
-      });
-      const detail = await api<TaskDetails>(`/api/tasks/${task.id}`);
-      syncTaskFromDetail(task.id, detail);
-      setNotice(sprintId ? `Added “${task.title}” to the sprint.` : `Moved “${task.title}” to the product backlog.`);
-    } catch (moveError) {
-      setError(errorMessage(moveError));
-    } finally {
-      setMovingTaskId(null);
-    }
-  }
-
-  async function saveSprint(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError("");
-    setNotice("");
-    setSavingSprint(true);
-    try {
-      const response = await api<{ sprint: SprintConfiguration }>("/api/tasks/board", {
-        method: "PATCH",
-        body: JSON.stringify({
-          name: sprintName,
-          goal: sprintGoal,
-          startsAt: sprintStartsAt ? new Date(`${sprintStartsAt}T00:00:00.000Z`).toISOString() : null,
-          endsAt: sprintEndsAt ? new Date(`${sprintEndsAt}T23:59:59.999Z`).toISOString() : null,
-          status: sprintStatus
-        })
-      });
-      setSprintConfig(response.sprint);
-      setSprintName(response.sprint.name);
-      setSprintGoal(response.sprint.goal);
-      setSprintStartsAt(response.sprint.startsAt ? response.sprint.startsAt.slice(0, 10) : "");
-      setSprintEndsAt(response.sprint.endsAt ? response.sprint.endsAt.slice(0, 10) : "");
-      setSprintStatus(response.sprint.status);
-      setEditingSprint(false);
-      setNotice("Sprint settings saved for this workspace.");
-    } catch (saveError) {
-      setError(errorMessage(saveError));
-    } finally {
-      setSavingSprint(false);
-    }
-  }
-
-  async function createTask(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setNotice("");
-    setError("");
-    if (dailyLimitReached) {
-      setError("Today’s task-assignment limit has been reached. You can assign more tasks after the workspace day resets.");
-      return;
-    }
-    if (!selectedAssigneeIds.length) {
-      setError("Choose at least one employee to assign this task to.");
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const created = await api<TaskItem>("/api/tasks", {
-        method: "POST",
-        body: JSON.stringify({
-          title,
-          description,
-          priority,
-          dueAt: dueAt ? new Date(dueAt).toISOString() : null,
-          assigneeUserIds: selectedAssigneeIds
-        })
-      });
-      setTasks((current) => [created, ...current.filter((task) => task.id !== created.id)]);
-      setTitle("");
-      setDescription("");
-      setPriority("MEDIUM");
-      setDueAt("");
-      setShowCreateForm(false);
-      setNotice("Task created and assigned.");
-      void load(false);
-      void playTaskSoundIfEnabled("created");
-    } catch (createError) {
-      setError(errorMessage(createError));
-    } finally {
-      setSaving(false);
-    }
-  }
-
   function syncTaskFromDetail(taskId: string, detail: TaskDetails) {
     const completed = detail.assignments.filter((assignment) => assignment.status === "COMPLETED").length;
     setTasks((current) => current.map((task) => task.id === taskId ? {
       ...task,
       status: detail.status,
-      sprintId: detail.sprintId,
       dueAt: detail.dueAt,
       startedAt: detail.startedAt,
       completedAt: detail.completedAt,
@@ -936,9 +871,9 @@ export default function TaskManagementDashboard({
                     Clear task history
                   </button>
                 )}
-                <div className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-3 text-xs font-medium ${realtimeStatus === "CONNECTED" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-800"}`} aria-live="polite" aria-label={realtimeStatus === "CONNECTED" ? "Real-time task updates connected" : "Real-time task updates use polling fallback"}>
-                  {realtimeStatus === "CONNECTED" ? <Wifi className="size-4" aria-hidden="true" /> : <WifiOff className="size-4" aria-hidden="true" />}
-                  {realtimeStatus === "CONNECTED" ? "Live updates connected" : "Live updates reconnecting"}
+                <div className={"inline-flex items-center gap-2 rounded-xl border px-3.5 py-3 text-xs font-medium " + (realtimeStatus === "CONNECTED" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : realtimeStatus === "CONNECTING" ? "border-amber-200 bg-amber-50 text-amber-800" : "border-slate-200 bg-slate-50 text-slate-600")} aria-live="polite" aria-label={realtimeStatus === "CONNECTED" ? "Real-time task updates connected" : realtimeStatus === "CONNECTING" ? "Connecting to real-time task updates" : "Polling fallback is active"}>
+                  {realtimeStatus === "CONNECTED" ? <Wifi className="size-4" aria-hidden="true" /> : realtimeStatus === "CONNECTING" ? <WifiOff className="size-4" aria-hidden="true" /> : <RefreshCw className="size-4" aria-hidden="true" />}
+                  {realtimeStatus === "CONNECTED" ? "Live updates connected" : realtimeStatus === "CONNECTING" ? "Connecting live updates" : "Polling fallback active"}
                 </div>
                 <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-xs font-medium text-slate-600" aria-label="Task action sounds are enabled automatically">
                   <Volume2 className="size-4 text-blue-600" aria-hidden="true" />
@@ -948,38 +883,40 @@ export default function TaskManagementDashboard({
             </div>
           </section>
 
-          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-blue-600">Team directory</p>
-                <h2 className="mt-1 text-lg font-semibold tracking-tight text-slate-950">Team availability</h2>
-                <p className="mt-1 text-xs leading-5 text-slate-500">Only active employees can receive new tasks. Members manage their own status from the profile menu.</p>
-              </div>
-              <div className="flex flex-wrap gap-2 text-[10px] font-semibold">
-                <span className="rounded-full bg-emerald-50 px-2.5 py-1.5 text-emerald-800">{employees.filter((employee) => employee.employmentStatus === "ACTIVE").length} active</span>
-                <span className="rounded-full bg-amber-50 px-2.5 py-1.5 text-amber-800">{employees.filter((employee) => employee.employmentStatus === "ON_LEAVE").length} on leave</span>
-                <span className="rounded-full bg-rose-50 px-2.5 py-1.5 text-rose-800">{employees.filter((employee) => employee.employmentStatus === "INACTIVE").length} inactive</span>
-              </div>
-            </div>
-            {employees.length ? (
-              <div className="mt-4 grid max-h-[320px] gap-2 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
-                {employees.map((employee) => (
-                  <div key={employee.id} className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 px-3 py-3">
-                    <UserAvatar name={employee.name || employee.email} email={employee.email} image={employee.image} size={36} />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-semibold text-slate-900">{employee.name || employee.email}{employee.id === userId ? " (you)" : ""}</p>
-                      <p className="truncate text-[10px] text-slate-500">{employee.role.replaceAll("_", " ").toLowerCase()}</p>
-                    </div>
-                    <span className={"shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ring-1 ring-inset " + employmentStatusClasses(employee.employmentStatus)}>
-                      {employmentStatusName(employee.employmentStatus)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-xs text-slate-500">Team availability will appear when members load.</p>
-            )}
+          <section aria-label="Task workspace folders" className="grid gap-4 lg:grid-cols-3">
+            <button type="button" onClick={() => { setViewMode("BOARD"); setWorkViewOpen(true); }} aria-haspopup="dialog" className="group rounded-3xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+              <div className="flex items-start justify-between gap-3"><span className="grid size-12 place-items-center rounded-2xl bg-blue-600 text-white shadow-sm"><FolderOpen className="size-6" aria-hidden="true" /></span><span className="rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-blue-800">Workspace</span></div>
+              <h2 className="mt-4 text-base font-bold text-slate-950">Task work view</h2><p className="mt-1 text-xs leading-5 text-slate-600">Open Kanban, calendar, timeline or task list in a focused popup.</p>
+              <div className="mt-4 flex items-center justify-between gap-3 border-t border-blue-100 pt-3"><span className="text-xs font-semibold text-slate-700"><strong className="text-slate-950">{tasks.length}</strong> tasks loaded</span><span className="text-[11px] font-semibold text-blue-700 group-hover:underline">Open workspace ↗</span></div>
+              <div className="mt-3 flex items-center gap-1.5">{employees.slice(0,4).map((employee)=><span key={employee.id} className="-ml-0.5 inline-flex rounded-full ring-2 ring-white"><UserAvatar name={employee.name || employee.email} email={employee.email} image={employee.image} size={26}/></span>)}{employees.length>4&&<span className="text-[10px] font-semibold text-slate-500">+{employees.length-4} people</span>}</div>
+            </button>
+            <button type="button" onClick={() => { setTeamDirectoryFilter("ALL"); setTeamDirectoryOpen(true); }} aria-haspopup="dialog" className="group rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+              <div className="flex items-start justify-between gap-3"><span className="grid size-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-700"><Users className="size-6" aria-hidden="true"/></span><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-800">People</span></div>
+              <h2 className="mt-4 text-base font-bold text-slate-950">Team directory</h2><p className="mt-1 text-xs leading-5 text-slate-600">Inspect team availability, leave and inactive accounts.</p>
+              <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3 text-[10px] font-semibold"><span className="rounded-full bg-emerald-50 px-2.5 py-1.5 text-emerald-800">{employees.filter((e)=>e.employmentStatus==="ACTIVE").length} active</span><span className="rounded-full bg-amber-50 px-2.5 py-1.5 text-amber-800">{employees.filter((e)=>e.employmentStatus==="ON_LEAVE").length} on leave</span><span className="rounded-full bg-rose-50 px-2.5 py-1.5 text-rose-800">{employees.filter((e)=>e.employmentStatus==="INACTIVE").length} inactive</span></div>
+              <div className="mt-3 flex items-center gap-1.5">{employees.slice(0,5).map((employee)=><span key={employee.id} className="-ml-0.5 inline-flex rounded-full ring-2 ring-white"><UserAvatar name={employee.name || employee.email} email={employee.email} image={employee.image} size={25}/></span>)}</div>
+            </button>
+            <button type="button" onClick={() => { setStatusOverviewFilter("ALL"); setStatusOverviewOpen(true); }} aria-haspopup="dialog" className="group rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500">
+              <div className="flex items-start justify-between gap-3"><span className="grid size-12 place-items-center rounded-2xl bg-violet-50 text-violet-700"><ClipboardList className="size-6" aria-hidden="true"/></span><span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-violet-800">Operations</span></div>
+              <h2 className="mt-4 text-base font-bold text-slate-950">Task status</h2><p className="mt-1 text-xs leading-5 text-slate-600">See task counts and inspect each stage.</p>
+              <div className="mt-4 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3"><div className="rounded-xl bg-slate-50 px-2 py-2"><p className="text-lg font-bold text-slate-900">{taskMetrics.total}</p><p className="text-[9px] text-slate-500">Loaded</p></div><div className="rounded-xl bg-blue-50 px-2 py-2"><p className="text-lg font-bold text-blue-700">{taskMetrics.active}</p><p className="text-[9px] text-blue-700">Active</p></div><div className="rounded-xl bg-rose-50 px-2 py-2"><p className="text-lg font-bold text-rose-700">{taskMetrics.blocked}</p><p className="text-[9px] text-rose-700">Locked</p></div></div>
+            </button>
           </section>
+          {teamDirectoryOpen && <div className="fixed inset-0 z-[90] overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6"><section role="dialog" aria-modal="true" aria-labelledby="team-directory-title" className="mx-auto my-4 w-full max-w-5xl rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-7">
+            <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700">People workspace</p><h2 id="team-directory-title" className="mt-1 text-xl font-bold text-slate-950">Team availability</h2><p className="mt-1 text-sm text-slate-500">Select a status to review members available for work.</p></div><button type="button" onClick={()=>setTeamDirectoryOpen(false)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold">Close</button></div>
+            <div className="mt-5 grid grid-cols-3 gap-2">{([{v:"ACTIVE" as const,l:"Active",n:employees.filter((e)=>e.employmentStatus==="ACTIVE").length},{v:"ON_LEAVE" as const,l:"On leave",n:employees.filter((e)=>e.employmentStatus==="ON_LEAVE").length},{v:"INACTIVE" as const,l:"Inactive",n:employees.filter((e)=>e.employmentStatus==="INACTIVE").length}]).map(x=><button key={x.v} type="button" onClick={()=>setTeamDirectoryFilter(x.v)} className={"rounded-2xl border p-3 text-left "+(teamDirectoryFilter===x.v?"border-blue-300 bg-blue-50":"border-slate-200 bg-white")}><p className="text-[10px] font-semibold uppercase">{x.l}</p><p className="mt-1 text-2xl font-bold">{x.n}</p></button>)}</div>
+            <button type="button" onClick={()=>setTeamDirectoryFilter("ALL")} className={"mt-3 rounded-full px-3 py-1.5 text-xs font-semibold "+(teamDirectoryFilter==="ALL"?"bg-slate-900 text-white":"bg-slate-100 text-slate-600")}>All team ({employees.length})</button>
+            <div className="mt-4 grid max-h-[58vh] gap-3 overflow-y-auto sm:grid-cols-2 xl:grid-cols-3">{employees.filter((e)=>teamDirectoryFilter==="ALL"||e.employmentStatus===teamDirectoryFilter).map(employee=><article key={employee.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 p-3"><UserAvatar name={employee.name||employee.email} email={employee.email} image={employee.image} size={42}/><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{employee.name||employee.email}{employee.id===userId?" (you)":""}</p><p className="truncate text-[11px] text-slate-500">{employee.email}</p><p className="text-[10px] text-slate-400">{employee.role.replaceAll("_"," ").toLowerCase()}</p></div><span className={"rounded-full px-2 py-1 text-[9px] font-semibold "+employmentStatusClasses(employee.employmentStatus)}>{employmentStatusName(employee.employmentStatus)}</span></article>)}
+              {employees.filter((e)=>teamDirectoryFilter==="ALL"||e.employmentStatus===teamDirectoryFilter).length===0&&<p className="col-span-full p-8 text-center text-sm text-slate-500">No members in this availability group.</p>}</div>
+          </section></div>}
+          {statusOverviewOpen && <div className="fixed inset-0 z-[90] overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6"><section role="dialog" aria-modal="true" aria-labelledby="task-status-overview-title" className="mx-auto my-4 w-full max-w-6xl rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-7">
+            <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-violet-700">Operations workspace</p><h2 id="task-status-overview-title" className="mt-1 text-xl font-bold text-slate-950">Task status overview</h2><p className="mt-1 text-sm text-slate-500">Counts reflect loaded tasks; select a status to filter its work.</p></div><button type="button" onClick={()=>setStatusOverviewOpen(false)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold">Close</button></div>
+            <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">{statusOverviewOptions.map(item=><button key={item.value} type="button" onClick={()=>setStatusOverviewFilter(item.value)} className={"rounded-2xl border p-3 text-left "+(statusOverviewFilter===item.value?"border-blue-300 bg-blue-50 ring-2 ring-blue-100":"border-slate-200 bg-white hover:bg-slate-50")}><p className="text-[10px] font-semibold leading-4 text-slate-500">{item.label}</p><p className={"mt-1 text-2xl font-bold "+item.tone}>{item.count}</p></button>)}</div>
+            <div className="mt-5 flex items-center justify-between gap-3"><h3 className="text-sm font-bold">{statusOverviewOptions.find(x=>x.value===statusOverviewFilter)?.label}</h3><span className="text-xs text-slate-500">{statusOverviewTasks.length} shown</span></div>
+            <div className="mt-3 max-h-[52vh] overflow-y-auto rounded-2xl border border-slate-200">{statusOverviewTasks.map(task=><button key={task.id} type="button" onClick={()=>{setStatusOverviewOpen(false);setWorkViewOpen(true);setViewMode("BOARD");setStatusFilter(task.status);void openTask(task.id);}} className="flex w-full flex-col gap-2 border-b border-slate-100 px-4 py-3 text-left hover:bg-slate-50 sm:flex-row sm:items-center"><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{task.title}</span><span className="mt-1 block text-[10px] text-slate-500">TASK-{task.id.slice(-6).toUpperCase()} · {labelStatus(task.priority)} · {formatDate(task.dueAt)}</span></span><span className="flex items-center gap-1">{task.assigneeUserIds.slice(0,3).map(id=>{const member=employeeById.get(id);return member?<span key={id} title={member.name}><UserAvatar name={member.name||member.email} email={member.email} image={member.image} size={26}/></span>:null;})}</span><span className={"rounded-full px-2.5 py-1 text-[10px] font-semibold "+statusColumnClasses(task.status)}>{task.status==="BLOCKED"?"Locked / blocked":labelStatus(task.status)}</span></button>)}
+              {statusOverviewTasks.length===0&&<p className="p-10 text-center text-sm text-slate-500">No tasks match this status and the current filters.</p>}</div>
+          </section></div>}
+          {error &&
 
           {error && (
             <div role="alert" className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
@@ -1205,7 +1142,14 @@ export default function TaskManagementDashboard({
               </div>
               )}
 
-              <section className="space-y-3">
+              {workViewOpen && (
+                <div className="fixed inset-0 z-[80] overflow-y-auto bg-slate-950/65 p-2 backdrop-blur-sm sm:p-5">
+                  <section role="dialog" aria-modal="true" aria-labelledby="task-workspace-title" className="mx-auto my-2 w-full max-w-[1680px] rounded-3xl border border-slate-200 bg-slate-50 p-3 shadow-2xl sm:p-5">
+                    <div className="sticky top-0 z-20 mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+                      <div><p className="text-[10px] font-bold uppercase tracking-[0.15em] text-blue-700">Task workspace</p><h2 id="task-workspace-title" className="mt-1 text-lg font-bold text-slate-950">Work view</h2><p className="mt-1 text-xs text-slate-500">Switch between board, calendar, timeline and list.</p></div>
+                      <div className="flex items-center gap-2"><span className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700">{filteredTasks.length} matching tasks</span><button type="button" onClick={()=>setWorkViewOpen(false)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700"><X className="size-4"/>Close workspace</button></div>
+                    </div>
+                    <section className="space-y-3">
                 <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 sm:flex-row sm:flex-wrap sm:items-center">
                   <div className="flex items-center gap-2 text-xs font-semibold text-slate-500"><Filter className="size-4" aria-hidden="true" />Filters</div>
                   <label className="min-w-36 flex-1 sm:flex-none">
@@ -1241,9 +1185,10 @@ export default function TaskManagementDashboard({
                   </label>
                   {hasActiveFilters && <button type="button" onClick={() => { setSearchTerm(""); setStatusFilter("ALL"); setPriorityFilter("ALL"); setOwnerFilter("ALL"); }} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"><RotateCcw className="size-3.5" aria-hidden="true" />Clear filters</button>}
                   <div className="ml-auto inline-flex flex-wrap rounded-xl border border-slate-200 bg-slate-50 p-1" aria-label="Task view">
-                    <button type="button" aria-label="Board view" aria-pressed={viewMode === "BOARD"} onClick={() => { setViewMode("BOARD"); setEditingSprint(false); }} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold ${viewMode === "BOARD" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}><LayoutGrid className="size-3.5" aria-hidden="true" />Kanban</button>
-                    <button type="button" aria-label="Scrum canvas view" aria-pressed={viewMode === "SCRUM"} onClick={() => setViewMode("SCRUM")} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold ${viewMode === "SCRUM" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}><CircleDot className="size-3.5" aria-hidden="true" />Scrum</button>
-                    <button type="button" aria-label="List view" aria-pressed={viewMode === "LIST"} onClick={() => { setViewMode("LIST"); setEditingSprint(false); }} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold ${viewMode === "LIST" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}><List className="size-3.5" aria-hidden="true" />List</button>
+                    <button type="button" aria-label="Kanban board view" aria-pressed={viewMode === "BOARD"} onClick={() => setViewMode("BOARD")} className={"inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (viewMode === "BOARD" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800")}><LayoutGrid className="size-3.5" aria-hidden="true" />Board</button>
+                    <button type="button" aria-label="Calendar view" aria-pressed={viewMode === "CALENDAR"} onClick={() => setViewMode("CALENDAR")} className={"inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (viewMode === "CALENDAR" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800")}><CalendarDays className="size-3.5" aria-hidden="true" />Calendar</button>
+                    <button type="button" aria-label="Timeline view" aria-pressed={viewMode === "TIMELINE"} onClick={() => setViewMode("TIMELINE")} className={"inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (viewMode === "TIMELINE" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800")}><Activity className="size-3.5" aria-hidden="true" />Timeline</button>
+                    <button type="button" aria-label="List view" aria-pressed={viewMode === "LIST"} onClick={() => setViewMode("LIST")} className={"inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold " + (viewMode === "LIST" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800")}><List className="size-3.5" aria-hidden="true" />List</button>
                   </div>
                 </div>
 
@@ -1254,83 +1199,6 @@ export default function TaskManagementDashboard({
                   </div>
                   <p className="text-[11px] text-slate-500" aria-live="polite">{filteredTasks.length} matching · {tasks.length} loaded</p>
                 </div>
-
-                {viewMode === "SCRUM" && (
-                  <section aria-label="Scrum sprint canvas" className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-blue-50 p-4 sm:p-5">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-700"><CircleDot className="size-3" /> Scrum canvas</span>
-                          <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${sprintConfig?.status === "ACTIVE" ? "bg-emerald-100 text-emerald-800" : sprintConfig?.status === "COMPLETED" ? "bg-slate-200 text-slate-700" : "bg-amber-100 text-amber-800"}`}>{labelStatus(sprintConfig?.status ?? "PLANNING")}</span>
-                        </div>
-                        <h3 className="mt-2 text-lg font-bold tracking-tight text-slate-950">{sprintConfig?.name ?? sprintName}</h3>
-                        <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">{sprintConfig?.goal || "Define a clear sprint goal so the team can align on a measurable outcome."}</p>
-                        <p className="mt-2 text-xs text-slate-500">
-                          {sprintConfig?.startsAt ? new Date(sprintConfig.startsAt).toLocaleDateString() : "Start date not set"}
-                          {" — "}
-                          {sprintConfig?.endsAt ? new Date(sprintConfig.endsAt).toLocaleDateString() : "End date not set"}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                        <div className="rounded-xl border border-white/80 bg-white/80 px-3 py-2 text-center"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Sprint scope</p><p className="text-lg font-bold text-slate-950">{filteredTasks.filter((task) => task.sprintId === sprintConfig?.id).length}</p></div>
-                        <div className="rounded-xl border border-white/80 bg-white/80 px-3 py-2 text-center"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">In progress</p><p className="text-lg font-bold text-slate-950">{filteredTasks.filter((task) => task.sprintId === sprintConfig?.id && task.status === "IN_PROGRESS").length}</p></div>
-                        <div className="rounded-xl border border-white/80 bg-white/80 px-3 py-2 text-center"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Done</p><p className="text-lg font-bold text-slate-950">{filteredTasks.filter((task) => task.sprintId === sprintConfig?.id && task.status === "COMPLETED").length}</p></div>
-                        {canManage && <button type="button" onClick={() => setEditingSprint((current) => !current)} className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-white px-3 py-2.5 text-xs font-semibold text-indigo-800 shadow-sm transition hover:bg-indigo-50"><CalendarClock className="size-4" />{editingSprint ? "Close sprint settings" : "Manage sprint"}</button>}
-                      </div>
-                    </div>
-                    {editingSprint && canManage && (
-                      <form onSubmit={saveSprint} className="mt-4 grid gap-3 rounded-xl border border-indigo-100 bg-white/90 p-4 md:grid-cols-2">
-                        <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-700">Sprint name</span><input required maxLength={80} value={sprintName} onChange={(event) => setSprintName(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" /></label>
-                        <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-700">Sprint status</span><select value={sprintStatus} onChange={(event) => setSprintStatus(event.target.value as SprintStatus)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-500"><option value="PLANNING">Planning</option><option value="ACTIVE">Active</option><option value="COMPLETED">Completed</option></select></label>
-                        <label className="block md:col-span-2"><span className="mb-1.5 block text-xs font-semibold text-slate-700">Sprint goal</span><textarea maxLength={500} rows={2} value={sprintGoal} onChange={(event) => setSprintGoal(event.target.value)} placeholder="What outcome should this sprint deliver?" className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" /></label>
-                        <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-700">Starts</span><input type="date" value={sprintStartsAt} onChange={(event) => setSprintStartsAt(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-indigo-500" /></label>
-                        <label className="block"><span className="mb-1.5 block text-xs font-semibold text-slate-700">Ends</span><input type="date" value={sprintEndsAt} onChange={(event) => setSprintEndsAt(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-indigo-500" /></label>
-                        <div className="flex flex-wrap justify-end gap-2 md:col-span-2">
-                          <button type="button" disabled={savingSprint} onClick={() => { setEditingSprint(false); void loadSprintBoard(); }} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">Cancel</button>
-                          <button type="submit" disabled={savingSprint} className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:cursor-wait disabled:opacity-60">{savingSprint && <LoaderCircle className="size-3.5 animate-spin" />}Save sprint</button>
-                        </div>
-                      </form>
-                    )}
-                    <div className="mt-4 grid gap-4 xl:grid-cols-2">
-                      <section aria-label="Sprint work" className="rounded-xl border border-indigo-100 bg-white/85 p-3">
-                        <div className="mb-3 flex items-center justify-between gap-2">
-                          <h4 className="text-xs font-bold uppercase tracking-wide text-indigo-950">Sprint work</h4>
-                          <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-800">{filteredTasks.filter((task) => task.sprintId === sprintConfig?.id).length}</span>
-                        </div>
-                        <div className="space-y-2">
-                          {filteredTasks.filter((task) => Boolean(sprintConfig) && task.sprintId === sprintConfig?.id).map((task) => (
-                            <article key={task.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3">
-                              <div className="min-w-0">
-                                <p className="truncate text-xs font-semibold text-slate-900">{task.title}</p>
-                                <p className="mt-1 text-[10px] text-slate-500">{labelStatus(task.status)} · {labelStatus(task.priority)}</p>
-                              </div>
-                              {canManage && <button type="button" disabled={movingTaskId === task.id || Boolean(movingTaskId)} onClick={() => void updateTaskSprint(task, null)} className="shrink-0 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">Move to backlog</button>}
-                            </article>
-                          ))}
-                          {filteredTasks.filter((task) => Boolean(sprintConfig) && task.sprintId === sprintConfig?.id).length === 0 && <p className="rounded-lg border border-dashed border-slate-200 p-5 text-center text-xs text-slate-500">Add work from the product backlog to define this sprint&apos;s scope.</p>}
-                        </div>
-                      </section>
-                      <section aria-label="Product backlog" className="rounded-xl border border-slate-200 bg-white/85 p-3">
-                        <div className="mb-3 flex items-center justify-between gap-2">
-                          <h4 className="text-xs font-bold uppercase tracking-wide text-slate-800">Product backlog</h4>
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">{filteredTasks.filter((task) => !sprintConfig || task.sprintId !== sprintConfig.id).length}</span>
-                        </div>
-                        <div className="space-y-2">
-                          {filteredTasks.filter((task) => !sprintConfig || task.sprintId !== sprintConfig.id).map((task) => (
-                            <article key={task.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3">
-                              <div className="min-w-0">
-                                <p className="truncate text-xs font-semibold text-slate-900">{task.title}</p>
-                                <p className="mt-1 text-[10px] text-slate-500">{labelStatus(task.status)} · {labelStatus(task.priority)}</p>
-                              </div>
-                              {canManage && <button type="button" disabled={!sprintConfig || movingTaskId === task.id || Boolean(movingTaskId)} onClick={() => sprintConfig && void updateTaskSprint(task, sprintConfig.id)} className="shrink-0 rounded-lg bg-indigo-600 px-2.5 py-1.5 text-[10px] font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40">Add to sprint</button>}
-                            </article>
-                          ))}
-                          {filteredTasks.filter((task) => !sprintConfig || task.sprintId !== sprintConfig.id).length === 0 && <p className="rounded-lg border border-dashed border-slate-200 p-5 text-center text-xs text-slate-500">Your product backlog is empty for these filters.</p>}
-                        </div>
-                      </section>
-                    </div>
-                  </section>
-                )}
 
                 {loading ? (
                   <div className="flex items-center justify-center gap-2 rounded-3xl border border-slate-200 bg-white p-12 text-sm text-slate-500">
@@ -1350,7 +1218,40 @@ export default function TaskManagementDashboard({
                   <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
                     No tasks match “{searchTerm}”. Try another search.
                   </div>
-                ) : viewMode !== "LIST" ? (
+                ) : viewMode === "CALENDAR" ? (
+                  <section aria-label="Task calendar" className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                    <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"><div><h3 className="text-base font-bold text-slate-950">Task calendar</h3><p className="mt-1 text-xs text-slate-500">{calendarTasksByDate.size} dates with due tasks · {filteredTasks.length} filtered tasks loaded</p></div><div className="flex items-center gap-2">
+                      <button type="button" onClick={()=>{const d=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()-1,1);setCalendarMonth(d);setSelectedCalendarDate(d);}} aria-label="Previous month" className="grid size-9 place-items-center rounded-xl border border-slate-200 hover:bg-slate-50"><ChevronLeft className="size-4"/></button>
+                      <h4 className="min-w-36 text-center text-sm font-bold">{calendarMonth.toLocaleDateString(undefined,{month:"long",year:"numeric"})}</h4>
+                      <button type="button" onClick={()=>{const d=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()+1,1);setCalendarMonth(d);setSelectedCalendarDate(d);}} aria-label="Next month" className="grid size-9 place-items-center rounded-xl border border-slate-200 hover:bg-slate-50"><ChevronRight className="size-4"/></button>
+                      <button type="button" onClick={()=>{const d=new Date();setCalendarMonth(new Date(d.getFullYear(),d.getMonth(),1));setSelectedCalendarDate(new Date(d.getFullYear(),d.getMonth(),d.getDate()));}} className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800">Today</button>
+                    </div></div>
+                    <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">{["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d=><div key={d} className="px-1 py-2 text-center text-[10px] font-bold uppercase text-slate-500 sm:px-3">{d}</div>)}</div>
+                    <div className="grid grid-cols-7">{calendarDays.map(day=>{
+                      const key=calendarDateKey(day), inMonth=day.getMonth()===calendarMonth.getMonth(), today=calendarDateKey(new Date())===key, selected=calendarDateKey(selectedCalendarDate)===key, dayTasks=calendarTasksByDate.get(key)??[];
+                      return <button key={key} type="button" onClick={()=>{setSelectedCalendarDate(day);if(!inMonth)setCalendarMonth(new Date(day.getFullYear(),day.getMonth(),1));}} aria-label={day.toLocaleDateString()+": "+dayTasks.length+" tasks due"} aria-pressed={selected} className={"flex min-h-[96px] min-w-0 flex-col border-b border-r border-slate-100 p-1.5 text-left sm:min-h-[118px] sm:p-2 "+(!inMonth?"bg-slate-50/70 text-slate-400 ":"bg-white text-slate-800 ")+(selected?"bg-blue-50 ring-2 ring-inset ring-blue-500":"hover:bg-blue-50/50")}>
+                        <span className="flex items-center justify-between gap-1"><span className={"grid size-6 place-items-center rounded-full text-[11px] font-semibold "+(today?"bg-blue-600 text-white":"")}>{day.getDate()}</span>{dayTasks.length>0&&<span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[9px] font-bold text-blue-800">{dayTasks.length}</span>}</span>
+                        <span className="mt-1.5 hidden w-full space-y-1 sm:block">{dayTasks.slice(0,2).map(task=><span key={task.id} className={"block truncate rounded-md border-l-2 px-1.5 py-1 text-[9px] font-semibold "+(task.status==="COMPLETED"?"border-emerald-500 bg-emerald-50 text-emerald-800":task.status==="BLOCKED"?"border-rose-500 bg-rose-50 text-rose-800":task.status==="IN_PROGRESS"?"border-blue-500 bg-blue-50 text-blue-800":"border-slate-400 bg-slate-100 text-slate-700")}>{task.title}</span>)}</span>
+                        {dayTasks.length>0&&<span className="mt-auto flex items-center gap-0.5 pt-1">{dayTasks.slice(0,3).map(task=>task.assigneeUserIds.slice(0,1).map(id=>{const e=employeeById.get(id);return e?<span key={task.id+id} title={e.name}><UserAvatar name={e.name||e.email} email={e.email} image={e.image} size={18}/></span>:null;}))}{dayTasks.length>3&&<span className="text-[9px] text-slate-500">+{dayTasks.length-3}</span>}</span>}
+                      </button>;
+                    })}</div>
+                    <div className="border-t border-slate-200 bg-slate-50/70 p-4 sm:p-5"><div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-blue-700">Selected date</p><h4 className="mt-1 text-base font-bold">{selectedCalendarDate.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"})}</h4></div><p className="text-xs font-semibold text-slate-500">{selectedCalendarTasks.length} tasks due</p></div>
+                      <div className="mt-3 divide-y divide-slate-200 overflow-hidden rounded-2xl border border-slate-200 bg-white">{selectedCalendarTasks.map(task=><button key={task.id} type="button" onClick={()=>void openTask(task.id)} className="flex w-full flex-col gap-2 p-3 text-left hover:bg-blue-50/50 sm:flex-row sm:items-center"><span className="min-w-0 flex-1"><span className="block truncate text-xs font-bold">{task.title}</span><span className="mt-1 block text-[10px] text-slate-500">TASK-{task.id.slice(-6).toUpperCase()} · {labelStatus(task.status)} · {labelStatus(task.priority)}</span></span><span className="flex items-center gap-1">{task.assigneeUserIds.slice(0,4).map(id=>{const e=employeeById.get(id);return e?<span key={id} title={e.name}><UserAvatar name={e.name||e.email} email={e.email} image={e.image} size={25}/></span>:null;})}</span></button>)}{selectedCalendarTasks.length===0&&<p className="p-6 text-center text-xs text-slate-500">No tasks are due on this date.</p>}</div>
+                      {nextCursor&&<div className="mt-3 flex justify-end"><button type="button" onClick={()=>void loadMoreTasks()} disabled={loadingMore} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold">{loadingMore?"Loading more tasks…":"Load more tasks"}</button></div>}
+                    </div>
+                  </section>
+                ) : viewMode === "TIMELINE" ? (
+                  <section aria-label="Task timeline" className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+                    <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between"><div><h3 className="text-base font-bold">Task timeline</h3><p className="mt-1 text-xs text-slate-500">Chronological view of due dates, owners, priority and progress.</p></div><div className="flex gap-2 text-[10px] font-semibold"><span className="rounded-full bg-blue-50 px-2.5 py-1.5 text-blue-700">{taskMetrics.inProgress} in progress</span><span className="rounded-full bg-rose-50 px-2.5 py-1.5 text-rose-700">{taskMetrics.blocked} locked</span><span className="rounded-full bg-emerald-50 px-2.5 py-1.5 text-emerald-700">{tasksByStatus.COMPLETED.length} complete</span></div></div>
+                    {timelineTasks.length?<div className="relative mt-5 space-y-4 pl-6 before:absolute before:bottom-3 before:left-[9px] before:top-2 before:w-px before:bg-slate-200">{timelineTasks.map(task=>{
+                      const target=task.dueAt?new Date(task.dueAt):new Date(task.startedAt??task.createdAt), overdue=Boolean(task.dueAt&&target.getTime()<nowMs&&!["COMPLETED","CANCELLED"].includes(task.status)), progress=task.assignmentSummary.total?Math.round(task.assignmentSummary.completed/task.assignmentSummary.total*100):task.status==="COMPLETED"?100:0;
+                      return <article key={task.id} className="relative rounded-2xl border border-slate-200 p-4 hover:border-blue-200 hover:shadow-sm"><span className={"absolute -left-[22px] top-5 size-[11px] rounded-full border-2 border-white ring-1 ring-slate-200 "+(task.status==="COMPLETED"?"bg-emerald-500":task.status==="BLOCKED"?"bg-rose-500":task.status==="IN_PROGRESS"?"bg-blue-500":"bg-slate-400")}/>
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center"><div className="min-w-0 flex-1"><p className={"text-[10px] font-semibold "+(overdue?"text-rose-700":"text-slate-500")}>{task.dueAt?(overdue?"OVERDUE · ":"DUE · ")+formatDate(task.dueAt):"CREATED / STARTED · "+formatDate(task.startedAt??task.createdAt)}</p><button type="button" onClick={()=>void openTask(task.id)} className="mt-1 block max-w-full text-left text-sm font-bold text-slate-900 hover:text-blue-700">{task.title}</button><p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{task.description||"No description added."}</p></div>
+                          <div className="flex flex-wrap items-center gap-3"><span className={"rounded-full px-2.5 py-1 text-[10px] font-semibold "+statusColumnClasses(task.status)}>{task.status==="BLOCKED"?"Locked / blocked":labelStatus(task.status)}</span><span className={"rounded-full px-2.5 py-1 text-[10px] font-semibold "+priorityClasses(task.priority)}>{labelStatus(task.priority)}</span><div className="flex items-center gap-1">{task.assigneeUserIds.slice(0,4).map(id=>{const e=employeeById.get(id);return e?<span key={id} title={e.name}><UserAvatar name={e.name||e.email} email={e.email} image={e.image} size={27}/></span>:null;})}<span className="text-[10px] text-slate-500">{task.assigneeUserIds.length} assignee(s)</span></div></div></div>
+                        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3"><div className="flex items-center gap-2"><div className="h-1.5 w-28 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-600" style={{width:progress+"%"}}/></div><span className="text-[10px] font-semibold text-slate-500">{progress}% assignment completion</span></div><button type="button" onClick={()=>void openTask(task.id)} className="text-[10px] font-semibold text-blue-700 hover:underline">View task details ↗</button></div>
+                      </article>;
+                    })}</div>:<p className="mt-6 rounded-2xl border border-dashed border-slate-300 p-10 text-center text-sm text-slate-500">No tasks match your filters.</p>}
+                  </section>) : viewMode !== "LIST" ? (
                   <div aria-label="Task status board" className="grid grid-flow-col auto-cols-[minmax(18rem,21rem)] gap-4 overflow-x-auto pb-4">
                     {TASK_STATUSES.map((status) => {
                       const columnTasks = tasksByStatus[status];
@@ -1518,7 +1419,10 @@ export default function TaskManagementDashboard({
                     </button>
                   </div>
                 )}
-              </section>
+                    </section>
+                  </section>
+                </div>
+              )}
             </>
           )}
         </div>
