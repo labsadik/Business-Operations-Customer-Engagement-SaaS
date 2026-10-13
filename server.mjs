@@ -47,6 +47,7 @@ function disposeConnection(connection) {
   connection.closed = true;
   connections.delete(connection);
   connection.unsubscribe?.();
+  if (connection.expiryTimer) clearTimeout(connection.expiryTimer);
   connection.socket.removeAllListeners("data");
 }
 function consumeFrames(connection, chunk) {
@@ -147,12 +148,19 @@ function handleUpgrade(request, socket, head) {
     "Cache-Control: no-store\r\n\r\n"
   );
   socket.setNoDelay(true);
-  const connection = { socket, buffer: Buffer.alloc(0), alive: true, closed: false, unsubscribe: null };
+  const connection = { socket, buffer: Buffer.alloc(0), alive: true, closed: false, unsubscribe: null, expiryTimer: undefined };
   connection.unsubscribe = subscribeTaskRealtime({
     companyId: scope.companyId,
     workspaceId: scope.workspaceId,
     send: (message) => sendFrame(socket, 0x1, Buffer.from(JSON.stringify(message)))
   });
+  // Close at ticket expiry so a revoked membership/plan cannot keep an old socket alive.
+  connection.expiryTimer = setTimeout(() => {
+    sendFrame(socket, 0x8, Buffer.from([0x03, 0xf0])); // WebSocket policy violation (1008).
+    socket.end();
+    disposeConnection(connection);
+  }, Math.max(1, scope.expiresAt - Date.now()));
+  connection.expiryTimer.unref?.();
   connections.add(connection);
   socket.on("data", (data) => consumeFrames(connection, data));
   socket.on("error", () => disposeConnection(connection));
