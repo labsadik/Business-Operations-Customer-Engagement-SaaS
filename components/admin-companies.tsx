@@ -127,8 +127,11 @@ export default function AdminCompanies({ companies, nextCursor: initialCursor }:
                     <div className="flex items-center gap-3">
                       <span className="grid size-10 place-items-center rounded-xl bg-slate-950 text-white"><Building2 className="size-4" /></span>
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold">{company.name}</p>
-                        <p className="truncate text-[11px] text-slate-500">/{company.slug} · {company.email || "No billing email"}</p>
+                        <Link href={`/admin/companies/${company.id}` as Route} className="block truncate text-sm font-semibold hover:text-blue-700">{company.name}</Link>
+                        <Link href={`/admin/companies/${company.id}` as Route} className="mt-1 inline-flex rounded-md bg-blue-50 px-2 py-0.5 font-mono text-[10px] font-semibold text-blue-800 hover:bg-blue-100">
+                          Company ID #{company.publicId?.toLocaleString("en-IN") ?? "Pending migration"}
+                        </Link>
+                        <p className="mt-1 truncate text-[11px] text-slate-500">/{company.slug} · {company.email || "No billing email"}</p>
                       </div>
                     </div>
                   </td>
@@ -169,6 +172,7 @@ export default function AdminCompanies({ companies, nextCursor: initialCursor }:
                     <p className="truncate text-sm font-semibold">{company.name}</p>
                     <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-700">{company.planName}</span>
                   </div>
+                  <p className="mt-1 truncate font-mono text-[10px] font-semibold text-blue-800">Company ID #{company.publicId?.toLocaleString("en-IN") ?? "Pending migration"}</p>
                   <p className="mt-1 truncate text-[11px] text-slate-500">{company.email || company.slug}</p>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
                     <span><b>{company.employees}</b> employees</span>
