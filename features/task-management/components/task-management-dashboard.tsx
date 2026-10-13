@@ -54,6 +54,7 @@ type TaskItem = {
   description: string;
   priority: TaskPriority;
   status: TaskStatus;
+  sprintId: string | null;
   dueAt: string | null;
   startedAt: string | null;
   completedAt: string | null;
@@ -81,6 +82,7 @@ type TaskDetails = {
   description: string;
   priority: TaskPriority;
   status: TaskStatus;
+  sprintId: string | null;
   dueAt: string | null;
   startedAt: string | null;
   completedAt: string | null;
@@ -602,6 +604,26 @@ export default function TaskManagementDashboard({
     }
   }
 
+  async function updateTaskSprint(task: TaskItem, sprintId: string | null) {
+    if (!canManage || movingTaskId || task.sprintId === sprintId) return;
+    setError("");
+    setNotice("");
+    setMovingTaskId(task.id);
+    try {
+      await api<{ sprintId: string | null }>(`/api/tasks/${task.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ sprintId })
+      });
+      const detail = await api<TaskDetails>(`/api/tasks/${task.id}`);
+      syncTaskFromDetail(task.id, detail);
+      setNotice(sprintId ? `Added “${task.title}” to the sprint.` : `Moved “${task.title}” to the product backlog.`);
+    } catch (moveError) {
+      setError(errorMessage(moveError));
+    } finally {
+      setMovingTaskId(null);
+    }
+  }
+
   async function saveSprint(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -679,6 +701,7 @@ export default function TaskManagementDashboard({
     setTasks((current) => current.map((task) => task.id === taskId ? {
       ...task,
       status: detail.status,
+      sprintId: detail.sprintId,
       dueAt: detail.dueAt,
       startedAt: detail.startedAt,
       completedAt: detail.completedAt,
@@ -1246,9 +1269,9 @@ export default function TaskManagementDashboard({
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                        <div className="rounded-xl border border-white/80 bg-white/80 px-3 py-2 text-center"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Sprint scope</p><p className="text-lg font-bold text-slate-950">{filteredTasks.length}</p></div>
-                        <div className="rounded-xl border border-white/80 bg-white/80 px-3 py-2 text-center"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">In progress</p><p className="text-lg font-bold text-slate-950">{filteredTasks.filter((task) => task.status === "IN_PROGRESS").length}</p></div>
-                        <div className="rounded-xl border border-white/80 bg-white/80 px-3 py-2 text-center"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Done</p><p className="text-lg font-bold text-slate-950">{filteredTasks.filter((task) => task.status === "COMPLETED").length}</p></div>
+                        <div className="rounded-xl border border-white/80 bg-white/80 px-3 py-2 text-center"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Sprint scope</p><p className="text-lg font-bold text-slate-950">{filteredTasks.filter((task) => task.sprintId === sprintConfig?.id).length}</p></div>
+                        <div className="rounded-xl border border-white/80 bg-white/80 px-3 py-2 text-center"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">In progress</p><p className="text-lg font-bold text-slate-950">{filteredTasks.filter((task) => task.sprintId === sprintConfig?.id && task.status === "IN_PROGRESS").length}</p></div>
+                        <div className="rounded-xl border border-white/80 bg-white/80 px-3 py-2 text-center"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Done</p><p className="text-lg font-bold text-slate-950">{filteredTasks.filter((task) => task.sprintId === sprintConfig?.id && task.status === "COMPLETED").length}</p></div>
                         {canManage && <button type="button" onClick={() => setEditingSprint((current) => !current)} className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-white px-3 py-2.5 text-xs font-semibold text-indigo-800 shadow-sm transition hover:bg-indigo-50"><CalendarClock className="size-4" />{editingSprint ? "Close sprint settings" : "Manage sprint"}</button>}
                       </div>
                     </div>
@@ -1265,6 +1288,44 @@ export default function TaskManagementDashboard({
                         </div>
                       </form>
                     )}
+                    <div className="mt-4 grid gap-4 xl:grid-cols-2">
+                      <section aria-label="Sprint work" className="rounded-xl border border-indigo-100 bg-white/85 p-3">
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                          <h4 className="text-xs font-bold uppercase tracking-wide text-indigo-950">Sprint work</h4>
+                          <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-800">{filteredTasks.filter((task) => task.sprintId === sprintConfig?.id).length}</span>
+                        </div>
+                        <div className="space-y-2">
+                          {filteredTasks.filter((task) => Boolean(sprintConfig) && task.sprintId === sprintConfig?.id).map((task) => (
+                            <article key={task.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3">
+                              <div className="min-w-0">
+                                <p className="truncate text-xs font-semibold text-slate-900">{task.title}</p>
+                                <p className="mt-1 text-[10px] text-slate-500">{labelStatus(task.status)} · {labelStatus(task.priority)}</p>
+                              </div>
+                              {canManage && <button type="button" disabled={movingTaskId === task.id || Boolean(movingTaskId)} onClick={() => void updateTaskSprint(task, null)} className="shrink-0 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">Move to backlog</button>}
+                            </article>
+                          ))}
+                          {filteredTasks.filter((task) => Boolean(sprintConfig) && task.sprintId === sprintConfig?.id).length === 0 && <p className="rounded-lg border border-dashed border-slate-200 p-5 text-center text-xs text-slate-500">Add work from the product backlog to define this sprint's scope.</p>}
+                        </div>
+                      </section>
+                      <section aria-label="Product backlog" className="rounded-xl border border-slate-200 bg-white/85 p-3">
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                          <h4 className="text-xs font-bold uppercase tracking-wide text-slate-800">Product backlog</h4>
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">{filteredTasks.filter((task) => !sprintConfig || task.sprintId !== sprintConfig.id).length}</span>
+                        </div>
+                        <div className="space-y-2">
+                          {filteredTasks.filter((task) => !sprintConfig || task.sprintId !== sprintConfig.id).map((task) => (
+                            <article key={task.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3">
+                              <div className="min-w-0">
+                                <p className="truncate text-xs font-semibold text-slate-900">{task.title}</p>
+                                <p className="mt-1 text-[10px] text-slate-500">{labelStatus(task.status)} · {labelStatus(task.priority)}</p>
+                              </div>
+                              {canManage && <button type="button" disabled={!sprintConfig || movingTaskId === task.id || Boolean(movingTaskId)} onClick={() => sprintConfig && void updateTaskSprint(task, sprintConfig.id)} className="shrink-0 rounded-lg bg-indigo-600 px-2.5 py-1.5 text-[10px] font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40">Add to sprint</button>}
+                            </article>
+                          ))}
+                          {filteredTasks.filter((task) => !sprintConfig || task.sprintId !== sprintConfig.id).length === 0 && <p className="rounded-lg border border-dashed border-slate-200 p-5 text-center text-xs text-slate-500">Your product backlog is empty for these filters.</p>}
+                        </div>
+                      </section>
+                    </div>
                   </section>
                 )}
 
