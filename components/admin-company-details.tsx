@@ -70,6 +70,7 @@ export default function AdminCompanyDetailsView({ company }: { company: AdminCom
               <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-blue-600">Company details</p>
               <h1 className="mt-2 truncate text-3xl font-semibold tracking-tight">{company.name}</h1>
               <p className="mt-2 text-sm text-slate-500">/{company.slug} · created {dateLabel(company.createdAt)}</p>
+              <p className="mt-2 inline-flex rounded-lg bg-blue-50 px-2.5 py-1 font-mono text-xs font-semibold text-blue-800">Company ID #{company.publicId?.toLocaleString("en-IN") ?? "Pending migration"}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
