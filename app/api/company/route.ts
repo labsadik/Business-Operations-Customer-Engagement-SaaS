@@ -427,7 +427,8 @@ export async function POST(request: Request) {
         throw new Error("COMPANY_PUBLIC_ID_SEQUENCE_NOT_INITIALIZED");
       }
 
-      const [company] = await Company.create([{\n        publicId: sequence.value,
+      const [company] = await Company.create([{
+        publicId: sequence.value,
         name,
         slug,
         email,
