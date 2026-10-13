@@ -15,7 +15,7 @@ test("canvas names are trimmed and bounded", () => {
 });
 
 test("canvas scenes require bounded elements and plain app/file maps", () => {
-  const valid = { elements: [{ id: "shape-a" }], appState: { gridSize: 20 }, files: {} };
+  const valid = { elements: [{ id: "shape-a", type: "rectangle" }], appState: { gridSize: 20 }, files: {} };
   assert.deepEqual(validateTaskCanvasScene(valid), valid);
   assert.throws(() => validateTaskCanvasScene(null), /CANVAS_SCENE_INVALID/);
   assert.throws(() => validateTaskCanvasScene({ elements: {}, appState: {}, files: {} }), /CANVAS_SCENE_INVALID/);

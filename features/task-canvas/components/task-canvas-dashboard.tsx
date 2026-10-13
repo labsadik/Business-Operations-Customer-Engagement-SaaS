@@ -440,7 +440,7 @@ export default function TaskCanvasDashboard({
                 </div>
                 {canManage && <button type="button" onClick={() => void deleteCanvas()} title="Delete canvas" className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="size-4" /></button>}<span className="shrink-0 text-[10px] text-slate-400">Version {selected.version}</span>
               </div>
-              <div className="h-[calc(100vh-11.5rem)] min-h-[560px] w-full bg-white" onBlurCapture={() => { void saveNow(); }}>
+              <div className="h-[calc(100vh-11.5rem)] min-h-[560px] w-full bg-white">
                 {loadingCanvas ? <div className="grid h-full place-items-center text-sm text-slate-500"><LoaderCircle className="mr-2 inline size-4 animate-spin" /> Opening canvas…</div> : <Excalidraw
                   key={selectedId}
                   initialData={scene as never}
