@@ -6,39 +6,88 @@ import { User } from "@/models/user";
 import { TaskCanvas } from "@/models/task-canvas";
 import { getCompanyTaskCanvasCount, reserveTaskCanvasSlot, releaseTaskCanvasSlot, requireTaskCanvasScope, taskCanvasErrorResponse } from "@/lib/task-canvas-authorization";
 import { validateTaskCanvasName } from "@/features/task-canvas/shared/validation";
+import { decodeListCursor, encodeListCursor, parseListLimit } from "@/lib/list-pagination";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const scope = await requireTaskCanvasScope();
+    const url = new URL(request.url);
+    const list = url.searchParams.get("list");
+    if (list && list !== "canvases" && list !== "people") return jsonError("TASK_CANVAS_LIST_INVALID", 400);
+    const includeCanvases = list !== "people";
+    const includePeople = list !== "canvases";
+    const limit = parseListLimit(url.searchParams.get("limit"));
+    const canvasCursorValue = includeCanvases ? url.searchParams.get("cursor") : null;
+    const peopleCursorValue = includePeople ? url.searchParams.get("peopleCursor") : null;
+    const canvasCursor = decodeListCursor(canvasCursorValue);
+    const peopleCursor = decodeListCursor(peopleCursorValue);
+    if (canvasCursorValue && !canvasCursor) return jsonError("INVALID_CANVAS_CURSOR", 400);
+    if (peopleCursorValue && !peopleCursor) return jsonError("INVALID_CANVAS_PEOPLE_CURSOR", 400);
+    const canvasCursorDate = canvasCursor ? new Date(canvasCursor.key) : null;
+    const peopleCursorDate = peopleCursor ? new Date(peopleCursor.key) : null;
+    if (canvasCursorDate && !Number.isFinite(canvasCursorDate.getTime())) return jsonError("INVALID_CANVAS_CURSOR", 400);
+    if (peopleCursorDate && !Number.isFinite(peopleCursorDate.getTime())) return jsonError("INVALID_CANVAS_PEOPLE_CURSOR", 400);
+
     const companyId = new Types.ObjectId(scope.companyId);
     const workspaceId = new Types.ObjectId(scope.workspaceId);
     const memberFilter = scope.isManager ? {} : { memberUserIds: new Types.ObjectId(scope.session.userId) };
-    const [canvases, memberships, canvasesUsed] = await Promise.all([
-      TaskCanvas.find({ companyId, workspaceId, ...memberFilter })
-        .select("name version createdByUserId memberUserIds updatedAt")
-        .sort({ updatedAt: -1, _id: -1 })
-        .limit(100)
-        .lean(),
-      Membership.find({ companyId, workspaceId, active: true, employmentStatus: "ACTIVE" })
-        .select("userId role")
-        .sort({ createdAt: 1, _id: 1 })
-        .limit(250)
-        .lean(),
+    const canvasFilter = {
+      companyId,
+      workspaceId,
+      ...memberFilter,
+      ...(canvasCursor && canvasCursorDate ? {
+        $or: [
+          { updatedAt: { $lt: canvasCursorDate } },
+          { updatedAt: canvasCursorDate, _id: { $lt: canvasCursor.id } }
+        ]
+      } : {})
+    };
+    const peopleFilter = {
+      companyId,
+      workspaceId,
+      active: true,
+      employmentStatus: "ACTIVE",
+      ...(peopleCursor && peopleCursorDate ? {
+        $or: [
+          { createdAt: { $gt: peopleCursorDate } },
+          { createdAt: peopleCursorDate, _id: { $gt: peopleCursor.id } }
+        ]
+      } : {})
+    };
+    const [canvasRows, membershipRows, canvasesUsed] = await Promise.all([
+      includeCanvases
+        ? TaskCanvas.find(canvasFilter)
+            .select("name version createdByUserId memberUserIds updatedAt")
+            .sort({ updatedAt: -1, _id: -1 })
+            .limit(limit + 1)
+            .lean()
+        : Promise.resolve([]),
+      includePeople
+        ? Membership.find(peopleFilter)
+            .select("_id userId role createdAt")
+            .sort({ createdAt: 1, _id: 1 })
+            .limit(limit + 1)
+            .lean()
+        : Promise.resolve([]),
       getCompanyTaskCanvasCount(scope.companyId)
     ]);
 
-    const ids = memberships.map((item) => item.userId);
+    const hasMoreCanvases = canvasRows.length > limit;
+    const canvasPage = hasMoreCanvases ? canvasRows.slice(0, limit) : canvasRows;
+    const hasMorePeople = membershipRows.length > limit;
+    const membershipPage = hasMorePeople ? membershipRows.slice(0, limit) : membershipRows;
+    const ids = membershipPage.map((item) => item.userId);
     const users = ids.length
       ? await User.find({ _id: { $in: ids }, active: { $ne: false } })
           .select("name email image")
-          .limit(250)
+          .limit(limit)
           .lean()
       : [];
     const userMap = new Map(users.map((user) => [String(user._id), user]));
-    const people = memberships.flatMap((membership) => {
+    const people = membershipPage.flatMap((membership) => {
       const user = userMap.get(String(membership.userId));
       return user ? [{
         id: String(user._id),
@@ -50,7 +99,7 @@ export async function GET() {
     });
 
     return jsonOk({
-      items: canvases.map((canvas) => {
+      items: canvasPage.map((canvas) => {
         const memberUserIds = [...new Set((canvas.memberUserIds ?? []).map(String))];
         return {
           id: String(canvas._id),
@@ -63,6 +112,12 @@ export async function GET() {
         };
       }),
       people,
+      nextCursor: hasMoreCanvases && canvasPage.length
+        ? encodeListCursor(canvasPage[canvasPage.length - 1].updatedAt, canvasPage[canvasPage.length - 1]._id)
+        : null,
+      peopleNextCursor: hasMorePeople && membershipPage.length
+        ? encodeListCursor(membershipPage[membershipPage.length - 1].createdAt, membershipPage[membershipPage.length - 1]._id)
+        : null,
       limits: {
         maxCollaborators: scope.maxCollaborators,
         canvasLimit: scope.canvasLimit,
