@@ -65,8 +65,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/types ./types
 COPY --from=builder --chown=nextjs:nodejs /app/proxy.ts ./proxy.ts
 COPY --from=builder --chown=nextjs:nodejs /app/next.config.ts ./next.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/*.ts ./
-COPY --from=builder --chown=nextjs:nodejs /app/server.mjs ./server.mjs
 
 USER nextjs
 EXPOSE 8080
-CMD ["node", "--experimental-strip-types", "server.mjs"]
+CMD ["npm", "run", "start"]

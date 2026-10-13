@@ -171,7 +171,7 @@ The `taskManagementEnabled` entitlement is configurable in the platform admin pl
 
 Every task query and mutation is company/workspace-scoped, and assignees must have an active membership in the same workspace. Notification rows carry a recipient ID and the notification feed is filtered server-side so users cannot read other users' alerts. The authenticated in-app notification endpoint remains available; desktop browser notifications are intentionally not supported.
 
-The task dashboard includes Kanban, Scrum canvas, and list views. Scrum sprint name, goal, dates, and lifecycle state are saved per company/workspace in MongoDB and can be managed only by company administrators or platform administrators. For live task changes, the self-hosted Node.js server exposes an authenticated WebSocket endpoint on the same HTTP port as the app (`PORT`, default `3000` in development); there is no separate WebSocket port. The socket uses a short-lived HMAC-signed ticket, same-origin upgrade checks, company/workspace event filtering, and authenticated polling fallback. The included Cloud Run container starts the custom server. Vercel serverless deployments keep polling because they do not run that long-lived upgrade handler.
+The task dashboard includes Kanban, Scrum canvas, and list views. Scrum sprint name, goal, dates, and lifecycle state are saved per company/workspace in MongoDB and can be managed only by company administrators or platform administrators. Task data refreshes through authenticated HTTP polling every 30 seconds, with additional refreshes when the task page becomes visible or regains focus. This works with the standard Next.js development and production servers and does not require a persistent socket connection.
 
 ## Security
 

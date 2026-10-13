@@ -5,9 +5,9 @@
   "type": "module",
   "description": "Canvas by AlgoQuit — company scheduling and collaboration workspace.",
   "scripts": {
-    "dev": "node --experimental-strip-types server.mjs",
+    "dev": "next dev",
     "build": "next build",
-    "start": "node --experimental-strip-types server.mjs",
+    "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm run lint && npm run build",
@@ -54,5 +54,6 @@
   },
   "allowScripts": {
     "unrs-resolver@1.12.2": true
-  }
+  },
+  "type": "module"
 }
