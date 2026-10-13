@@ -56,6 +56,31 @@ function getPersistedScene(elements: unknown[], appState: Record<string, unknown
   };
 }
 
+function mergeScenes(local: Scene, remote: Scene): Scene {
+  const chosen = new Map<string, unknown>();
+  const orderedIds: string[] = [];
+  const versionOf = (element: unknown) => {
+    if (!element || typeof element !== "object") return 0;
+    const version = (element as { version?: unknown }).version;
+    return typeof version === "number" && Number.isFinite(version) ? version : 0;
+  };
+  const add = (element: unknown) => {
+    if (!element || typeof element !== "object") return;
+    const id = (element as { id?: unknown }).id;
+    if (typeof id !== "string" || !id) return;
+    if (!chosen.has(id)) orderedIds.push(id);
+    const existing = chosen.get(id);
+    if (!existing || versionOf(element) >= versionOf(existing)) chosen.set(id, element);
+  };
+  remote.elements.forEach(add);
+  local.elements.forEach(add);
+  return {
+    elements: orderedIds.map((id) => chosen.get(id)).filter((element) => element !== undefined),
+    appState: local.appState,
+    files: { ...remote.files, ...local.files }
+  };
+}
+
 function formatDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Recently";
@@ -121,6 +146,7 @@ export default function TaskCanvasDashboard({
   const queuedSceneRef = useRef<Scene | null>(null);
   const loadTokenRef = useRef(0);
   const persistRef = useRef<(next: Scene) => Promise<void>>(async () => undefined);
+  const mergeRetriesRef = useRef(0);
   const selected = useMemo(() => items.find((item) => item.id === selectedId) ?? null, [items, selectedId]);
   const canManage = currentRole === "COMPANY_ADMIN" || currentRole === "PLATFORM_ADMIN";
 
@@ -198,15 +224,43 @@ export default function TaskCanvasDashboard({
         setSaveState("saving");
       }
       conflictRef.current = false;
+      mergeRetriesRef.current = 0;
       setError("");
     } catch (cause) {
       if (selectedIdRef.current !== canvasId) return;
       const code = (cause as Error).message;
-      setSaveState(code === "CANVAS_VERSION_CONFLICT" ? "conflict" : "error");
-      conflictRef.current = code === "CANVAS_VERSION_CONFLICT";
-      dirtyRef.current = true;
-      setError(errorText(code));
-      queuedSceneRef.current = null;
+      if (code === "CANVAS_VERSION_CONFLICT" && mergeRetriesRef.current < 2) {
+        try {
+          const latest = await api<{ item: CanvasItem; scene: unknown }>("/api/task-canvas/" + canvasId);
+          if (selectedIdRef.current === canvasId) {
+            const merged = mergeScenes(sceneRef.current, toScene(latest.scene));
+            versionRef.current = latest.item.version;
+            sceneRef.current = merged;
+            setScene(merged);
+            apiRef.current?.updateScene(merged);
+            suppressUntilRef.current = Date.now() + 1200;
+            mergeRetriesRef.current += 1;
+            editSerialRef.current += 1;
+            dirtyRef.current = true;
+            queuedSceneRef.current = merged;
+            conflictRef.current = false;
+            setSaveState("saving");
+            setError("");
+          }
+        } catch {
+          conflictRef.current = true;
+          setSaveState("conflict");
+          dirtyRef.current = true;
+          setError(errorText(code));
+          queuedSceneRef.current = null;
+        }
+      } else {
+        setSaveState(code === "CANVAS_VERSION_CONFLICT" ? "conflict" : "error");
+        conflictRef.current = code === "CANVAS_VERSION_CONFLICT";
+        dirtyRef.current = true;
+        setError(errorText(code));
+        queuedSceneRef.current = null;
+      }
     } finally {
       inFlightRef.current = false;
       const queued = queuedSceneRef.current;
