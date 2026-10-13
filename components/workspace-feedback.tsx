@@ -18,6 +18,16 @@ type FeedbackItem = {
   submitterPhone?: string | null;
 };
 
+type FeedbackPageResponse = {
+  customerFeedback: FeedbackItem[];
+  companyFeedback: FeedbackItem[];
+  customerHasNext: boolean;
+  companyHasNext: boolean;
+  customerPage: number;
+  companyPage: number;
+  limit: number;
+};
+
 async function request<T>(url: string, init?: RequestInit) {
   return clientApi<T>(url, init);
 }
@@ -44,6 +54,12 @@ export default function WorkspaceFeedback({
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const [customerFeedback, setCustomerFeedback] = useState<FeedbackItem[]>([]);
   const [sentFeedback, setSentFeedback] = useState<FeedbackItem[]>([]);
+  const [customerPage, setCustomerPage] = useState(1);
+  const [companyPage, setCompanyPage] = useState(1);
+  const [customerHasNext, setCustomerHasNext] = useState(false);
+  const [companyHasNext, setCompanyHasNext] = useState(false);
+  const [loadingMoreCustomer, setLoadingMoreCustomer] = useState(false);
+  const [loadingMoreCompany, setLoadingMoreCompany] = useState(false);
   const [tab, setTab] = useState<"customer" | "platform" | "embed">("platform");
   const [rating, setRating] = useState(0);
   const [description, setDescription] = useState("");
@@ -112,12 +128,14 @@ export default function WorkspaceFeedback({
 
     const timer = window.setTimeout(() => {
       setLoading(true);
-      void request<{ customerFeedback: FeedbackItem[]; companyFeedback: FeedbackItem[] }>(
-        "/api/company/feedback?limit=25"
-      )
+      void request<FeedbackPageResponse>("/api/company/feedback?limit=5&customerPage=1&companyPage=1")
         .then((data) => {
           setCustomerFeedback(data.customerFeedback);
           setSentFeedback(data.companyFeedback);
+          setCustomerPage(data.customerPage);
+          setCompanyPage(data.companyPage);
+          setCustomerHasNext(data.customerHasNext);
+          setCompanyHasNext(data.companyHasNext);
         })
         .catch((errorValue) => {
           setError(errorValue instanceof Error ? errorValue.message : "FEEDBACK_LIST_FAILED");
@@ -127,6 +145,48 @@ export default function WorkspaceFeedback({
 
     return () => window.clearTimeout(timer);
   }, [open, canViewCustomerFeedback]);
+
+  async function loadMoreCustomerFeedback() {
+    if (!customerHasNext || loadingMoreCustomer) return;
+    const nextPage = customerPage + 1;
+    setLoadingMoreCustomer(true);
+    setError("");
+    try {
+      const params = new URLSearchParams({ limit: "5", customerPage: String(nextPage), companyPage: String(companyPage) });
+      const data = await request<FeedbackPageResponse>("/api/company/feedback?" + params.toString());
+      setCustomerFeedback((current) => {
+        const known = new Set(current.map((item) => item.id));
+        return [...current, ...data.customerFeedback.filter((item) => !known.has(item.id))];
+      });
+      setCustomerPage(data.customerPage);
+      setCustomerHasNext(data.customerHasNext);
+    } catch (errorValue) {
+      setError(errorValue instanceof Error ? errorValue.message : "FEEDBACK_LIST_FAILED");
+    } finally {
+      setLoadingMoreCustomer(false);
+    }
+  }
+
+  async function loadMoreCompanyFeedback() {
+    if (!companyHasNext || loadingMoreCompany) return;
+    const nextPage = companyPage + 1;
+    setLoadingMoreCompany(true);
+    setError("");
+    try {
+      const params = new URLSearchParams({ limit: "5", customerPage: String(customerPage), companyPage: String(nextPage) });
+      const data = await request<FeedbackPageResponse>("/api/company/feedback?" + params.toString());
+      setSentFeedback((current) => {
+        const known = new Set(current.map((item) => item.id));
+        return [...current, ...data.companyFeedback.filter((item) => !known.has(item.id))];
+      });
+      setCompanyPage(data.companyPage);
+      setCompanyHasNext(data.companyHasNext);
+    } catch (errorValue) {
+      setError(errorValue instanceof Error ? errorValue.message : "FEEDBACK_LIST_FAILED");
+    } finally {
+      setLoadingMoreCompany(false);
+    }
+  }
 
   async function updateReviewStatus(item: FeedbackItem, reviewStatus: FeedbackItem["reviewStatus"]) {
     if (!canManageReviews || reviewingId) return;
@@ -184,11 +244,15 @@ export default function WorkspaceFeedback({
       setNotice("Your feedback was sent privately to the Canvas platform team.");
       void playFeedbackSound();
       if (canViewCustomerFeedback) {
-        const data = await request<{ customerFeedback: FeedbackItem[]; companyFeedback: FeedbackItem[] }>(
-          "/api/company/feedback?limit=25"
+        const data = await request<FeedbackPageResponse>(
+          "/api/company/feedback?limit=5&customerPage=1&companyPage=1"
         );
         setCustomerFeedback(data.customerFeedback);
         setSentFeedback(data.companyFeedback);
+        setCustomerPage(data.customerPage);
+        setCompanyPage(data.companyPage);
+        setCustomerHasNext(data.customerHasNext);
+        setCompanyHasNext(data.companyHasNext);
       }
     } catch (errorValue) {
       const code = errorValue instanceof Error ? errorValue.message : "FEEDBACK_SUBMISSION_FAILED";
