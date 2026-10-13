@@ -2,6 +2,7 @@
   "name": "canvas",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Canvas by AlgoQuit — company scheduling and collaboration workspace.",
   "scripts": {
     "dev": "node --experimental-strip-types server.mjs",
