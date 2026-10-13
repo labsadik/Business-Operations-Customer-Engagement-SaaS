@@ -4,7 +4,7 @@ import { jsonError, jsonOk } from "@/lib/http";
 import { TaskBoard } from "@/models/task-board";
 import { requireTaskScope, assertTaskFeatureAccess } from "@/features/task-management/server/task-authorization";
 import { taskErrorResponse } from "@/features/task-management/server/task-errors";
-import { validateSprintPatch } from "@/features/task-management/shared/sprint-validation";
+import { validateSprintPatch, type TaskSprintPatch } from "@/features/task-management/shared/sprint-validation";
 import { publishTaskRealtime } from "@/lib/task-realtime";
 
 export const runtime = "nodejs";
@@ -69,7 +69,7 @@ export async function PATCH(request: Request) {
       return jsonError("FORBIDDEN", 403);
     }
 
-    let patch;
+    let patch: TaskSprintPatch;
     try {
       patch = validateSprintPatch(await request.json().catch(() => null));
     } catch (error) {
