@@ -3,6 +3,7 @@ import { assertSameOrigin } from "@/lib/security";
 import { jsonError, jsonOk } from "@/lib/http";
 import { TaskCanvas } from "@/models/task-canvas";
 import { TaskCanvasRevision } from "@/models/task-canvas-revision";
+import { pruneCompanyTaskCanvasHistory } from "@/lib/task-canvas-history";
 import { Membership } from "@/models/membership";
 import { User } from "@/models/user";
 import {
@@ -32,22 +33,6 @@ function idsFor(scope: { companyId: string; workspaceId: string }, canvasId: str
   };
 }
 
-async function pruneHistory(scope: { companyId: string; workspaceId: string }, canvasId: Types.ObjectId, limit: number) {
-  const filter = {
-    canvasId,
-    companyId: new Types.ObjectId(scope.companyId),
-    workspaceId: new Types.ObjectId(scope.workspaceId)
-  };
-  const excess = await TaskCanvasRevision.find(filter)
-    .sort({ createdAt: -1, _id: -1 })
-    .skip(limit)
-    .select("_id")
-    .lean();
-  if (excess.length) {
-    await TaskCanvasRevision.deleteMany({ ...filter, _id: { $in: excess.map((item) => item._id) } });
-  }
-}
-
 function meaningfulScene(scene: unknown) {
   if (!scene || typeof scene !== "object") return false;
   const elements = (scene as { elements?: unknown }).elements;
@@ -62,13 +47,14 @@ export async function GET(request: Request, { params }: Params) {
     const canvas = await TaskCanvas.findOne(filter).lean();
     if (!canvas || !canReadTaskCanvas(scope, canvas)) throw new Error("TASK_CANVAS_NOT_FOUND");
 
+    const memberUserIds = [...new Set((canvas.memberUserIds ?? []).map(String))];
     const item = {
       id: String(canvas._id),
       name: canvas.name,
       version: canvas.version,
       createdByUserId: String(canvas.createdByUserId),
-      memberUserIds: (canvas.memberUserIds ?? []).map(String),
-      memberCount: (canvas.memberUserIds ?? []).length,
+      memberUserIds,
+      memberCount: memberUserIds.length,
       updatedAt: new Date(canvas.updatedAt).toISOString(),
       lastEditorUserId: canvas.lastEditorUserId ? String(canvas.lastEditorUserId) : null
     };
@@ -117,7 +103,7 @@ export async function PATCH(request: Request, { params }: Params) {
             ...(shouldSnapshot ? { lastHistoryAt: now } : {})
           }
         },
-        { new: true, runValidators: true }
+        { returnDocument: "after", runValidators: true }
       ).lean();
       if (!updated) {
         const latest = await TaskCanvas.findOne(filter).select("version").lean();
@@ -133,7 +119,7 @@ export async function PATCH(request: Request, { params }: Params) {
           scene: canvas.scene,
           createdByUserId: actorId
         });
-        await pruneHistory(scope, canvas._id, scope.historyLimit);
+        await pruneCompanyTaskCanvasHistory(filter.companyId, scope.historyLimit);
       }
       return jsonOk({ version: updated.version, updatedAt: new Date(updated.updatedAt).toISOString() });
     }
@@ -152,7 +138,7 @@ export async function PATCH(request: Request, { params }: Params) {
         scene: canvas.scene,
         createdByUserId: actorId
       });
-      await pruneHistory(scope, canvas._id, scope.historyLimit);
+      await pruneCompanyTaskCanvasHistory(filter.companyId, scope.historyLimit);
       return jsonOk({
         revision: {
           id: String(revision._id),
@@ -170,7 +156,7 @@ export async function PATCH(request: Request, { params }: Params) {
       const updated = await TaskCanvas.findOneAndUpdate(
         filter,
         { $set: { name, lastEditorUserId: actorId } },
-        { new: true, runValidators: true }
+        { returnDocument: "after", runValidators: true }
       ).lean();
       if (!updated) throw new Error("TASK_CANVAS_NOT_FOUND");
       return jsonOk({ item: { id: String(updated._id), name: updated.name, version: updated.version } });
@@ -204,7 +190,7 @@ export async function PATCH(request: Request, { params }: Params) {
       const updated = await TaskCanvas.findOneAndUpdate(
         filter,
         { $set: { memberUserIds: parsedIds, lastEditorUserId: actorId } },
-        { new: true, runValidators: true }
+        { returnDocument: "after", runValidators: true }
       ).lean();
       if (!updated) throw new Error("TASK_CANVAS_NOT_FOUND");
       return jsonOk({
