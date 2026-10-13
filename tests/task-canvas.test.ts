@@ -24,7 +24,7 @@ test("canvas scenes require bounded elements and plain app/file maps", () => {
   assert.throws(() => validateTaskCanvasScene({ elements: [], appState: {}, files: [] }), /CANVAS_SCENE_INVALID/);
   assert.throws(() => validateTaskCanvasScene({
     elements: [],
-    appState: { memo: "x".repeat(1_000_001) },
+    appState: { memo: "x".repeat(2_000_001) },
     files: {}
   }), /CANVAS_SCENE_TOO_LARGE/);
   assert.throws(() => validateTaskCanvasScene({
@@ -111,4 +111,17 @@ test("Task Canvas keeps the canvas unselected on first load and uses in-app conf
   assert.doesNotMatch(component, /window\.confirm\(/);
   assert.match(component, /canvasRailOpen/);
   assert.match(component, /overflow-y-auto overscroll-contain/);
+});
+
+
+test("large embedded images are compressed client-side before bounded scene writes", async () => {
+  const [component, validation] = await Promise.all([
+    readFile(new URL("../features/task-canvas/components/task-canvas-dashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../features/task-canvas/shared/validation.ts", import.meta.url), "utf8")
+  ]);
+  assert.match(component, /compressSceneImages\(nextScene\)/);
+  assert.match(component, /createImageBitmap\(source\)/);
+  assert.match(component, /canvas\.toBlob\(resolve, "image\/webp", 0\.78\)/);
+  assert.match(component, /code === "CANVAS_SCENE_TOO_LARGE" \? ""/);
+  assert.match(validation, /TASK_CANVAS_SCENE_MAX_BYTES = 2_000_000/);
 });
