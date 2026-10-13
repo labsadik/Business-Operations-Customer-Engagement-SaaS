@@ -3,6 +3,7 @@ import { getMongo } from "@/lib/mongodb";
 import { assertSameOrigin } from "@/lib/security";
 import { jsonError, jsonOk } from "@/lib/http";
 import { Task } from "@/models/task";
+import { TaskBoard } from "@/models/task-board";
 import { TaskAssignment } from "@/models/task-assignment";
 import { User } from "@/models/user";
 import { validateTaskPatchInput } from "@/features/task-management/shared/task-validation";
@@ -63,6 +64,7 @@ export async function GET(
       description: task.description,
       priority: task.priority,
       status: task.status,
+      sprintId: task.sprintId ? String(task.sprintId) : null,
       dueAt: task.dueAt ?? null,
       startedAt: task.startedAt ?? null,
       completedAt: task.completedAt ?? null,
@@ -106,6 +108,19 @@ export async function PATCH(
     if (!canManageTask(scope, existing)) return jsonError("FORBIDDEN", 403);
 
     const update = validateTaskPatchInput(await request.json().catch(() => null));
+    if (update.sprintId !== undefined) {
+      if (!scope.isPlatformAdmin && scope.session.role !== "COMPANY_ADMIN") {
+        return jsonError("FORBIDDEN", 403);
+      }
+      if (update.sprintId !== null) {
+        const sprint = await TaskBoard.findOne({
+          _id: new Types.ObjectId(update.sprintId),
+          companyId: existing.companyId,
+          workspaceId: existing.workspaceId
+        }).select("_id").lean();
+        if (!sprint) return jsonError("TASK_SPRINT_NOT_FOUND", 404);
+      }
+    }
     const updated = await Task.findOneAndUpdate(
       { _id: existing._id, companyId: existing.companyId, workspaceId: existing.workspaceId },
       { $set: update },
@@ -141,6 +156,7 @@ export async function PATCH(
       description: updated.description,
       priority: updated.priority,
       status: updated.status,
+      sprintId: updated.sprintId ? String(updated.sprintId) : null,
       dueAt: updated.dueAt ?? null,
       startedAt: updated.startedAt ?? null,
       completedAt: updated.completedAt ?? null,

@@ -4,9 +4,9 @@
   "private": true,
   "description": "Canvas by AlgoQuit — company scheduling and collaboration workspace.",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node --experimental-strip-types server.mjs",
     "build": "next build",
-    "start": "next start",
+    "start": "node --experimental-strip-types server.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm run lint && npm run build",

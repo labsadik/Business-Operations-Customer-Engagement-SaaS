@@ -67,7 +67,7 @@ export function validateTaskCreateInput(value: unknown) {
 
 export function validateTaskPatchInput(value: unknown) {
   const input = record(value);
-  const allowed = ["title", "description", "priority", "dueAt"];
+  const allowed = ["title", "description", "priority", "dueAt", "sprintId"];
   if (Object.keys(input).some((key) => !allowed.includes(key))) {
     throw new Error("TASK_FIELDS_INVALID");
   }
@@ -77,6 +77,7 @@ export function validateTaskPatchInput(value: unknown) {
     description?: string;
     priority?: TaskPriority;
     dueAt?: Date | null;
+    sprintId?: string | null;
   } = {};
 
   if (input.title !== undefined) update.title = requiredText(input.title, "TASK_TITLE", 160);
@@ -88,6 +89,12 @@ export function validateTaskPatchInput(value: unknown) {
     update.priority = input.priority as TaskPriority;
   }
   if (input.dueAt !== undefined) update.dueAt = parseDueAt(input.dueAt);
+  if (input.sprintId !== undefined) {
+    if (input.sprintId === null) update.sprintId = null;
+    else if (typeof input.sprintId === "string" && OBJECT_ID_PATTERN.test(input.sprintId)) {
+      update.sprintId = input.sprintId.toLowerCase();
+    } else throw new Error("TASK_SPRINT_ID_INVALID");
+  }
   if (Object.keys(update).length === 0) throw new Error("TASK_UPDATE_EMPTY");
   return update;
 }
