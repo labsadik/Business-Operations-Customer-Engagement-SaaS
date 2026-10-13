@@ -424,13 +424,17 @@ test("task live updates use authenticated polling without a WebSocket server", (
 });
 
 
-test("task dashboard uses Kanban, calendar, timeline and modal work folders without Scrum", () => {
+test("task dashboard renders the workspace inline and keeps team/status dialogs without Scrum", () => {
   const dashboard = source("features/task-management/components/task-management-dashboard.tsx");
   assert.doesNotMatch(dashboard, /SCRUM|Scrum canvas|Sprint work|Product backlog|Add to sprint/);
   assert.match(dashboard, /aria-label="Task calendar"/);
   assert.match(dashboard, /aria-label="Task timeline"/);
-  assert.match(dashboard, /aria-label="Task work view"/);
-  assert.match(dashboard, /id="task-workspace-title"/);
+  assert.match(dashboard, /aria-label="Go to task workspace"/);
+  assert.match(dashboard, /id="task-workspace" aria-labelledby="task-workspace-title"/);
+  assert.doesNotMatch(dashboard, /workViewOpen|setWorkViewOpen/);
+  assert.doesNotMatch(dashboard, /role="dialog" aria-modal="true" aria-labelledby="task-workspace-title"/);
+  assert.match(dashboard, /role="dialog" aria-modal="true" aria-labelledby="team-directory-title"/);
+  assert.match(dashboard, /role="dialog" aria-modal="true" aria-labelledby="task-status-overview-title"/);
   assert.match(dashboard, /id="team-directory-title"/);
   assert.match(dashboard, /id="task-status-overview-title"/);
   assert.match(dashboard, /Live updates active/);
