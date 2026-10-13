@@ -561,7 +561,17 @@ export default function LiveChatDashboard({
         onToggleCollapsed={toggleSidebar}
       />
       <main className={`relative min-h-screen bg-slate-50 transition-all duration-300 ${sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"}`}>
-        <div className="grid min-h-screen place-items-center p-5"><div className="grid min-h-[420px] w-full max-w-[1600px] place-items-center rounded-3xl border border-slate-200 bg-white"><LoaderCircle className="size-6 animate-spin text-blue-600" /></div></div>
+        <div className="mx-auto max-w-[1600px] space-y-5 p-3 sm:p-5">
+          <section className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div className="w-full max-w-md"><div className="h-3 w-36 animate-pulse rounded bg-slate-200" /><div className="mt-3 h-7 w-48 animate-pulse rounded bg-slate-200" /><div className="mt-2 h-3 w-72 max-w-full animate-pulse rounded bg-slate-100" /></div>
+            <div className="flex gap-2"><div className="h-10 w-24 animate-pulse rounded-xl bg-slate-100" /><div className="h-10 w-24 animate-pulse rounded-xl bg-slate-100" /></div>
+          </section>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 4 }, (_, index) => <div key={index} className="h-24 animate-pulse rounded-2xl border border-slate-200 bg-white" />)}</div>
+          <div className="grid min-h-[60vh] gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
+            <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white"><div className="border-b border-slate-100 p-4"><div className="h-4 w-32 animate-pulse rounded bg-slate-200" /><div className="mt-3 h-9 animate-pulse rounded-xl bg-slate-100" /><div className="mt-3 h-9 animate-pulse rounded-xl bg-slate-100" /></div><div className="divide-y divide-slate-100">{Array.from({ length: 5 }, (_, index) => <div key={index} className="flex gap-3 p-4"><div className="size-10 animate-pulse rounded-full bg-slate-100" /><div className="flex-1"><div className="h-3 w-32 animate-pulse rounded bg-slate-200" /><div className="mt-2 h-3 w-full animate-pulse rounded bg-slate-100" /><div className="mt-2 h-2.5 w-24 animate-pulse rounded bg-slate-100" /></div></div>)}</div></section>
+            <section className="rounded-3xl border border-slate-200 bg-white p-5"><div className="h-12 animate-pulse rounded-xl bg-slate-100" /><div className="mt-5 h-[38vh] animate-pulse rounded-2xl bg-slate-50" /><div className="mt-4 h-12 animate-pulse rounded-xl bg-slate-100" /></section>
+          </div>
+        </div>
       </main>
     </>
   );
