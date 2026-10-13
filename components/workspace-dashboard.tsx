@@ -448,6 +448,12 @@ export default function WorkspaceDashboard({
   const [loadingMoreEmployees, setLoadingMoreEmployees] = useState(false);
   const employeesRef = useRef<Employee[]>([]);
   const employeeCursorRef = useRef<string | null>(null);
+  const announcementsRef = useRef<AnnouncementItem[]>([]);
+  const announcementsCursorRef = useRef<string | null>(null);
+  const invitationsRef = useRef<InvitationItem[]>([]);
+  const invitationsCursorRef = useRef<string | null>(null);
+  const invoicesRef = useRef<InvoiceItem[]>([]);
+  const invoicesCursorRef = useRef<string | null>(null);
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [modalRequests, setModalRequests] = useState<RequestItem[]>([]);
   const [modalRequestNextCursor, setModalRequestNextCursor] = useState<string | null>(null);
@@ -464,8 +470,14 @@ export default function WorkspaceDashboard({
   const [meetingDateFilter, setMeetingDateFilter] = useState("");
   const [meetingActivitySummary, setMeetingActivitySummary] = useState<MeetingActivitySummary | null>(null);
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
+  const [announcementsNextCursor, setAnnouncementsNextCursor] = useState<string | null>(null);
+  const [loadingMoreAnnouncements, setLoadingMoreAnnouncements] = useState(false);
   const [invitations, setInvitations] = useState<InvitationItem[]>([]);
+  const [invitationsNextCursor, setInvitationsNextCursor] = useState<string | null>(null);
+  const [loadingMoreInvitations, setLoadingMoreInvitations] = useState(false);
   const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
+  const [invoicesNextCursor, setInvoicesNextCursor] = useState<string | null>(null);
+  const [loadingMoreInvoices, setLoadingMoreInvoices] = useState(false);
   const [teamTab, setTeamTab] = useState<TeamTab>("members");
   const [activeModal, setActiveModal] = useState<ModalName>(null);
   const [settingsSection, setSettingsSection] = useState<"public" | "announcements">("public");
@@ -511,11 +523,17 @@ export default function WorkspaceDashboard({
   useEffect(() => {
     employeesRef.current = employees;
     employeeCursorRef.current = employeeNextCursor;
+    announcementsRef.current = announcements;
+    announcementsCursorRef.current = announcementsNextCursor;
+    invitationsRef.current = invitations;
+    invitationsCursorRef.current = invitationsNextCursor;
+    invoicesRef.current = invoices;
+    invoicesCursorRef.current = invoicesNextCursor;
     modalRequestsRef.current = modalRequests;
     modalRequestCursorRef.current = modalRequestNextCursor;
     modalMeetingHistoryRef.current = modalMeetingHistory;
     meetingHistoryCursorRef.current = meetingHistoryCursor;
-  }, [employees, employeeNextCursor, modalRequests, modalRequestNextCursor, modalMeetingHistory, meetingHistoryCursor]);
+  }, [employees, employeeNextCursor, announcements, announcementsNextCursor, invitations, invitationsNextCursor, invoices, invoicesNextCursor, modalRequests, modalRequestNextCursor, modalMeetingHistory, meetingHistoryCursor]);
   const closeFeedbackModal = useCallback(() => {
     setActiveModal(null);
     router.push("/dashboard");
@@ -604,7 +622,7 @@ export default function WorkspaceDashboard({
         settle(api<CompanyData | null>("/api/company")),
         settle(api<EmployeePage>("/api/company/employees?limit=5")),
         settle(api<RequestItem[]>("/api/employee/requests?limit=5")),
-        settle(api<AnnouncementItem[]>("/api/company/announcement"))
+        settle(api<{ items: AnnouncementItem[]; nextCursor: string | null }>("/api/company/announcement?paginated=true&limit=5"))
       ]);
       if (!companyResult.ok) throw new Error("COMPANY_DATA_LOAD_FAILED");
       const company = companyResult.value;
@@ -618,6 +636,9 @@ export default function WorkspaceDashboard({
         employeesRef.current = [];
         setRequests([]);
         setAnnouncements([]);
+        announcementsRef.current = [];
+        announcementsCursorRef.current = null;
+        setAnnouncementsNextCursor(null);
         setInitialLoadFailed(false);
         setError("");
         return;
@@ -649,7 +670,26 @@ export default function WorkspaceDashboard({
 
       const announcementManager = ["COMPANY_ADMIN"].includes(company.currentRole);
       if (announcementResult.ok) {
-        setAnnouncements(announcementManager ? announcementResult.value : []);
+        const page = announcementResult.value;
+        if (announcementManager) {
+          const previous = announcementsRef.current;
+          const keepLoadedTail = previous.length > 5;
+          const refreshedById = new Map(page.items.map((item) => [item.id, item]));
+          const nextItems = keepLoadedTail
+            ? [...page.items, ...previous.slice(5).map((item) => refreshedById.get(item.id) ?? item).filter((item) => !refreshedById.has(item.id))]
+            : page.items;
+          announcementsRef.current = nextItems;
+          setAnnouncements(nextItems);
+          if (!keepLoadedTail || !announcementsCursorRef.current) {
+            announcementsCursorRef.current = page.nextCursor;
+            setAnnouncementsNextCursor(page.nextCursor);
+          }
+        } else {
+          announcementsRef.current = [];
+          announcementsCursorRef.current = null;
+          setAnnouncements([]);
+          setAnnouncementsNextCursor(null);
+        }
         setAnnouncementManagementError("");
       } else if (announcementManager) {
         setAnnouncementManagementError("ANNOUNCEMENT_MANAGEMENT_READ_FAILED");
