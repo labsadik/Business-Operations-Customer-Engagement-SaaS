@@ -264,7 +264,7 @@ export default function LiveChatDashboard({
       if (search) params.set("search", search);
       const data = await api<{ items: Conversation[]; nextCursor: string | null; usage: Usage }>("/api/live-chat?" + params.toString());
       const latestFilter = inboxFilterRef.current;
-      if (requestId !== inboxRequestRef.current || latestFilter.status !== status || latestFilter.search !== conversationSearch) return;
+      if (requestId !== inboxRequestRef.current || latestFilter.status !== status || latestFilter.search !== search) return;
       if (quiet) {
         setItems((current) => {
           const previous = new Map(current.map((item) => [item.id, item]));
@@ -387,7 +387,7 @@ export default function LiveChatDashboard({
 
 
   useEffect(() => {
-    inboxFilterRef.current = { status: conversationTab, search: conversationSearch };
+    inboxFilterRef.current = { status: conversationTab, search: conversationSearch.trim() };
     selectedChatRef.current = selectedId;
   }, [conversationTab, conversationSearch, selectedId]);
 
