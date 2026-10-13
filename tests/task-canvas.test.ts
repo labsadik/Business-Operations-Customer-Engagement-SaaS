@@ -139,7 +139,8 @@ test("Task Canvas history retention is company-wide and safely prunes legacy per
   ]);
 
   assert.match(historyHelper, /TaskCanvasRevision\.find\(\{ companyId: tenantId \}\)/);
-  assert.match(historyHelper, /\.cursor\(\{ batchSize: HISTORY_PRUNE_BATCH_SIZE \}\)/);
+  assert.match(historyHelper, /\.limit\(safeLimit\)/);
+  assert.match(historyHelper, /\_id: \{ \$nin: keep\.map\(\(revision\) => revision\._id\) \}/);
   assert.match(revisionModel, /index\(\{ companyId: 1, createdAt: -1, _id: -1 \}\)/);
   assert.match(listRoute, /pruneCompanyTaskCanvasHistory\(companyId, scope\.historyLimit\)/);
   assert.match(listRoute, /TaskCanvasRevision\.countDocuments\(\{ companyId \}\)/);
