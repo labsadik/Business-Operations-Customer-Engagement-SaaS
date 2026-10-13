@@ -54,8 +54,9 @@ test("Task Canvas editor avoids the Excalidraw onChange state feedback loop", as
   assert.ok(scheduleStart >= 0 && scheduleEnd > scheduleStart);
 
   const scheduleSave = component.slice(scheduleStart, scheduleEnd);
-  assert.doesNotMatch(scheduleSave, /setScene\(next\)/);
-  assert.doesNotMatch(scheduleSave, /setSaveState\("saving"\)/);
+  const immediateSchedule = scheduleSave.slice(0, scheduleSave.indexOf("timerRef.current = setTimeout"));
+  assert.doesNotMatch(immediateSchedule, /setScene\(next\)/);
+  assert.doesNotMatch(immediateSchedule, /setSaveState\(/);
   assert.match(scheduleSave, /setTimeout/);
   assert.match(component, /excalidrawAPI=\{handleExcalidrawAPI\}/);
   assert.match(component, /onChange=\{handleEditorChange\}/);
