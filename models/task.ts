@@ -40,6 +40,7 @@ const taskSchema = new Schema(
       required: true,
       index: true
     },
+    sprintId: { type: Schema.Types.ObjectId, ref: "TaskBoard", default: null, index: true },
     dueAt: { type: Date, default: null, index: true },
     startedAt: { type: Date, default: null },
     completedAt: { type: Date, default: null },
