@@ -124,7 +124,7 @@ test("job title and department are owned by users, while employment status stays
   assert.match(userModel, /jobTitle:[\s\S]*?department:/);
   assert.doesNotMatch(membershipModel, /jobTitle|department|googleConnectionStatus/);
   assert.doesNotMatch(userModel, /googleSubject|googleEmail/);
-  assert.ok(employeeDirectory.includes('.select("userId role employmentStatus createdAt")'));
+  assert.ok(employeeDirectory.includes('.select("userId role employmentStatus")'));
   assert.ok(employeeDirectory.includes('.select("_id name email image role jobTitle department")'));
   assert.ok(employeeDirectory.includes('jobTitle: user.jobTitle ?? ""'));
   assert.ok(employeeDirectory.includes('department: user.department ?? ""'));
@@ -1007,6 +1007,8 @@ test("large directories use five-row cursor pages and keep refreshes data-only",
 
   assert.ok(pagination.includes("DEFAULT_LIST_PAGE_SIZE = 5"));
   assert.ok(admin.includes(".limit(safeLimit + 1)"));
+  assert.ok(admin.includes("MAX_CANDIDATES_PER_REQUEST = 100"));
+  assert.ok(admin.includes("customerId: { $in: candidates.map((user) => user._id) }"));
   assert.ok(admin.includes("nextCursor: hasMore"));
   assert.ok(adminUsers.includes("Load 5 more users"));
   assert.ok(adminAccess.includes("Load 5 more accounts"));

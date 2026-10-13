@@ -690,56 +690,122 @@ export async function getAdminUsers({
   const safeSearch = escapeRegex(cleaned);
   const decoded = decodeListCursor(cursor);
   if (cursor && !decoded) throw new Error("INVALID_LIST_CURSOR");
-  const requestPipeline: Record<string, unknown>[] = [
-    { $group: {
-      _id: "$customerId",
-      totalRequests: { $sum: 1 },
-      companyIds: { $addToSet: "$companyId" },
-      lastBookingAt: { $max: "$createdAt" }
-    } }
-  ];
+
+  const userFilters: Record<string, unknown>[] = [{ role: "CUSTOMER" }];
+  if (decoded) {
+    const createdAt = new Date(decoded.key);
+    if (!Number.isFinite(createdAt.getTime())) throw new Error("INVALID_LIST_CURSOR");
+    userFilters.push({
+      $or: [
+        { createdAt: { $lt: createdAt } },
+        { createdAt, _id: { $lt: decoded.id } }
+      ]
+    });
+  }
 
   if (safeSearch) {
-    requestPipeline.push(
-      { $lookup: { from: User.collection.name, localField: "_id", foreignField: "_id", as: "customer" } },
-      { $unwind: "$customer" },
-      { $lookup: { from: Company.collection.name, localField: "companyIds", foreignField: "_id", as: "companyDocs" } },
-      { $match: {
-        "customer.role": "CUSTOMER",
-        $or: [
-          { "customer.name": { $regex: safeSearch, $options: "i" } },
-          { "customer.email": { $regex: safeSearch, $options: "i" } },
-          { "companyDocs.name": { $regex: safeSearch, $options: "i" } }
-        ]
-      } }
-    );
+    const companyIds = await Company.distinct("_id", {
+      name: { $regex: safeSearch, $options: "i" }
+    });
+    const companyCustomerIds = companyIds.length
+      ? await BookingRequest.distinct("customerId", { companyId: { $in: companyIds } })
+      : [];
+    const searchTerms: Record<string, unknown>[] = [
+      { name: { $regex: safeSearch, $options: "i" } },
+      { email: { $regex: safeSearch, $options: "i" } }
+    ];
+    if (companyCustomerIds.length) searchTerms.push({ _id: { $in: companyCustomerIds } });
+    userFilters.push({ $or: searchTerms });
   }
 
-  if (decoded) {
-    const at = new Date(decoded.key);
-    if (!Number.isFinite(at.getTime())) throw new Error("INVALID_LIST_CURSOR");
-    requestPipeline.push({ $match: {
-      $or: [
-        { lastBookingAt: { $lt: at } },
-        { lastBookingAt: at, _id: { $lt: decoded.id } }
-      ]
-    } });
-  }
-  requestPipeline.push({ $sort: { lastBookingAt: -1, _id: -1 } }, { $limit: safeLimit + 1 });
-
-  const requestStats = await BookingRequest.aggregate<{
+  const MAX_CANDIDATES_PER_REQUEST = 100;
+  const CANDIDATE_BATCH_SIZE = 25;
+  type CandidateUser = {
+    _id: Types.ObjectId;
+    name: string;
+    email: string;
+    image?: string | null;
+    createdAt: Date;
+    lastLoginAt?: Date | null;
+  };
+  type RequestStats = {
     _id: Types.ObjectId;
     totalRequests: number;
     companyIds: Types.ObjectId[];
     lastBookingAt: Date;
-  }>(requestPipeline as never[]);
-  const hasMore = requestStats.length > safeLimit;
-  const pageStats = requestStats.slice(0, safeLimit);
-  const customerIds = pageStats.map((item) => item._id);
-  if (!customerIds.length) return { items: [] as AdminUserListItem[], nextCursor: null };
+  };
+  const matches: Array<{ user: CandidateUser; stats: RequestStats }> = [];
+  let scanned = 0;
+  let lastScanned: CandidateUser | null = null;
+  let moreCandidates = true;
+  let scanCursor = decoded
+    ? { createdAt: new Date(decoded.key), id: decoded.id }
+    : null;
 
-  const [users, meetingStats, companies] = await Promise.all([
-    User.find({ _id: { $in: customerIds }, role: "CUSTOMER" }).select("name email image createdAt lastLoginAt").lean(),
+  // Search through bounded user batches and aggregate booking metrics only for those
+  // candidates. This avoids grouping every booking request for the entire database
+  // on each "load five more" click.
+  while (
+    matches.length < safeLimit + 1 &&
+    moreCandidates &&
+    scanned < MAX_CANDIDATES_PER_REQUEST
+  ) {
+    const batchSize = Math.min(CANDIDATE_BATCH_SIZE, MAX_CANDIDATES_PER_REQUEST - scanned);
+    const filters = [...userFilters];
+    if (scanCursor) {
+      filters.push({
+        $or: [
+          { createdAt: { $lt: scanCursor.createdAt } },
+          { createdAt: scanCursor.createdAt, _id: { $lt: scanCursor.id } }
+        ]
+      });
+    }
+
+    const rows = await User.find({ $and: filters })
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(batchSize + 1)
+      .select("name email image createdAt lastLoginAt")
+      .lean();
+    moreCandidates = rows.length > batchSize;
+    const candidates = rows.slice(0, batchSize) as CandidateUser[];
+    if (!candidates.length) {
+      moreCandidates = false;
+      break;
+    }
+
+    scanned += candidates.length;
+    lastScanned = candidates[candidates.length - 1];
+    scanCursor = { createdAt: new Date(lastScanned.createdAt), id: lastScanned._id };
+
+    const requestStats = await BookingRequest.aggregate<RequestStats>([
+      { $match: { customerId: { $in: candidates.map((user) => user._id) } } },
+      { $group: {
+        _id: "$customerId",
+        totalRequests: { $sum: 1 },
+        companyIds: { $addToSet: "$companyId" },
+        lastBookingAt: { $max: "$createdAt" }
+      } }
+    ]);
+    const statsByCustomer = new Map(requestStats.map((item) => [String(item._id), item]));
+    for (const user of candidates) {
+      const stats = statsByCustomer.get(String(user._id));
+      if (stats) matches.push({ user, stats });
+    }
+  }
+
+  const visibleMatches = matches.slice(0, safeLimit);
+  if (!visibleMatches.length) {
+    return {
+      items: [] as AdminUserListItem[],
+      nextCursor: moreCandidates && lastScanned
+        ? encodeListCursor(lastScanned.createdAt, lastScanned._id)
+        : null
+    };
+  }
+
+  const customerIds = visibleMatches.map((item) => item.user._id);
+  const companyIds = [...new Set(visibleMatches.flatMap((item) => item.stats.companyIds.map(String)))];
+  const [meetingStats, companies] = await Promise.all([
     Meeting.aggregate<{
       _id: Types.ObjectId;
       totalMeetings: number;
@@ -754,39 +820,39 @@ export async function getAdminUsers({
         cancelledMeetings: { $sum: { $cond: [{ $eq: ["$status", "CANCELLED"] }, 1, 0] } }
       } }
     ]),
-    Company.find({ _id: { $in: pageStats.flatMap((item) => item.companyIds) } }).select("name").lean()
+    Company.find({ _id: { $in: companyIds.map((id) => new Types.ObjectId(id)) } }).select("name").lean()
   ]);
 
   const meetingMap = new Map(meetingStats.map((item) => [String(item._id), item]));
   const companyMap = new Map(companies.map((item) => [String(item._id), item.name]));
-  const userMap = new Map(users.map((user) => [String(user._id), user]));
-
-  const items = pageStats.flatMap((request) => {
-    const user = userMap.get(String(request._id));
-    if (!user) return [];
+  const items: AdminUserListItem[] = visibleMatches.map(({ user, stats }) => {
     const meeting = meetingMap.get(String(user._id));
-    const companyIds = request.companyIds ?? [];
-    return [{
+    return {
       id: String(user._id),
       name: user.name,
       email: user.email,
       image: user.image ?? "",
       createdAt: user.createdAt,
       lastLoginAt: user.lastLoginAt ?? null,
-      companyIds: companyIds.map(String),
-      companies: companyIds.map((id) => companyMap.get(String(id))).filter((name): name is string => Boolean(name)),
-      totalRequests: request.totalRequests ?? 0,
+      companyIds: stats.companyIds.map(String),
+      companies: stats.companyIds.map((id) => companyMap.get(String(id))).filter((name): name is string => Boolean(name)),
+      totalRequests: stats.totalRequests ?? 0,
       totalMeetings: meeting?.totalMeetings ?? 0,
       completedMeetings: meeting?.completedMeetings ?? 0,
       cancelledMeetings: meeting?.cancelledMeetings ?? 0,
-      lastBookingAt: request.lastBookingAt ?? null
-    }];
+      lastBookingAt: stats.lastBookingAt ?? null
+    };
   });
-  const last = pageStats[pageStats.length - 1];
 
+  const hasMore = matches.length > safeLimit || moreCandidates;
+  // When the look-ahead record is already known, resume after the last visible
+  // customer so the extra record is not skipped. Otherwise resume after the last
+  // scanned candidate to avoid rechecking a page of users without bookings.
+  const lastVisible = visibleMatches[visibleMatches.length - 1].user;
+  const cursorUser = matches.length > safeLimit ? lastVisible : lastScanned;
   return {
     items,
-    nextCursor: hasMore && last ? encodeListCursor(last.lastBookingAt, last._id) : null
+    nextCursor: hasMore && cursorUser ? encodeListCursor(cursorUser.createdAt, cursorUser._id) : null
   };
 }
 
