@@ -113,9 +113,14 @@ test("company workspace long lists load five records at a time with explicit pro
     "app/api/company/announcement/route.ts",
     "app/api/company/invitations/route.ts",
     "app/api/billing/invoices/route.ts",
-    "components/workspace-dashboard.tsx"
+    "components/workspace-dashboard.tsx",
+    "app/dashboard/vault/page.tsx",
+    "app/api/company/support-tickets/route.ts",
+    "components/workspace-support-tickets.tsx",
+    "app/api/company/feedback/route.ts",
+    "components/workspace-feedback.tsx"
   ];
-  const [canvasApi, canvasUi, chatApi, messagesApi, chatUi, announcements, invitations, invoices, workspace] = await Promise.all(paths.map(read));
+  const [canvasApi, canvasUi, chatApi, messagesApi, chatUi, announcements, invitations, invoices, workspace, vaultPage, supportApi, supportUi, feedbackApi, feedbackUi] = await Promise.all(paths.map(read));
   assert.match(canvasApi, /parseListLimit/);
   assert.match(canvasApi, /nextCursor: hasMoreCanvases/);
   assert.match(canvasUi, /Load 5 more canvases/);
@@ -131,4 +136,12 @@ test("company workspace long lists load five records at a time with explicit pro
   assert.match(workspace, /Load 5 more announcements/);
   assert.match(workspace, /Load 5 more invitations/);
   assert.match(workspace, /Load 5 more invoices/);
+  assert.match(vaultPage, /const PAGE_SIZE = 5/);
+  assert.match(supportApi, /\.limit\(limit \+ 1\)/);
+  assert.match(supportUi, /limit=5/);
+  assert.match(supportUi, /Load 5 more tickets/);
+  assert.match(feedbackApi, /customerHasNext/);
+  assert.match(feedbackApi, /companyHasNext/);
+  assert.match(feedbackUi, /Load 5 more reviews/);
+  assert.match(feedbackUi, /Load 5 more feedback items/);
 });
