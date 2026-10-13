@@ -613,8 +613,8 @@ export default function TaskManagementDashboard({
         body: JSON.stringify({
           name: sprintName,
           goal: sprintGoal,
-          startsAt: sprintStartsAt ? new Date(`${sprintStartsAt}T00:00:00`).toISOString() : null,
-          endsAt: sprintEndsAt ? new Date(`${sprintEndsAt}T23:59:59.999`).toISOString() : null,
+          startsAt: sprintStartsAt ? new Date(`${sprintStartsAt}T00:00:00.000Z`).toISOString() : null,
+          endsAt: sprintEndsAt ? new Date(`${sprintEndsAt}T23:59:59.999Z`).toISOString() : null,
           status: sprintStatus
         })
       });
