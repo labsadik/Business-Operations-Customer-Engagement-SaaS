@@ -14,7 +14,7 @@ import CompanyVault from "@/components/company-vault";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Company vault" };
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 5;
 const DEFAULT_QUOTA_BYTES = 5 * 1024 * 1024 * 1024;
 const DEFAULT_MAX_FILE_BYTES = 100 * 1024 * 1024;
 
