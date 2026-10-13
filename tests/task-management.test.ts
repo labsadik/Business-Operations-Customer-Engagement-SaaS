@@ -474,12 +474,12 @@ test("same-port Node server and task client include real-time transport and poll
   const dashboard = source("features/task-management/components/task-management-dashboard.tsx");
   const ticketRoute = source("app/api/tasks/realtime-ticket/route.ts");
   const eventRecorder = source("features/task-management/server/task-events.ts");
-  assert.match(server, /process\\.env\\.PORT \\?\\? "3000"/);
-  assert.match(server, /\\/api\\/tasks\\/realtime/);
+  assert.ok(server.includes('process.env.PORT ?? "3000"'));
+  assert.ok(server.includes("/api/tasks/realtime"));
   assert.match(server, /Sec-WebSocket-Accept/);
   assert.match(server, /verifyTaskRealtimeTicket/);
   assert.match(dashboard, /new WebSocket/);
-  assert.match(dashboard, /\\/api\\/tasks\\/realtime-ticket/);
+  assert.ok(dashboard.includes("/api/tasks/realtime-ticket"));
   assert.match(dashboard, /Live updates reconnecting/);
   assert.match(ticketRoute, /requireTaskScope/);
   assert.match(eventRecorder, /publishTaskRealtime/);
