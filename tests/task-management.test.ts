@@ -472,6 +472,38 @@ test("task realtime events are isolated by company and workspace", () => {
   }
 });
 
+
+
+test("local task realtime ticket signing works without AUTH_SECRET", () => {
+  const mutableEnv = process.env as Record<string, string | undefined>;
+  const env = {
+    nodeEnv: mutableEnv.NODE_ENV,
+    authSecret: process.env.AUTH_SECRET,
+    taskSecret: process.env.TASK_REALTIME_SECRET,
+    nextAuthSecret: process.env.NEXTAUTH_SECRET
+  };
+  mutableEnv.NODE_ENV = "development";
+  delete process.env.AUTH_SECRET;
+  delete process.env.TASK_REALTIME_SECRET;
+  delete process.env.NEXTAUTH_SECRET;
+  try {
+    const { ticket, expiresAt } = createTaskRealtimeTicket({
+      userId: employeeA,
+      companyId: "64b000000000000000000010",
+      workspaceId: "64b000000000000000000020",
+      role: "COMPANY_ADMIN"
+    });
+    assert.ok(ticket.length > 32);
+    assert.ok(expiresAt > Date.now());
+    assert.ok(verifyTaskRealtimeTicket(ticket));
+  } finally {
+    if (env.nodeEnv === undefined) delete mutableEnv.NODE_ENV; else mutableEnv.NODE_ENV = env.nodeEnv;
+    if (env.authSecret === undefined) delete process.env.AUTH_SECRET; else process.env.AUTH_SECRET = env.authSecret;
+    if (env.taskSecret === undefined) delete process.env.TASK_REALTIME_SECRET; else process.env.TASK_REALTIME_SECRET = env.taskSecret;
+    if (env.nextAuthSecret === undefined) delete process.env.NEXTAUTH_SECRET; else process.env.NEXTAUTH_SECRET = env.nextAuthSecret;
+  }
+});
+
 test("same-port Node server and task client include real-time transport and polling fallback", () => {
   const server = source("server.mjs");
   const dashboard = source("features/task-management/components/task-management-dashboard.tsx");
@@ -483,24 +515,23 @@ test("same-port Node server and task client include real-time transport and poll
   assert.match(server, /verifyTaskRealtimeTicket/);
   assert.match(dashboard, /new WebSocket/);
   assert.ok(dashboard.includes("/api/tasks/realtime-ticket"));
-  assert.match(dashboard, /Live updates reconnecting/);
+  assert.match(dashboard, /Live updates connected/);
+  assert.match(dashboard, /Polling fallback active/);
+  assert.doesNotMatch(server, /from "node:url"|parse\(request\.url, true\)/);
   assert.match(ticketRoute, /requireTaskScope/);
   assert.match(eventRecorder, /publishTaskRealtime/);
 });
 
 
-test("Scrum backlog membership is tenant-scoped and visible in the board UI", () => {
-  const taskModel = source("models/task.ts");
-  const patchRoute = source("app/api/tasks/[taskId]/route.ts");
-  const listRoute = source("app/api/tasks/route.ts");
+test("task dashboard uses Kanban, calendar, timeline and modal work folders without Scrum", () => {
   const dashboard = source("features/task-management/components/task-management-dashboard.tsx");
-  assert.match(taskModel, /sprintId: \{ type: Schema\.Types\.ObjectId, ref: "TaskBoard"/);
-  assert.ok(patchRoute.includes('if (update.sprintId !== undefined)'));
-  assert.ok(patchRoute.includes('scope.session.role !== "COMPANY_ADMIN"'));
-  assert.ok(patchRoute.includes('workspaceId: existing.workspaceId'));
-  assert.ok(listRoute.includes('sprintId: task.sprintId ? String(task.sprintId) : null'));
-  assert.ok(dashboard.includes('aria-label="Sprint work"'));
-  assert.ok(dashboard.includes('aria-label="Product backlog"'));
-  assert.ok(dashboard.includes("Add to sprint"));
-  assert.ok(dashboard.includes("Move to backlog"));
+  assert.doesNotMatch(dashboard, /SCRUM|Scrum canvas|Sprint work|Product backlog|Add to sprint/);
+  assert.match(dashboard, /aria-label="Task calendar"/);
+  assert.match(dashboard, /aria-label="Task timeline"/);
+  assert.match(dashboard, /aria-label="Task work view"/);
+  assert.match(dashboard, /id="task-workspace-title"/);
+  assert.match(dashboard, /id="team-directory-title"/);
+  assert.match(dashboard, /id="task-status-overview-title"/);
+  assert.match(dashboard, /Polling fallback active/);
+  assert.match(dashboard, /Live updates connected/);
 });

@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { createHash } from "node:crypto";
-import { parse } from "node:url";
+import { parse as parseQuery } from "node:querystring";
 import next from "next";
 import { subscribeTaskRealtime } from "./lib/task-realtime.ts";
 import { verifyTaskRealtimeTicket } from "./lib/task-realtime-auth.ts";
@@ -184,7 +184,32 @@ const heartbeat = setInterval(() => {
 heartbeat.unref();
 
 await app.prepare();
-const server = createServer((request, response) => handle(request, response, parse(request.url, true)));
+const server = createServer((request, response) => {
+  let requestUrl;
+  try {
+    requestUrl = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
+  } catch {
+    response.statusCode = 400;
+    response.end("Bad Request");
+    return;
+  }
+  // Build the URL shape Next.js expects without Node's deprecated url.parse().
+  const parsedUrl = {
+    protocol: requestUrl.protocol,
+    slashes: true,
+    auth: null,
+    host: requestUrl.host,
+    port: requestUrl.port,
+    hostname: requestUrl.hostname,
+    hash: requestUrl.hash,
+    search: requestUrl.search,
+    query: parseQuery(requestUrl.search.slice(1)),
+    pathname: requestUrl.pathname,
+    path: requestUrl.pathname + requestUrl.search,
+    href: requestUrl.href
+  };
+  void handle(request, response, parsedUrl);
+});
 server.keepAliveTimeout = 65_000;
 server.headersTimeout = 66_000;
 server.on("upgrade", handleUpgrade);

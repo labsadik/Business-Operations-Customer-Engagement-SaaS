@@ -1,6 +1,7 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 const TICKET_TTL_MS = 90_000;
+const DEV_SECRET_KEY = Symbol.for("canvas.task.realtime.dev-secret.v1");
 const OBJECT_ID_PATTERN = /^[a-f\d]{24}$/i;
 const ALLOWED_ROLES = new Set(["COMPANY_ADMIN", "EMPLOYEE", "PLATFORM_ADMIN"]);
 
@@ -13,9 +14,21 @@ export type TaskRealtimeTicketPayload = {
   expiresAt: number;
 };
 function signingSecret() {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret || secret.length < 32) throw new Error("TASK_REALTIME_AUTH_NOT_CONFIGURED");
-  return secret;
+  const configured = process.env.TASK_REALTIME_SECRET ?? process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+  if (configured && configured.length >= 32) return configured;
+
+  // Local development commonly uses the database-backed Canvas session and no AUTH_SECRET.
+  // The in-process key allows ticket issuance and verification without another local setting.
+  // It intentionally changes on restart, invalidating any outstanding development tickets.
+  if (process.env.NODE_ENV !== "production") {
+    const root = globalThis as unknown as Record<PropertyKey, unknown>;
+    if (typeof root[DEV_SECRET_KEY] !== "string") {
+      root[DEV_SECRET_KEY] = randomBytes(32).toString("base64url");
+    }
+    return root[DEV_SECRET_KEY] as string;
+  }
+
+  throw new Error("TASK_REALTIME_AUTH_NOT_CONFIGURED: set TASK_REALTIME_SECRET to at least 32 characters");
 }
 function signature(value: string) {
   return createHmac("sha256", signingSecret()).update(value).digest("base64url");
