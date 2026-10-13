@@ -6,7 +6,6 @@ import CookieConsent from "@/components/cookie-consent";
 import SoundAutoplay from "@/components/sound-autoplay";
 import AnalyticsProvider from "@/components/analytics-provider";
 import { getConfiguredPublicOrigin } from "@/lib/public-origin";
-import "@excalidraw/excalidraw/index.css";
 import "./globals.css";
 
 const publicOrigin = getConfiguredPublicOrigin() ?? undefined;
