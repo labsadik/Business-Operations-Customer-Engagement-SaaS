@@ -74,10 +74,28 @@ test("plan validation keeps tags as labels and derives payment requirement from 
   assert.equal(plain.requiresPayment, true);
   assert.equal(plain.taskManagementEnabled, false);
   assert.equal(plain.taskManagementDailyLimit, 10);
+  assert.equal(plain.taskCanvasEnabled, false);
+  assert.equal(plain.taskCanvasMaxCollaborators, 2);
+  assert.equal(plain.taskCanvasHistoryLimit, 10);
   assert.equal(validatePlanDraft({ ...baseDraft, taskManagementEnabled: true }).taskManagementEnabled, true);
   assert.equal(validatePlanDraft({ ...baseDraft, taskManagementEnabled: true, taskManagementDailyLimit: 1 }).taskManagementDailyLimit, 1);
   assert.equal(validatePlanDraft({ ...baseDraft, taskManagementEnabled: true, taskManagementDailyLimit: 50 }).taskManagementDailyLimit, 50);
   assert.equal(validatePlanDraft({ ...baseDraft, taskManagementEnabled: true, taskManagementDailyLimit: null }).taskManagementDailyLimit, null);
+  const canvasPlan = validatePlanDraft({
+    ...baseDraft,
+    taskCanvasEnabled: true,
+    taskCanvasMaxCollaborators: 4,
+    taskCanvasHistoryLimit: 30
+  });
+  assert.equal(canvasPlan.taskCanvasEnabled, true);
+  assert.equal(canvasPlan.taskCanvasMaxCollaborators, 4);
+  assert.equal(canvasPlan.taskCanvasHistoryLimit, 30);
+  assert.equal(validatePlanDraft({ ...baseDraft, taskCanvasEnabled: true }).taskCanvasEnabled, true);
+  assert.throws(() => validatePlanDraft({ ...baseDraft, taskCanvasMaxCollaborators: 1 }), /TASK_CANVAS_MAX_COLLABORATORS_INVALID/);
+  assert.throws(() => validatePlanDraft({ ...baseDraft, taskCanvasMaxCollaborators: 201 }), /TASK_CANVAS_MAX_COLLABORATORS_INVALID/);
+  assert.throws(() => validatePlanDraft({ ...baseDraft, taskCanvasHistoryLimit: 0 }), /TASK_CANVAS_HISTORY_LIMIT_INVALID/);
+  assert.throws(() => validatePlanDraft({ ...baseDraft, taskCanvasHistoryLimit: 101 }), /TASK_CANVAS_HISTORY_LIMIT_INVALID/);
+  assert.throws(() => validatePlanDraft({ ...baseDraft, taskCanvasEnabled: "true" }), /TASK_CANVAS_ENABLED_INVALID/);
   assert.throws(() => validatePlanDraft({ ...baseDraft, taskManagementDailyLimit: 0 }), /TASK_MANAGEMENT_DAILY_LIMIT_INVALID/);
   assert.throws(() => validatePlanDraft({ ...baseDraft, taskManagementDailyLimit: 1000001 }), /TASK_MANAGEMENT_DAILY_LIMIT_INVALID/);
   assert.throws(() => validatePlanDraft({ ...baseDraft, taskManagementEnabled: "true" }), /TASK_MANAGEMENT_ENABLED_INVALID/);

@@ -14,7 +14,7 @@
     "admin:create": "node scripts/create-platform-admin.mjs",
     "seed:demo": "node --experimental-strip-types scripts/seed-canvas-demo.mjs",
     "seed:smoke": "node --experimental-strip-types scripts/seed-canvas-scale-smoke.mjs",
-    "test": "node --experimental-strip-types --test tests/scheduling.test.ts tests/cookie-consent.test.ts tests/platform-communication.test.ts tests/feedback-flow.test.ts tests/support-tickets.test.ts tests/plan-management.test.ts tests/task-management.test.ts tests/redis.test.ts tests/platform-announcement-client.test.ts tests/dashboard-loading-shell.test.ts tests/meeting-dashboard.test.ts tests/public-feedback-embed.test.ts tests/resource-guardrails.test.ts tests/live-chat.test.ts tests/sentry-config.test.ts",
+    "test": "node --experimental-strip-types --test tests/scheduling.test.ts tests/cookie-consent.test.ts tests/platform-communication.test.ts tests/feedback-flow.test.ts tests/support-tickets.test.ts tests/plan-management.test.ts tests/task-management.test.ts tests/task-canvas.test.ts tests/redis.test.ts tests/platform-announcement-client.test.ts tests/dashboard-loading-shell.test.ts tests/meeting-dashboard.test.ts tests/public-feedback-embed.test.ts tests/resource-guardrails.test.ts tests/live-chat.test.ts tests/sentry-config.test.ts",
     "roles:migrate": "node scripts/migrate-roles.mjs",
     "membership-profile:migrate": "node scripts/migrate-membership-profile-fields.mjs",
     "task-assignees:migrate": "node scripts/migrate-task-assignees.mjs",
@@ -25,13 +25,11 @@
     "@axiomhq/js": "1.8.0",
     "@axiomhq/logging": "0.4.1",
     "@axiomhq/nextjs": "0.4.1",
-    "@excalidraw/excalidraw": "0.18.1",
     "@microsoft/clarity": "1.0.2",
     "@opentelemetry/auto-instrumentations-node": "0.80.0",
     "@opentelemetry/exporter-trace-otlp-http": "0.222.0",
     "@opentelemetry/resources": "2.11.0",
     "@opentelemetry/sdk-node": "0.222.0",
-    "@sentry/nextjs": "11.6.0",
     "lucide-react": "1.51.0",
     "mixpanel-browser": "2.83.0",
     "mongoose": "9.10.3",
@@ -40,7 +38,8 @@
     "pdfjs-dist": "6.4.299",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "redis": "6.3.0"
+    "redis": "6.3.0",
+    "@sentry/nextjs": "11.6.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.1",
