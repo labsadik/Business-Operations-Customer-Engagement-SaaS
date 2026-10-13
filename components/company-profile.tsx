@@ -27,7 +27,7 @@ import {
 
 type ProfileData = {
   id: string;
-  publicId: number;
+  publicId: number | null;
   name: string;
   slug: string;
   email: string;
@@ -305,7 +305,7 @@ export default function CompanyProfile({
                 {memberCount} members
               </span>
               <span className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 font-mono text-xs font-semibold text-blue-800" aria-label="Your company public ID">
-                Company ID #{Number.isSafeInteger(form.publicId) ? form.publicId.toLocaleString("en-IN") : "Pending migration"}
+                Company ID #{typeof form.publicId === "number" && Number.isSafeInteger(form.publicId) ? form.publicId.toLocaleString("en-IN") : "Pending migration"}
               </span>
             </div>
           </div>
