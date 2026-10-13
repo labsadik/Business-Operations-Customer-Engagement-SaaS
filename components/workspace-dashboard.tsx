@@ -676,7 +676,7 @@ export default function WorkspaceDashboard({
           const keepLoadedTail = previous.length > 5;
           const refreshedById = new Map(page.items.map((item) => [item.id, item]));
           const nextItems = keepLoadedTail
-            ? [...page.items, ...previous.slice(5).map((item) => refreshedById.get(item.id) ?? item).filter((item) => !refreshedById.has(item.id))]
+            ? [...page.items, ...previous.map((item) => refreshedById.get(item.id) ?? item).filter((item) => !refreshedById.has(item.id))]
             : page.items;
           announcementsRef.current = nextItems;
           setAnnouncements(nextItems);
@@ -1009,7 +1009,7 @@ export default function WorkspaceDashboard({
       const previous = invitationsRef.current;
       const keepLoadedTail = previous.length > 5;
       const refreshedIds = new Set(page.items.map((item) => item.id));
-      const nextItems = keepLoadedTail ? [...page.items, ...previous.slice(5).filter((item) => !refreshedIds.has(item.id))] : page.items;
+      const nextItems = keepLoadedTail ? [...page.items, ...previous.filter((item) => !refreshedIds.has(item.id))] : page.items;
       invitationsRef.current = nextItems;
       setInvitations(nextItems);
       if (!keepLoadedTail || !invitationsCursorRef.current) {
@@ -1032,7 +1032,7 @@ export default function WorkspaceDashboard({
       const previous = invoicesRef.current;
       const keepLoadedTail = previous.length > 5;
       const refreshedIds = new Set(page.items.map((item) => item.id));
-      const nextItems = keepLoadedTail ? [...page.items, ...previous.slice(5).filter((item) => !refreshedIds.has(item.id))] : page.items;
+      const nextItems = keepLoadedTail ? [...page.items, ...previous.filter((item) => !refreshedIds.has(item.id))] : page.items;
       invoicesRef.current = nextItems;
       setInvoices(nextItems);
       if (!keepLoadedTail || !invoicesCursorRef.current) {
