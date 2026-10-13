@@ -956,8 +956,6 @@ export default function TaskManagementDashboard({
             <div className="mt-3 max-h-[52vh] overflow-y-auto rounded-2xl border border-slate-200">{statusOverviewTasks.map(task=><button key={task.id} type="button" onClick={()=>{setStatusOverviewOpen(false);setWorkViewOpen(true);setViewMode("BOARD");setStatusFilter(task.status);void openTask(task.id);}} className="flex w-full flex-col gap-2 border-b border-slate-100 px-4 py-3 text-left hover:bg-slate-50 sm:flex-row sm:items-center"><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{task.title}</span><span className="mt-1 block text-[10px] text-slate-500">TASK-{task.id.slice(-6).toUpperCase()} · {labelStatus(task.priority)} · {formatDate(task.dueAt)}</span></span><span className="flex items-center gap-1">{task.assigneeUserIds.slice(0,3).map(id=>{const member=employeeById.get(id);return member?<span key={id} title={member.name}><UserAvatar name={member.name||member.email} email={member.email} image={member.image} size={26}/></span>:null;})}</span><span className={"rounded-full px-2.5 py-1 text-[10px] font-semibold "+statusColumnClasses(task.status)}>{task.status==="BLOCKED"?"Locked / blocked":labelStatus(task.status)}</span></button>)}
               {statusOverviewTasks.length===0&&<p className="p-10 text-center text-sm text-slate-500">No tasks match this status and the current filters.</p>}</div>
           </section></div>}
-          {error &&
-
           {error && (
             <div role="alert" className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
               <AlertCircle className="mt-0.5 size-4 shrink-0" />
