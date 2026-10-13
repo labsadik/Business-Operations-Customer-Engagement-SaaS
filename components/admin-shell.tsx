@@ -71,7 +71,7 @@ export default function AdminShell({
 
   return (
     <div className="min-h-screen bg-[#faf9f1] text-slate-950">
-      <aside className="fixed inset-y-0 left-0 z-50 hidden w-72 flex-col border-r border-slate-200/90 bg-white lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-50 hidden w-72 flex-col overflow-hidden border-r border-slate-200/90 bg-white lg:flex">
         <div className="flex h-20 items-center gap-3 border-b border-slate-200/80 px-5">
           <span className="grid size-10 place-items-center overflow-hidden rounded-xl bg-blue-600 text-white shadow-sm shadow-blue-600/20">
             <Image src="/favicon.svg" alt="" width={40} height={40} className="size-full object-cover" />
@@ -82,7 +82,7 @@ export default function AdminShell({
           </div>
         </div>
 
-        <nav className="flex-1 space-y-1 px-4 py-5">
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-4 py-5">
           <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Management</p>
           {nav.map((item, index) => {
             const Icon = item.icon;
@@ -113,7 +113,7 @@ export default function AdminShell({
           })}
         </nav>
 
-        <div className="border-t border-slate-200 p-4">
+        <div className="shrink-0 border-t border-slate-200 p-4">
           <Link href="/dashboard" className="mb-2 flex items-center gap-3 rounded-xl px-3.5 py-3 text-xs font-semibold text-slate-600 hover:bg-slate-100">
             <CircleDollarSign className="size-4" />
             Workspace

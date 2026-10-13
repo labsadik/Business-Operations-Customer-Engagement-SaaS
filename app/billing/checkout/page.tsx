@@ -306,6 +306,18 @@ export default async function BillingCheckoutPage({
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <p className="text-xs font-semibold text-slate-900">Task Canvas</p>
+                  <p className={"mt-2 text-xs font-semibold " + (plan.taskCanvasEnabled ? "text-emerald-700" : "text-slate-500")}>
+                    {plan.taskCanvasEnabled ? "Included" : "Not included"}
+                  </p>
+                  <p className="mt-1 text-[11px] leading-5 text-slate-500">
+                    {plan.taskCanvasEnabled
+                      ? plan.taskCanvasMaxCollaborators + " people per canvas · " + plan.taskCanvasHistoryLimit + " saved history versions"
+                      : "Team whiteboards are not enabled on this plan."}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
                   <p className="text-xs font-semibold text-slate-900">Cloud vault</p>
                   <p className={"mt-2 text-xs font-semibold " + (plan.vaultEnabled ? "text-emerald-700" : "text-slate-500")}>
                     {plan.vaultEnabled ? "Included" : "Not included"}
