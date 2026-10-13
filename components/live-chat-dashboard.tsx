@@ -172,6 +172,7 @@ export default function LiveChatDashboard({
   const [usage, setUsage] = useState<Usage | null>(null);
   const [selectedId, setSelectedId] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const messagesRef = useRef<ChatMessage[]>([]);
   const [messagesNextCursor, setMessagesNextCursor] = useState<string | null>(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [loadingMoreMessages, setLoadingMoreMessages] = useState(false);
@@ -347,11 +348,13 @@ export default function LiveChatDashboard({
       );
       if (selectedChatRef.current !== conversationId) return;
       if (quiet) {
+        const onlyFirstPageLoaded = messagesRef.current.length <= 5;
         setMessages((current) => {
           const merged = new Map(current.map((message) => [message.id, message]));
           for (const message of data.messages) merged.set(message.id, { ...merged.get(message.id), ...message });
           return [...merged.values()].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
         });
+        if (onlyFirstPageLoaded) setMessagesNextCursor(data.nextCursor);
       } else {
         setMessages(data.messages);
         setMessagesNextCursor(data.nextCursor);
@@ -395,9 +398,10 @@ export default function LiveChatDashboard({
 
   useEffect(() => {
     itemsRef.current = items;
+    messagesRef.current = messages;
     inboxFilterRef.current = { status: conversationTab, search: conversationSearch.trim() };
     selectedChatRef.current = selectedId;
-  }, [items, conversationTab, conversationSearch, selectedId]);
+  }, [items, messages, conversationTab, conversationSearch, selectedId]);
 
   useEffect(() => {
     // Changing inbox filters must not re-fetch widget settings.
