@@ -26,10 +26,9 @@ export async function requireTaskCanvasScope(): Promise<TaskCanvasScope> {
 
   const isPlatformAdmin = session.role === "PLATFORM_ADMIN";
   const isManager = isPlatformAdmin || session.role === "COMPANY_ADMIN";
-  if (isPlatformAdmin) {
-    return { session, companyId, workspaceId, isPlatformAdmin, isManager, maxCollaborators: 200, historyLimit: 100 };
-  }
 
+  // Even platform admins working inside a company's workspace must use that
+  // company's current plan limits. Only management permissions are elevated.
   const plan = await getCompanyEntitlements(companyId);
   if (!plan.taskCanvasEnabled) throw new Error("FEATURE_NOT_IN_PLAN");
   return {
