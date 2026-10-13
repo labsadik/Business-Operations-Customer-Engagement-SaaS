@@ -215,7 +215,7 @@ export default function TaskManagementDashboard({
   const [ownerFilter, setOwnerFilter] = useState<TaskOwnerFilter>("ALL");
   const [sortMode, setSortMode] = useState<TaskSortMode>("UPDATED");
   const [viewMode, setViewMode] = useState<TaskViewMode>("BOARD");
-  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("CONNECTING");
+  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("POLLING");
   const [sprintConfig, setSprintConfig] = useState<SprintConfiguration | null>(null);
   const [sprintName, setSprintName] = useState("Sprint 1");
   const [sprintGoal, setSprintGoal] = useState("");
@@ -416,10 +416,7 @@ export default function TaskManagementDashboard({
   }, []);
 
   useEffect(() => {
-    if (!taskManagementEnabled) {
-      queueMicrotask(() => setRealtimeStatus("POLLING"));
-      return;
-    }
+    if (!taskManagementEnabled) return;
     let cancelled = false;
     let socket: WebSocket | null = null;
     let reconnectTimer: number | undefined;
