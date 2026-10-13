@@ -733,16 +733,14 @@ export default function WorkspaceDashboard({
   }
 
   function resetAnnouncementsPagination() {
-    announcementsRef.current = [];
+    // Invalidate only the paging cursor. Keep visible rows on screen while the
+    // first page refreshes after a mutation.
     announcementsCursorRef.current = null;
-    setAnnouncements([]);
     setAnnouncementsNextCursor(null);
   }
 
   function resetInvitationsPagination() {
-    invitationsRef.current = [];
     invitationsCursorRef.current = null;
-    setInvitations([]);
     setInvitationsNextCursor(null);
   }
 
@@ -1319,6 +1317,9 @@ export default function WorkspaceDashboard({
       await api(`/api/company/announcement?id=${encodeURIComponent(id)}`, {
         method: "DELETE"
       });
+      const remainingAnnouncements = announcementsRef.current.filter((item) => item.id !== id);
+      announcementsRef.current = remainingAnnouncements;
+      setAnnouncements(remainingAnnouncements);
       if (announcementEditingId === id) setAnnouncementEditorOpen(false);
       resetAnnouncementsPagination();
       await refreshAll();
@@ -1374,6 +1375,9 @@ export default function WorkspaceDashboard({
       await api(`/api/company/invitations/${encodeURIComponent(id)}`, {
         method: "DELETE"
       });
+      const remainingInvitations = invitationsRef.current.filter((item) => item.id !== id);
+      invitationsRef.current = remainingInvitations;
+      setInvitations(remainingInvitations);
       resetInvitationsPagination();
       await loadInvitations();
     } catch (err) {
