@@ -82,7 +82,7 @@ export async function GET(request: Request) {
     const rows = await Task.find({ $and: filters })
       .sort({ createdAt: -1, _id: -1 })
       .limit(limit + 1)
-      .select("_id companyId workspaceId createdByUserId title description priority status dueAt startedAt completedAt createdAt updatedAt")
+      .select("_id companyId workspaceId createdByUserId title description priority status sprintId dueAt startedAt completedAt createdAt updatedAt")
       .lean();
 
     const hasMore = rows.length > limit;
@@ -119,6 +119,7 @@ export async function GET(request: Request) {
         description: task.description,
         priority: task.priority,
         status: task.status,
+        sprintId: task.sprintId ? String(task.sprintId) : null,
         dueAt: task.dueAt ?? null,
         startedAt: task.startedAt ?? null,
         completedAt: task.completedAt ?? null,
@@ -236,6 +237,7 @@ export async function POST(request: Request) {
       description: task.description,
       priority: task.priority,
       status: task.status,
+      sprintId: task.sprintId ? String(task.sprintId) : null,
       dueAt: task.dueAt ?? null,
       startedAt: null,
       completedAt: null,
