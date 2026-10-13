@@ -5,7 +5,6 @@ import { TaskBoard } from "@/models/task-board";
 import { requireTaskScope, assertTaskFeatureAccess } from "@/features/task-management/server/task-authorization";
 import { taskErrorResponse } from "@/features/task-management/server/task-errors";
 import { validateSprintPatch, type TaskSprintPatch } from "@/features/task-management/shared/sprint-validation";
-import { publishTaskRealtime } from "@/lib/task-realtime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -107,13 +106,6 @@ export async function PATCH(request: Request) {
     ).lean();
     if (!updated) return jsonError("TASK_BOARD_NOT_FOUND", 404);
 
-    publishTaskRealtime({
-      companyId: scope.companyId,
-      workspaceId: scope.workspaceId,
-      eventType: "SPRINT_UPDATED",
-      board: true,
-      occurredAt: new Date().toISOString()
-    });
     return jsonOk({ sprint: serializeSprint(updated) });
   } catch (error) {
     return taskErrorResponse(error, "TASK_BOARD_UPDATE_FAILED");
