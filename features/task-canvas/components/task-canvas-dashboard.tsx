@@ -19,6 +19,9 @@ type Envelope<T> = { ok: boolean; data?: T; error?: string };
 type CanvasBridge = {
   updateScene: (scene: { elements?: unknown[]; appState?: Record<string, unknown> }) => void;
   addFiles?: (files: unknown[]) => void;
+  getAppState?: () => Record<string, unknown>;
+  setCursor?: (cursor: string) => void;
+  resetCursor?: () => void;
 };
 const EMPTY_SCENE: Scene = { elements: [], appState: {}, files: {} };
 
@@ -253,8 +256,8 @@ export default function TaskCanvasDashboard({
             versionRef.current = latest.item.version;
             sceneRef.current = merged;
             setScene(merged);
-            applySceneToEditor(apiRef.current, merged);
             setSuppressionWindow(suppressUntilRef, 1200);
+            applySceneToEditor(apiRef.current, merged);
             mergeRetriesRef.current += 1;
             editSerialRef.current += 1;
             dirtyRef.current = true;
@@ -293,13 +296,46 @@ export default function TaskCanvasDashboard({
     sceneRef.current = next;
     dirtyRef.current = true;
     editSerialRef.current += 1;
-    setScene(next);
-    setSaveState("saving");
+
+    // Excalidraw can emit onChange from its own update lifecycle. Keep this
+    // callback ref-only; updating parent state here can feed back into the
+    // editor and cause a Maximum update depth exceeded loop.
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       timerRef.current = null;
+      setSaveState("saving");
       void persistRef.current(sceneRef.current);
     }, 850);
+  }, []);
+
+  const handleExcalidrawAPI = useCallback((api: unknown) => {
+    apiRef.current = api as CanvasBridge | null;
+  }, []);
+
+  const handleEditorChange = useCallback((
+    elements: readonly unknown[],
+    appState: unknown,
+    files: unknown
+  ) => {
+    if (Date.now() < suppressUntilRef.current) return;
+    scheduleSave(getPersistedScene(
+      elements as unknown as unknown[],
+      appState as Record<string, unknown>,
+      files as Record<string, unknown>
+    ));
+  }, [scheduleSave]);
+
+  const handleCanvasMouseEnter = useCallback(() => {
+    const activeTool = apiRef.current?.getAppState?.().activeTool as { type?: string } | undefined;
+    if (activeTool?.type === "selection") {
+      // A crosshair is easier to track on a large whiteboard while selecting
+      // and positioning objects. Excalidraw continues to manage other tools.
+      apiRef.current?.setCursor?.("crosshair");
+    }
+  }, []);
+
+  const handleCanvasMouseLeave = useCallback(() => {
+    apiRef.current?.resetCursor?.();
   }, []);
 
   const saveNow = useCallback(async () => {
@@ -536,15 +572,16 @@ export default function TaskCanvasDashboard({
                 </div>
                 {canManageSelected && <button type="button" onClick={() => void deleteCanvas()} title="Delete canvas" className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="size-4" /></button>}<span className="shrink-0 text-[10px] text-slate-400">Version {selected.version}</span>
               </div>
-              <div className="h-[calc(100vh-11.5rem)] min-h-[560px] w-full bg-white">
+              <div
+                className="h-[calc(100vh-11.5rem)] min-h-[560px] w-full bg-white"
+                onMouseEnter={handleCanvasMouseEnter}
+                onMouseLeave={handleCanvasMouseLeave}
+              >
                 {loadingCanvas ? <div className="grid h-full place-items-center text-sm text-slate-500"><LoaderCircle className="mr-2 inline size-4 animate-spin" /> Opening canvas…</div> : <Excalidraw
                   key={selectedId}
                   initialData={scene as never}
-                  excalidrawAPI={(api) => { apiRef.current = api as unknown as CanvasBridge; }}
-                  onChange={(elements, appState, files) => {
-                    if (Date.now() < suppressUntilRef.current) return;
-                    scheduleSave(getPersistedScene(elements as unknown[], appState as unknown as Record<string, unknown>, files as unknown as Record<string, unknown>));
-                  }}
+                  excalidrawAPI={handleExcalidrawAPI}
+                  onChange={handleEditorChange}
                 />}
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/70 px-3 py-2 text-[10px] text-slate-500 sm:px-4"><span>Draw, write, connect ideas, add images, and export from Excalidraw&apos;s built-in menus.</span><button type="button" onClick={() => void checkpoint()} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 font-semibold text-indigo-700 hover:bg-indigo-50"><Save className="size-3" /> Create history point</button></div>

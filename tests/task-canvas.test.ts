@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import {
   validateCanvasMembers,
   validateCanvasVersion,
@@ -40,4 +41,32 @@ test("optimistic versions and member lists are validated and de-duplicated", () 
   assert.deepEqual(validateCanvasMembers(["user-a", "user-b", "user-a"]), ["user-a", "user-b"]);
   assert.throws(() => validateCanvasMembers("user-a"), /CANVAS_MEMBERS_INVALID/);
   assert.throws(() => validateCanvasMembers(["user-a", 4]), /CANVAS_MEMBERS_INVALID/);
+});
+
+
+test("Task Canvas editor avoids the Excalidraw onChange state feedback loop", async () => {
+  const component = await readFile(
+    new URL("../features/task-canvas/components/task-canvas-dashboard.tsx", import.meta.url),
+    "utf8"
+  );
+  const scheduleStart = component.indexOf("const scheduleSave = useCallback");
+  const scheduleEnd = component.indexOf("const handleExcalidrawAPI", scheduleStart);
+  assert.ok(scheduleStart >= 0 && scheduleEnd > scheduleStart);
+
+  const scheduleSave = component.slice(scheduleStart, scheduleEnd);
+  assert.doesNotMatch(scheduleSave, /setScene\(next\)/);
+  assert.doesNotMatch(scheduleSave, /setSaveState\("saving"\)/);
+  assert.match(scheduleSave, /setTimeout/);
+  assert.match(component, /excalidrawAPI=\{handleExcalidrawAPI\}/);
+  assert.match(component, /onChange=\{handleEditorChange\}/);
+});
+
+test("Task Canvas uses a crosshair cursor only for the selection tool", async () => {
+  const component = await readFile(
+    new URL("../features/task-canvas/components/task-canvas-dashboard.tsx", import.meta.url),
+    "utf8"
+  );
+  assert.match(component, /activeTool\?\.type === "selection"/);
+  assert.match(component, /setCursor\?\.\("crosshair"\)/);
+  assert.match(component, /onMouseLeave=\{handleCanvasMouseLeave\}/);
 });
