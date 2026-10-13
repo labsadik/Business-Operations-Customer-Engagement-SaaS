@@ -303,6 +303,7 @@ export default function WorkspaceSidebar({
               <button type="button" onClick={() => open("meetings")} className={buttonClass(isActive("meetings"))} title={labels.meetings} aria-pressed={isActive("meetings")} data-sidebar-active={isActive("meetings") ? "true" : "false"} data-sidebar-key="meetings">
                 <CalendarDays className={`size-4 shrink-0 ${iconClass(isActive("meetings"))}`} />
                 <span className={collapsed ? "sr-only" : "min-w-0 truncate"}>{labels.meetings}</span>
+                {!collapsed && <span className="ml-auto rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">New</span>}
               </button>
               {taskManagementEnabled && (
                 <Link href={"/dashboard/tasks" as Route} onClick={() => persistScrollPosition()} className={buttonClass(isTasks)} title="Task Management" aria-current={isTasks ? "page" : undefined} data-sidebar-active={isTasks ? "true" : "false"} data-sidebar-key="tasks">
@@ -315,6 +316,7 @@ export default function WorkspaceSidebar({
                 <Link href={"/dashboard/task-canvas" as Route} onClick={() => persistScrollPosition()} className={buttonClass(isTaskCanvas)} title="Task Canvas" aria-current={isTaskCanvas ? "page" : undefined} data-sidebar-active={isTaskCanvas ? "true" : "false"} data-sidebar-key="task-canvas">
                   <PenTool className={`size-4 shrink-0 ${iconClass(isTaskCanvas)}`} />
                   <span className={collapsed ? "sr-only" : "min-w-0 truncate"}>Task Canvas</span>
+                  {!collapsed && <span className="ml-auto rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">New</span>}
                 </Link>
               )}
               {vaultEnabled && (
@@ -421,10 +423,10 @@ export default function WorkspaceSidebar({
                 {mobileGroupHeading("Workspace Tools")}
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   <button type="button" onClick={() => open("meetings")} className={mobileItemClass(isActive("meetings"))} title={labels.meetings} aria-pressed={isActive("meetings")}>
-                    <CalendarDays className="size-4 shrink-0" /><span className="min-w-0 truncate">{labels.meetings}</span>
+                    <CalendarDays className="size-4 shrink-0" /><span className="min-w-0 truncate">{labels.meetings}</span><span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">New</span>
                   </button>
                   {taskManagementEnabled && <Link href={"/dashboard/tasks" as Route} onClick={() => persistScrollPosition()} className={mobileItemClass(isTasks)} title="Task Management" aria-current={isTasks ? "page" : undefined}><ClipboardList className="size-4 shrink-0" /><span className="min-w-0 truncate">Task Management</span><span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">New</span></Link>}
-                  {taskCanvasEnabled && <Link href={"/dashboard/task-canvas" as Route} onClick={() => persistScrollPosition()} className={mobileItemClass(isTaskCanvas)} title="Task Canvas" aria-current={isTaskCanvas ? "page" : undefined}><PenTool className="size-4 shrink-0" /><span className="min-w-0 truncate">Task Canvas</span></Link>}
+                  {taskCanvasEnabled && <Link href={"/dashboard/task-canvas" as Route} onClick={() => persistScrollPosition()} className={mobileItemClass(isTaskCanvas)} title="Task Canvas" aria-current={isTaskCanvas ? "page" : undefined}><PenTool className="size-4 shrink-0" /><span className="min-w-0 truncate">Task Canvas</span><span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">New</span></Link>}
                   {vaultEnabled && <Link href={"/dashboard/vault" as Route} onClick={() => persistScrollPosition()} className={mobileItemClass(isVault)} title="Cloud Vault" aria-current={isVault ? "page" : undefined}><FolderOpen className="size-4 shrink-0" /><span className="min-w-0 truncate">Cloud Vault</span><span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">New</span></Link>}
                   {liveChatEnabled && <Link href={"/dashboard/live-chat" as Route} onClick={() => persistScrollPosition()} className={mobileItemClass(isLiveChat)} title="Live Chat" aria-current={isLiveChat ? "page" : undefined}><MessageCircle className="size-4 shrink-0" /><span className="min-w-0 truncate">Live Chat</span><span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-blue-700">New</span></Link>}
                 </div>

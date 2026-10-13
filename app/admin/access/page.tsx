@@ -7,10 +7,8 @@ export const metadata = { title: "Admin Access · Canvas" };
 
 export default async function AdminAccessPage() {
   const session = await getSession();
-  if (!session || session.role !== "PLATFORM_ADMIN") {
-    return null;
-  }
+  if (!session || session.role !== "PLATFORM_ADMIN") return null;
 
-  const users = await getAdminAccessUsers();
-  return <AdminAccess users={users} currentUserId={session.userId} />;
+  const page = await getAdminAccessUsers({ limit: 5 });
+  return <AdminAccess users={page.items} nextCursor={page.nextCursor} currentUserId={session.userId} />;
 }

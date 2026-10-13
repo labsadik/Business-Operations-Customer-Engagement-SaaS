@@ -43,6 +43,8 @@ type Employee = {
   employmentStatus?: string;
 };
 
+type EmployeePage = { items: Employee[]; nextCursor: string | null };
+
 type TaskDailyUsage = {
   enabled: boolean;
   usedToday: number;
@@ -218,6 +220,8 @@ export default function TaskManagementDashboard({
     (dailyUsage.remainingToday ?? 0) <= 0
   );
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employeeNextCursor, setEmployeeNextCursor] = useState<string | null>(null);
+  const [loadingMoreEmployees, setLoadingMoreEmployees] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [statusFilter, setStatusFilter] = useState<TaskStatus | "ALL">("ALL");
@@ -360,6 +364,14 @@ export default function TaskManagementDashboard({
 
   const loadInFlightRef = useRef<Promise<void> | null>(null);
   const employeeDirectoryLoadedAtRef = useRef(0);
+  const tasksRef = useRef<TaskItem[]>([]);
+  const taskCursorRef = useRef<string | null>(null);
+  const employeesRef = useRef<Employee[]>([]);
+  const employeeCursorRef = useRef<string | null>(null);
+  tasksRef.current = tasks;
+  taskCursorRef.current = nextCursor;
+  employeesRef.current = employees;
+  employeeCursorRef.current = employeeNextCursor;
   const loadQueuedRef = useRef(false);
   const loadTaskRef = useRef<((showSpinner?: boolean) => Promise<void>) | null>(null);
 
@@ -383,7 +395,7 @@ export default function TaskManagementDashboard({
         const refreshEmployeeDirectory =
           Date.now() - employeeDirectoryLoadedAtRef.current >= EMPLOYEE_DIRECTORY_REFRESH_MS;
         const staffRequest = refreshEmployeeDirectory
-          ? api<Employee[]>("/api/company/employees")
+          ? api<EmployeePage>("/api/company/employees?limit=5")
               .then((staff) => {
                 employeeDirectoryLoadedAtRef.current = Date.now();
                 return staff;
@@ -392,18 +404,45 @@ export default function TaskManagementDashboard({
           : Promise.resolve(null);
 
         const [taskPage, staff] = await Promise.all([
-          api<{ items: TaskItem[]; nextCursor: string | null; usage?: TaskDailyUsage }>("/api/tasks?limit=50"),
+          api<{ items: TaskItem[]; nextCursor: string | null; usage?: TaskDailyUsage }>("/api/tasks?limit=5"),
           staffRequest
         ]);
-        setTasks(taskPage.items);
-        setNextCursor(taskPage.nextCursor);
+        const existingTasks = tasksRef.current;
+        const keepTaskTail = existingTasks.length > 5;
+        const refreshedTaskIds = new Set(taskPage.items.map((task) => task.id));
+        const nextTasks = keepTaskTail
+          ? [...taskPage.items, ...existingTasks.filter((task) => !refreshedTaskIds.has(task.id))]
+          : taskPage.items;
+        tasksRef.current = nextTasks;
+        setTasks(nextTasks);
+        if (!keepTaskTail || !taskCursorRef.current) {
+          taskCursorRef.current = taskPage.nextCursor;
+          setNextCursor(taskPage.nextCursor);
+        }
         if (taskPage.usage) setDailyUsage(taskPage.usage);
         if (staff !== null) {
-          setEmployees(staff);
-          const assignableIds = new Set(staff.filter((member) => member.employmentStatus === "ACTIVE").map((member) => member.id));
+          const existingEmployees = employeesRef.current;
+          const keepEmployeeTail = existingEmployees.length > 5;
+          const refreshedEmployeeIds = new Set(staff.items.map((employee) => employee.id));
+          const nextEmployees = keepEmployeeTail
+            ? [...staff.items, ...existingEmployees.slice(5).map((employee) => {
+                const refreshed = staff.items.find((item) => item.id === employee.id);
+                return refreshed ?? employee;
+              }).filter((employee) => !refreshedEmployeeIds.has(employee.id))]
+            : staff.items;
+          employeesRef.current = nextEmployees;
+          setEmployees(nextEmployees);
+          if (!keepEmployeeTail || !employeeCursorRef.current) {
+            employeeCursorRef.current = staff.nextCursor;
+            setEmployeeNextCursor(staff.nextCursor);
+          }
+          const assignableIds = new Set(nextEmployees.filter((member) => member.employmentStatus === "ACTIVE").map((member) => member.id));
           setSelectedAssigneeIds((current) => current.length
-            ? current.filter((id) => assignableIds.has(id))
-            : assignableIds.has(userId) ? [userId] : []);
+            ? current.filter((id) => {
+                const loaded = nextEmployees.find((member) => member.id === id);
+                return !loaded || loaded.employmentStatus === "ACTIVE";
+              })
+            : [userId]);
         }
       } catch (loadError) {
         setError(errorMessage(loadError));
@@ -494,17 +533,41 @@ export default function TaskManagementDashboard({
     setLoadingMore(true);
     setError("");
     try {
-      const params = new URLSearchParams({ limit: "50", cursor: nextCursor });
+      const params = new URLSearchParams({ limit: "5", cursor: nextCursor });
       const page = await api<{ items: TaskItem[]; nextCursor: string | null }>("/api/tasks?" + params.toString());
-      setTasks((current) => {
-        const knownIds = new Set(current.map((task) => task.id));
-        return [...current, ...page.items.filter((task) => !knownIds.has(task.id))];
-      });
+      const knownIds = new Set(tasksRef.current.map((task) => task.id));
+      const merged = [...tasksRef.current, ...page.items.filter((task) => !knownIds.has(task.id))];
+      tasksRef.current = merged;
+      setTasks(merged);
+      taskCursorRef.current = page.nextCursor;
       setNextCursor(page.nextCursor);
     } catch (loadError) {
       setError(errorMessage(loadError));
     } finally {
       setLoadingMore(false);
+    }
+  }
+
+  async function loadMoreEmployees() {
+    const cursor = employeeCursorRef.current;
+    if (!cursor || loadingMoreEmployees) return;
+    setLoadingMoreEmployees(true);
+    setError("");
+    try {
+      const params = new URLSearchParams({ limit: "5", cursor });
+      const page = await api<EmployeePage>("/api/company/employees?" + params.toString());
+      const knownIds = new Set(employeesRef.current.map((employee) => employee.id));
+      const merged = [...employeesRef.current, ...page.items.filter((employee) => !knownIds.has(employee.id))];
+      employeesRef.current = merged;
+      setEmployees(merged);
+      employeeCursorRef.current = page.nextCursor;
+      setEmployeeNextCursor(page.nextCursor);
+      const assignableIds = new Set(merged.filter((employee) => employee.employmentStatus === "ACTIVE").map((employee) => employee.id));
+      setSelectedAssigneeIds((current) => current.filter((id) => assignableIds.has(id) || id === userId));
+    } catch (loadError) {
+      setError(errorMessage(loadError));
+    } finally {
+      setLoadingMoreEmployees(false);
     }
   }
 
@@ -767,7 +830,7 @@ export default function TaskManagementDashboard({
             <div className="flex min-w-0 items-center gap-2 sm:gap-3">
               <button
                 type="button"
-                onClick={() => void load()}
+                onClick={() => void load(false)}
                 disabled={loading}
                 className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 sm:px-3.5"
               >
@@ -862,11 +925,12 @@ export default function TaskManagementDashboard({
             </button>
           </section>
           {teamDirectoryOpen && <div className="fixed inset-0 z-[90] overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6"><section role="dialog" aria-modal="true" aria-labelledby="team-directory-title" className="mx-auto my-4 w-full max-w-5xl rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-7">
-            <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700">People workspace</p><h2 id="team-directory-title" className="mt-1 text-xl font-bold text-slate-950">Team availability</h2><p className="mt-1 text-sm text-slate-500">Select a status to review members available for work.</p></div><button type="button" onClick={()=>setTeamDirectoryOpen(false)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold">Close</button></div>
+            <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700">People workspace</p><h2 id="team-directory-title" className="mt-1 text-xl font-bold text-slate-950">Team availability</h2><p className="mt-1 text-sm text-slate-500">Five members load at a time. Load more to browse the whole team.</p></div><button type="button" onClick={()=>setTeamDirectoryOpen(false)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold">Close</button></div>
             <div className="mt-5 grid grid-cols-3 gap-2">{([{v:"ACTIVE" as const,l:"Active",n:employees.filter((e)=>e.employmentStatus==="ACTIVE").length},{v:"ON_LEAVE" as const,l:"On leave",n:employees.filter((e)=>e.employmentStatus==="ON_LEAVE").length},{v:"INACTIVE" as const,l:"Inactive",n:employees.filter((e)=>e.employmentStatus==="INACTIVE").length}]).map(x=><button key={x.v} type="button" onClick={()=>setTeamDirectoryFilter(x.v)} className={"rounded-2xl border p-3 text-left "+(teamDirectoryFilter===x.v?"border-blue-300 bg-blue-50":"border-slate-200 bg-white")}><p className="text-[10px] font-semibold uppercase">{x.l}</p><p className="mt-1 text-2xl font-bold">{x.n}</p></button>)}</div>
-            <button type="button" onClick={()=>setTeamDirectoryFilter("ALL")} className={"mt-3 rounded-full px-3 py-1.5 text-xs font-semibold "+(teamDirectoryFilter==="ALL"?"bg-slate-900 text-white":"bg-slate-100 text-slate-600")}>All team ({employees.length})</button>
+            <button type="button" onClick={()=>setTeamDirectoryFilter("ALL")} className={"mt-3 rounded-full px-3 py-1.5 text-xs font-semibold "+(teamDirectoryFilter==="ALL"?"bg-slate-900 text-white":"bg-slate-100 text-slate-600")}>All loaded team ({employees.length})</button>
             <div className="mt-4 grid max-h-[58vh] gap-3 overflow-y-auto sm:grid-cols-2 xl:grid-cols-3">{employees.filter((e)=>teamDirectoryFilter==="ALL"||e.employmentStatus===teamDirectoryFilter).map(employee=><article key={employee.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 p-3"><UserAvatar name={employee.name||employee.email} email={employee.email} image={employee.image} size={42}/><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{employee.name||employee.email}{employee.id===userId?" (you)":""}</p><p className="truncate text-[11px] text-slate-500">{employee.email}</p><p className="text-[10px] text-slate-400">{employee.role.replaceAll("_"," ").toLowerCase()}</p></div><span className={"rounded-full px-2 py-1 text-[9px] font-semibold "+employmentStatusClasses(employee.employmentStatus)}>{employmentStatusName(employee.employmentStatus)}</span></article>)}
               {employees.filter((e)=>teamDirectoryFilter==="ALL"||e.employmentStatus===teamDirectoryFilter).length===0&&<p className="col-span-full p-8 text-center text-sm text-slate-500">No members in this availability group.</p>}</div>
+            {employeeNextCursor && <div className="mt-4 flex justify-center"><button type="button" onClick={() => void loadMoreEmployees()} disabled={loadingMoreEmployees} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">{loadingMoreEmployees ? <LoaderCircle className="size-4 animate-spin" /> : <Plus className="size-4" />}{loadingMoreEmployees ? "Loading 5 more members…" : "Load 5 more members"}</button></div>}
           </section></div>}
           {statusOverviewOpen && <div className="fixed inset-0 z-[90] overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6"><section role="dialog" aria-modal="true" aria-labelledby="task-status-overview-title" className="mx-auto my-4 w-full max-w-6xl rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-7">
             <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-violet-700">Operations workspace</p><h2 id="task-status-overview-title" className="mt-1 text-xl font-bold text-slate-950">Task status overview</h2><p className="mt-1 text-sm text-slate-500">Counts reflect loaded tasks; select a status to filter its work.</p></div><button type="button" onClick={()=>setStatusOverviewOpen(false)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold">Close</button></div>
@@ -1081,6 +1145,7 @@ export default function TaskManagementDashboard({
                         {employees.length ? "No members are currently active and available for new task assignments." : "No active workspace members were found."}
                       </p>
                     )}
+                    {employeeNextCursor && <div className="mt-3 flex justify-end"><button type="button" onClick={() => void loadMoreEmployees()} disabled={loadingMoreEmployees} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-[11px] font-semibold text-slate-700 disabled:opacity-50">{loadingMoreEmployees ? "Loading…" : "Load 5 more employees"}</button></div>}
                   </fieldset>
 
                   <div className="flex justify-end">
@@ -1370,7 +1435,7 @@ export default function TaskManagementDashboard({
                   <div className="flex items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-4">
                     <button type="button" onClick={() => void loadMoreTasks()} disabled={loadingMore} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
                       {loadingMore ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <Plus className="size-4" aria-hidden="true" />}
-                      {loadingMore ? "Loading more tasks…" : "Load 50 more tasks"}
+                      {loadingMore ? "Loading more tasks…" : "Load 5 more tasks"}
                     </button>
                   </div>
                 )}

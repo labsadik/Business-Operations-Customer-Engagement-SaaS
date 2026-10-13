@@ -165,7 +165,7 @@ test("task management provides enterprise filters, list/board views, pagination 
     'aria-label="Filter by task ownership"',
     'aria-label="List view"',
     'aria-label="Board view"',
-    "Load 50 more tasks",
+    "Load 5 more tasks",
     "Overdue",
     "syncTaskFromDetail",
     "Something went wrong while working with tasks"

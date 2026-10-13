@@ -1,7 +1,7 @@
 import { Types } from "mongoose";
 
-export const TASK_PAGE_SIZE_DEFAULT = 25;
-export const TASK_PAGE_SIZE_MAX = 100;
+export const TASK_PAGE_SIZE_DEFAULT = 5;
+export const TASK_PAGE_SIZE_MAX = 50;
 
 export function parseTaskLimit(value: string | null) {
   const raw = Number(value ?? String(TASK_PAGE_SIZE_DEFAULT));
