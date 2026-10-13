@@ -54,7 +54,7 @@ test("public company ID migration preserves issued IDs and verifies uniqueness b
 
   assert.ok(migration.includes('const SEQUENCE_ID = "company-public-id"'));
   assert.ok(migration.includes("sort({ createdAt: 1, _id: 1 })"));
-  assert.ok(migration.includes("Never silently renumber an ID already issued."));
+  assert.ok(migration.includes("never silently renumber an ID already issued."));
   assert.ok(migration.includes('name: "uniq_company_public_id"'));
   assert.ok(migration.includes("remainingMissingPublicIds: finalMissing"));
   assert.ok(packageJson.scripts["company-ids:migrate"].includes("migrate-company-public-ids.mjs"));
