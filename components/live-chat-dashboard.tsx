@@ -303,7 +303,7 @@ export default function LiveChatDashboard({
       if (search) params.set("search", search);
       const data = await api<{ items: Conversation[]; nextCursor: string | null; usage: Usage }>("/api/live-chat?" + params.toString());
       const latestFilter = inboxFilterRef.current;
-      if (requestId !== inboxRequestRef.current || latestFilter.status !== status || latestFilter.search !== conversationSearch) return;
+      if (requestId !== inboxRequestRef.current || latestFilter.status !== status || latestFilter.search !== search) return;
       setItems((current) => {
         const known = new Set(current.map((item) => item.id));
         return [...current, ...data.items.filter((item) => !known.has(item.id))];
