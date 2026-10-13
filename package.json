@@ -39,7 +39,8 @@
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "redis": "6.3.0",
-    "@sentry/nextjs": "11.6.0"
+    "@sentry/nextjs": "11.6.0",
+    "@excalidraw/excalidraw": "0.18.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.1",
