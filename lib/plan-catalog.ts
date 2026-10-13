@@ -86,6 +86,9 @@ export function createEntitlementSnapshot(plan: PlanEntitlements): PlanEntitleme
       (plan as Partial<PlanEntitlements>).taskManagementDailyLimit === undefined
         ? 10
         : plan.taskManagementDailyLimit,
+    taskCanvasEnabled: Boolean((plan as Partial<PlanEntitlements>).taskCanvasEnabled),
+    taskCanvasMaxCollaborators: (plan as Partial<PlanEntitlements>).taskCanvasMaxCollaborators ?? 2,
+    taskCanvasHistoryLimit: (plan as Partial<PlanEntitlements>).taskCanvasHistoryLimit ?? 10,
     vaultEnabled: Boolean((plan as Partial<PlanEntitlements>).vaultEnabled),
     vaultQuotaBytes: (plan as Partial<PlanEntitlements>).vaultQuotaBytes ?? 5368709120,
     vaultMaxFileBytes: (plan as Partial<PlanEntitlements>).vaultMaxFileBytes ?? 104857600,
@@ -133,6 +136,9 @@ export function isValidEntitlementSnapshot(value: unknown): value is PlanEntitle
       item.taskManagementDailyLimit === null ||
       isPositiveSafeInteger(item.taskManagementDailyLimit)
     ) &&
+    (item.taskCanvasEnabled === undefined || typeof item.taskCanvasEnabled === "boolean") &&
+    (item.taskCanvasMaxCollaborators === undefined || (isPositiveSafeInteger(item.taskCanvasMaxCollaborators) && item.taskCanvasMaxCollaborators >= 2 && item.taskCanvasMaxCollaborators <= 200)) &&
+    (item.taskCanvasHistoryLimit === undefined || (isPositiveSafeInteger(item.taskCanvasHistoryLimit) && item.taskCanvasHistoryLimit <= 100)) &&
     (item.vaultEnabled === undefined || typeof item.vaultEnabled === "boolean") &&
     (item.vaultQuotaBytes === undefined || isPositiveSafeInteger(item.vaultQuotaBytes)) &&
     (item.vaultMaxFileBytes === undefined || isPositiveSafeInteger(item.vaultMaxFileBytes)) &&
@@ -174,6 +180,9 @@ export function serializeManagedPlan(doc: any): ManagedPlan {
         : doc.taskManagementDailyLimit === null
           ? null
           : Number(doc.taskManagementDailyLimit),
+    taskCanvasEnabled: Boolean(doc.taskCanvasEnabled),
+    taskCanvasMaxCollaborators: Number(doc.taskCanvasMaxCollaborators ?? 2),
+    taskCanvasHistoryLimit: Number(doc.taskCanvasHistoryLimit ?? 10),
     vaultEnabled: Boolean(doc.vaultEnabled),
     vaultQuotaBytes: Number(doc.vaultQuotaBytes ?? 5368709120),
     vaultMaxFileBytes: Number(doc.vaultMaxFileBytes ?? 104857600),
@@ -250,6 +259,9 @@ function seedPlanDocument(id: string, index: number) {
     maxConcurrentMeetings: plan.maxConcurrentMeetings,
     taskManagementEnabled: plan.taskManagementEnabled,
     taskManagementDailyLimit: plan.taskManagementDailyLimit,
+    taskCanvasEnabled: plan.taskCanvasEnabled,
+    taskCanvasMaxCollaborators: plan.taskCanvasMaxCollaborators,
+    taskCanvasHistoryLimit: plan.taskCanvasHistoryLimit,
     vaultEnabled: plan.vaultEnabled,
     vaultQuotaBytes: plan.vaultQuotaBytes,
     vaultMaxFileBytes: plan.vaultMaxFileBytes,

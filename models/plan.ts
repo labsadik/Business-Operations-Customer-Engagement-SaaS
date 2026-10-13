@@ -43,6 +43,9 @@ const planSchema = new Schema(
       min: 1,
       max: 1000000
     },
+    taskCanvasEnabled: { type: Boolean, required: true, default: false },
+    taskCanvasMaxCollaborators: { type: Number, required: true, default: 2, min: 2, max: 200 },
+    taskCanvasHistoryLimit: { type: Number, required: true, default: 10, min: 1, max: 100 },
     vaultEnabled: { type: Boolean, required: true, default: false },
     vaultQuotaBytes: { type: Number, required: true, default: 5368709120, min: 1048576, max: Number.MAX_SAFE_INTEGER },
     vaultMaxFileBytes: { type: Number, required: true, default: 104857600, min: 1048576, max: 262144000 },

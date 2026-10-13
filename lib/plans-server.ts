@@ -269,6 +269,9 @@ export async function getCompanyEntitlements(companyId: string): Promise<PlanEnt
           currentPlan.taskManagementDailyLimit === undefined
             ? snapshot.taskManagementDailyLimit ?? 10
             : currentPlan.taskManagementDailyLimit,
+        taskCanvasEnabled: Boolean(currentPlan.taskCanvasEnabled),
+        taskCanvasMaxCollaborators: currentPlan.taskCanvasMaxCollaborators ?? snapshot.taskCanvasMaxCollaborators ?? 2,
+        taskCanvasHistoryLimit: currentPlan.taskCanvasHistoryLimit ?? snapshot.taskCanvasHistoryLimit ?? 10,
         vaultEnabled: Boolean(currentPlan.vaultEnabled),
         vaultQuotaBytes: currentPlan.vaultQuotaBytes ?? snapshot.vaultQuotaBytes ?? 5368709120,
         vaultMaxFileBytes: currentPlan.vaultMaxFileBytes ?? snapshot.vaultMaxFileBytes ?? 104857600,
@@ -284,7 +287,10 @@ export async function getCompanyEntitlements(companyId: string): Promise<PlanEnt
       }
     : {
         ...snapshot,
-        taskManagementDailyLimit: snapshot.taskManagementDailyLimit ?? 10
+        taskManagementDailyLimit: snapshot.taskManagementDailyLimit ?? 10,
+        taskCanvasEnabled: Boolean(snapshot.taskCanvasEnabled),
+        taskCanvasMaxCollaborators: snapshot.taskCanvasMaxCollaborators ?? 2,
+        taskCanvasHistoryLimit: snapshot.taskCanvasHistoryLimit ?? 10
       };
 }
 
