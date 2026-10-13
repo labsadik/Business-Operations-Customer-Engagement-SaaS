@@ -349,7 +349,7 @@ export default function LiveChatDashboard({
         setMessages(data.messages);
         setMessagesNextCursor(data.nextCursor);
       }
-      setItems((current) => current.map((item) => item.id === conversationId ? { ...item, ...data.conversation } : item));
+      setItems((current) => current.map((item) => item.id === conversationId ? { ...item, ...data.conversation, messageCount: Math.max(item.messageCount, data.conversation.messageCount ?? data.messages.length) } : item));
     } catch (cause) {
       if (!quiet) setError((cause as Error & { code?: string }).code ?? (cause as Error).message);
     } finally {
