@@ -128,14 +128,16 @@ test("large embedded images are compressed client-side before bounded scene writ
 
 
 test("Task Canvas history retention is company-wide and safely prunes legacy per-canvas overages", async () => {
-  const [historyHelper, revisionModel, listRoute, canvasRoute, historyRoute, adminPlans, dashboard] = await Promise.all([
+  const [historyHelper, revisionModel, listRoute, canvasRoute, historyRoute, adminPlans, dashboard, authorization, page] = await Promise.all([
     readFile(new URL("../lib/task-canvas-history.ts", import.meta.url), "utf8"),
     readFile(new URL("../models/task-canvas-revision.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/task-canvas/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/task-canvas/[canvasId]/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/task-canvas/[canvasId]/history/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../components/admin-plans.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../features/task-canvas/components/task-canvas-dashboard.tsx", import.meta.url), "utf8")
+    readFile(new URL("../features/task-canvas/components/task-canvas-dashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/task-canvas-authorization.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/dashboard/task-canvas/page.tsx", import.meta.url), "utf8")
   ]);
 
   assert.match(historyHelper, /TaskCanvasRevision\.find\(\{ companyId: tenantId \}\)/);
@@ -154,6 +156,10 @@ test("Task Canvas history retention is company-wide and safely prunes legacy per
   assert.match(historyRoute, /returnDocument: "after"/);
   assert.match(adminPlans, /Saved history versions per company/);
   assert.match(dashboard, /Company-wide history/);
+  assert.match(authorization, /const plan = await getCompanyEntitlements\(companyId\)/);
+  assert.doesNotMatch(authorization, /maxCollaborators: 200, historyLimit: 100/);
+  assert.match(page, /if \(!entitlements\.taskCanvasEnabled\)/);
+  assert.doesNotMatch(page, /session\.role === "PLATFORM_ADMIN"\s*\?\s*200/);
 });
 
 test("Task Canvas collaborator profiles render Google avatars and legacy member duplicates are hidden", async () => {
