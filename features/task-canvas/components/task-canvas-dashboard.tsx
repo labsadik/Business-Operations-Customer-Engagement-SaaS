@@ -180,7 +180,6 @@ function errorText(code: string) {
     CANVAS_VERSION_CONFLICT: "A teammate saved a newer version. Load the latest version before continuing.",
     CANVAS_COLLABORATOR_LIMIT: "This plan's people-per-canvas limit has been reached.",
     CANVAS_MEMBER_INVALID: "Every collaborator must be an active member of this company workspace.",
-    CANVAS_SCENE_TOO_LARGE: "This drawing is too large to save. Remove oversized images or unused elements.",
     CANVAS_CREATION_LIMIT: "This workspace has reached its canvas limit."
   };
   return messages[code] ?? code.replaceAll("_", " ").toLocaleLowerCase();
@@ -543,7 +542,6 @@ export default function TaskCanvasDashboard({
     if (!confirmed) return;
     try {
       await api<{ deleted: boolean }>("/api/task-canvas/" + selected.id, { method: "DELETE" });
-      const remaining = items.filter((item) => item.id !== selected.id);
       selectedIdRef.current = "";
       setSelectedId("");
       setItems(remaining);
