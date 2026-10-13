@@ -59,10 +59,16 @@ export async function GET(request: Request, { params }: Params) {
       lastEditorUserId: canvas.lastEditorUserId ? String(canvas.lastEditorUserId) : null
     };
     if (new URL(request.url).searchParams.get("meta") === "1") return jsonOk({ item });
+    await pruneCompanyTaskCanvasHistory(filter.companyId, scope.historyLimit);
+    const historyUsed = await TaskCanvasRevision.countDocuments({ companyId: filter.companyId });
     return jsonOk({
       item,
       scene: canvas.scene ?? { elements: [], appState: {}, files: {} },
-      limits: { maxCollaborators: scope.maxCollaborators, historyLimit: scope.historyLimit }
+      limits: {
+        maxCollaborators: scope.maxCollaborators,
+        historyLimit: scope.historyLimit,
+        historyUsed
+      }
     });
   } catch (error) {
     return taskCanvasErrorResponse(error, "TASK_CANVAS_READ_FAILED");
