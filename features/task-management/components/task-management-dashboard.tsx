@@ -756,7 +756,7 @@ export default function TaskManagementDashboard({
       />
       <div className={sidebarCollapsed ? "lg:pl-20" : "lg:pl-72"}>
         <header className="sticky top-0 z-40 border-b border-slate-200/90 bg-[#faf9f1]/95 backdrop-blur-xl">
-          <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6 lg:px-8">
+          <div className="mx-auto flex min-h-14 max-w-screen-2xl items-center justify-between gap-3 px-3 sm:px-4 xl:px-6 2xl:px-8">
             <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-600">Workspace</p>
               <h1 className="mt-1 truncate text-base font-semibold tracking-tight text-slate-950">Task management</h1>
@@ -776,15 +776,15 @@ export default function TaskManagementDashboard({
           </div>
         </header>
 
-        <div className="mx-auto max-w-7xl space-y-6 px-5 py-7 sm:px-6 lg:px-8">
-          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="mx-auto max-w-screen-2xl space-y-4 px-3 py-4 sm:px-4 sm:py-5 lg:space-y-5 xl:px-6 2xl:px-8">
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 xl:p-6">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-600">Team work</p>
-                <h2 className="mt-1 text-2xl font-semibold tracking-tight">Tasks for {companyName}</h2>
+                <h2 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">Tasks for {companyName}</h2>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">A project board for assigning work, tracking ownership, and moving tasks through clear stages.</p>
               </div>
-              <div className="flex shrink-0 items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3 ring-1 ring-inset ring-slate-200">
+              <div className="flex shrink-0 items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 ring-1 ring-inset ring-slate-200 sm:px-4 sm:py-2.5">
                 <ClipboardList className="size-5 text-blue-600" />
                 <div>
                   <p className="text-xl font-semibold tabular-nums">{tasks.length}</p>
@@ -792,14 +792,14 @@ export default function TaskManagementDashboard({
                 </div>
               </div>
             </div>
-            <div className="mt-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="mt-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
               <button
                 type="button"
                 aria-label="Search tasks"
                 onClick={() => setSearchOpen(true)}
                 aria-haspopup="dialog"
                 aria-expanded={searchOpen}
-                className="inline-flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-left text-sm text-slate-500 transition hover:border-blue-300 hover:bg-blue-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 lg:max-w-md"
+                className="inline-flex min-w-0 w-full flex-1 items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm text-slate-500 transition hover:border-blue-300 hover:bg-blue-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 xl:max-w-sm"
               >
                 <Search className="size-4 shrink-0" aria-hidden="true" />
                 <span className="truncate">{searchTerm || "Search tasks, descriptions, assignees…"}</span>
@@ -839,21 +839,21 @@ export default function TaskManagementDashboard({
             </div>
           </section>
 
-          <section aria-label="Task workspace folders" className="grid gap-4 lg:grid-cols-3">
-            <button type="button" onClick={() => document.getElementById("task-workspace")?.scrollIntoView({ behavior: "smooth", block: "start" })} aria-label="Go to task workspace" className="group rounded-3xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-              <div className="flex items-start justify-between gap-3"><span className="grid size-12 place-items-center rounded-2xl bg-blue-600 text-white shadow-sm"><FolderOpen className="size-6" aria-hidden="true" /></span><span className="rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-blue-800">Workspace</span></div>
+          <section aria-label="Task workspace folders" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <button type="button" onClick={() => document.getElementById("task-workspace")?.scrollIntoView({ behavior: "smooth", block: "start" })} aria-label="Go to task workspace" className="group rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 via-white to-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-lg xl:p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+              <div className="flex items-start justify-between gap-3"><span className="grid size-10 place-items-center rounded-xl bg-blue-600 text-white shadow-sm xl:size-11"><FolderOpen className="size-6" aria-hidden="true" /></span><span className="rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-blue-800">Workspace</span></div>
               <h2 className="mt-4 text-base font-bold text-slate-950">Task workspace</h2><p className="mt-1 text-xs leading-5 text-slate-600">Use the Kanban board, calendar, timeline and task list directly on this page.</p>
               <div className="mt-4 flex items-center justify-between gap-3 border-t border-blue-100 pt-3"><span className="text-xs font-semibold text-slate-700"><strong className="text-slate-950">{tasks.length}</strong> tasks loaded</span><span className="text-[11px] font-semibold text-blue-700 group-hover:underline">View workspace ↓</span></div>
               <div className="mt-3 flex items-center gap-1.5">{employees.slice(0,4).map((employee)=><span key={employee.id} className="-ml-0.5 inline-flex rounded-full ring-2 ring-white"><UserAvatar name={employee.name || employee.email} email={employee.email} image={employee.image} size={26}/></span>)}{employees.length>4&&<span className="text-[10px] font-semibold text-slate-500">+{employees.length-4} people</span>}</div>
             </button>
-            <button type="button" onClick={() => { setTeamDirectoryFilter("ALL"); setTeamDirectoryOpen(true); }} aria-haspopup="dialog" className="group rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
-              <div className="flex items-start justify-between gap-3"><span className="grid size-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-700"><Users className="size-6" aria-hidden="true"/></span><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-800">People</span></div>
+            <button type="button" onClick={() => { setTeamDirectoryFilter("ALL"); setTeamDirectoryOpen(true); }} aria-haspopup="dialog" className="group rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-lg xl:p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+              <div className="flex items-start justify-between gap-3"><span className="grid size-10 place-items-center rounded-xl bg-emerald-50 text-emerald-700 xl:size-11"><Users className="size-6" aria-hidden="true"/></span><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-800">People</span></div>
               <h2 className="mt-4 text-base font-bold text-slate-950">Team directory</h2><p className="mt-1 text-xs leading-5 text-slate-600">Inspect team availability, leave and inactive accounts.</p>
               <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3 text-[10px] font-semibold"><span className="rounded-full bg-emerald-50 px-2.5 py-1.5 text-emerald-800">{employees.filter((e)=>e.employmentStatus==="ACTIVE").length} active</span><span className="rounded-full bg-amber-50 px-2.5 py-1.5 text-amber-800">{employees.filter((e)=>e.employmentStatus==="ON_LEAVE").length} on leave</span><span className="rounded-full bg-rose-50 px-2.5 py-1.5 text-rose-800">{employees.filter((e)=>e.employmentStatus==="INACTIVE").length} inactive</span></div>
               <div className="mt-3 flex items-center gap-1.5">{employees.slice(0,5).map((employee)=><span key={employee.id} className="-ml-0.5 inline-flex rounded-full ring-2 ring-white"><UserAvatar name={employee.name || employee.email} email={employee.email} image={employee.image} size={25}/></span>)}</div>
             </button>
-            <button type="button" onClick={() => { setStatusOverviewFilter("ALL"); setStatusOverviewOpen(true); }} aria-haspopup="dialog" className="group rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500">
-              <div className="flex items-start justify-between gap-3"><span className="grid size-12 place-items-center rounded-2xl bg-violet-50 text-violet-700"><ClipboardList className="size-6" aria-hidden="true"/></span><span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-violet-800">Operations</span></div>
+            <button type="button" onClick={() => { setStatusOverviewFilter("ALL"); setStatusOverviewOpen(true); }} aria-haspopup="dialog" className="group rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-lg xl:p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500">
+              <div className="flex items-start justify-between gap-3"><span className="grid size-10 place-items-center rounded-xl bg-violet-50 text-violet-700 xl:size-11"><ClipboardList className="size-6" aria-hidden="true"/></span><span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-violet-800">Operations</span></div>
               <h2 className="mt-4 text-base font-bold text-slate-950">Task status</h2><p className="mt-1 text-xs leading-5 text-slate-600">See task counts and inspect each stage.</p>
               <div className="mt-4 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3"><div className="rounded-xl bg-slate-50 px-2 py-2"><p className="text-lg font-bold text-slate-900">{taskMetrics.total}</p><p className="text-[9px] text-slate-500">Loaded</p></div><div className="rounded-xl bg-blue-50 px-2 py-2"><p className="text-lg font-bold text-blue-700">{taskMetrics.active}</p><p className="text-[9px] text-blue-700">Active</p></div><div className="rounded-xl bg-rose-50 px-2 py-2"><p className="text-lg font-bold text-rose-700">{taskMetrics.blocked}</p><p className="text-[9px] text-rose-700">Locked</p></div></div>
             </button>
@@ -960,14 +960,14 @@ export default function TaskManagementDashboard({
             </section>
           ) : (
             <>
-              <section aria-label="Task workload summary" className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+              <section aria-label="Task workload summary" className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
                 {[
                   { label: "Tasks loaded", value: taskMetrics.total, detail: nextCursor ? "More tasks available" : "All tasks loaded", tone: "text-slate-950" },
                   { label: "Active work", value: taskMetrics.active, detail: "Not completed or cancelled", tone: "text-blue-700" },
                   { label: "In progress", value: taskMetrics.inProgress, detail: "Being worked on", tone: "text-indigo-700" },
                   { label: "Blocked / overdue", value: taskMetrics.blocked + taskMetrics.overdue, detail: taskMetrics.blocked + " blocked · " + taskMetrics.overdue + " overdue", tone: taskMetrics.blocked + taskMetrics.overdue > 0 ? "text-rose-700" : "text-slate-950" }
                 ].map((metric) => (
-                  <article key={metric.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                  <article key={metric.label} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
                     <p className="text-[11px] font-semibold text-slate-500">{metric.label}</p>
                     <p className={`mt-2 text-2xl font-semibold tracking-tight tabular-nums ${metric.tone}`}>{metric.value}</p>
                     <p className="mt-1 text-[10px] leading-4 text-slate-400">{metric.detail}</p>
@@ -1096,29 +1096,29 @@ export default function TaskManagementDashboard({
               </div>
               )}
 
-              <section id="task-workspace" aria-labelledby="task-workspace-title" className="scroll-mt-24 space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-3 sm:p-5">
-                <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+              <section id="task-workspace" aria-labelledby="task-workspace-title" className="scroll-mt-20 min-w-0 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-2.5 sm:p-3.5 xl:p-4">
+                <div className="mb-3 flex flex-col gap-2.5 rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
                   <div><p className="text-[10px] font-bold uppercase tracking-[0.15em] text-blue-700">WORKSPACE</p><h2 id="task-workspace-title" className="mt-1 text-xl font-bold text-slate-950">Task workspace</h2><p className="mt-1 text-xs text-slate-500">Switch between the Kanban board, calendar, timeline and task list.</p></div>
                   <span className="inline-flex w-fit items-center rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700">{filteredTasks.length} matching tasks</span>
                 </div>
-                <section className="space-y-3">
-                <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 sm:flex-row sm:flex-wrap sm:items-center">
+                <section className="min-w-0 space-y-3">
+                <div className="flex min-w-0 flex-col gap-2 rounded-xl border border-slate-200 bg-white p-2.5 sm:flex-row sm:flex-wrap sm:items-center">
                   <div className="flex items-center gap-2 text-xs font-semibold text-slate-500"><Filter className="size-4" aria-hidden="true" />Filters</div>
-                  <label className="min-w-36 flex-1 sm:flex-none">
+                  <label className="w-full min-w-0 flex-1 sm:w-auto sm:min-w-[8.5rem]">
                     <span className="sr-only">Filter tasks by status</span>
                     <select aria-label="Filter tasks by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as TaskStatus | "ALL")} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
                       <option value="ALL">All statuses</option>
                       {TASK_STATUSES.map((item) => <option key={item} value={item}>{labelStatus(item)}</option>)}
                     </select>
                   </label>
-                  <label className="min-w-32 flex-1 sm:flex-none">
+                  <label className="w-full min-w-0 flex-1 sm:w-auto sm:min-w-[7.5rem]">
                     <span className="sr-only">Filter tasks by priority</span>
                     <select aria-label="Filter tasks by priority" value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value as TaskPriority | "ALL")} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
                       <option value="ALL">All priorities</option>
                       {TASK_PRIORITIES.map((item) => <option key={item} value={item}>{labelStatus(item)}</option>)}
                     </select>
                   </label>
-                  <label className="min-w-40 flex-1 sm:flex-none">
+                  <label className="w-full min-w-0 flex-1 sm:w-auto sm:min-w-[9rem]">
                     <span className="sr-only">Filter by task ownership</span>
                     <select aria-label="Filter by task ownership" value={ownerFilter} onChange={(event) => setOwnerFilter(event.target.value as TaskOwnerFilter)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
                       <option value="ALL">Everyone’s tasks</option>
@@ -1193,7 +1193,7 @@ export default function TaskManagementDashboard({
                     </div>
                   </section>
                 ) : viewMode === "TIMELINE" ? (
-                  <section aria-label="Task timeline" className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+                  <section aria-label="Task timeline" className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4 xl:p-5">
                     <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between"><div><h3 className="text-base font-bold">Task timeline</h3><p className="mt-1 text-xs text-slate-500">Chronological view of due dates, owners, priority and progress.</p></div><div className="flex gap-2 text-[10px] font-semibold"><span className="rounded-full bg-blue-50 px-2.5 py-1.5 text-blue-700">{taskMetrics.inProgress} in progress</span><span className="rounded-full bg-rose-50 px-2.5 py-1.5 text-rose-700">{taskMetrics.blocked} locked</span><span className="rounded-full bg-emerald-50 px-2.5 py-1.5 text-emerald-700">{tasksByStatus.COMPLETED.length} complete</span></div></div>
                     {timelineTasks.length?<div className="relative mt-5 space-y-4 pl-6 before:absolute before:bottom-3 before:left-[9px] before:top-2 before:w-px before:bg-slate-200">{timelineTasks.map(task=>{
                       const target=task.dueAt?new Date(task.dueAt):new Date(task.startedAt??task.createdAt), overdue=Boolean(task.dueAt&&target.getTime()<nowMs&&!["COMPLETED","CANCELLED"].includes(task.status)), progress=task.assignmentSummary.total?Math.round(task.assignmentSummary.completed/task.assignmentSummary.total*100):task.status==="COMPLETED"?100:0;
@@ -1204,7 +1204,7 @@ export default function TaskManagementDashboard({
                       </article>;
                     })}</div>:<p className="mt-6 rounded-2xl border border-dashed border-slate-300 p-10 text-center text-sm text-slate-500">No tasks match your filters.</p>}
                   </section>) : viewMode !== "LIST" ? (
-                  <div aria-label="Task status board" className="grid grid-flow-col auto-cols-[minmax(18rem,21rem)] gap-4 overflow-x-auto pb-4">
+                  <div aria-label="Task status board" className="grid min-w-0 grid-flow-col auto-cols-[minmax(14rem,1fr)] gap-2.5 overflow-x-auto overscroll-x-contain pb-3 sm:auto-cols-[minmax(15rem,1fr)] xl:gap-3">
                     {TASK_STATUSES.map((status) => {
                       const columnTasks = tasksByStatus[status];
                       return (
@@ -1231,7 +1231,7 @@ export default function TaskManagementDashboard({
                             if (draggedTask) void moveTaskToStatus(draggedTask, status);
                           }}
                           className={[
-                            "flex min-h-64 min-w-0 flex-col rounded-2xl border border-slate-200 border-t-4 p-3 transition-colors",
+                            "flex min-h-56 min-w-0 flex-col rounded-xl border border-slate-200 border-t-4 p-2.5 transition-colors sm:p-3",
                             status === "IN_PROGRESS" ? "border-t-blue-500" : status === "BLOCKED" ? "border-t-rose-500" : status === "IN_REVIEW" ? "border-t-violet-500" : status === "COMPLETED" ? "border-t-emerald-500" : status === "CANCELLED" ? "border-t-slate-400" : "border-t-slate-500",
                             status === "IN_PROGRESS" ? "bg-blue-50/55" : status === "BLOCKED" ? "bg-rose-50/55" : status === "IN_REVIEW" ? "bg-violet-50/55" : status === "COMPLETED" ? "bg-emerald-50/55" : status === "CANCELLED" ? "bg-slate-100/80" : "bg-slate-50",
                             dropTargetStatus === status ? "ring-2 ring-blue-400 ring-offset-2 shadow-lg" : ""
@@ -1244,7 +1244,7 @@ export default function TaskManagementDashboard({
                             </div>
                             <span className={`rounded-lg px-2 py-1 text-[10px] font-bold ring-1 ring-inset ${statusColumnClasses(status)}`}>{columnTasks.length}</span>
                           </div>
-                          <div className="flex flex-1 flex-col gap-3">
+                          <div className="flex min-w-0 flex-1 flex-col gap-2.5">
                             {columnTasks.length === 0 ? (
                               <div className="rounded-xl border border-dashed border-slate-300/90 bg-white/55 px-3 py-5 text-center text-[11px] text-slate-400">No tasks</div>
                             ) : columnTasks.map((task) => {
@@ -1282,7 +1282,7 @@ export default function TaskManagementDashboard({
                                     draggedTaskId === task.id ? "opacity-55" : ""
                                   ].join(" ")}
                                 >
-                                  <button type="button" onClick={() => void openTask(task.id)} aria-expanded={expanded} className="w-full p-3.5 text-left transition hover:bg-slate-50">
+                                  <button type="button" onClick={() => void openTask(task.id)} aria-expanded={expanded} className="w-full p-2.5 text-left transition hover:bg-slate-50 sm:p-3">
                                     <span className="flex items-center justify-between gap-2">
                                       <span className="inline-flex min-w-0 items-center gap-1 text-[10px] font-semibold tracking-wide text-slate-400">
                                         {canDragTask && <GripVertical className="size-3.5 shrink-0 text-slate-300" aria-hidden="true" />}
@@ -1320,7 +1320,7 @@ export default function TaskManagementDashboard({
                 ) : (
                   <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                     <div className="overflow-x-auto">
-                      <table className="w-full min-w-[980px] border-collapse text-left">
+                      <table className="w-full min-w-[860px] border-collapse text-left">
                         <thead className="border-b border-slate-200 bg-slate-50"><tr>
                           {["Task", "Assignees", "Priority", "Status", "Due date", "Progress"].map((heading) => <th key={heading} scope="col" className="px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">{heading}</th>)}
                         </tr></thead>
@@ -1335,21 +1335,21 @@ export default function TaskManagementDashboard({
                             return (
                               <Fragment key={task.id}>
                                 <tr className="transition hover:bg-slate-50/80">
-                                  <td className="max-w-[320px] px-4 py-3.5">
+                                  <td className="max-w-[280px] px-3 py-3">
                                     <button type="button" onClick={() => void openTask(task.id)} aria-expanded={expandedTaskId === task.id} className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
                                       <span className="block text-[10px] font-semibold tracking-wide text-slate-400">TASK-{task.id.slice(-6).toUpperCase()}</span>
                                       <span className="mt-1 block truncate text-sm font-semibold text-slate-900">{task.title}</span>
                                       {task.description && <span className="mt-1 block line-clamp-2 text-[11px] leading-4 text-slate-500">{task.description}</span>}
                                     </button>
                                   </td>
-                                  <td className="px-4 py-3.5"><div className="flex items-center gap-2">
+                                  <td className="px-3 py-3"><div className="flex items-center gap-2">
                                     <span className="inline-flex shrink-0 -space-x-2">{assigneeMembers.slice(0, 3).map((employee) => <UserAvatar key={employee.id} name={employee.name || employee.email} email={employee.email} image={employee.image} size={24} className="border-2 border-white text-[8px]" />)}</span>
                                     <span className="max-w-40 truncate text-xs text-slate-600">{assigneeNames.join(", ") || "Unassigned"}</span>
                                   </div></td>
-                                  <td className="px-4 py-3.5"><span className={`inline-flex rounded-md px-2 py-1 text-[10px] font-semibold ring-1 ring-inset ${priorityClasses(task.priority)}`}>{labelStatus(task.priority)}</span></td>
-                                  <td className="px-4 py-3.5"><span className={`inline-flex rounded-md px-2 py-1 text-[10px] font-semibold ring-1 ring-inset ${statusColumnClasses(task.status)}`}>{labelStatus(task.status)}</span></td>
-                                  <td className={`whitespace-nowrap px-4 py-3.5 text-xs ${overdue ? "font-semibold text-rose-700" : "text-slate-500"}`}>{overdue && <span className="mr-1">Overdue ·</span>}{formatDate(task.dueAt)}</td>
-                                  <td className="px-4 py-3.5"><div className="flex items-center gap-2">
+                                  <td className="px-3 py-3"><span className={`inline-flex rounded-md px-2 py-1 text-[10px] font-semibold ring-1 ring-inset ${priorityClasses(task.priority)}`}>{labelStatus(task.priority)}</span></td>
+                                  <td className="px-3 py-3"><span className={`inline-flex rounded-md px-2 py-1 text-[10px] font-semibold ring-1 ring-inset ${statusColumnClasses(task.status)}`}>{labelStatus(task.status)}</span></td>
+                                  <td className={`whitespace-nowrap px-3 py-3 text-xs ${overdue ? "font-semibold text-rose-700" : "text-slate-500"}`}>{overdue && <span className="mr-1">Overdue ·</span>}{formatDate(task.dueAt)}</td>
+                                  <td className="px-3 py-3"><div className="flex items-center gap-2">
                                     <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${task.assignmentSummary.total ? Math.round(task.assignmentSummary.completed / task.assignmentSummary.total * 100) : 0}%` }} /></div>
                                     <span className="text-[10px] tabular-nums text-slate-500">{task.assignmentSummary.completed}/{task.assignmentSummary.total}</span>
                                   </div></td>

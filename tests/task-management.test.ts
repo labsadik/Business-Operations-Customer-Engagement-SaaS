@@ -439,4 +439,9 @@ test("task dashboard renders the workspace inline and keeps team/status dialogs 
   assert.match(dashboard, /id="task-status-overview-title"/);
   assert.match(dashboard, /Live updates active/);
   assert.match(dashboard, /refreshVisibleTasks, 30_000/);
+  assert.match(dashboard, /max-w-screen-2xl/);
+  assert.match(dashboard, /grid gap-3 sm:grid-cols-2 xl:grid-cols-3/);
+  assert.match(dashboard, /w-full min-w-0 flex-1 sm:w-auto sm:min-w-\[8.5rem\]/);
+  assert.match(dashboard, /auto-cols-\[minmax\(14rem,1fr\)\]/);
+  assert.match(dashboard, /min-w-\[860px\]/);
 });
