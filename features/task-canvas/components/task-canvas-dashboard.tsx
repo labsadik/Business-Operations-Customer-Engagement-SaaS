@@ -544,7 +544,7 @@ export default function TaskCanvasDashboard({
       await api<{ deleted: boolean }>("/api/task-canvas/" + selected.id, { method: "DELETE" });
       selectedIdRef.current = "";
       setSelectedId("");
-      setItems(remaining);
+      setItems((current) => current.filter((item) => item.id !== selected.id));
       viewingHistoryRef.current = false;
       setViewingHistory(false);
       setViewingRevision(null);
