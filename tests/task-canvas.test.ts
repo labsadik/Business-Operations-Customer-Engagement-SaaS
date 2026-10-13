@@ -24,7 +24,7 @@ test("canvas scenes require bounded elements and plain app/file maps", () => {
   assert.throws(() => validateTaskCanvasScene({ elements: [], appState: {}, files: [] }), /CANVAS_SCENE_INVALID/);
   assert.throws(() => validateTaskCanvasScene({
     elements: [],
-    appState: { memo: "x".repeat(1_000_001) },
+    appState: { memo: "x".repeat(2_000_001) },
     files: {}
   }), /CANVAS_SCENE_TOO_LARGE/);
   assert.throws(() => validateTaskCanvasScene({
@@ -70,4 +70,58 @@ test("Task Canvas uses a crosshair cursor only for the selection tool", async ()
   assert.match(component, /activeTool\?\.type === "selection"/);
   assert.match(component, /setCursor\?\.\("crosshair"\)/);
   assert.match(component, /onMouseLeave=\{handleCanvasMouseLeave\}/);
+});
+
+
+test("Task Canvas list, scene and history queries are scoped to both company and workspace", async () => {
+  const [listRoute, canvasRoute, historyRoute, auth] = await Promise.all([
+    readFile(new URL("../app/api/task-canvas/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/task-canvas/[canvasId]/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/task-canvas/[canvasId]/history/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/task-canvas-authorization.ts", import.meta.url), "utf8")
+  ]);
+
+  assert.match(listRoute, /TaskCanvas\.find\(\{ companyId, workspaceId/);
+  assert.match(listRoute, /companyId, workspaceId, active: true/);
+  assert.match(listRoute, /companyId,\s*workspaceId,\s*name,/);
+  assert.match(canvasRoute, /companyId: new Types\.ObjectId\(scope\.companyId\)/);
+  assert.match(canvasRoute, /workspaceId: new Types\.ObjectId\(scope\.workspaceId\)/);
+  assert.match(historyRoute, /canvasId: canvas\.\_id,[\s\S]*?companyId: filter\.companyId,[\s\S]*?workspaceId: filter\.workspaceId/);
+  assert.match(auth, /const companyId = session\.companyId/);
+  assert.match(auth, /const workspaceId = session\.workspaceId/);
+  assert.match(auth, /String\(canvas\.createdByUserId\) === userId/);
+});
+
+test("history preview, rename and delete operations keep revision IDs tenant scoped", async () => {
+  const historyRoute = await readFile(
+    new URL("../app/api/task-canvas/[canvasId]/history/route.ts", import.meta.url),
+    "utf8"
+  );
+  assert.match(historyRoute, /searchParams\.get\("revisionId"\)/);
+  assert.match(historyRoute, /findOneAndUpdate\([\s\S]*?canvasId: canvas\.\_id,[\s\S]*?companyId: filter\.companyId,[\s\S]*?workspaceId: filter\.workspaceId/);
+  assert.match(historyRoute, /deleteOne\([\s\S]*?canvasId: canvas\.\_id,[\s\S]*?companyId: filter\.companyId,[\s\S]*?workspaceId: filter\.workspaceId/);
+});
+
+test("Task Canvas keeps the canvas unselected on first load and uses in-app confirmation", async () => {
+  const component = await readFile(
+    new URL("../features/task-canvas/components/task-canvas-dashboard.tsx", import.meta.url),
+    "utf8"
+  );
+  assert.doesNotMatch(component, /if \(!selectedIdRef\.current && data\.items\.length\) void openCanvas/);
+  assert.doesNotMatch(component, /window\.confirm\(/);
+  assert.match(component, /canvasRailOpen/);
+  assert.match(component, /overflow-y-auto overscroll-contain/);
+});
+
+
+test("large embedded images are compressed client-side before bounded scene writes", async () => {
+  const [component, validation] = await Promise.all([
+    readFile(new URL("../features/task-canvas/components/task-canvas-dashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../features/task-canvas/shared/validation.ts", import.meta.url), "utf8")
+  ]);
+  assert.match(component, /compressSceneImages\(nextScene\)/);
+  assert.match(component, /createImageBitmap\(source\)/);
+  assert.match(component, /canvas\.toBlob\(resolve, "image\/webp", 0\.78\)/);
+  assert.match(component, /code === "CANVAS_SCENE_TOO_LARGE" \? ""/);
+  assert.match(validation, /TASK_CANVAS_SCENE_MAX_BYTES = 2_000_000/);
 });
