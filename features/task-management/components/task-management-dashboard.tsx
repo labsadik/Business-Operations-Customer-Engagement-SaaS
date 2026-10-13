@@ -1252,7 +1252,7 @@ export default function TaskManagementDashboard({
                       <Plus className="size-4" /> Create task
                     </button>
                   </div>
-                ) : filteredTasks.length === 0 ? (
+                ) : filteredTasks.length === 0 && viewMode !== "CALENDAR" && viewMode !== "TIMELINE" ? (
                   <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
                     No tasks match “{searchTerm}”. Try another search.
                   </div>
