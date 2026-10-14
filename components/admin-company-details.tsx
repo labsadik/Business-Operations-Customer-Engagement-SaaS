@@ -311,7 +311,7 @@ export default function AdminCompanyDetailsView({ company }: { company: AdminCom
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
             <div>
               <h3 className="text-sm font-semibold text-slate-900">Canvas records and storage details</h3>
-              <p className="mt-1 text-[11px] text-slate-500">Latest {canvas.items.length} of {canvas.canvasCount} canvases, newest updated first. Scene bytes are compressed payload size; document bytes include MongoDB metadata and indexes are not included.</p>
+              <p className="mt-1 text-[11px] text-slate-500">Latest {canvas.items.length} of {canvas.canvasCount} canvases, newest updated first. Scene storage size is the gzip payload for compressed records or BSON scene size for legacy records; document bytes include metadata but exclude indexes.</p>
             </div>
             <Database className="size-4 text-slate-400" aria-hidden="true" />
           </div>
