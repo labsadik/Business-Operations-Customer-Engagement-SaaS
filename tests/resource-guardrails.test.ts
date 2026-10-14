@@ -879,12 +879,12 @@ test("Google Cloud Run container runs the standard Next.js server and keeps runt
 
   assert.ok(nextConfig.includes('process.env.NEXT_OUTPUT_STANDALONE === "1"'));
   assert.ok(dockerfile.includes("npm ci --no-audit --no-fund"));
-  assert.ok(dockerfile.includes("npm ci --omit=dev --no-audit --no-fund"));
-  assert.ok(dockerfile.includes("/app/.next ./.next"));
-  assert.ok(dockerfile.includes('CMD ["npm", "run", "start"]'));
-  assert.equal(JSON.parse(source("package.json")).scripts.start, "next start");
+  assert.ok(dockerfile.includes("ENV NEXT_OUTPUT_STANDALONE=1"));
+  assert.ok(dockerfile.includes("/app/.next/standalone ./"));
+  assert.ok(dockerfile.includes("/app/.next/static ./.next/static"));
+  assert.ok(dockerfile.includes('CMD ["node", "server.js"]'));
   assert.doesNotMatch(dockerfile, /server\.mjs|WebSocket/);
-  assert.doesNotMatch(dockerfile, /NEXT_OUTPUT_STANDALONE=1|\.next\/standalone/);
+  assert.match(dockerfile, /\.next\/standalone/);
   assert.ok(dockerfile.includes('ENV PORT=8080'));
   assert.ok(dockerfile.includes('ENV HOSTNAME=0.0.0.0'));
   assert.ok(dockerfile.includes("USER nextjs"));
@@ -892,11 +892,22 @@ test("Google Cloud Run container runs the standard Next.js server and keeps runt
   assert.ok(dockerignore.includes(".env.*"));
   assert.ok(gcloudignore.includes(".env.*"));
   assert.ok(deploymentGuide.includes("MONGODB_DB_NAME=Canvas"));
-  assert.ok(deploymentGuide.includes("MONGODB_DB_NAME=canvas_test"));
+  assert.ok(deploymentGuide.includes("CLOUD_RUN_MAX_INSTANCES"));
+  assert.ok(deploymentGuide.includes("CLOUD_RUN_CONCURRENCY"));
   assert.ok(deploymentGuide.includes("Secret Manager"));
   assert.ok(deploymentGuide.includes("/api/jobs/sweep"));
   assert.ok(cloudBuild.includes("gcloud"));
   assert.ok(cloudBuild.includes("$_NEXT_PUBLIC_APP_URL"));
+  const firstBuild = source("cloudbuild-image.yaml");
+  const envTemplate = source("cloudrun.env.example");
+  const deployScript = source("scripts/deploy-cloud-run.ps1");
+  assert.ok(firstBuild.includes("_TAG: manual"));
+  assert.ok(envTemplate.includes("CLOUD_RUN_PROJECT_ID="));
+  assert.ok(deployScript.includes("gcloud builds submit"));
+  assert.ok(deployScript.includes("secretmanager.secretAccessor"));
+  assert.ok(deployScript.includes("--min=0"));
+  assert.ok(deployScript.includes("--max=$maxInstances"));
+  assert.ok(deployScript.includes("canvas-booking-sweep"));
 });
 
 
