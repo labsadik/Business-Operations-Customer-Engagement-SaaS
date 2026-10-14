@@ -516,6 +516,7 @@ async function getAdminTaskCanvasSnapshot(companyId: Types.ObjectId) {
     items: RawItem[];
   }>([
     { $match: { companyId } },
+    { $sort: { updatedAt: -1, _id: -1 } },
     {
       $facet: {
         summary: [
@@ -638,7 +639,6 @@ async function getAdminTaskCanvasSnapshot(companyId: Types.ObjectId) {
           }
         ],
         items: [
-          { $sort: { updatedAt: -1, _id: -1 } },
           { $limit: TASK_CANVAS_ADMIN_ROWS_LIMIT + 1 },
           {
             $project: {
