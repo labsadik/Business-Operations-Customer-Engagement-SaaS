@@ -399,6 +399,15 @@ export async function getAdminVaultUsageTotals(): Promise<AdminVaultUsageTotals>
     totals.overQuotaCompanies += usedBytes > quotaBytes ? 1 : 0;
   }
 
+  // Companies without a subscription or any vault/upload activity are not in
+  // the grouped sets above. If the free plan includes vault access, account for
+  // those untouched companies too instead of silently under-reporting enabled
+  // vaults in the summary.
+  const companiesNotInUsageGroups = Math.max(0, companyCount - companyIds.size);
+  if (Boolean(plansById.get("free")?.vaultEnabled)) {
+    totals.enabledCompanies += companiesNotInUsageGroups;
+  }
+
   totals.disabledCompanies = Math.max(0, totals.companies - totals.enabledCompanies);
   return totals;
 }
