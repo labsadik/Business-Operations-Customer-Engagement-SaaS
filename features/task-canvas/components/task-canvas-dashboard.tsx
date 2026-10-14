@@ -1,11 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Component, type ErrorInfo, type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, Check, CheckCircle2, Clock3, FilePlus2, LoaderCircle, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Trash2, UsersRound, X } from "lucide-react";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
 import UserAvatar from "@/components/user-avatar";
 import { useWorkspaceSidebarState } from "@/components/use-workspace-sidebar-state";
+import { normalizeTaskCanvasScene } from "@/features/task-canvas/shared/validation";
 
 const Excalidraw = dynamic(async () => (await import("@excalidraw/excalidraw")).Excalidraw, {
   ssr: false,
@@ -45,6 +46,45 @@ type CanvasBridge = {
   setCursor?: (cursor: string) => void;
   resetCursor?: () => void;
 };
+
+class TaskCanvasEditorBoundary extends Component<{
+  resetKey: string;
+  onRecover: () => void;
+  children: ReactNode;
+}, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidUpdate(previous: Readonly<{ resetKey: string }>) {
+    if (previous.resetKey !== this.props.resetKey && this.state.hasError) {
+      this.setState({ hasError: false });
+    }
+  }
+
+  componentDidCatch(error: Error, _info: ErrorInfo) {
+    console.error("Task Canvas editor render failed", error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div role="alert" className="grid h-full min-h-[320px] place-items-center p-6 text-center">
+          <div className="max-w-sm">
+            <p className="text-sm font-semibold text-slate-800">The drawing editor hit a problem.</p>
+            <p className="mt-2 text-xs leading-5 text-slate-500">Your last successfully saved version remains stored. Reload the saved canvas to recover the editor.</p>
+            <button type="button" onClick={() => { this.setState({ hasError: false }); this.props.onRecover(); }} className="mt-4 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+              Reload saved canvas
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 const EMPTY_SCENE: Scene = { elements: [], appState: {}, files: {} };
 const imageCompressionCache = new WeakMap<object, Promise<unknown>>();
 
@@ -135,6 +175,36 @@ function toScene(value: unknown): Scene {
     appState: scene.appState && typeof scene.appState === "object" ? scene.appState : {},
     files: scene.files && typeof scene.files === "object" ? scene.files : {}
   };
+}
+
+async function restoreCanvasScene(value: unknown): Promise<Scene> {
+  const normalized = normalizeTaskCanvasScene(value);
+  const { restoreAppState, restoreElements } = await import("@excalidraw/excalidraw");
+  let elements: unknown[] = [];
+
+  try {
+    elements = restoreElements(normalized.elements as never, null, { repairBindings: true }) as unknown as unknown[];
+  } catch {
+    // A single legacy element can still contain an unsupported field shape.
+    // Isolate it so one bad object cannot crash the entire board.
+    for (const element of normalized.elements) {
+      try {
+        const restored = restoreElements([element] as never, null, { repairBindings: true }) as unknown as unknown[];
+        elements.push(...restored);
+      } catch {
+        // Drop only the element that cannot be restored; retain the rest.
+      }
+    }
+  }
+
+  const state = restoreAppState(normalized.appState as never, null);
+  const appState: Record<string, unknown> = {
+    viewBackgroundColor: state.viewBackgroundColor,
+    gridSize: state.gridSize,
+    theme: state.theme,
+    currentItemFontFamily: state.currentItemFontFamily
+  };
+  return { elements, appState, files: normalized.files };
 }
 
 function getPersistedScene(elements: unknown[], appState: Record<string, unknown>, files: Record<string, unknown>): Scene {
@@ -296,7 +366,7 @@ export default function TaskCanvasDashboard({
     try {
       const data = await api<{ item: CanvasItem; scene: unknown; limits: { maxCollaborators: number; canvasLimit: number; canvasesUsed: number } }>("/api/task-canvas/" + id);
       if (token !== loadTokenRef.current) return;
-      const next = toScene(data.scene);
+      const next = await restoreCanvasScene(data.scene);
       versionRef.current = data.item.version;
       sceneRef.current = next;
       setScene(next);
@@ -405,7 +475,7 @@ export default function TaskCanvasDashboard({
         try {
           const latest = await api<{ item: CanvasItem; scene: unknown }>("/api/task-canvas/" + canvasId);
           if (selectedIdRef.current === canvasId) {
-            const merged = mergeScenes(sceneRef.current, toScene(latest.scene));
+            const merged = mergeScenes(sceneRef.current, await restoreCanvasScene(latest.scene));
             versionRef.current = latest.item.version;
             sceneRef.current = merged;
             setScene(merged);
@@ -539,7 +609,7 @@ export default function TaskCanvasDashboard({
         if (meta.item.version <= versionRef.current || dirtyRef.current || inFlightRef.current) return;
         const latest = await api<{ item: CanvasItem; scene: unknown }>("/api/task-canvas/" + selectedId);
         if (selectedIdRef.current !== selectedId || dirtyRef.current || inFlightRef.current) return;
-        const next = toScene(latest.scene);
+        const next = await restoreCanvasScene(latest.scene);
         versionRef.current = latest.item.version;
         sceneRef.current = next;
         setScene(next);
@@ -702,6 +772,7 @@ export default function TaskCanvasDashboard({
                 onMouseLeave={handleCanvasMouseLeave}
               >
                 {loadingCanvas ? <div className="grid h-full place-items-center text-sm text-slate-500"><LoaderCircle className="mr-2 inline size-4 animate-spin" /> Opening canvas…</div> : <div className="task-canvas-excalidraw min-h-0 flex-1">
+                  <TaskCanvasEditorBoundary resetKey={selectedId} onRecover={() => { void openCanvas(selected.id); }}>
                   <Excalidraw
                     key={selectedId}
                     initialData={{ ...scene, appState: { ...scene.appState, viewBackgroundColor: "#faf9f1", showWelcomeScreen: false } } as never}
@@ -722,6 +793,7 @@ export default function TaskCanvasDashboard({
                   >
                     <TaskCanvasMainMenu />
                   </Excalidraw>
+                  </TaskCanvasEditorBoundary>
                 </div>}
               </div>
               <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/70 px-3 py-2 text-[10px] text-slate-500 sm:px-4"><span>Draw, write, connect ideas, add images, and export from the drawing tools.</span><span className="font-semibold text-slate-400">Changes save automatically</span></div>
