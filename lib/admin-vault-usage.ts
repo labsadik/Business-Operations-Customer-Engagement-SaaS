@@ -4,6 +4,7 @@ import { Company } from "@/models/company";
 import { Subscription } from "@/models/subscription";
 import { VaultFile } from "@/models/vault-file";
 import { VaultUpload } from "@/models/vault-upload";
+import { VaultUsage } from "@/models/vault-usage";
 import { Plan } from "@/models/plan";
 import { ensurePlanCatalog } from "@/lib/plan-catalog";
 import { decodeListCursor, encodeListCursor } from "@/lib/list-pagination";
@@ -91,26 +92,28 @@ async function buildUsageItems(companies: AdminUsageCompany[]): Promise<AdminVau
   if (!companies.length) return [];
 
   const ids = companies.map((company) => company._id);
-  const [subscriptions, fileStatsRows, pendingRows] = await Promise.all([
+  const [subscriptions, usageRows, pendingRows] = await Promise.all([
     Subscription.find({ companyId: { $in: ids } })
       .select("companyId planId status currentPeriodEnd")
       .lean(),
-    VaultFile.aggregate<{ _id: unknown; count: number; sizeBytes: number }>([
-      { $match: { companyId: { $in: ids } } },
-      {
-        $group: {
-          _id: "$companyId",
-          count: { $sum: 1 },
-          sizeBytes: { $sum: { $ifNull: ["$storageSizeBytes", "$sizeBytes"] } }
-        }
-      }
-    ]),
-    VaultUpload.aggregate<{ _id: unknown; count: number; sizeBytes: number }>([
+    // The company-wide counter is updated atomically on reserve/release and is
+    // cheap to read even when a tenant has millions of files.
+    VaultUsage.find({
+      $or: ids.map((id) => ({ companyId: id, workspaceId: id }))
+    })
+      .select("companyId workspaceId usedBytes usedItems counterVersion")
+      .lean(),
+    VaultUpload.aggregate<{
+      _id: unknown;
+      count: number;
+      sizeBytes: number;
+      reservationCount: number;
+      reservationBytes: number;
+    }>([
       {
         $match: {
           companyId: { $in: ids },
-          status: { $in: ["OPEN", "COMPLETING"] },
-          expiresAt: { $gt: new Date() }
+          status: { $in: ["OPEN", "COMPLETING"] }
         }
       },
       {
@@ -125,26 +128,65 @@ async function buildUsageItems(companies: AdminUsageCompany[]): Promise<AdminVau
       {
         $group: {
           _id: "$companyId",
-          count: { $sum: 1 },
-          sizeBytes: { $sum: "$sizeBytes" }
+          count: {
+            $sum: { $cond: [{ $gt: ["$expiresAt", new Date()] }, 1, 0] }
+          },
+          sizeBytes: {
+            $sum: {
+              $cond: [{ $gt: ["$expiresAt", new Date()] }, "$sizeBytes", 0]
+            }
+          },
+          // Expired rows may remain until the scheduled cleanup runs. Count
+          // every uncommitted reservation so they are not misreported as files.
+          reservationCount: { $sum: 1 },
+          reservationBytes: { $sum: "$sizeBytes" }
         }
       }
     ])
   ]);
 
+  const usageByCompany = new Map(
+    usageRows
+      .filter((row) => String(row.companyId) === String(row.workspaceId))
+      .map((row) => [String(row.companyId), row])
+  );
+  const legacyIds = companies
+    .filter((company) => {
+      const usage = usageByCompany.get(String(company._id));
+      return !usage ||
+        usage.counterVersion !== 2 ||
+        !Number.isSafeInteger(usage.usedBytes) ||
+        !Number.isSafeInteger(usage.usedItems);
+    })
+    .map((company) => company._id);
+
   await ensurePlanCatalog();
   const planIds = [...new Set(["free", ...subscriptions.map((row) => String(row.planId))])];
-  // Read only the plan fields needed by vault rendering; payment and invoice
-  // aggregates are unrelated work on this request path.
-  const planRows = await Plan.find({ identifier: { $in: planIds } })
-    .select("identifier name vaultEnabled vaultQuotaBytes vaultMaxFileBytes vaultMaxItems")
-    .limit(200)
-    .lean();
+  // Reconcile raw file metadata only for legacy companies whose usage counter
+  // has not been verified. Modern companies avoid a million-file scan.
+  const [planRows, legacyFileStatsRows] = await Promise.all([
+    Plan.find({ identifier: { $in: planIds } })
+      .select("identifier name vaultEnabled vaultQuotaBytes vaultMaxFileBytes vaultMaxItems")
+      .limit(200)
+      .lean(),
+    legacyIds.length
+      ? VaultFile.aggregate<{ _id: unknown; count: number; sizeBytes: number }>([
+          { $match: { companyId: { $in: legacyIds } } },
+          {
+            $group: {
+              _id: "$companyId",
+              count: { $sum: 1 },
+              sizeBytes: { $sum: { $ifNull: ["$storageSizeBytes", "$sizeBytes"] } }
+            }
+          }
+        ])
+      : Promise.resolve([])
+  ]);
 
   const now = Date.now();
   const plansById = new Map(planRows.map((plan) => [String(plan.identifier), plan]));
   const subscriptionsByCompany = new Map(subscriptions.map((row) => [String(row.companyId), row]));
-  const filesByCompany = new Map(fileStatsRows.map((row) => [String(row._id), row]));
+  const filesByCompany = new Map(legacyFileStatsRows.map((row) => [String(row._id), row]));
   const pendingByCompany = new Map(pendingRows.map((row) => [String(row._id), row]));
 
   return companies.map((company) => {
@@ -161,12 +203,27 @@ async function buildUsageItems(companies: AdminUsageCompany[]): Promise<AdminVau
         : subscription.status;
     const activePlanId = subscriptionActive ? subscription?.planId ?? "free" : "free";
     const plan = plansById.get(activePlanId) ?? plansById.get("free") ?? null;
-    const fileStats = filesByCompany.get(companyId);
+    const usage = usageByCompany.get(companyId);
     const pendingStats = pendingByCompany.get(companyId);
-    const fileCount = fileStats?.count ?? 0;
     const pendingUploadCount = pendingStats?.count ?? 0;
     const pendingUploadBytes = pendingStats?.sizeBytes ?? 0;
-    const usedBytes = (fileStats?.sizeBytes ?? 0) + pendingUploadBytes;
+    const hasCurrentCounter = Boolean(
+      usage &&
+      usage.counterVersion === 2 &&
+      Number.isSafeInteger(usage.usedBytes) &&
+      Number.isSafeInteger(usage.usedItems)
+    );
+    const fileStats = filesByCompany.get(companyId);
+    const fileCount = hasCurrentCounter
+      ? Math.max(0, Number(usage!.usedItems) - (pendingStats?.reservationCount ?? 0))
+      : fileStats?.count ?? 0;
+    const expiredReservationBytes = Math.max(
+      0,
+      (pendingStats?.reservationBytes ?? 0) - pendingUploadBytes
+    );
+    const usedBytes = hasCurrentCounter
+      ? Math.max(0, Number(usage!.usedBytes) - expiredReservationBytes)
+      : (fileStats?.sizeBytes ?? 0) + pendingUploadBytes;
     const usedItems = fileCount + pendingUploadCount;
     const vaultEnabled = Boolean(plan?.vaultEnabled);
     const quotaBytes = vaultEnabled ? Number(plan?.vaultQuotaBytes ?? 0) : 0;
