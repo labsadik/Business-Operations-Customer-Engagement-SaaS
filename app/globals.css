@@ -108,3 +108,16 @@ a[aria-disabled="true"] {
   display: none !important;
 }
 
+/* Keep the Task Canvas editor focused: remove the hamburger menu and Library
+   sidebar/trigger so they are neither visible nor keyboard-accessible. */
+.task-canvas-excalidraw .main-menu-trigger,
+.task-canvas-excalidraw .default-sidebar-trigger,
+.task-canvas-excalidraw .default-sidebar {
+  display: none !important;
+}
+
+/* Match the website's warm, pale-yellow workspace surface. */
+.task-canvas-excalidraw {
+  background-color: #faf9f1;
+}
+

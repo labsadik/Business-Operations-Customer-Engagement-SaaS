@@ -704,7 +704,7 @@ export default function TaskCanvasDashboard({
                 {loadingCanvas ? <div className="grid h-full place-items-center text-sm text-slate-500"><LoaderCircle className="mr-2 inline size-4 animate-spin" /> Opening canvas…</div> : <div className="task-canvas-excalidraw min-h-0 flex-1">
                   <Excalidraw
                     key={selectedId}
-                    initialData={{ ...scene, appState: { ...scene.appState, showWelcomeScreen: false } } as never}
+                    initialData={{ ...scene, appState: { ...scene.appState, viewBackgroundColor: "#faf9f1", showWelcomeScreen: false } } as never}
                     excalidrawAPI={handleExcalidrawAPI}
                     name={selected.name}
                     onChange={handleEditorChange}
