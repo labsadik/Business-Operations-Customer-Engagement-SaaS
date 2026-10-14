@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { Route } from "next";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, HardDrive, LoaderCircle, RefreshCw, Search, ShieldCheck } from "lucide-react";
 
 const PAGE_SIZE = 10;
@@ -83,6 +83,7 @@ export default function AdminVaultUsage() {
   const [totalsError, setTotalsError] = useState("");
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
+  const totalsRequestId = useRef(0);
 
   useEffect(() => {
     const debounce = window.setTimeout(() => setQuery(search.trim()), 250);
@@ -129,6 +130,7 @@ export default function AdminVaultUsage() {
   }, [query]);
 
   const loadTotals = useCallback(async (signal?: AbortSignal) => {
+    const requestId = ++totalsRequestId.current;
     setTotalsLoading(true);
     setTotalsError("");
     try {
@@ -137,13 +139,13 @@ export default function AdminVaultUsage() {
       if (!response.ok || !body?.ok || !body.data?.totals) {
         throw new Error(body?.error || "ADMIN_VAULT_USAGE_SUMMARY_FAILED");
       }
-      if (signal?.aborted) return;
+      if (signal?.aborted || requestId !== totalsRequestId.current) return;
       setTotals(body.data.totals);
     } catch (reason) {
-      if (signal?.aborted || (reason instanceof Error && reason.name === "AbortError")) return;
+      if (signal?.aborted || requestId !== totalsRequestId.current || (reason instanceof Error && reason.name === "AbortError")) return;
       setTotalsError(errorMessage(reason, "Could not load live storage totals."));
     } finally {
-      if (!signal?.aborted) setTotalsLoading(false);
+      if (!signal?.aborted && requestId === totalsRequestId.current) setTotalsLoading(false);
     }
   }, []);
 
@@ -325,7 +327,7 @@ export default function AdminVaultUsage() {
             <button
               type="button"
               onClick={() => void loadPage({ cursor: nextCursor, append: true })}
-              disabled={loadingMore || loading || refreshing}
+              disabled={loadingMore || loading || refreshing || search !== query}
               className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loadingMore && <LoaderCircle className="size-4 animate-spin" />}
