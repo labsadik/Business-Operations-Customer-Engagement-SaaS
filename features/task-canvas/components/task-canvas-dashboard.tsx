@@ -12,6 +12,27 @@ const Excalidraw = dynamic(async () => (await import("@excalidraw/excalidraw")).
   loading: () => <div className="grid h-full min-h-[560px] place-items-center text-sm text-slate-500"><LoaderCircle className="mr-2 inline size-4 animate-spin" /> Loading drawing tools…</div>
 });
 
+// Keep Excalidraw's native editing controls, but omit its branding/help links.
+// The board's built-in hand-drawn fonts and scene styling are intentionally unchanged.
+const TaskCanvasMainMenu = dynamic(async () => {
+  const { MainMenu } = await import("@excalidraw/excalidraw");
+  return function TaskCanvasWhiteLabelMenu() {
+    return (
+      <MainMenu>
+        <MainMenu.DefaultItems.LoadScene />
+        <MainMenu.DefaultItems.SaveToActiveFile />
+        <MainMenu.DefaultItems.Export />
+        <MainMenu.DefaultItems.SaveAsImage />
+        <MainMenu.DefaultItems.SearchMenu />
+        <MainMenu.DefaultItems.ClearCanvas />
+        <MainMenu.Separator />
+        <MainMenu.DefaultItems.ToggleTheme />
+        <MainMenu.DefaultItems.ChangeCanvasBackground />
+      </MainMenu>
+    );
+  };
+}, { ssr: false });
+
 type Scene = { elements: unknown[]; appState: Record<string, unknown>; files: Record<string, unknown> };
 type CanvasItem = { id: string; name: string; version: number; createdByUserId: string; memberUserIds: string[]; memberCount: number; updatedAt: string; lastEditorUserId?: string | null };
 type Person = { id: string; name: string; email: string; image: string | null; role: string };
@@ -676,17 +697,32 @@ export default function TaskCanvasDashboard({
                 {canManageSelected && <button type="button" onClick={() => void deleteCanvas()} title="Delete canvas" className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="size-4" /></button>}
               </div>
               <div
-                className="min-h-0 flex-1 w-full bg-white"
+                className="min-h-0 flex-1 w-full bg-white flex flex-col"
                 onMouseEnter={handleCanvasMouseEnter}
                 onMouseLeave={handleCanvasMouseLeave}
               >
-                {loadingCanvas ? <div className="grid h-full place-items-center text-sm text-slate-500"><LoaderCircle className="mr-2 inline size-4 animate-spin" /> Opening canvas…</div> : <Excalidraw
-                  key={selectedId}
-                  initialData={{ ...scene, appState: { ...scene.appState, showWelcomeScreen: false } } as never}
-                  excalidrawAPI={handleExcalidrawAPI}
-                  name={selected.name}
-                  onChange={handleEditorChange}
-                />}
+                {loadingCanvas ? <div className="grid h-full place-items-center text-sm text-slate-500"><LoaderCircle className="mr-2 inline size-4 animate-spin" /> Opening canvas…</div> : <div className="task-canvas-excalidraw min-h-0 flex-1">
+                  <Excalidraw
+                    key={selectedId}
+                    initialData={{ ...scene, appState: { ...scene.appState, showWelcomeScreen: false } } as never}
+                    excalidrawAPI={handleExcalidrawAPI}
+                    name={selected.name}
+                    onChange={handleEditorChange}
+                    UIOptions={{
+                      canvasActions: {
+                        changeViewBackgroundColor: true,
+                        clearCanvas: true,
+                        export: { saveFileToDisk: true },
+                        loadScene: true,
+                        saveToActiveFile: true,
+                        toggleTheme: true,
+                        saveAsImage: true
+                      }
+                    }}
+                  >
+                    <TaskCanvasMainMenu />
+                  </Excalidraw>
+                </div>}
               </div>
               <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/70 px-3 py-2 text-[10px] text-slate-500 sm:px-4"><span>Draw, write, connect ideas, add images, and export from the drawing tools.</span><span className="font-semibold text-slate-400">Changes save automatically</span></div>
             </div> : loadingIndex ? <div role="status" className="grid min-h-0 flex-1 place-items-center rounded-2xl border border-slate-200 bg-white px-6 text-center"><div className="max-w-sm"><LoaderCircle className="mx-auto size-6 animate-spin text-indigo-600" /><h2 className="mt-3 text-sm font-semibold text-slate-800">Loading your canvases</h2><p className="mt-1 text-xs text-slate-500">Your boards and workspace members are being loaded.</p></div></div> : <div className="grid min-h-0 flex-1 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 text-center"><div className="max-w-sm"><div className="mx-auto grid size-12 place-items-center rounded-2xl bg-indigo-50 text-indigo-700"><FilePlus2 className="size-5" /></div><h2 className="mt-4 text-base font-semibold">No canvas open</h2><p className="mt-2 text-sm leading-6 text-slate-500">Choose a canvas from the left panel or create one to start drawing. Nothing opens automatically.</p></div></div>}
