@@ -44,6 +44,43 @@ function errorPathForOAuth(
   return target;
 }
 
+async function recordPublicCompanyLogin(userId: Types.ObjectId | string, companyId: Types.ObjectId, at = new Date()) {
+  // Update the existing company entry atomically, or add exactly one if absent.
+  // The guarded push plus fallback update also handles two first logins racing.
+  const existing = await User.updateOne(
+    { _id: userId, "publicCompanyLogins.companyId": companyId },
+    {
+      $set: { "publicCompanyLogins.$.lastLoginAt": at },
+      $inc: { "publicCompanyLogins.$.loginCount": 1 }
+    }
+  );
+  if (existing.matchedCount > 0) return;
+
+  const inserted = await User.updateOne(
+    { _id: userId, "publicCompanyLogins.companyId": { $ne: companyId } },
+    {
+      $push: {
+        publicCompanyLogins: {
+          companyId,
+          firstLoginAt: at,
+          lastLoginAt: at,
+          loginCount: 1
+        }
+      }
+    }
+  );
+  if (inserted.modifiedCount > 0) return;
+
+  // Another request inserted the same company entry after the first update.
+  await User.updateOne(
+    { _id: userId, "publicCompanyLogins.companyId": companyId },
+    {
+      $set: { "publicCompanyLogins.$.lastLoginAt": at },
+      $inc: { "publicCompanyLogins.$.loginCount": 1 }
+    }
+  );
+}
+
 function safeInternalPath(path: string | undefined, fallback: string) {
   if (!path || !path.startsWith("/") || path.startsWith("//")) return fallback;
   return path;
@@ -318,6 +355,9 @@ export async function GET(request: Request) {
       }
 
       const platformAdminSession = user.role === "PLATFORM_ADMIN";
+      if (oauth.intent === "customer" && !platformAdminSession) {
+        await recordPublicCompanyLogin(user._id, company._id);
+      }
       await createSession({
         userId: String(user._id),
         role: platformAdminSession ? "PLATFORM_ADMIN" : "CUSTOMER"
