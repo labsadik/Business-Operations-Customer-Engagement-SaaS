@@ -37,5 +37,7 @@ const userSchema = new Schema(
   { timestamps: true }
 );
 
+userSchema.index({ "publicCompanyLogins.companyId": 1 }, { name: "idx_user_public_company_logins_company" });
+
 export type UserDocument = InferSchemaType<typeof userSchema> & { _id: string };
 export const User = models.User ?? model("User", userSchema);
