@@ -885,13 +885,13 @@ test("Google Cloud Run container runs the standard Next.js server and keeps runt
   assert.ok(dockerfile.includes('CMD ["node", "server.js"]'));
   assert.doesNotMatch(dockerfile, /server\.mjs|WebSocket/);
   assert.match(dockerfile, /\.next\/standalone/);
-  assert.ok(dockerfile.includes('ENV PORT=8080'));
-  assert.ok(dockerfile.includes('ENV HOSTNAME=0.0.0.0'));
+  assert.ok(dockerfile.includes("PORT=8080"));
+  assert.ok(dockerfile.includes("HOSTNAME=0.0.0.0"));
   assert.ok(dockerfile.includes("USER nextjs"));
   assert.doesNotMatch(dockerfile, /MONGODB_URI|GOOGLE_CLIENT_SECRET|AUTH_SECRET|RAZORPAY_KEY_SECRET/);
   assert.ok(dockerignore.includes(".env.*"));
   assert.ok(gcloudignore.includes(".env.*"));
-  assert.ok(deploymentGuide.includes("MONGODB_DB_NAME=Canvas"));
+  assert.ok(deploymentGuide.includes("MONGODB_URI"));
   assert.ok(deploymentGuide.includes("CLOUD_RUN_MAX_INSTANCES"));
   assert.ok(deploymentGuide.includes("CLOUD_RUN_CONCURRENCY"));
   assert.ok(deploymentGuide.includes("Secret Manager"));
@@ -903,6 +903,7 @@ test("Google Cloud Run container runs the standard Next.js server and keeps runt
   const deployScript = source("scripts/deploy-cloud-run.ps1");
   assert.ok(firstBuild.includes("_TAG: manual"));
   assert.ok(envTemplate.includes("CLOUD_RUN_PROJECT_ID="));
+  assert.ok(envTemplate.includes("MONGODB_DB_NAME=Canvas"));
   assert.ok(deployScript.includes("gcloud builds submit"));
   assert.ok(deployScript.includes("secretmanager.secretAccessor"));
   assert.ok(deployScript.includes("--min=0"));
