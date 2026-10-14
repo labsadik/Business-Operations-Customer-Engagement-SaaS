@@ -7,7 +7,11 @@ const taskCanvasSchema = new Schema(
     name: { type: String, required: true, trim: true, minlength: 1, maxlength: 80 },
     createdByUserId: { type: Schema.Types.ObjectId, ref: "User", required: true, immutable: true, index: true },
     memberUserIds: { type: [Schema.Types.ObjectId], ref: "User", required: true, default: [] },
-    scene: { type: Schema.Types.Mixed, required: true, default: () => ({ elements: [], appState: {}, files: {} }) },
+    // Legacy uncompressed scenes remain readable during the gradual migration.
+    scene: { type: Schema.Types.Mixed, required: false, default: undefined },
+    // New scenes are gzip-compressed before persistence to keep large vector
+    // diagrams compact and avoid repeatedly storing verbose JSON in MongoDB.
+    sceneGzip: { type: Buffer, required: false },
     version: { type: Number, required: true, default: 1, min: 1 },
     lastEditorUserId: { type: Schema.Types.ObjectId, ref: "User", required: true }
   },
