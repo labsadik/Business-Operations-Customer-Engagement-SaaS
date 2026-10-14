@@ -1,182 +1,99 @@
-# Production deployment: Canvas by AlgoQuit on Google Cloud
+# Production deployment: Canvas on Google Cloud Run
 
-This guide deploys the Next.js application as a container on Google Cloud Run. Cloud Run is the web/API runtime; it does not replace the external services already used by the application.
+Cloud Run is the production web/API runtime. MongoDB, Redis, Google OAuth/Calendar/Meet, Razorpay and Bunny Storage remain external services. The repository includes a first-deploy script that reads a local .env file, stores private credentials in Secret Manager, builds through Cloud Build (no local Docker required), deploys Cloud Run, and creates the three maintenance Scheduler jobs.
 
-## Target architecture
+## 1. One-time prerequisites
 
-- Cloud Run: stateless Next.js server/API, running the Docker image as a non-root user on port 8080.
-- Artifact Registry: container images.
-- Cloud Build: optional build-and-deploy trigger after the first service deployment.
-- MongoDB Atlas on Google Cloud: primary application database. Use MONGODB_DB_NAME=Canvas in production.
-- Upstash Redis: distributed locks and coordination.
-- Secret Manager: database URI, auth/encryption secrets, provider secrets and the cron secret.
-- Cloud Scheduler: invokes the protected maintenance endpoints.
-- External providers: Google OAuth/Calendar/Meet, Razorpay, Bunny Storage, and optional Sentry/Axiom/analytics.
-
-Cloud Run instances can scale to zero or be replaced at any time. Do not store user files or durable state on the container filesystem; Vault files are stored by the existing Bunny Storage integration.
-
-## 1. Choose your production URL and databases first
-
-Use the canonical production origin https://canvas.algoquit.com before building the image. NEXT_PUBLIC_* values are compiled into the browser bundle, so changing only Cloud Run runtime variables will not change browser code; rebuild the image after changing these public values.
-
-Use separate databases:
-
-- Production: MONGODB_DB_NAME=Canvas
-- Test/demo only: MONGODB_DB_NAME=canvas_test
-
-Set MONGODB_URI to the Atlas connection string and give its database user read/write access to the production database. The app passes MONGODB_DB_NAME to Mongoose, so that variable determines the database to use.
-
-For production network security, prefer Atlas private networking/peering or Cloud Run static egress through VPC + Cloud NAT, then allowlist the resulting stable IP in Atlas. Do not broadly expose the database to the internet just to make deployment easy.
-
-## 2. Prepare Google Cloud
-
-Install Docker Desktop and the Google Cloud CLI, then open PowerShell in the repository root after pulling the latest main branch.
-
-Replace YOUR_GCP_PROJECT_ID with your actual project ID:
+You need a Google Cloud project with billing enabled, permission to enable APIs, create Artifact Registry repositories and service accounts, manage Secret Manager, deploy Cloud Run, update IAM, and create Cloud Scheduler jobs. Install Google Cloud CLI and authenticate:
 
 ~~~powershell
 gcloud auth login
-gcloud config set project YOUR_GCP_PROJECT_ID
-gcloud services enable run.googleapis.com artifactregistry.googleapis.com cloudbuild.googleapis.com secretmanager.googleapis.com cloudscheduler.googleapis.com
-gcloud artifacts repositories create canvas --repository-format=docker --location=asia-south1 --description="Canvas by AlgoQuit production images"
-gcloud auth configure-docker asia-south1-docker.pkg.dev
-gcloud iam service-accounts create canvas-runtime --display-name="Canvas Cloud Run runtime"
 ~~~
 
-If the Artifact Registry repository or service account already exists, skip its create command.
-
-## 3. Put credentials into Secret Manager
-
-Create a secret for each of these values in Google Cloud Console → Security → Secret Manager. Do not commit real values to .env, .env.local, YAML, Docker build arguments, or Git.
-
-Required secret IDs:
-
-| Secret ID | Value |
-| --- | --- |
-| MONGODB_URI | MongoDB Atlas connection URI |
-| REDIS_TOKEN | Upstash REST token |
-| GOOGLE_CLIENT_SECRET | Google OAuth client secret |
-| AUTH_SECRET | Long random application/session signing secret |
-| ENCRYPTION_KEY | Application encryption key; generate a fresh 32-byte base64url value |
-| CRON_SECRET | Long random secret used to protect maintenance endpoints |
-| BUNNY_STORAGE_PASSWORD | Bunny Storage password/API credential |
-| RAZORPAY_KEY_SECRET | Razorpay API secret |
-| RAZORPAY_WEBHOOK_SECRET | Razorpay webhook signing secret |
-
-Generate fresh random secrets in PowerShell (run separately for each secret; never reuse one value for all keys):
+Copy cloudrun.env.example to a local .env file in the repository root. Fill in the real Google Cloud project ID and the credentials for services you use. The .env file is ignored by Git and excluded from Cloud Build uploads and the container image.
 
 ~~~powershell
-node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+Copy-Item cloudrun.env.example .env
+notepad .env
 ~~~
 
-Grant the Cloud Run runtime service account access to each secret at the secret level. Run this after the secrets exist:
+Required application values are MONGODB_URI, REDIS_URL and REDIS_TOKEN (or the equivalent UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN), GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, AUTH_SECRET, ENCRYPTION_KEY and CRON_SECRET. Generate separate strong values for AUTH_SECRET, ENCRYPTION_KEY and CRON_SECRET; for ENCRYPTION_KEY use a fresh 32-byte base64url value. Keep all provider secrets in the local .env only long enough for the script to load them—never paste secrets into GitHub or commit .env.
+
+The default public origin is https://canvas.algoquit.com. Change NEXT_PUBLIC_APP_URL and GOOGLE_REDIRECT_URI in .env together if using a different origin. NEXT_PUBLIC_* values are build-time values and are passed to Cloud Build so the browser bundle matches the configured production domain.
+
+## 2. Deploy from the repository
+
+Run from the repository root in PowerShell:
 
 ~~~powershell
-$projectId = (gcloud config get-value project).Trim()
-$runtimeSa = "canvas-runtime@$projectId.iam.gserviceaccount.com"
-$secretIds = @("MONGODB_URI", "REDIS_TOKEN", "GOOGLE_CLIENT_SECRET", "AUTH_SECRET", "ENCRYPTION_KEY", "CRON_SECRET", "BUNNY_STORAGE_PASSWORD", "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET")
-foreach ($secretId in $secretIds) {
-  gcloud secrets add-iam-policy-binding $secretId --member="serviceAccount:$runtimeSa" --role="roles/secretmanager.secretAccessor"
-}
+powershell -ExecutionPolicy Bypass -File .\scripts\deploy-cloud-run.ps1
 ~~~
 
-Optional integrations can be disabled by leaving their variables unset, except MongoDB and Redis are required for a healthy production deployment. Add optional secrets such as SENTRY_DSN and AXIOM_TOKEN to Secret Manager and the deploy command if you use them.
+The script will:
 
-## 4. Build and push the Docker image
+1. Enable Cloud Run, Artifact Registry, Cloud Build, Secret Manager and Cloud Scheduler APIs.
+2. Create the Docker Artifact Registry repository and a dedicated non-root runtime service account if missing.
+3. Grant the default Cloud Build identity permission to push images.
+4. Create/update Secret Manager versions for populated secret values and grant the runtime identity access.
+5. Build and push a tagged standalone Next.js container using Cloud Build.
+6. Deploy a public Cloud Run service listening on port 8080, passing non-secret values as runtime environment variables and credentials as Secret Manager references.
+7. Set scale-to-zero autoscaling with zero minimum instances, a configurable maximum instance count (default 10), 1 vCPU, 1 GiB memory, concurrency 40 and a 300-second request timeout.
+8. Create or update Cloud Scheduler jobs for booking sweeps, Vault cleanup and Live Chat retention. Those jobs call the Cloud Run service URL with the CRON_SECRET bearer header.
 
-Use the final public HTTPS URL you selected in step 1. Run this from PowerShell at the repository root:
+The first deployment requires an existing GCP project and an identity with the permissions above. The script cannot create a billing account, provision external provider credentials, verify DNS ownership or change OAuth/Razorpay settings on your behalf. A one-click GitHub import by itself also does not read a local .env file; use this script to bootstrap the service, then optionally set up a Cloud Build trigger for later main-branch deploys.
 
-~~~powershell
-$env:PROJECT_ID = (gcloud config get-value project).Trim()
-$env:REGION = "asia-south1"
-$env:REPOSITORY = "canvas"
-$env:IMAGE = "canvas-web"
-$env:TAG = (git rev-parse --short HEAD).Trim()
-$env:APP_URL = "https://canvas.algoquit.com"
-$env:IMAGE_URI = "$($env:REGION)-docker.pkg.dev/$($env:PROJECT_ID)/$($env:REPOSITORY)/$($env:IMAGE):$($env:TAG)"
-docker build --pull -t $env:IMAGE_URI --build-arg "NEXT_PUBLIC_APP_URL=$($env:APP_URL)" --build-arg "NEXT_PUBLIC_APP_NAME=Canvas" --build-arg "NEXT_PUBLIC_COMPANY_NAME=AlgoQuit" --build-arg "NEXT_PUBLIC_COMPANY_URL=https://algoquit.com" .
-docker push $env:IMAGE_URI
-~~~
+Deployment controls can be tuned in .env:
 
-Use https://canvas.algoquit.com after its DNS mapping and HTTPS certificate are active. The Dockerfile uses Next.js standalone output, installs dependencies in a separate stage, excludes local environment files from the build context, and runs the container as the unprivileged nextjs user. Optional NEXT_PUBLIC_* analytics/Sentry settings can be passed as additional build arguments if enabled.
-
-## 5. Deploy the first Cloud Run service
-
-Before running this command, replace the sample values below with your actual non-secret integration values. Create the corresponding Secret Manager secrets in step 3 first.
-
-~~~powershell
-gcloud run deploy canvas-web --image $env:IMAGE_URI --region $env:REGION --platform managed --port 8080 --allow-unauthenticated --service-account $runtimeSa --cpu 1 --memory 1Gi --concurrency 40 --timeout 300 --max 10 --set-env-vars="NODE_ENV=production,MONGODB_DB_NAME=Canvas,NEXT_PUBLIC_APP_URL=$($env:APP_URL),NEXT_PUBLIC_APP_NAME=Canvas,NEXT_PUBLIC_COMPANY_NAME=AlgoQuit,NEXT_PUBLIC_COMPANY_URL=https://algoquit.com,GOOGLE_CLIENT_ID=YOUR_GOOGLE_CLIENT_ID,GOOGLE_REDIRECT_URI=$($env:APP_URL)/api/auth/google/callback,REDIS_URL=YOUR_UPSTASH_REDIS_REST_URL,BUNNY_STORAGE_ZONE=YOUR_BUNNY_STORAGE_ZONE,BUNNY_STORAGE_ENDPOINT=https://storage.bunnycdn.com,BUNNY_VAULT_QUOTA_BYTES=5368709120,BUNNY_VAULT_MAX_FILE_BYTES=104857600,RAZORPAY_KEY_ID=YOUR_RAZORPAY_KEY_ID,AXIOM_SERVICE_NAME=canvas" --set-secrets="MONGODB_URI=MONGODB_URI:latest,REDIS_TOKEN=REDIS_TOKEN:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,AUTH_SECRET=AUTH_SECRET:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,CRON_SECRET=CRON_SECRET:latest,BUNNY_STORAGE_PASSWORD=BUNNY_STORAGE_PASSWORD:latest,RAZORPAY_KEY_SECRET=RAZORPAY_KEY_SECRET:latest,RAZORPAY_WEBHOOK_SECRET=RAZORPAY_WEBHOOK_SECRET:latest"
-~~~
-
-The command's set-env-vars option replaces the service's existing plain environment variable list. Use it for the first deploy only, or include all required plain variables when intentionally replacing the list. For later changes, use update-env-vars/update-secrets so unrelated configuration is not accidentally removed.
-
-The service is intentionally public because customer booking pages and public embeds must be reachable without Google Cloud IAM login. Application routes still enforce their own login, tenant and role checks. Maintenance routes additionally require the CRON_SECRET bearer token.
-
-## 6. Configure the external callbacks
-
-After the service is deployed, map your custom domain to Cloud Run using the domain setup supported for your project, or put an external HTTPS Application Load Balancer in front of it.
-
-Then configure:
-
-- Google OAuth authorized redirect URI: https://canvas.algoquit.com/api/auth/google/callback (must equal GOOGLE_REDIRECT_URI exactly).
-- Razorpay webhook URL: https://canvas.algoquit.com/api/webhooks/razorpay.
-- Cloud Scheduler must call the deployed HTTPS origin, not localhost.
-- Update NEXT_PUBLIC_APP_URL and GOOGLE_REDIRECT_URI and rebuild/redeploy if the permanent domain differs from the one used in the image.
-
-## 7. Schedule the maintenance endpoints
-
-Create three Cloud Scheduler HTTP jobs in a region close to the service. Each should use method GET and the deployed HTTPS URL, with the request header:
-
-Authorization: Bearer <the same value stored in CRON_SECRET>
-
-Do not include the secret in the URL or in source control.
-
-| Job | HTTP path | Suggested schedule |
+| Key | Default | Purpose |
 | --- | --- | --- |
-| Booking expiry/retry sweep | /api/jobs/sweep | Every minute: * * * * * |
-| Vault upload cleanup | /api/jobs/vault-upload-cleanup | Every 15 minutes: */15 * * * * |
-| Live Chat retention cleanup | /api/jobs/live-chat-retention | Daily at 03:17: 17 3 * * * |
+| CLOUD_RUN_REGION | asia-south1 | Cloud Run, Artifact Registry and Scheduler region |
+| CLOUD_RUN_SERVICE | canvas-web | Service name |
+| CLOUD_RUN_MAX_INSTANCES | 10 | Cost guardrail and upper scaling bound |
+| CLOUD_RUN_CONCURRENCY | 40 | Maximum simultaneous requests per instance |
+| CLOUD_RUN_MEMORY | 1Gi | Memory per instance |
 
-Set the Scheduler timezone intentionally (UTC is simplest). Restrict who can view/edit Scheduler jobs because the custom header contains the maintenance secret.
+Minimum instances stay at zero to avoid idle-instance charges. A maximum-instance cap protects against unexpected spend but can limit throughput or produce queuing/503s during demand spikes. Raising the cap should follow load testing and database connection-capacity review, not be used as a substitute for tuning.
 
-## Redis runtime contract
+## 3. Configure the public domain and provider callbacks
 
-Set `REDIS_URL` to the Upstash Redis REST HTTPS endpoint and `REDIS_TOKEN` to its REST token through Secret Manager. The runtime also accepts `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` for compatibility. Never expose the token through a `NEXT_PUBLIC_*` variable.
+After the service is deployed, configure the DNS records/domain mapping or an external HTTPS Application Load Balancer for Cloud Run. Confirm TLS is active before changing production traffic.
 
-Redis stores only temporary availability results (75-second TTL) and distributed lock keys for booking/meeting state transitions, the booking sweep, and live-chat conversation creation. Use a dedicated Redis database for this app. Existing lock key names are intentionally preserved so old and new application revisions continue coordinating during a rolling deployment. MongoDB remains authoritative for application records. Production lock-protected API operations and the booking sweep fail closed with HTTP 503 if Redis is missing or unavailable; configure and verify Redis before sending production booking traffic.
+Then configure the exact provider callbacks:
 
-## 8. Verify the live service
+- Google OAuth authorized redirect URI: the value of GOOGLE_REDIRECT_URI, normally https://canvas.algoquit.com/api/auth/google/callback.
+- Razorpay webhook URL: https://canvas.algoquit.com/api/webhooks/razorpay.
+- If a different public domain is selected, update NEXT_PUBLIC_APP_URL and GOOGLE_REDIRECT_URI, then rerun the deployment script so the browser bundle is rebuilt with the correct origin.
 
-Run these checks after deployment:
+Do not remove the previous production route or switch DNS until the Cloud Run service passes its health and end-to-end smoke checks. The Vercel configuration file is no longer used by this repository; the current Vercel project/domain itself must be paused or deleted separately from the Vercel dashboard after the Cloud Run cutover is verified.
 
-1. Open https://canvas.algoquit.com/api/health. A healthy service returns HTTP 200 with both mongo and redis equal to ok. It returns 503 when either dependency is not healthy.
-2. Sign in with Google and verify that the OAuth callback uses the production domain.
-3. Create one fresh company/workspace. The app's plan catalog bootstraps built-in plans on demand; do not run npm run seed:demo in production. That demo seeder deliberately refuses any database other than canvas_test.
-4. Test booking creation, assignment, Google Calendar/Meet creation, Razorpay checkout/webhook, Vault upload/download, task assignment, and each scheduled endpoint.
-5. Check Cloud Run → Logs for runtime errors and Cloud Monitoring for instance restarts, latency and 5xx responses.
+## 4. Cloud Scheduler jobs
 
-If company creation returns FREE_PLAN_NOT_CONFIGURED, first check the Cloud Run revision's MONGODB_DB_NAME=Canvas, that the MONGODB_URI secret points to the expected cluster, and that its database user has write permissions. The production app automatically ensures the plan catalog; this error means seeding/verification failed, so inspect the preceding plan-catalog/MongoDB error in Cloud Run logs rather than loading demo data.
+The deploy script creates/updates these jobs in UTC using the service's generated Cloud Run URL, so Scheduler does not depend on custom-domain DNS propagation:
 
-## 9. Subsequent builds and production practices
+| Job | Endpoint | Schedule |
+| --- | --- | --- |
+| canvas-booking-sweep | /api/jobs/sweep | Every minute: * * * * * |
+| canvas-vault-upload-cleanup | /api/jobs/vault-upload-cleanup | Every 15 minutes: */15 * * * * |
+| canvas-live-chat-retention | /api/jobs/live-chat-retention | Daily at 03:17 UTC: 17 3 * * * |
 
-After the first service exists and its runtime configuration is correct, cloudbuild.yaml can build, push and deploy new revisions. Configure a Cloud Build trigger for the protected main branch and set the _NEXT_PUBLIC_APP_URL substitution to the final URL. Give the Cloud Build service account permission to push to Artifact Registry, deploy Cloud Run, and act as the chosen runtime service account. The deploy step updates the image while preserving existing Cloud Run runtime configuration.
+CRON_SECRET is stored in Secret Manager for the runtime and used as a protected Scheduler HTTP header. Restrict Cloud Scheduler and Secret Manager IAM so only trusted operators can inspect or change these resources.
 
-For production, enable database backups/point-in-time recovery, monitor Cloud Run 5xx and database connection saturation, rotate secrets through Secret Manager, and test restores before real customer data is onboarded. Start with the 1 CPU / 1 GiB setting above and tune based on observed latency, memory and cost. Consider one minimum instance if cold-start latency is unacceptable.
+## 5. Subsequent deployments from main
 
+Once the first service has been created, configure a Cloud Build trigger for the protected main branch using cloudbuild.yaml. Set its public substitutions to the correct production URL and brand/analytics values. The build config builds and pushes the image, then deploys a new revision to the existing Cloud Run service while preserving the service's configured runtime environment and scaling settings. Build and deployment identities must have access to Artifact Registry, Cloud Run and the runtime service account.
 
-## Branding and production cutover
+The first-deploy script deliberately uses a tagged image and does not depend on a Vercel build. Next.js standalone output contains the production server and traced dependencies, runs as a non-root user, and listens on 0.0.0.0:8080 as required by Cloud Run.
 
-The product is **Canvas** at https://canvas.algoquit.com. The operating company and billing merchant is **AlgoQuit** at https://algoquit.com. Keep the two URLs separate: use the product URL for the app and callbacks, and the company URL for the merchant/legal website. Set that URL in the DNS/domain mapping and ensure TLS is active before deploying the final image. Build-time public URL values must be rebuilt when changed.
+## 6. Production verification and capacity
 
-Before running the data migration, take a verified backup and point `MONGODB_URI` and `MONGODB_DB_NAME` at the current production database. Set these variables in PowerShell from the exact current database values (do not add the values to source control):
+Run checks after deployment:
 
-```powershell
-$env:MIGRATION_PREVIOUS_MERCHANT_CODE = "the exact current payment merchant code"
-$env:MIGRATION_PREVIOUS_PRODUCT_NAME = "the exact current product display name"
-$env:MIGRATION_PREVIOUS_MERCHANT_NAME = "the exact current merchant display name"
-npm run brand:migrate
-```
+1. Open the deployed service's /api/health endpoint. A healthy response is HTTP 200 with both MongoDB and Redis checks equal to ok; a missing or unhealthy required dependency returns 503.
+2. Sign in with Google and verify the redirect/callback domain.
+3. Verify booking creation, assignment, Calendar/Meet creation, Razorpay checkout/webhook, Vault upload/download, Task Management, Live Chat, and all three scheduled endpoints.
+4. Check Cloud Run request logs and Cloud Monitoring for 5xx rate, p95/p99 latency, memory/CPU saturation, cold starts and instance restarts.
+5. Enable MongoDB backups and point-in-time recovery, test restoring them, and monitor database connection pools before increasing max instances.
 
-The first invocation is a dry run. Review the counts and run `npm run brand:migrate -- --apply` only after verifying the active database and backup. The migration updates the payment merchant code and current platform merchant profile. It reports but **does not rewrite issued invoice snapshots**: historical tax/accounting documents should be corrected or reissued only through an accountant/counsel-approved process. New invoices use Canvas as the product and AlgoQuit as the merchant. Do not point this script at a fresh empty database.
+Cloud Run scales automatically with request demand, but no configuration alone can guarantee hundreds of thousands of simultaneous users or prevent all crashes. Practical capacity depends on request mix, app code, MongoDB/Redis quotas, Google API limits, connection pools, queueing and load tests. The default pool is intentionally small per instance. With 10 instances at pool size 5, the app can create up to roughly 50 MongoDB connections per process fleet for this Mongoose pool alone; include all other workers and applications when sizing Atlas. Use a production load test before raising the instance cap.
 
-If the MongoDB database itself has an earlier name, do not just change `MONGODB_DB_NAME`—that would point the app at a different database. Back up the existing database, restore its collections and indexes into the new `Canvas` database, validate row counts and key application workflows, then change the deployment setting and cut over. Keep the old database as a rollback copy until the new deployment is verified.
+For cost protection, configure Google Cloud billing budgets/alerts and service quotas. Instance max limits help with unexpected spikes but may be briefly exceeded; a fixed cap prioritizes spend control over unlimited scale. Start with max 10 and increase only with observed capacity/cost data. Keep min instances at 0 unless measured cold-start latency warrants a paid warm instance.
