@@ -294,7 +294,7 @@ test("Task Canvas offers manual save and protects pending edits during page navi
   assert.match(component, /beforeunload/);
   assert.match(component, /handlePendingNavigation/);
   assert.match(component, /confirmLabel: "Save and leave"/);
-  assert.match(component, /router\.push\(destination\.pathname \+ destination\.search \+ destination\.hash\)/);
+  assert.match(component, /router\.push\(\(destination\.pathname \+ destination\.search \+ destination\.hash\) as Route\)/);
   assert.match(component, /while \(inFlightRef\.current \|\| queuedSceneRef\.current\)/);
   assert.match(component, /mergeRetriesRef\.current < 5/);
   assert.match(component, /versionNonce\?: unknown/);
