@@ -297,4 +297,7 @@ test("Task Canvas offers manual save and protects pending edits during page navi
   assert.match(component, /router\.push\(destination\.pathname \+ destination\.search \+ destination\.hash\)/);
   assert.match(component, /while \(inFlightRef\.current \|\| queuedSceneRef\.current\)/);
   assert.match(component, /mergeRetriesRef\.current < 5/);
+  assert.match(component, /versionNonce\?: unknown/);
+  assert.match(component, /deleted\(element\) && !deleted\(existing\)/);
+  assert.match(component, /nonceOf\(element\) > nonceOf\(existing\)/);
 });
