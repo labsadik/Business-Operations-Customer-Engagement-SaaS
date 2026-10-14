@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Types } from "mongoose";
 import { getMongo } from "@/lib/mongodb";
 import { exchangeGoogleCode, fetchGoogleUserInfo } from "@/lib/google";
 import { encryptSecret, sha256 } from "@/lib/security";
