@@ -279,8 +279,9 @@ export default function AdminCompanyDetailsView({ company }: { company: AdminCom
           {[
             ["Canvases / plan limit", canvas.canvasCount.toLocaleString("en-IN") + " / " + canvas.canvasLimit.toLocaleString("en-IN"), "Company-wide across workspaces"],
             ["Collaborator limit", canvas.maxCollaboratorsPerCanvas.toLocaleString("en-IN") + " per canvas", "Plan entitlement; member count is shown per canvas"],
-            ["Compressed scene data", formatBytes(canvas.totalStoredSceneBytes), "Total stored scene payload bytes"],
+            ["Scene payload stored", formatBytes(canvas.totalStoredSceneBytes), "Gzip bytes plus legacy scene BSON bytes"],
             ["MongoDB document footprint", formatBytes(canvas.totalDocumentBsonBytes), "BSON size of all company canvas documents"],
+            ["Known raw / legacy scene size", formatBytes(canvas.totalRawSceneBytes), "Measured JSON bytes and legacy BSON estimates; older gzip scenes are excluded"],
             ["Scene elements", canvas.totalElements.toLocaleString("en-IN"), "Known elements across measured and legacy canvases"],
             ["Files / embedded assets", canvas.totalFiles.toLocaleString("en-IN"), "File entries in canvas scenes"],
             ["Path points", canvas.totalPoints.toLocaleString("en-IN"), "Points stored in line, arrow and free-draw paths"],
