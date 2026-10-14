@@ -91,3 +91,20 @@ a[aria-disabled="true"] {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* White-label only the embedded editor on the Task Canvas page. Keep the
+   native drawing toolbar, text tools, fonts, and canvas actions unchanged. */
+.task-canvas-excalidraw .App-toolbar__extra-tools-trigger,
+.task-canvas-excalidraw .App-toolbar__extra-tools-dropdown {
+  display: none !important;
+}
+
+.task-canvas-excalidraw .App-toolbar__divider:has(+ .App-toolbar__extra-tools-trigger) {
+  display: none !important;
+}
+
+/* Defensive hide for branded links if the help dialog is opened by shortcut. */
+.task-canvas-excalidraw .HelpDialog__header {
+  display: none !important;
+}
+
