@@ -83,6 +83,7 @@ export default function AdminVaultUsage() {
   const [totalsError, setTotalsError] = useState("");
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
+  const pageRequestId = useRef(0);
   const totalsRequestId = useRef(0);
 
   useEffect(() => {
@@ -97,6 +98,7 @@ export default function AdminVaultUsage() {
     searchTerm = query,
     signal
   }: PageLoadOptions = {}) => {
+    const requestId = append ? pageRequestId.current : ++pageRequestId.current;
     if (append) setLoadingMore(true);
     else if (isRefresh) setRefreshing(true);
     else setLoading(true);
@@ -115,14 +117,14 @@ export default function AdminVaultUsage() {
       if (!response.ok || !body?.ok || !body.data) {
         throw new Error(body?.error || "ADMIN_VAULT_USAGE_FAILED");
       }
-      if (signal?.aborted) return;
+      if (signal?.aborted || requestId !== pageRequestId.current) return;
       setItems((current) => append ? [...current, ...body.data!.items] : body.data!.items);
       setNextCursor(body.data.nextCursor ?? null);
     } catch (reason) {
-      if (signal?.aborted || (reason instanceof Error && reason.name === "AbortError")) return;
+      if (signal?.aborted || requestId !== pageRequestId.current || (reason instanceof Error && reason.name === "AbortError")) return;
       setError(errorMessage(reason, "Could not load company vault usage."));
     } finally {
-      if (signal?.aborted) return;
+      if (signal?.aborted || requestId !== pageRequestId.current) return;
       setLoading(false);
       setLoadingMore(false);
       setRefreshing(false);
