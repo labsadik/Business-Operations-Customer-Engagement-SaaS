@@ -43,17 +43,17 @@ The `.env.example.md` file is documentation only; Next.js does not load Markdown
 
 ## Production deployment
 
-For the container image, Google Cloud Run deployment, Secret Manager setup, Cloud Scheduler jobs, and production smoke checks, see [docs/DEPLOY_GCP_CLOUD_RUN.md](./docs/DEPLOY_GCP_CLOUD_RUN.md).
+For deployment, copy `cloudrun.env.example` to a local `.env`, fill in the project/provider values, then run `powershell -ExecutionPolicy Bypass -File .\scripts\deploy-cloud-run.ps1`. This builds through Cloud Build, puts server credentials in Secret Manager, deploys a scale-to-zero Cloud Run service, and configures three Cloud Scheduler jobs. The project, billing/IAM permissions, domain DNS and external OAuth/payment callbacks still need valid setup. See [docs/DEPLOY_GCP_CLOUD_RUN.md](./docs/DEPLOY_GCP_CLOUD_RUN.md).
 
 ## Sentry error monitoring
 
 Sentry is optional and is initialized from environment variables. When no DSN is configured, Sentry stays disabled and the existing Axiom/console logging remains available.
 
-Configure these values in each deployment environment (for example, Vercel Project Settings → Environment Variables):
+Configure these values in Cloud Run runtime environment variables or Secret Manager. The Cloud Run bootstrap script reads them from a local .env file and separates secrets automatically:
 
 - `NEXT_PUBLIC_SENTRY_DSN`: the Sentry project DSN used by the browser. DSNs are public identifiers, not auth tokens.
 - `SENTRY_DSN`: the server/edge DSN. Use the same project DSN unless browser and server events should go to different projects.
-- `SENTRY_ENVIRONMENT` and `NEXT_PUBLIC_SENTRY_ENVIRONMENT`: optional labels such as `production`, `preview`, or `development`. If omitted, the server uses `VERCEL_ENV`/ `NODE_ENV` and the browser uses `NODE_ENV`.
+- `SENTRY_ENVIRONMENT` and `NEXT_PUBLIC_SENTRY_ENVIRONMENT`: optional labels such as `production`, `preview`, or `development`. If omitted, the server and browser use `NODE_ENV`.
 - `SENTRY_TRACES_SAMPLE_RATE` and `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE`: optional values from `0` to `1`. Defaults are `1.0` in development and `0.1` in production. Invalid values safely fall back to these defaults.
 - `SENTRY_RELEASE` and `NEXT_PUBLIC_SENTRY_RELEASE`: optional release identifier to correlate browser and server events with a deployment.
 - `SENTRY_ORG`, `SENTRY_PROJECT`, and `SENTRY_AUTH_TOKEN`: build-time settings for uploading source maps. The auth token is secret and must never use a `NEXT_PUBLIC_*` name. Source-map upload is skipped when build credentials are absent.
@@ -72,7 +72,7 @@ Set the `NEXT_PUBLIC_*` variables before running `npm run build`; Next.js embeds
 
 This repository builds as a standard Next.js application for a Node.js-compatible hosting environment. Run `npm run build` to create the production build and `npm start` to serve it.
 
-The background booking sweep is exposed at `GET /api/jobs/sweep`. Configure an external scheduler to call this endpoint at the intended interval with the header `Authorization: Bearer <CRON_SECRET>`. In production, configure `CRON_SECRET` as a server-side secret. The repository does not provision a hosting provider or scheduler.
+The background booking sweep is exposed at `GET /api/jobs/sweep`. Configure an external scheduler to call this endpoint at the intended interval with the header `Authorization: Bearer <CRON_SECRET>`. In production, configure `CRON_SECRET` as a server-side secret. The Cloud Run bootstrap script provisions the service and its three Cloud Scheduler maintenance jobs.
 
 ## Delivery phases
 
