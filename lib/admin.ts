@@ -137,6 +137,8 @@ export type AdminLiveChatUsage = {
   customersRemaining: number;
   openChats: number;
   agentLimit: number;
+  eligibleAgents: number;
+  agentsRemaining: number;
   retentionDays: number;
   messageCooldownSeconds: number;
   pdfExportEnabled: boolean;
@@ -863,7 +865,7 @@ async function getAdminPublicPageLoginSnapshot(companyId: Types.ObjectId): Promi
               $filter: {
                 input: { $ifNull: ["$publicCompanyLogins", []] },
                 as: "login",
-                cond: { $eq: ["$login.companyId", companyId] }
+                cond: { $eq: ["$$login.companyId", companyId] }
               }
             },
             0
