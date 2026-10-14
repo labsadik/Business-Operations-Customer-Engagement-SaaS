@@ -134,8 +134,8 @@ async function buildUsageItems(companies: AdminUsageCompany[]): Promise<AdminVau
 
   await ensurePlanCatalog();
   const planIds = [...new Set(["free", ...subscriptions.map((row) => String(row.planId))])];
-  // Do not call listPlansForAdmin here: that helper also aggregates payment and
-  // invoice history, which is unrelated to vault rendering.
+  // Read only the plan fields needed by vault rendering; payment and invoice
+  // aggregates are unrelated work on this request path.
   const planRows = await Plan.find({ identifier: { $in: planIds } })
     .select("identifier name vaultEnabled vaultQuotaBytes vaultMaxFileBytes vaultMaxItems")
     .limit(200)
