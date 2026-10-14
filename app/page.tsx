@@ -265,29 +265,36 @@ function FeaturePreview({ kind }: { kind: FeatureKind }) {
 }
 
 export default async function Home() {
-  const plans = await listPublicPlans();
-  let platformAnnouncements: Array<{
+  // These reads are independent. Start both immediately so Mongo connection/setup
+  // and the public-plan catalog read do not block the announcement query.
+  const plansPromise = listPublicPlans();
+  const announcementsPromise = (async (): Promise<Array<{
     _id: unknown;
     title: string;
     message: string;
     audience: string;
     publishedAt?: Date | null;
     createdAt: Date;
-  }> = [];
+  }>> => {
+    try {
+      await getMongo();
+      return await PlatformAnnouncement.find(landingPlatformAnnouncementFilter())
+        .sort({ publishedAt: -1, createdAt: -1, _id: -1 })
+        .limit(5)
+        .select("_id title message audience publishedAt createdAt")
+        .lean();
+    } catch (error) {
+      console.error("[platform-announcement] landing read failed", {
+        errorType: error instanceof Error ? error.name : "UNKNOWN"
+      });
+      return [];
+    }
+  })();
 
-  try {
-    await getMongo();
-    platformAnnouncements = await PlatformAnnouncement.find(landingPlatformAnnouncementFilter())
-      .sort({ publishedAt: -1, createdAt: -1, _id: -1 })
-      .limit(5)
-      .select("_id title message audience publishedAt createdAt")
-      .lean();
-  } catch (error) {
-    platformAnnouncements = [];
-    console.error("[platform-announcement] landing read failed", {
-      errorType: error instanceof Error ? error.name : "UNKNOWN"
-    });
-  }
+  const [plans, platformAnnouncements] = await Promise.all([
+    plansPromise,
+    announcementsPromise
+  ]);
 
   return (
     <main className="min-h-screen bg-[#f8fafc] text-slate-950">
