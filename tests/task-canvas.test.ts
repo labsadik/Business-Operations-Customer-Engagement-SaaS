@@ -260,3 +260,33 @@ test("Task Canvas hides Excalidraw branding links and extra tools without changi
   assert.match(dashboard, /viewBackgroundColor: "#faf9f1"/);
 });
 
+
+
+test("compressed Task Canvas reads handle BSON Binary values returned by lean MongoDB queries", async () => {
+  const [route, authorization] = await Promise.all([
+    readFile(new URL("../app/api/task-canvas/[canvasId]/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/task-canvas-authorization.ts", import.meta.url), "utf8")
+  ]);
+
+  assert.match(route, /function storedSceneBuffer\(value: unknown\): Buffer/);
+  assert.match(route, /binary\.value\(true\)/);
+  assert.match(route, /binary\.buffer instanceof Uint8Array/);
+  assert.match(route, /Array\.isArray\(\(legacy as Record<string, unknown>\)\.elements\)/);
+  assert.doesNotMatch(route, /Buffer\.from\(canvas\.sceneGzip as Uint8Array\)/);
+  assert.match(authorization, /code === "CANVAS_SCENE_STORED_INVALID" \? 500 :/);
+});
+
+test("Task Canvas offers manual save and protects pending edits during page navigation", async () => {
+  const component = await readFile(
+    new URL("../features/task-canvas/components/task-canvas-dashboard.tsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(component, /Save now/);
+  assert.match(component, /beforeunload/);
+  assert.match(component, /handlePendingNavigation/);
+  assert.match(component, /confirmLabel: "Save and leave"/);
+  assert.match(component, /router\.push\(destination\.pathname \+ destination\.search \+ destination\.hash\)/);
+  assert.match(component, /while \(inFlightRef\.current \|\| queuedSceneRef\.current\)/);
+  assert.match(component, /mergeRetriesRef\.current < 5/);
+});
