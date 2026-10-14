@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
+import type { Route } from "next";
 import { Component, type ErrorInfo, type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, Check, CheckCircle2, Clock3, FilePlus2, LoaderCircle, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Save, Trash2, UsersRound, X } from "lucide-react";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
@@ -707,7 +708,7 @@ export default function TaskCanvasDashboard({
           return;
         }
         setError("");
-        router.push(destination.pathname + destination.search + destination.hash);
+        router.push((destination.pathname + destination.search + destination.hash) as Route);
       })();
     };
     document.addEventListener("click", handlePendingNavigation, true);
