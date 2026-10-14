@@ -169,3 +169,21 @@ test("Task Canvas collaborator profiles render Google avatars and legacy member 
   assert.match(listRoute, /\[\.\.\.new Set\(\(canvas\.memberUserIds \?\? \[\]\)\.map\(String\)\)\]/);
   assert.match(canvasRoute, /\[\.\.\.new Set\(\(canvas\.memberUserIds \?\? \[\]\)\.map\(String\)\)\]/);
 });
+
+test("Task Canvas hides Excalidraw branding links and extra tools without changing the default drawing style", async () => {
+  const [dashboard, styles] = await Promise.all([
+    readFile(new URL("../features/task-canvas/components/task-canvas-dashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8")
+  ]);
+
+  assert.match(dashboard, /const TaskCanvasMainMenu = dynamic/);
+  assert.match(dashboard, /MainMenu\.DefaultItems\.LoadScene/);
+  assert.match(dashboard, /MainMenu\.DefaultItems\.Export/);
+  assert.match(dashboard, /<TaskCanvasMainMenu \/>/);
+  assert.doesNotMatch(dashboard, /MainMenu\.DefaultItems\.(?:Socials|Help)/);
+  assert.match(dashboard, /currentItemFontFamily: appState\.currentItemFontFamily/);
+  assert.match(dashboard, /showWelcomeScreen: false/);
+  assert.match(styles, /\.task-canvas-excalidraw \.App-toolbar__extra-tools-trigger/);
+  assert.match(styles, /\.task-canvas-excalidraw \.HelpDialog__header/);
+});
+
