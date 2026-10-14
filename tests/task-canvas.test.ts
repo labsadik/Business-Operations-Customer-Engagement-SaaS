@@ -184,6 +184,6 @@ test("Task Canvas hides Excalidraw branding links and extra tools without changi
   assert.match(dashboard, /currentItemFontFamily: appState\.currentItemFontFamily/);
   assert.match(dashboard, /showWelcomeScreen: false/);
   assert.match(styles, /\.task-canvas-excalidraw \.App-toolbar__extra-tools-trigger/);
-  assert.match(styles, /\.task-canvas-excalidraw \.HelpDialog__header/);
+  assert.match(styles, /\\.excalidraw-modal-container \\.HelpDialog__header/);
 });
 
