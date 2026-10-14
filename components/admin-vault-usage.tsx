@@ -187,10 +187,10 @@ export default function AdminVaultUsage() {
         <button
           type="button"
           onClick={refresh}
-          disabled={loading || refreshing}
+          disabled={loading || loadingMore || refreshing}
           className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
         >
-          <RefreshCw className={"size-4 " + (refreshing || totalsLoading ? "animate-spin" : "")} /> Refresh
+          <RefreshCw className={"size-4 " + (refreshing ? "animate-spin" : "")} /> Refresh
         </button>
       </header>
 
@@ -207,13 +207,17 @@ export default function AdminVaultUsage() {
         </div>
       )}
 
+      {totalsLoading && !totals && (
+        <div role="status" className="flex items-center gap-2 text-xs font-medium text-slate-500">
+          <LoaderCircle className="size-4 animate-spin" /> Calculating current platform-wide storage totals…
+        </div>
+      )}
+
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Vault usage summary">
         {metricItems.map((item) => (
           <div key={item.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">{item.label}</p>
-            <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-950 tabular-nums">
-              {totalsLoading && !totals ? <span className="inline-block h-7 w-16 animate-pulse rounded-lg bg-slate-200" aria-label="Loading summary" /> : item.value}
-            </p>
+            <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-950 tabular-nums">{item.value}</p>
             <p className="mt-1 text-[10px] leading-4 text-slate-500">{item.detail}</p>
           </div>
         ))}
