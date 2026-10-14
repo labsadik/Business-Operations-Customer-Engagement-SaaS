@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   ClipboardList,
   CreditCard,
+  Database,
   FileText,
   Globe2,
   HardDrive,
@@ -51,6 +52,10 @@ export default function AdminCompanyDetailsView({ company }: { company: AdminCom
   const remaining = company.meetingsRemaining;
   const completion = company.totalMeetings ? Math.round((company.completedMeetings / company.totalMeetings) * 100) : 0;
   const vault = company.vaultUsage;
+  const canvas = company.taskCanvasUsage;
+  const canvasUsagePercent = canvas.canvasLimit > 0
+    ? Math.min(100, (canvas.canvasCount / canvas.canvasLimit) * 100)
+    : 0;
   const vaultPercent = vault.quotaBytes > 0
     ? Math.min(100, (vault.usedBytes / vault.quotaBytes) * 100)
     : vault.usedBytes > 0 ? 100 : 0;
@@ -252,6 +257,100 @@ export default function AdminCompanyDetailsView({ company }: { company: AdminCom
             </article>
           ))}
         </div>
+      </section>
+
+
+      <section className="space-y-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-violet-50 text-violet-700"><Database className="size-5" aria-hidden="true" /></span>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet-600">Task Canvas</p>
+              <h2 className="mt-1 text-xl font-semibold tracking-tight">Company canvas usage and MongoDB storage</h2>
+              <p className="mt-1 text-sm text-slate-500">Server-rendered usage metrics for this company only. Stored sizes are measured without loading scene blobs into the page response.</p>
+            </div>
+          </div>
+          <span className={"w-fit rounded-full px-3 py-1.5 text-[10px] font-semibold " + (canvas.enabled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600")}>
+            {canvas.enabled ? "Included in current plan" : "Not included in current plan"}
+          </span>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            ["Canvases / plan limit", canvas.canvasCount.toLocaleString("en-IN") + " / " + canvas.canvasLimit.toLocaleString("en-IN"), "Company-wide across workspaces"],
+            ["Collaborator limit", canvas.maxCollaboratorsPerCanvas.toLocaleString("en-IN") + " per canvas", "Plan entitlement; member count is shown per canvas"],
+            ["Collaboration seats", canvas.totalCollaboratorSeats.toLocaleString("en-IN"), "Per-canvas membership entries across stored canvases"],
+            ["Scene payload stored", formatBytes(canvas.totalStoredSceneBytes), "Gzip bytes plus legacy scene BSON bytes"],
+            ["MongoDB document footprint", formatBytes(canvas.totalDocumentBsonBytes), "BSON size of all company canvas documents"],
+            ["Known raw / legacy scene size", formatBytes(canvas.totalRawSceneBytes), "Measured JSON bytes and legacy BSON estimates; older gzip scenes are excluded"],
+            ["Scene elements", canvas.totalElements.toLocaleString("en-IN"), "Known elements across measured and legacy canvases"],
+            ["Files / embedded assets", canvas.totalFiles.toLocaleString("en-IN"), "File entries in canvas scenes"],
+            ["Path points", canvas.totalPoints.toLocaleString("en-IN"), "Points stored in line, arrow and free-draw paths"],
+            ["Per-canvas stats", canvas.measuredCanvasCount.toLocaleString("en-IN") + " / " + canvas.canvasCount.toLocaleString("en-IN"), canvas.unmeasuredCanvasCount ? canvas.unmeasuredCanvasCount.toLocaleString("en-IN") + " older compressed canvas(es) need a save to record item counts" : "Element counts available for all canvas records"]
+          ].map(([label, value, detail]) => (
+            <article key={label as string} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">{label as string}</p>
+              <p className="mt-2 break-words text-xl font-semibold tracking-tight text-slate-950">{value as string}</p>
+              <p className="mt-1 text-[10px] leading-4 text-slate-500">{detail as string}</p>
+            </article>
+          ))}
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span className="font-semibold text-slate-700">Canvas allowance usage</span>
+            <span className="text-slate-500">{canvas.canvasCount.toLocaleString("en-IN")} of {canvas.canvasLimit.toLocaleString("en-IN")} canvases · {canvasUsagePercent.toFixed(1)}%</span>
+          </div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+            <div className={"h-full rounded-full " + (canvas.canvasCount > canvas.canvasLimit || !canvas.enabled && canvas.canvasCount > 0 ? "bg-rose-500" : "bg-violet-600")} style={{ width: canvasUsagePercent + "%" }} />
+          </div>
+          {(!canvas.enabled && canvas.canvasCount > 0) && <p className="mt-3 text-xs font-semibold text-rose-700">This company has stored canvases although Task Canvas is not enabled on the current plan. Data is retained; current feature access is controlled separately.</p>}
+          {canvas.canvasCount > canvas.canvasLimit && <p className="mt-3 text-xs font-semibold text-amber-700">Stored canvas count is above the current plan allowance. Existing data is reported as-is; no records were changed by this view.</p>}
+        </div>
+
+        <div className="overflow-hidden rounded-2xl border border-slate-200">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">Canvas records and storage details</h3>
+              <p className="mt-1 text-[11px] text-slate-500">Latest {canvas.items.length} of {canvas.canvasCount} canvases, newest updated first. Scene storage size is the gzip payload for compressed records or BSON scene size for legacy records; document bytes include metadata but exclude indexes.</p>
+            </div>
+            <Database className="size-4 text-slate-400" aria-hidden="true" />
+          </div>
+          {canvas.items.length ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-[1160px] w-full text-left">
+                <thead className="bg-slate-50">
+                  <tr>{["Canvas", "Items / path points", "Collaborators", "Raw / legacy scene", "Stored scene", "MongoDB document", "Updated"].map((label) => <th key={label} className="px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">{label}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {canvas.items.map((item) => (
+                    <tr key={item.id} className="border-t border-slate-100 align-top">
+                      <td className="px-4 py-3">
+                        <p className="max-w-[250px] break-words text-xs font-semibold text-slate-900">{item.name}</p>
+                        <p className="mt-1 font-mono text-[10px] text-slate-500" title={item.id}>{item.id.slice(-8)} · v{item.version} · {item.storageFormat === "gzip" ? "gzip" : "legacy"}</p>
+                        <p className="mt-1 font-mono text-[10px] text-slate-400" title={item.workspaceId}>Workspace …{item.workspaceId.slice(-6)}</p>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-700">
+                        <p className="font-semibold tabular-nums">{item.sceneElementCount == null ? "Not measured" : item.sceneElementCount.toLocaleString("en-IN") + " elements"}</p>
+                        <p className="mt-1 text-[10px] text-slate-500">{item.scenePointCount == null ? "Path points —" : item.scenePointCount.toLocaleString("en-IN") + " path points"}</p>
+                        <p className="mt-1 text-[10px] text-slate-500">{item.sceneFileCount == null ? "Files —" : item.sceneFileCount.toLocaleString("en-IN") + " files"}</p>
+                      </td>
+                      <td className="px-4 py-3 text-xs tabular-nums text-slate-700">{item.memberCount.toLocaleString("en-IN")} / {canvas.maxCollaboratorsPerCanvas}</td>
+                      <td className="px-4 py-3 text-xs tabular-nums text-slate-700">{item.sceneRawBytes == null ? "—" : (item.storageFormat === "legacy" ? "≈ " : "") + formatBytes(item.sceneRawBytes)}</td>
+                      <td className="px-4 py-3 text-xs font-semibold tabular-nums text-violet-700">{formatBytes(item.sceneStoredBytes)}</td>
+                      <td className="px-4 py-3 text-xs tabular-nums text-slate-700">{formatBytes(item.documentBsonBytes)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-600">{dateLabel(item.updatedAt, true)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="p-8 text-center text-sm text-slate-500">No Task Canvas records are stored for this company.</p>
+          )}
+          {canvas.hasMore && <p className="border-t border-slate-100 px-4 py-3 text-[11px] text-slate-500">Only the latest {canvas.items.length} canvases are listed here to keep the admin page responsive; aggregate totals include all {canvas.canvasCount} canvas records.</p>}
+        </div>
+        <p className="text-[11px] leading-5 text-slate-500">Size details are read server-side from this company&apos;s MongoDB records. Older gzip scenes that predate save-time element metrics show stored bytes immediately; element, file, point and exact raw-JSON counts become available after the next save. Legacy scene bytes marked ≈ are BSON-size estimates. This view never mutates or decompresses scene payloads.</p>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[1.15fr_.85fr]">

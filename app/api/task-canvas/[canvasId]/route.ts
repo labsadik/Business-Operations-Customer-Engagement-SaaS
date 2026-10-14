@@ -187,12 +187,27 @@ export async function PATCH(request: Request, { params }: Params) {
       const decodedScene = decodeScenePayload(body);
       const scene = validateTaskCanvasScene(decodedScene.value, decodedScene.serialized);
       const compressedScene = compressSceneForStorage(scene, decodedScene.serialized, decodedScene.compressed);
+      const serializedScene = decodedScene.serialized ?? JSON.stringify(scene);
+      const sceneRawBytes = Buffer.byteLength(serializedScene, "utf8");
+      const sceneElementCount = scene.elements.length;
+      const sceneFileCount = Object.keys(scene.files ?? {}).length;
+      const scenePointCount = scene.elements.reduce((total, value) => {
+        if (!value || typeof value !== "object" || Array.isArray(value)) return total;
+        const points = (value as Record<string, unknown>).points;
+        return total + (Array.isArray(points) ? points.length : 0);
+      }, 0);
 
       const updated = await TaskCanvas.findOneAndUpdate(
         { ...filter, version: expectedVersion },
         {
           $set: {
             sceneGzip: compressedScene,
+            sceneRawBytes,
+            sceneStoredBytes: compressedScene.byteLength,
+            sceneElementCount,
+            sceneFileCount,
+            scenePointCount,
+            sceneStatsAt: new Date(),
             version: expectedVersion + 1,
             lastEditorUserId: actorId
           },

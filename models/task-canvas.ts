@@ -12,6 +12,14 @@ const taskCanvasSchema = new Schema(
     // New scenes are gzip-compressed before persistence to keep large vector
     // diagrams compact and avoid repeatedly storing verbose JSON in MongoDB.
     sceneGzip: { type: Buffer, required: false },
+    // Compact save-time metrics let the admin dashboard report canvas size and
+    // complexity without fetching/decompressing scene blobs on every page load.
+    sceneRawBytes: { type: Number, required: false, min: 0 },
+    sceneStoredBytes: { type: Number, required: false, min: 0 },
+    sceneElementCount: { type: Number, required: false, min: 0 },
+    sceneFileCount: { type: Number, required: false, min: 0 },
+    scenePointCount: { type: Number, required: false, min: 0 },
+    sceneStatsAt: { type: Date, required: false },
     version: { type: Number, required: true, default: 1, min: 1 },
     lastEditorUserId: { type: Schema.Types.ObjectId, ref: "User", required: true }
   },
@@ -19,5 +27,6 @@ const taskCanvasSchema = new Schema(
 );
 
 taskCanvasSchema.index({ companyId: 1, workspaceId: 1, updatedAt: -1 });
+taskCanvasSchema.index({ companyId: 1, updatedAt: -1, _id: -1 });
 taskCanvasSchema.index({ companyId: 1, workspaceId: 1, memberUserIds: 1 });
 export const TaskCanvas = models.TaskCanvas ?? model("TaskCanvas", taskCanvasSchema);
