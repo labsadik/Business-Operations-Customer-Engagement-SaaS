@@ -379,9 +379,31 @@ async function ensureFreePlanSeeded() {
   }
 }
 async function seedLegacyPlans() {
-  await ensureFreePlanSeeded();
+  await getMongo();
+
+  // Most production instances already have a complete catalog. Check that with
+  // one indexed read before entering the compatibility/repair path, rather than
+  // issuing several reads per plan on every cold serverless start.
+  const existingPlans = await Plan.find({ identifier: { $in: PLAN_IDS } })
+    .select({ identifier: 1 })
+    .lean();
+  const existingIds = new Set(
+    existingPlans.map((plan) => identifierFrom(plan.identifier))
+  );
+
+  if (PLAN_IDS.every((id) => existingIds.has(id))) return;
+
+  // Preserve the legacy repair path only when an identifier is genuinely
+  // missing. This keeps first-time provisioning safe without making the common
+  // read path perform unnecessary upserts and verification queries.
+  if (!existingIds.has("free")) {
+    await ensureFreePlanSeeded();
+  }
+
   await Promise.all(
-    PLAN_IDS.filter((id) => id !== "free").map((id) => seedPlan(id, PLAN_IDS.indexOf(id)))
+    PLAN_IDS.filter((id) => id !== "free" && !existingIds.has(id)).map((id) =>
+      seedPlan(id, PLAN_IDS.indexOf(id))
+    )
   );
 }
 
