@@ -1,11 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Component, type ErrorInfo, type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, Check, CheckCircle2, Clock3, FilePlus2, LoaderCircle, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Trash2, UsersRound, X } from "lucide-react";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
 import UserAvatar from "@/components/user-avatar";
 import { useWorkspaceSidebarState } from "@/components/use-workspace-sidebar-state";
+import { normalizeTaskCanvasScene } from "@/features/task-canvas/shared/validation";
 
 const Excalidraw = dynamic(async () => (await import("@excalidraw/excalidraw")).Excalidraw, {
   ssr: false,
@@ -45,6 +46,38 @@ type CanvasBridge = {
   setCursor?: (cursor: string) => void;
   resetCursor?: () => void;
 };
+
+class TaskCanvasEditorBoundary extends Component<{
+  onRecover: () => void;
+  children: ReactNode;
+}, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, _info: ErrorInfo) {
+    console.error("Task Canvas editor render failed", error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div role="alert" className="grid h-full min-h-[320px] place-items-center p-6 text-center">
+          <div className="max-w-sm">
+            <p className="text-sm font-semibold text-slate-800">The drawing editor hit a problem.</p>
+            <p className="mt-2 text-xs leading-5 text-slate-500">Your last successfully saved version remains stored. Reload the saved canvas to recover the editor.</p>
+            <button type="button" onClick={() => { this.setState({ hasError: false }); this.props.onRecover(); }} className="mt-4 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+              Reload saved canvas
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 const EMPTY_SCENE: Scene = { elements: [], appState: {}, files: {} };
 const imageCompressionCache = new WeakMap<object, Promise<unknown>>();
 
@@ -127,14 +160,42 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
   return body.data;
 }
 
-function toScene(value: unknown): Scene {
-  if (!value || typeof value !== "object") return EMPTY_SCENE;
-  const scene = value as Partial<Scene>;
-  return {
-    elements: Array.isArray(scene.elements) ? scene.elements : [],
-    appState: scene.appState && typeof scene.appState === "object" ? scene.appState : {},
-    files: scene.files && typeof scene.files === "object" ? scene.files : {}
+async function restoreCanvasScene(value: unknown): Promise<Scene> {
+  const normalized = normalizeTaskCanvasScene(value);
+  const { restoreAppState, restoreElements } = await import("@excalidraw/excalidraw");
+  let elements: unknown[] = [];
+
+  try {
+    elements = restoreElements(normalized.elements as never, null, { repairBindings: true }) as unknown as unknown[];
+  } catch {
+    // A single legacy element can still contain an unsupported field shape.
+    // Isolate it so one bad object cannot crash the entire board.
+    for (const element of normalized.elements) {
+      try {
+        const restored = restoreElements([element] as never, null, { repairBindings: true }) as unknown as unknown[];
+        elements.push(...restored);
+      } catch {
+        // Drop only the element that cannot be restored; retain the rest.
+      }
+    }
+  }
+
+  const state = restoreAppState(normalized.appState as never, null);
+  const appState: Record<string, unknown> = {
+    viewBackgroundColor: state.viewBackgroundColor,
+    gridSize: state.gridSize,
+    theme: state.theme,
+    currentItemFontFamily: state.currentItemFontFamily
   };
+  return { elements, appState, files: normalized.files };
+}
+
+function sceneSignature(scene: Scene): string | null {
+  try {
+    return JSON.stringify(scene);
+  } catch {
+    return null;
+  }
 }
 
 function getPersistedScene(elements: unknown[], appState: Record<string, unknown>, files: Record<string, unknown>): Scene {
@@ -201,7 +262,9 @@ function errorText(code: string) {
     CANVAS_VERSION_CONFLICT: "A teammate saved a newer version. Load the latest version before continuing.",
     CANVAS_COLLABORATOR_LIMIT: "This plan's people-per-canvas limit has been reached.",
     CANVAS_MEMBER_INVALID: "Every collaborator must be an active member of this company workspace.",
-    CANVAS_CREATION_LIMIT: "Your company has reached its canvas limit. Ask a company administrator to increase the plan allowance or remove an unused canvas."
+    CANVAS_CREATION_LIMIT: "Your company has reached its canvas limit. Ask a company administrator to increase the plan allowance or remove an unused canvas.",
+    CANVAS_SCENE_TOO_LARGE: "This canvas is too large to save. Remove a large image or some content, then try again.",
+    CANVAS_SCENE_INVALID: "Some drawing data could not be saved safely. Reload the canvas to recover the last saved version."
   };
   return messages[code] ?? code.replaceAll("_", " ").toLocaleLowerCase();
 }
@@ -254,6 +317,7 @@ export default function TaskCanvasDashboard({
   const confirmationResolveRef = useRef<((confirmed: boolean) => void) | null>(null);
   const selectedIdRef = useRef("");
   const versionRef = useRef(1);
+  const lastSavedSignatureRef = useRef("");
   const editSerialRef = useRef(0);
   const suppressUntilRef = useRef(0);
   const dirtyRef = useRef(false);
@@ -296,9 +360,10 @@ export default function TaskCanvasDashboard({
     try {
       const data = await api<{ item: CanvasItem; scene: unknown; limits: { maxCollaborators: number; canvasLimit: number; canvasesUsed: number } }>("/api/task-canvas/" + id);
       if (token !== loadTokenRef.current) return;
-      const next = toScene(data.scene);
+      const next = await restoreCanvasScene(data.scene);
       versionRef.current = data.item.version;
       sceneRef.current = next;
+      lastSavedSignatureRef.current = sceneSignature(next) ?? "";
       setScene(next);
       setSuppressionWindow(suppressUntilRef, 1400);
       setItems((current) => current.map((item) => item.id === id ? { ...item, ...data.item } : item));
@@ -377,6 +442,12 @@ export default function TaskCanvasDashboard({
       queuedSceneRef.current = { canvasId: selectedIdRef.current, scene: nextScene };
       return;
     }
+    const signature = sceneSignature(nextScene);
+    if (signature && signature === lastSavedSignatureRef.current) {
+      dirtyRef.current = false;
+      setSaveState("saved");
+      return;
+    }
     inFlightRef.current = true;
     const editSerial = editSerialRef.current;
     setSaveState("saving");
@@ -388,6 +459,7 @@ export default function TaskCanvasDashboard({
       });
       if (selectedIdRef.current !== canvasId) return;
       versionRef.current = result.version;
+      if (signature) lastSavedSignatureRef.current = signature;
       setItems((current) => current.map((item) => item.id === canvasId ? { ...item, version: result.version, updatedAt: result.updatedAt } : item));
       if (editSerial === editSerialRef.current) {
         dirtyRef.current = false;
@@ -405,7 +477,9 @@ export default function TaskCanvasDashboard({
         try {
           const latest = await api<{ item: CanvasItem; scene: unknown }>("/api/task-canvas/" + canvasId);
           if (selectedIdRef.current === canvasId) {
-            const merged = mergeScenes(sceneRef.current, toScene(latest.scene));
+            const remote = await restoreCanvasScene(latest.scene);
+            lastSavedSignatureRef.current = sceneSignature(remote) ?? "";
+            const merged = mergeScenes(sceneRef.current, remote);
             versionRef.current = latest.item.version;
             sceneRef.current = merged;
             setScene(merged);
@@ -430,7 +504,7 @@ export default function TaskCanvasDashboard({
         setSaveState(code === "CANVAS_VERSION_CONFLICT" ? "conflict" : "error");
         conflictRef.current = code === "CANVAS_VERSION_CONFLICT";
         dirtyRef.current = true;
-        setError(code === "CANVAS_SCENE_TOO_LARGE" ? "" : errorText(code));
+        setError(errorText(code));
         queuedSceneRef.current = null;
       }
     } finally {
@@ -456,8 +530,15 @@ export default function TaskCanvasDashboard({
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       timerRef.current = null;
+      const currentScene = sceneRef.current;
+      const signature = sceneSignature(currentScene);
+      if (signature && signature === lastSavedSignatureRef.current) {
+        dirtyRef.current = false;
+        setSaveState("saved");
+        return;
+      }
       setSaveState("saving");
-      void persistRef.current(sceneRef.current);
+      void persistRef.current(currentScene);
     }, 850);
   }, []);
 
@@ -495,6 +576,11 @@ export default function TaskCanvasDashboard({
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = null;
     if (dirtyRef.current) await persistRef.current(sceneRef.current);
+    // If a write was already active, wait for it and any coalesced newest
+    // scene write before allowing the user to leave this canvas.
+    while (inFlightRef.current) {
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 25));
+    }
   }, []);
 
   const prepareCanvasSwitch = useCallback(async () => {
@@ -539,9 +625,10 @@ export default function TaskCanvasDashboard({
         if (meta.item.version <= versionRef.current || dirtyRef.current || inFlightRef.current) return;
         const latest = await api<{ item: CanvasItem; scene: unknown }>("/api/task-canvas/" + selectedId);
         if (selectedIdRef.current !== selectedId || dirtyRef.current || inFlightRef.current) return;
-        const next = toScene(latest.scene);
+        const next = await restoreCanvasScene(latest.scene);
         versionRef.current = latest.item.version;
         sceneRef.current = next;
+        lastSavedSignatureRef.current = sceneSignature(next) ?? "";
         setScene(next);
         setItems((current) => current.map((item) => item.id === selectedId ? { ...item, ...latest.item } : item));
         setSuppressionWindow(suppressUntilRef, 1400);
@@ -615,6 +702,7 @@ export default function TaskCanvasDashboard({
       setItems((current) => current.filter((item) => item.id !== selected.id));
       setScene(EMPTY_SCENE);
       sceneRef.current = EMPTY_SCENE;
+      lastSavedSignatureRef.current = sceneSignature(EMPTY_SCENE) ?? "";
       setSaveState("idle");
     } catch (cause) {
       setError(errorText((cause as Error).message));
@@ -702,6 +790,7 @@ export default function TaskCanvasDashboard({
                 onMouseLeave={handleCanvasMouseLeave}
               >
                 {loadingCanvas ? <div className="grid h-full place-items-center text-sm text-slate-500"><LoaderCircle className="mr-2 inline size-4 animate-spin" /> Opening canvas…</div> : <div className="task-canvas-excalidraw min-h-0 flex-1">
+                  <TaskCanvasEditorBoundary key={selectedId} onRecover={() => { void openCanvas(selected.id); }}>
                   <Excalidraw
                     key={selectedId}
                     initialData={{ ...scene, appState: { ...scene.appState, viewBackgroundColor: "#faf9f1", showWelcomeScreen: false } } as never}
@@ -722,6 +811,7 @@ export default function TaskCanvasDashboard({
                   >
                     <TaskCanvasMainMenu />
                   </Excalidraw>
+                  </TaskCanvasEditorBoundary>
                 </div>}
               </div>
               <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/70 px-3 py-2 text-[10px] text-slate-500 sm:px-4"><span>Draw, write, connect ideas, add images, and export from the drawing tools.</span><span className="font-semibold text-slate-400">Changes save automatically</span></div>
