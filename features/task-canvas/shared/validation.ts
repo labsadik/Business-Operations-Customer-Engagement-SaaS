@@ -1,6 +1,7 @@
 export const TASK_CANVAS_TITLE_MAX_LENGTH = 80;
-export const TASK_CANVAS_SCENE_MAX_BYTES = 2_000_000;
-export const TASK_CANVAS_MAX_ELEMENTS = 5_000;
+// Hard safety ceiling for a single serialized scene, not a plan/history quota.
+// Vector-only system diagrams compress very well and are stored as gzip bytes.
+export const TASK_CANVAS_SCENE_MAX_BYTES = 32_000_000;
 
 export type TaskCanvasScene = {
   elements: unknown[];
@@ -186,14 +187,13 @@ export function normalizeTaskCanvasScene(value: unknown): TaskCanvasScene {
   return { elements, appState, files };
 }
 
-export function validateTaskCanvasScene(value: unknown): TaskCanvasScene {
+export function validateTaskCanvasScene(value: unknown, serializedValue?: string): TaskCanvasScene {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("CANVAS_SCENE_INVALID");
   }
   const scene = value as Record<string, unknown>;
   if (
     !Array.isArray(scene.elements) ||
-    scene.elements.length > TASK_CANVAS_MAX_ELEMENTS ||
     !scene.appState ||
     typeof scene.appState !== "object" ||
     Array.isArray(scene.appState) ||
@@ -240,7 +240,7 @@ export function validateTaskCanvasScene(value: unknown): TaskCanvasScene {
 
   let serialized: string;
   try {
-    serialized = JSON.stringify({
+    serialized = serializedValue ?? JSON.stringify({
       elements: scene.elements,
       appState: scene.appState,
       files: scene.files ?? {}
