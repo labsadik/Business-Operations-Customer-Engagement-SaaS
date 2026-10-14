@@ -456,13 +456,28 @@ export async function getAdminVaultUsageTotals(): Promise<AdminVaultUsageTotals>
     totals.overQuotaCompanies += usedBytes > quotaBytes ? 1 : 0;
   }
 
-  // Companies without a subscription or any vault/upload activity are not in
-  // the grouped sets above. If the free plan includes vault access, account for
-  // those untouched companies too instead of silently under-reporting enabled
-  // vaults in the summary.
-  const companiesNotInUsageGroups = Math.max(0, companyCount - companyIds.size);
-  if (Boolean(plansById.get("free")?.vaultEnabled)) {
+  // Companies without a subscription or any vault file/upload activity are
+  // absent from the grouped aggregates. Count actual company documents rather
+  // than subtracting the number of grouped IDs: stale/orphaned records can make
+  // companyIds larger than the number of real companies.
+  const groupedCompanyObjectIds = [...companyIds]
+    .filter((companyId) => Types.ObjectId.isValid(companyId))
+    .map((companyId) => new Types.ObjectId(companyId));
+  const companiesNotInUsageGroups = await Company.countDocuments({
+    _id: { $nin: groupedCompanyObjectIds }
+  });
+
+  // Untouched companies use the Free entitlement. Include the full entitlement
+  // footprint for each one, not only the enabled-company count, so platform
+  // quota and item-capacity metrics remain internally consistent.
+  const freePlan = plansById.get("free");
+  if (freePlan?.vaultEnabled && companiesNotInUsageGroups > 0) {
+    const untouchedQuotaBytes = Math.max(0, Number(freePlan.vaultQuotaBytes ?? 0));
+    const untouchedMaxItems = Math.max(0, Number(freePlan.vaultMaxItems ?? 0));
     totals.enabledCompanies += companiesNotInUsageGroups;
+    totals.quotaBytes += untouchedQuotaBytes * companiesNotInUsageGroups;
+    totals.availableBytes += untouchedQuotaBytes * companiesNotInUsageGroups;
+    totals.maxItems += untouchedMaxItems * companiesNotInUsageGroups;
   }
 
   totals.disabledCompanies = Math.max(0, totals.companies - totals.enabledCompanies);
