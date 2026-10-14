@@ -19,7 +19,6 @@ import { LiveChatConversation } from "@/models/live-chat-conversation";
 import { LiveChatMonthlyUsage } from "@/models/live-chat-monthly-usage";
 import { LiveChatSettings } from "@/models/live-chat-settings";
 import { getTodayIso } from "@/lib/timezone";
-import { currentPeriodKey } from "@/lib/live-chat";
 import type { PlanEntitlements } from "@/lib/plans";
 import type { AdminPlan } from "@/lib/plan-catalog";
 import { ensurePlanCatalog, listPlansForAdmin } from "@/lib/plan-catalog";
@@ -964,9 +963,9 @@ export async function getAdminCompanyDetails(companyId: string) {
   if (!baseRow) return null;
 
   const todayKey = workspace ? getTodayIso(workspace.timezone || "Asia/Kolkata") : null;
-  const liveChatPeriodKey = currentPeriodKey();
   const usageNow = new Date();
-  const [vaultSnapshot, vaultFileRows, vaultFolderCount, activeVaultUploadRows, dailyTaskUsage, liveChatMonthlyUsage, openLiveChatCount, liveChatSettings, publicPageLoginUsage] = await Promise.all([
+  const liveChatPeriodKey = `${usageNow.getUTCFullYear()}-${String(usageNow.getUTCMonth() + 1).padStart(2, "0")}`;
+  const [vaultSnapshot, vaultFileRows, vaultFolderCount, activeVaultUploadRows, dailyTaskUsage, liveChatMonthlyUsage, openLiveChatCount, liveChatEmployeeCount, liveChatSettings, publicPageLoginUsage] = await Promise.all([
     getAdminVaultUsage([String(objectId)]),
     VaultFile.find({ companyId: objectId })
       .sort({ createdAt: -1, _id: -1 })
@@ -1030,6 +1029,14 @@ export async function getAdminCompanyDetails(companyId: string) {
       status: "OPEN",
       expiresAt: { $gt: usageNow }
     }),
+    workspace
+      ? Membership.countDocuments({
+          companyId: objectId,
+          workspaceId: workspace._id,
+          active: true,
+          role: "EMPLOYEE"
+        })
+      : Promise.resolve(0),
     workspace
       ? LiveChatSettings.findOne({ companyId: objectId, workspaceId: workspace._id })
           .select("publicWidgetEnabled").lean()
@@ -1124,6 +1131,8 @@ export async function getAdminCompanyDetails(companyId: string) {
     customersRemaining: Math.max(0, liveChatCustomerLimit - customersUsedThisMonth),
     openChats: openLiveChatCount,
     agentLimit: currentPlan?.liveChatAgentLimit ?? 5,
+    eligibleAgents: Math.min(liveChatEmployeeCount, currentPlan?.liveChatAgentLimit ?? 5),
+    agentsRemaining: Math.max(0, (currentPlan?.liveChatAgentLimit ?? 5) - liveChatEmployeeCount),
     retentionDays: currentPlan?.liveChatRetentionDays ?? 30,
     messageCooldownSeconds: currentPlan?.liveChatMessageCooldownSeconds ?? 15,
     pdfExportEnabled: currentPlan?.liveChatPdfExportEnabled !== false,
