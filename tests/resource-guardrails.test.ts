@@ -462,7 +462,7 @@ test("vault uploads stream chunks and never report 100 percent before Bunny fina
   const ui = source("components/company-vault.tsx");
   const start = source("app/api/vault/uploads/route.ts");
   const cleanupJob = source("app/api/jobs/vault-upload-cleanup/route.ts");
-  const vercel = source("vercel.json");
+  const cloudRun = source("docs/DEPLOY_GCP_CLOUD_RUN.md");
 
   assert.ok(chunks.includes("bunnyPutStream("));
   assert.ok(chunks.includes("streamRequestBody(request.body, expectedSize)"));
@@ -485,7 +485,8 @@ test("vault uploads stream chunks and never report 100 percent before Bunny fina
 
   assert.ok(cleanupJob.includes("cleanupExpiredVaultUploads(undefined, CLEANUP_BATCH_LIMIT)"));
   assert.ok(cleanupJob.includes('request.headers.get("authorization") === `Bearer ${secret}`'));
-  assert.ok(vercel.includes('"schedule": "0 3 * * *"'));
+  assert.ok(cloudRun.includes("/api/jobs/vault-upload-cleanup"));
+  assert.ok(cloudRun.includes("*/15 * * * *"));
 });
 
 
