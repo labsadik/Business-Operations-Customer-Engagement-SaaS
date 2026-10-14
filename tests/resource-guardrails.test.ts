@@ -1036,3 +1036,38 @@ test("large directories use five-row cursor pages and keep refreshes data-only",
   assert.doesNotMatch(workspace, /window\.location\.reload\(/);
   assert.doesNotMatch(taskDashboard, /window\.location\.reload\(/);
 });
+
+
+test("admin company details reports tenant-scoped Task Canvas limits and compact storage metrics", () => {
+  const admin = source("lib/admin.ts");
+  const route = source("app/api/task-canvas/[canvasId]/route.ts");
+  const model = source("models/task-canvas.ts");
+  const view = source("components/admin-company-details.tsx");
+
+  assert.ok(admin.includes("TaskCanvas.aggregate"));
+  assert.ok(admin.includes('{ $match: { companyId } }'));
+  assert.ok(admin.includes('$binarySize: "$sceneGzip"'));
+  assert.ok(admin.includes('$bsonSize: "$$ROOT"'));
+  assert.ok(admin.includes("TASK_CANVAS_ADMIN_ROWS_LIMIT = 100"));
+  assert.ok(admin.includes("maxCollaboratorsPerCanvas"));
+  assert.ok(route.includes("sceneRawBytes,"));
+  assert.ok(route.includes("sceneStoredBytes: compressedScene.byteLength"));
+  assert.ok(route.includes("sceneElementCount,"));
+  assert.ok(route.includes("scenePointCount,"));
+  assert.ok(model.includes("sceneElementCount: { type: Number"));
+  assert.ok(model.includes("sceneStoredBytes: { type: Number"));
+  assert.ok(view.includes("Task Canvas usage"));
+  assert.ok(view.includes("MongoDB document footprint"));
+});
+
+test("Task Canvas read, write and delete operations retain company and workspace isolation", () => {
+  const route = source("app/api/task-canvas/[canvasId]/route.ts");
+  const auth = source("lib/task-canvas-authorization.ts");
+
+  assert.ok(route.includes("companyId: new Types.ObjectId(scope.companyId)"));
+  assert.ok(route.includes("workspaceId: new Types.ObjectId(scope.workspaceId)"));
+  assert.ok(route.includes("requireTaskCanvasScope()"));
+  assert.ok(route.includes("canReadTaskCanvas(scope, canvas)"));
+  assert.ok(route.includes("canManageTaskCanvas(scope, canvas)"));
+  assert.ok(auth.includes("scope.session.role !=="));
+});
