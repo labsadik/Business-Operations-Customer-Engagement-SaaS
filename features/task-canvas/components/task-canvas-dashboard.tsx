@@ -20,7 +20,6 @@ const TaskCanvasMainMenu = dynamic(async () => {
   return function TaskCanvasWhiteLabelMenu() {
     return (
       <MainMenu>
-        <MainMenu.DefaultItems.LoadScene />
         <MainMenu.DefaultItems.SaveToActiveFile />
         <MainMenu.DefaultItems.Export />
         <MainMenu.DefaultItems.SaveAsImage />
@@ -833,7 +832,7 @@ export default function TaskCanvasDashboard({
                         changeViewBackgroundColor: true,
                         clearCanvas: true,
                         export: { saveFileToDisk: true },
-                        loadScene: true,
+                        loadScene: false,
                         saveToActiveFile: true,
                         toggleTheme: true,
                         saveAsImage: true
