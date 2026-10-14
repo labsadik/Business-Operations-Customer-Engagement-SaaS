@@ -1071,3 +1071,39 @@ test("Task Canvas read, write and delete operations retain company and workspace
   assert.ok(route.includes("canManageTaskCanvas(scope, canvas)"));
   assert.ok(auth.includes('requireCompanyMember(["COMPANY_ADMIN", "EMPLOYEE", "PLATFORM_ADMIN"])'));
 });
+
+
+test("admin company details reports plan usage, Live Chat quotas, and company-scoped public logins", () => {
+  const admin = source("lib/admin.ts");
+  const user = source("models/user.ts");
+  const callback = source("app/api/auth/google/callback/route.ts");
+  const view = source("components/admin-company-details.tsx");
+
+  assert.ok(admin.includes("TaskDailyUsage.findOne"));
+  assert.ok(admin.includes("getTodayIso(workspace.timezone"));
+  assert.ok(admin.includes("LiveChatMonthlyUsage.findOne"));
+  assert.ok(admin.includes("LiveChatConversation.countDocuments"));
+  assert.ok(admin.includes("LiveChatSettings.findOne"));
+  assert.ok(admin.includes('cond: { $eq: ["$$login.companyId", companyId] }'));
+  assert.ok(admin.includes("ADMIN_PUBLIC_LOGIN_ROWS_LIMIT = 100"));
+  assert.ok(admin.includes("eligibleAgents: Math.min(liveChatEmployeeCount"));
+  assert.ok(user.includes("publicCompanyLogins: { type: [publicCompanyLoginSchema], default: [] }"));
+  assert.ok(user.includes('userSchema.index({ "publicCompanyLogins.companyId": 1 }'));
+  assert.ok(callback.includes("recordPublicCompanyLogin"));
+  assert.ok(callback.includes('"publicCompanyLogins.companyId": { $ne: companyId }'));
+  assert.ok(callback.includes("Failed to record public company login"));
+  assert.ok(view.includes("Company task usage and plan allowance"));
+  assert.ok(view.includes("Customer sign-ins"));
+  assert.ok(view.includes("Plan features and usage"));
+  assert.ok(view.includes('<UserAvatar name={user.name} email={user.email} image={user.image} size={42}'));
+});
+
+test("public-page login telemetry updates existing user documents without creating a separate model", () => {
+  const user = source("models/user.ts");
+  const callback = source("app/api/auth/google/callback/route.ts");
+
+  assert.doesNotMatch(user, /model\(["']PublicCompanyLogin/);
+  assert.doesNotMatch(callback, /PublicCompanyLogin\.create|new PublicCompanyLogin/);
+  assert.ok(callback.includes('$inc: { "publicCompanyLogins.$.loginCount": 1 }'));
+  assert.ok(callback.includes('await createSession({'));
+});
