@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
+  normalizeTaskCanvasScene,
   validateCanvasMembers,
   validateCanvasVersion,
   validateTaskCanvasName,
@@ -29,6 +30,43 @@ test("canvas scenes require bounded elements and plain app/file maps", () => {
   }), /CANVAS_SCENE_TOO_LARGE/);
   assert.throws(() => validateTaskCanvasScene({
     elements: Array.from({ length: 5001 }, (_, id) => ({ id })),
+    appState: {},
+    files: {}
+  }), /CANVAS_SCENE_INVALID/);
+});
+
+test("scene normalization repairs null SVG/canvas tuple data and isolates corrupt elements", () => {
+  const normalized = normalizeTaskCanvasScene({
+    elements: [
+      { id: "image-a", type: "image", x: 5, y: 7, width: 100, height: 50, fileId: "file-a", scale: null },
+      { id: "arrow-a", type: "arrow", points: null, width: 40, height: 25 },
+      { id: "stroke-bad", type: "freedraw", points: null },
+      { id: "stroke-good", type: "freedraw", points: [[0, 0], [12, 18], [null, 3]] },
+      null,
+      { id: "future-element", type: "unsupported-type" }
+    ],
+    appState: { viewBackgroundColor: null, currentItemFontFamily: null, theme: null, gridSize: null },
+    files: { "file-bad": null, "file-good": { id: "file-good", dataURL: "data:image/svg+xml,%3Csvg/%3E" } }
+  });
+
+  assert.deepEqual((normalized.elements[0] as { scale: unknown }).scale, [1, 1]);
+  assert.deepEqual((normalized.elements[1] as { points: unknown }).points, [[0, 0], [40, 25]]);
+  assert.deepEqual((normalized.elements[2] as { points: unknown }).points, [[0, 0], [12, 18]]);
+  assert.deepEqual(Object.keys(normalized.files), ["file-good"]);
+  assert.equal(normalized.appState.viewBackgroundColor, "#faf9f1");
+  assert.equal("theme" in normalized.appState, false);
+  assert.equal("currentItemFontFamily" in normalized.appState, false);
+  assert.equal(normalized.elements.length, 3);
+});
+
+test("save validation rejects null image scales and null linear points", () => {
+  assert.throws(() => validateTaskCanvasScene({
+    elements: [{ id: "image-a", type: "image", scale: null }],
+    appState: {},
+    files: {}
+  }), /CANVAS_SCENE_INVALID/);
+  assert.throws(() => validateTaskCanvasScene({
+    elements: [{ id: "arrow-a", type: "arrow", points: null }],
     appState: {},
     files: {}
   }), /CANVAS_SCENE_INVALID/);
