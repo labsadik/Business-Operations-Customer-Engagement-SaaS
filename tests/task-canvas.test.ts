@@ -156,6 +156,7 @@ test("Task Canvas creation is limited company-wide while collaborators remain li
   assert.match(dashboard, /vaultEnabled=\{vaultEnabled\}/);
   assert.match(dashboard, /liveChatEnabled=\{liveChatEnabled\}/);
   assert.match(dashboard, /showWelcomeScreen: false/);
+  assert.match(dashboard, /min-h-0 flex-1 w-full bg-white flex flex-col/);
 });
 
 test("Task Canvas collaborator profiles render Google avatars and legacy member duplicates are hidden", async () => {
