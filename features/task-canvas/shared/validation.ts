@@ -127,8 +127,13 @@ export function normalizeTaskCanvasScene(value: unknown): TaskCanvasScene {
       const family = element.fontFamily;
       element.fontFamily = typeof family === "number" &&
         Number.isInteger(family) && family >= 1 && family <= 5 ? family : 1;
-      element.fontSize = finiteOr(element.fontSize, 20);
-      if (typeof element.font !== "string") delete element.font;
+      element.fontSize = typeof element.fontSize === "number" &&
+        Number.isFinite(element.fontSize) && element.fontSize > 0 && element.fontSize <= 500
+        ? element.fontSize
+        : 20;
+      if (typeof element.font !== "string" || !/^\\s*\\d+(?:\\.\\d+)?px\\s+\\S.+$/i.test(element.font)) {
+        delete element.font;
+      }
     }
 
     if (["line", "draw", "arrow"].includes(String(element.type))) {
@@ -159,7 +164,7 @@ export function normalizeTaskCanvasScene(value: unknown): TaskCanvasScene {
     : {};
   const appState: Record<string, unknown> = {
     viewBackgroundColor: typeof sourceAppState.viewBackgroundColor === "string" &&
-      sourceAppState.viewBackgroundColor.length <= 64
+      /^#[\\da-f]{3,8}$/i.test(sourceAppState.viewBackgroundColor)
       ? sourceAppState.viewBackgroundColor
       : "#faf9f1"
   };
