@@ -246,13 +246,31 @@ function mergeScenes(local: Scene, remote: Scene): Scene {
     const version = (element as { version?: unknown }).version;
     return typeof version === "number" && Number.isFinite(version) ? version : 0;
   };
+  const nonceOf = (element: unknown) => {
+    if (!element || typeof element !== "object") return 0;
+    const nonce = (element as { versionNonce?: unknown }).versionNonce;
+    return typeof nonce === "number" && Number.isFinite(nonce) ? nonce : 0;
+  };
+  const deleted = (element: unknown) => Boolean(
+    element && typeof element === "object" && (element as { isDeleted?: unknown }).isDeleted
+  );
   const add = (element: unknown) => {
     if (!element || typeof element !== "object") return;
     const id = (element as { id?: unknown }).id;
     if (typeof id !== "string" || !id) return;
     if (!chosen.has(id)) orderedIds.push(id);
     const existing = chosen.get(id);
-    if (!existing || versionOf(element) >= versionOf(existing)) chosen.set(id, element);
+    if (!existing ||
+        versionOf(element) > versionOf(existing) ||
+        (versionOf(element) === versionOf(existing) && deleted(element) && !deleted(existing)) ||
+        (versionOf(element) === versionOf(existing) &&
+          deleted(element) === deleted(existing) &&
+          nonceOf(element) > nonceOf(existing))) {
+      // Resolve simultaneous edits deterministically. A higher Excalidraw
+      // version wins; equal versions use deletion tombstones then versionNonce,
+      // rather than always preferring whichever client happened to merge last.
+      chosen.set(id, element);
+    }
   };
   remote.elements.forEach(add);
   local.elements.forEach(add);
