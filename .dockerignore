@@ -6,6 +6,7 @@ dist
 out
 
 # Credentials and local configuration
+cloudrun.env.example
 .env
 .env.*
 !.env.example
