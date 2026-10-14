@@ -23,5 +23,6 @@ const vaultUploadSchema = new Schema(
 );
 
 vaultUploadSchema.index({ companyId: 1, workspaceId: 1, expiresAt: 1 });
+vaultUploadSchema.index({ companyId: 1, status: 1, expiresAt: 1 }, { name: "idx_vault_upload_company_status_expiry" });
 
 export const VaultUpload = models.VaultUpload ?? model("VaultUpload", vaultUploadSchema);

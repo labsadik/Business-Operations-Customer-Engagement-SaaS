@@ -32,5 +32,6 @@ const companySchema = new Schema(
 );
 
 companySchema.index({ publicId: 1 }, { unique: true, sparse: true, name: "uniq_company_public_id" });
+companySchema.index({ name: 1, _id: 1 }, { name: "idx_company_admin_name_id" });
 
 export const Company = models.Company ?? model("Company", companySchema);

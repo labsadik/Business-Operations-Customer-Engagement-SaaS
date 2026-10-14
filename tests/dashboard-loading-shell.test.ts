@@ -146,3 +146,79 @@ test("company workspace long lists load five records at a time with explicit pro
   assert.match(feedbackUi, /Load 5 more reviews/);
   assert.match(feedbackUi, /Load 5 more feedback items/);
 });
+
+
+test("admin vault usage loads current company rows in cursor-paginated batches", async () => {
+  const paths = [
+    "app/api/admin/vault-usage/route.ts",
+    "app/api/admin/vault-usage/summary/route.ts",
+    "lib/admin-vault-usage.ts",
+    "components/admin-vault-usage.tsx",
+    "models/company.ts",
+    "models/vault-file.ts",
+    "models/vault-upload.ts"
+  ];
+  const [api, summaryApi, service, client, company, vaultFile, vaultUpload] = await Promise.all(paths.map(read));
+
+  assert.match(api, /getAdminVaultUsagePage/);
+  assert.match(api, /parseListLimit/);
+  assert.match(api, /url\.searchParams\.get\("cursor"\)/);
+  assert.match(api, /url\.searchParams\.get\("search"\)/);
+  assert.match(summaryApi, /getAdminVaultUsageTotals/);
+  assert.match(summaryApi, /return jsonOk\(\{ totals \}\)/);
+  assert.match(service, /export async function getAdminVaultUsageTotals/);
+  assert.match(service, /Company\.countDocuments\(\)/);
+  assert.match(service, /\.limit\(safeLimit \+ 1\)/);
+  assert.match(service, /encodeListCursor\(last\.name, last\._id\)/);
+  assert.match(service, /VaultFile\.aggregate/);
+  assert.match(service, /VaultUpload\.aggregate/);
+  assert.match(service, /VaultUsage\.find\(/);
+  assert.match(service, /legacyIds/);
+  assert.match(service, /counterVersion === 2/);
+  assert.doesNotMatch(service, /listPlansForAdmin/);
+  assert.match(client, /const PAGE_SIZE = 10/);
+  assert.match(client, /Load 10 more companies/);
+  assert.match(client, /api\/admin\/vault-usage\/summary/);
+  assert.match(client, /cache: "no-store"/);
+  assert.match(client, /searchTerm/);
+  assert.match(company, /idx_company_admin_name_id/);
+  assert.match(vaultFile, /idx_vault_file_company_created_id/);
+  assert.match(vaultUpload, /idx_vault_upload_company_status_expiry/);
+});
+
+test("admin vault summary includes full Free entitlement totals for untouched companies", async () => {
+  const service = await read("lib/admin-vault-usage.ts");
+
+  assert.match(service, /const groupedCompanyObjectIds = \[\.\.\.companyIds\]/);
+  assert.match(service, /const companiesNotInUsageGroups = await Company\.countDocuments\(\{/);
+  assert.match(service, /if \(freePlan\?\.vaultEnabled && companiesNotInUsageGroups > 0\)/);
+  assert.match(service, /totals\.enabledCompanies \+= companiesNotInUsageGroups/);
+  assert.match(service, /totals\.quotaBytes \+= untouchedQuotaBytes \* companiesNotInUsageGroups/);
+  assert.match(service, /totals\.availableBytes \+= untouchedQuotaBytes \* companiesNotInUsageGroups/);
+  assert.match(service, /totals\.maxItems \+= untouchedMaxItems \* companiesNotInUsageGroups/);
+});
+
+test("every admin menu page has a lightweight route loading fallback", async () => {
+  const paths = [
+    "app/admin/loading.tsx",
+    "app/admin/access/loading.tsx",
+    "app/admin/announcements/loading.tsx",
+    "app/admin/companies/loading.tsx",
+    "app/admin/companies/[companyId]/loading.tsx",
+    "app/admin/feedback/loading.tsx",
+    "app/admin/plans/loading.tsx",
+    "app/admin/platform-settings/loading.tsx",
+    "app/admin/support-tickets/loading.tsx",
+    "app/admin/users/loading.tsx",
+    "app/admin/live-chat/loading.tsx",
+    "app/admin/vault-usage/loading.tsx"
+  ];
+  const [routeLoading, ...entries] = await Promise.all([
+    read("components/route-loading.tsx"),
+    ...paths.map(read)
+  ]);
+  assert.match(routeLoading, /export function AdminVaultUsageLoading/);
+  assert.match(routeLoading, /export function AdminLiveChatLoading/);
+  assert.match(routeLoading, /motion-safe:animate-spin/);
+  for (const entry of entries) assert.match(entry, /Loading/);
+});

@@ -4,7 +4,10 @@ import { Company } from "@/models/company";
 import { Subscription } from "@/models/subscription";
 import { VaultFile } from "@/models/vault-file";
 import { VaultUpload } from "@/models/vault-upload";
-import { listPlansForAdmin } from "@/lib/plan-catalog";
+import { VaultUsage } from "@/models/vault-usage";
+import { Plan } from "@/models/plan";
+import { ensurePlanCatalog } from "@/lib/plan-catalog";
+import { decodeListCursor, encodeListCursor } from "@/lib/list-pagination";
 import { buildCompanyVaultRoot } from "@/features/company-vault/server/vault-storage";
 
 export type AdminVaultUsageItem = {
@@ -48,6 +51,18 @@ export type AdminVaultUsageSnapshot = {
   totals: AdminVaultUsageTotals;
 };
 
+export type AdminVaultUsagePage = {
+  items: AdminVaultUsageItem[];
+  nextCursor: string | null;
+};
+
+type AdminUsageCompany = {
+  _id: Types.ObjectId;
+  name: string;
+  slug: string;
+  vaultStorageRoot?: string | null;
+};
+
 function emptyTotals(): AdminVaultUsageTotals {
   return {
     companies: 0,
@@ -65,10 +80,261 @@ function emptyTotals(): AdminVaultUsageTotals {
   };
 }
 
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /**
- * Read the platform-wide or selected-company vault snapshot from committed file
- * metadata plus active, uncommitted upload reservations. Bunny credentials and
- * object contents are never read or sent to the browser.
+ * Build usage rows only for the supplied companies. List pages call this with a
+ * small cursor page, keeping aggregation work bounded by the visible page size.
+ */
+async function buildUsageItems(companies: AdminUsageCompany[]): Promise<AdminVaultUsageItem[]> {
+  if (!companies.length) return [];
+
+  const ids = companies.map((company) => company._id);
+  const [subscriptions, usageRows, pendingRows] = await Promise.all([
+    Subscription.find({ companyId: { $in: ids } })
+      .select("companyId planId status currentPeriodEnd")
+      .lean(),
+    // The company-wide counter is updated atomically on reserve/release and is
+    // cheap to read even when a tenant has millions of files.
+    VaultUsage.find({
+      $or: ids.map((id) => ({ companyId: id, workspaceId: id }))
+    })
+      .select("companyId workspaceId usedBytes usedItems counterVersion")
+      .lean(),
+    VaultUpload.aggregate<{
+      _id: unknown;
+      count: number;
+      sizeBytes: number;
+      reservationCount: number;
+      reservationBytes: number;
+    }>([
+      {
+        $match: {
+          companyId: { $in: ids },
+          status: { $in: ["OPEN", "COMPLETING"] }
+        }
+      },
+      {
+        $lookup: {
+          from: VaultFile.collection.name,
+          localField: "_id",
+          foreignField: "uploadId",
+          as: "committedFiles"
+        }
+      },
+      { $match: { $expr: { $eq: [{ $size: "$committedFiles" }, 0] } } },
+      {
+        $group: {
+          _id: "$companyId",
+          count: {
+            $sum: { $cond: [{ $gt: ["$expiresAt", new Date()] }, 1, 0] }
+          },
+          sizeBytes: {
+            $sum: {
+              $cond: [{ $gt: ["$expiresAt", new Date()] }, "$sizeBytes", 0]
+            }
+          },
+          // Expired rows may remain until the scheduled cleanup runs. Count
+          // every uncommitted reservation so they are not misreported as files.
+          reservationCount: { $sum: 1 },
+          reservationBytes: { $sum: "$sizeBytes" }
+        }
+      }
+    ])
+  ]);
+
+  const usageByCompany = new Map(
+    usageRows
+      .filter((row) => String(row.companyId) === String(row.workspaceId))
+      .map((row) => [String(row.companyId), row])
+  );
+  const legacyIds = companies
+    .filter((company) => {
+      const usage = usageByCompany.get(String(company._id));
+      return !usage ||
+        usage.counterVersion !== 2 ||
+        !Number.isSafeInteger(usage.usedBytes) ||
+        !Number.isSafeInteger(usage.usedItems);
+    })
+    .map((company) => company._id);
+
+  await ensurePlanCatalog();
+  const planIds = [...new Set(["free", ...subscriptions.map((row) => String(row.planId))])];
+  // Reconcile raw file metadata only for legacy companies whose usage counter
+  // has not been verified. Modern companies avoid a million-file scan.
+  const [planRows, legacyFileStatsRows] = await Promise.all([
+    Plan.find({ identifier: { $in: planIds } })
+      .select("identifier name vaultEnabled vaultQuotaBytes vaultMaxFileBytes vaultMaxItems")
+      .limit(200)
+      .lean(),
+    legacyIds.length
+      ? VaultFile.aggregate<{ _id: unknown; count: number; sizeBytes: number }>([
+          { $match: { companyId: { $in: legacyIds } } },
+          {
+            $group: {
+              _id: "$companyId",
+              count: { $sum: 1 },
+              sizeBytes: { $sum: { $ifNull: ["$storageSizeBytes", "$sizeBytes"] } }
+            }
+          }
+        ])
+      : Promise.resolve([])
+  ]);
+
+  const now = Date.now();
+  const plansById = new Map(planRows.map((plan) => [String(plan.identifier), plan]));
+  const subscriptionsByCompany = new Map(subscriptions.map((row) => [String(row.companyId), row]));
+  const filesByCompany = new Map(legacyFileStatsRows.map((row) => [String(row._id), row]));
+  const pendingByCompany = new Map(pendingRows.map((row) => [String(row._id), row]));
+
+  return companies.map((company) => {
+    const companyId = String(company._id);
+    const subscription = subscriptionsByCompany.get(companyId);
+    const subscriptionEnd = subscription?.currentPeriodEnd?.getTime() ?? 0;
+    // The current subscription period governs existing entitlements, including
+    // cancellation/past-due states until the period actually ends.
+    const subscriptionActive = Boolean(subscription && subscriptionEnd > now);
+    const status: AdminVaultUsageItem["subscriptionStatus"] = !subscription
+      ? "NONE"
+      : !subscriptionActive
+        ? "EXPIRED"
+        : subscription.status;
+    const activePlanId = subscriptionActive ? subscription?.planId ?? "free" : "free";
+    const plan = plansById.get(activePlanId) ?? plansById.get("free") ?? null;
+    const usage = usageByCompany.get(companyId);
+    const pendingStats = pendingByCompany.get(companyId);
+    const pendingUploadCount = pendingStats?.count ?? 0;
+    const pendingUploadBytes = pendingStats?.sizeBytes ?? 0;
+    const hasCurrentCounter = Boolean(
+      usage &&
+      usage.counterVersion === 2 &&
+      Number.isSafeInteger(usage.usedBytes) &&
+      Number.isSafeInteger(usage.usedItems)
+    );
+    const fileStats = filesByCompany.get(companyId);
+    const fileCount = hasCurrentCounter
+      ? Math.max(0, Number(usage!.usedItems) - (pendingStats?.reservationCount ?? 0))
+      : fileStats?.count ?? 0;
+    const expiredReservationBytes = Math.max(
+      0,
+      (pendingStats?.reservationBytes ?? 0) - pendingUploadBytes
+    );
+    const usedBytes = hasCurrentCounter
+      ? Math.max(0, Number(usage!.usedBytes) - expiredReservationBytes)
+      : (fileStats?.sizeBytes ?? 0) + pendingUploadBytes;
+    const usedItems = fileCount + pendingUploadCount;
+    const vaultEnabled = Boolean(plan?.vaultEnabled);
+    const quotaBytes = vaultEnabled ? Number(plan?.vaultQuotaBytes ?? 0) : 0;
+    const maxFileBytes = vaultEnabled ? Number(plan?.vaultMaxFileBytes ?? 0) : 0;
+    const maxItems = vaultEnabled ? Number(plan?.vaultMaxItems ?? 0) : 0;
+
+    return {
+      companyId,
+      companyName: company.name,
+      companySlug: company.slug,
+      storagePrefix: company.vaultStorageRoot ?? buildCompanyVaultRoot(company.name, companyId),
+      planId: plan?.identifier ?? activePlanId,
+      planName: plan?.name ?? "Unknown plan",
+      subscriptionStatus: status,
+      vaultEnabled,
+      usedBytes,
+      quotaBytes,
+      availableBytes: Math.max(0, quotaBytes - usedBytes),
+      usedItems,
+      maxItems,
+      maxFileBytes,
+      fileCount,
+      pendingUploadCount,
+      pendingUploadBytes,
+      quotaExceeded: usedBytes > quotaBytes
+    };
+  });
+}
+
+function summarizeUsage(items: AdminVaultUsageItem[]): AdminVaultUsageTotals {
+  return items.reduce<AdminVaultUsageTotals>((sum, item) => {
+    sum.companies += 1;
+    sum.enabledCompanies += item.vaultEnabled ? 1 : 0;
+    sum.disabledCompanies += item.vaultEnabled ? 0 : 1;
+    sum.usedBytes += item.usedBytes;
+    sum.quotaBytes += item.quotaBytes;
+    sum.availableBytes += item.availableBytes;
+    sum.usedItems += item.usedItems;
+    sum.maxItems += item.maxItems;
+    sum.fileCount += item.fileCount;
+    sum.pendingUploadCount += item.pendingUploadCount;
+    sum.pendingUploadBytes += item.pendingUploadBytes;
+    sum.overQuotaCompanies += item.quotaExceeded ? 1 : 0;
+    return sum;
+  }, emptyTotals());
+}
+
+/**
+ * Page the company breakdown using a stable name/_id cursor. Only the requested
+ * page's subscriptions, file metadata, and upload reservations are aggregated.
+ */
+export async function getAdminVaultUsagePage({
+  search = "",
+  cursor = null,
+  limit = 10
+}: {
+  search?: string;
+  cursor?: string | null;
+  limit?: number;
+} = {}): Promise<AdminVaultUsagePage> {
+  await getMongo();
+
+  const safeLimit = Math.min(50, Math.max(1, Math.floor(limit) || 10));
+  const cleaned = search.trim().slice(0, 80);
+  const clauses: Record<string, unknown>[] = [];
+
+  if (cleaned) {
+    const pattern = escapeRegex(cleaned);
+    const alternatives: Record<string, unknown>[] = [
+      { name: { $regex: pattern, $options: "i" } },
+      { slug: { $regex: pattern, $options: "i" } }
+    ];
+    if (Types.ObjectId.isValid(cleaned)) {
+      alternatives.push({ _id: new Types.ObjectId(cleaned) });
+    }
+    clauses.push({ $or: alternatives });
+  }
+
+  const decoded = decodeListCursor(cursor);
+  if (cursor && !decoded) throw new Error("INVALID_LIST_CURSOR");
+  if (decoded) {
+    clauses.push({
+      $or: [
+        { name: { $gt: decoded.key } },
+        { name: decoded.key, _id: { $gt: decoded.id } }
+      ]
+    });
+  }
+
+  const filter = clauses.length > 1 ? { $and: clauses } : clauses[0] ?? {};
+  const rows = await Company.find(filter)
+    .select("_id name slug vaultStorageRoot")
+    .sort({ name: 1, _id: 1 })
+    .limit(safeLimit + 1)
+    .lean();
+
+  const hasMore = rows.length > safeLimit;
+  const companies = rows.slice(0, safeLimit) as AdminUsageCompany[];
+  const items = await buildUsageItems(companies);
+  const last = companies[companies.length - 1];
+
+  return {
+    items,
+    nextCursor: hasMore && last ? encodeListCursor(last.name, last._id) : null
+  };
+}
+
+/**
+ * Platform-wide snapshot, retained for the admin overview and company details.
+ * The vault usage route uses getAdminVaultUsagePage so its primary table can
+ * render immediately without fetching and serializing every company at once.
  */
 export async function getAdminVaultUsage(companyIds?: string[]): Promise<AdminVaultUsageSnapshot> {
   await getMongo();
@@ -85,31 +351,39 @@ export async function getAdminVaultUsage(companyIds?: string[]): Promise<AdminVa
   const companies = await Company.find(companyQuery)
     .select("_id name slug vaultStorageRoot")
     .sort({ name: 1, _id: 1 })
-    .lean();
+    .lean() as AdminUsageCompany[];
 
   if (!companies.length) return { items: [], totals: emptyTotals() };
 
-  const ids = companies.map((company) => company._id);
-  const [subscriptions, fileStatsRows, pendingRows, plans] = await Promise.all([
-    Subscription.find({ companyId: { $in: ids } })
+  const items = await buildUsageItems(companies);
+  return { items, totals: summarizeUsage(items) };
+}
+
+/**
+ * Compute platform-wide totals without hydrating company names, storage paths,
+ * or a full array of per-company response objects. The details table uses the
+ * page API; this summary path only keeps grouped aggregate rows in memory.
+ */
+export async function getAdminVaultUsageTotals(): Promise<AdminVaultUsageTotals> {
+  await getMongo();
+
+  const [companyCount, subscriptions, fileStatsRows, pendingRows] = await Promise.all([
+    Company.countDocuments(),
+    Subscription.find({})
       .select("companyId planId status currentPeriodEnd")
       .lean(),
     VaultFile.aggregate<{ _id: unknown; count: number; sizeBytes: number }>([
-      { $match: { companyId: { $in: ids } } },
       {
         $group: {
           _id: "$companyId",
           count: { $sum: 1 },
-          sizeBytes: {
-            $sum: { $ifNull: ["$storageSizeBytes", "$sizeBytes"] }
-          }
+          sizeBytes: { $sum: { $ifNull: ["$storageSizeBytes", "$sizeBytes"] } }
         }
       }
     ]),
     VaultUpload.aggregate<{ _id: unknown; count: number; sizeBytes: number }>([
       {
         $match: {
-          companyId: { $in: ids },
           status: { $in: ["OPEN", "COMPLETING"] },
           expiresAt: { $gt: new Date() }
         }
@@ -130,31 +404,38 @@ export async function getAdminVaultUsage(companyIds?: string[]): Promise<AdminVa
           sizeBytes: { $sum: "$sizeBytes" }
         }
       }
-    ]),
-    listPlansForAdmin()
+    ])
   ]);
 
+  await ensurePlanCatalog();
+  const planIds = [...new Set(["free", ...subscriptions.map((row) => String(row.planId))])];
+  const planRows = await Plan.find({ identifier: { $in: planIds } })
+    .select("identifier name vaultEnabled vaultQuotaBytes vaultMaxFileBytes vaultMaxItems")
+    .limit(200)
+    .lean();
+
   const now = Date.now();
-  const plansById = new Map(plans.map((plan) => [plan.id, plan]));
+  const plansById = new Map(planRows.map((plan) => [String(plan.identifier), plan]));
   const subscriptionsByCompany = new Map(subscriptions.map((row) => [String(row.companyId), row]));
   const filesByCompany = new Map(fileStatsRows.map((row) => [String(row._id), row]));
   const pendingByCompany = new Map(pendingRows.map((row) => [String(row._id), row]));
+  const companyIds = new Set([
+    ...subscriptionsByCompany.keys(),
+    ...filesByCompany.keys(),
+    ...pendingByCompany.keys()
+  ]);
+  const totals = emptyTotals();
+  totals.companies = companyCount;
 
-  const items: AdminVaultUsageItem[] = companies.map((company) => {
-    const companyId = String(company._id);
+  for (const companyId of companyIds) {
     const subscription = subscriptionsByCompany.get(companyId);
     const subscriptionEnd = subscription?.currentPeriodEnd?.getTime() ?? 0;
-    // Vault access follows the company's current subscription period, as does
-    // getCompanyEntitlements. A cancelled or past-due subscription can retain
-    // its already-granted plan until the period ends.
     const subscriptionActive = Boolean(subscription && subscriptionEnd > now);
-    const status: AdminVaultUsageItem["subscriptionStatus"] = !subscription
-      ? "NONE"
-      : !subscriptionActive
-        ? "EXPIRED"
-        : subscription.status;
     const activePlanId = subscriptionActive ? subscription?.planId ?? "free" : "free";
     const plan = plansById.get(activePlanId) ?? plansById.get("free") ?? null;
+    const vaultEnabled = Boolean(plan?.vaultEnabled);
+    const quotaBytes = vaultEnabled ? Number(plan?.vaultQuotaBytes ?? 0) : 0;
+    const maxItems = vaultEnabled ? Number(plan?.vaultMaxItems ?? 0) : 0;
     const fileStats = filesByCompany.get(companyId);
     const pendingStats = pendingByCompany.get(companyId);
     const fileCount = fileStats?.count ?? 0;
@@ -162,48 +443,43 @@ export async function getAdminVaultUsage(companyIds?: string[]): Promise<AdminVa
     const pendingUploadBytes = pendingStats?.sizeBytes ?? 0;
     const usedBytes = (fileStats?.sizeBytes ?? 0) + pendingUploadBytes;
     const usedItems = fileCount + pendingUploadCount;
-    const vaultEnabled = Boolean(plan?.vaultEnabled);
-    const quotaBytes = vaultEnabled ? Number(plan?.vaultQuotaBytes ?? 0) : 0;
-    const maxFileBytes = vaultEnabled ? Number(plan?.vaultMaxFileBytes ?? 0) : 0;
-    const maxItems = vaultEnabled ? Number(plan?.vaultMaxItems ?? 0) : 0;
 
-    return {
-      companyId,
-      companyName: company.name,
-      companySlug: company.slug,
-      storagePrefix: company.vaultStorageRoot ?? buildCompanyVaultRoot(company.name, companyId),
-      planId: plan?.id ?? activePlanId,
-      planName: plan?.name ?? "Unknown plan",
-      subscriptionStatus: status,
-      vaultEnabled,
-      usedBytes,
-      quotaBytes,
-      availableBytes: Math.max(0, quotaBytes - usedBytes),
-      usedItems,
-      maxItems,
-      maxFileBytes,
-      fileCount,
-      pendingUploadCount,
-      pendingUploadBytes,
-      quotaExceeded: usedBytes > quotaBytes
-    };
+    if (vaultEnabled) totals.enabledCompanies += 1;
+    totals.usedBytes += usedBytes;
+    totals.quotaBytes += quotaBytes;
+    totals.availableBytes += Math.max(0, quotaBytes - usedBytes);
+    totals.usedItems += usedItems;
+    totals.maxItems += maxItems;
+    totals.fileCount += fileCount;
+    totals.pendingUploadCount += pendingUploadCount;
+    totals.pendingUploadBytes += pendingUploadBytes;
+    totals.overQuotaCompanies += usedBytes > quotaBytes ? 1 : 0;
+  }
+
+  // Companies without a subscription or any vault file/upload activity are
+  // absent from the grouped aggregates. Count actual company documents rather
+  // than subtracting the number of grouped IDs: stale/orphaned records can make
+  // companyIds larger than the number of real companies.
+  const groupedCompanyObjectIds = [...companyIds]
+    .filter((companyId) => Types.ObjectId.isValid(companyId))
+    .map((companyId) => new Types.ObjectId(companyId));
+  const companiesNotInUsageGroups = await Company.countDocuments({
+    _id: { $nin: groupedCompanyObjectIds }
   });
 
-  const totals = items.reduce<AdminVaultUsageTotals>((sum, item) => {
-    sum.companies += 1;
-    sum.enabledCompanies += item.vaultEnabled ? 1 : 0;
-    sum.disabledCompanies += item.vaultEnabled ? 0 : 1;
-    sum.usedBytes += item.usedBytes;
-    sum.quotaBytes += item.quotaBytes;
-    sum.availableBytes += item.availableBytes;
-    sum.usedItems += item.usedItems;
-    sum.maxItems += item.maxItems;
-    sum.fileCount += item.fileCount;
-    sum.pendingUploadCount += item.pendingUploadCount;
-    sum.pendingUploadBytes += item.pendingUploadBytes;
-    sum.overQuotaCompanies += item.quotaExceeded ? 1 : 0;
-    return sum;
-  }, emptyTotals());
+  // Untouched companies use the Free entitlement. Include the full entitlement
+  // footprint for each one, not only the enabled-company count, so platform
+  // quota and item-capacity metrics remain internally consistent.
+  const freePlan = plansById.get("free");
+  if (freePlan?.vaultEnabled && companiesNotInUsageGroups > 0) {
+    const untouchedQuotaBytes = Math.max(0, Number(freePlan.vaultQuotaBytes ?? 0));
+    const untouchedMaxItems = Math.max(0, Number(freePlan.vaultMaxItems ?? 0));
+    totals.enabledCompanies += companiesNotInUsageGroups;
+    totals.quotaBytes += untouchedQuotaBytes * companiesNotInUsageGroups;
+    totals.availableBytes += untouchedQuotaBytes * companiesNotInUsageGroups;
+    totals.maxItems += untouchedMaxItems * companiesNotInUsageGroups;
+  }
 
-  return { items, totals };
+  totals.disabledCompanies = Math.max(0, totals.companies - totals.enabledCompanies);
+  return totals;
 }
