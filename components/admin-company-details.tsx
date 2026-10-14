@@ -15,6 +15,8 @@ import {
   UploadCloud,
   Mail,
   MapPin,
+  MessageCircle,
+  LogIn,
   Phone,
   ReceiptText,
   UsersRound
@@ -56,6 +58,18 @@ export default function AdminCompanyDetailsView({ company }: { company: AdminCom
   const canvasUsagePercent = canvas.canvasLimit > 0
     ? Math.min(100, (canvas.canvasCount / canvas.canvasLimit) * 100)
     : 0;
+  const taskManagement = company.taskManagementUsage;
+  const taskUsagePercent = taskManagement.enabled && taskManagement.dailyLimit !== null && taskManagement.dailyLimit > 0
+    ? Math.min(100, (taskManagement.usedToday / taskManagement.dailyLimit) * 100)
+    : 0;
+  const chat = company.liveChatUsage;
+  const chatUsagePercent = chat.monthlyLimit > 0
+    ? Math.min(100, (chat.chatsUsedThisMonth / chat.monthlyLimit) * 100)
+    : 0;
+  const chatCustomerUsagePercent = chat.customerLimit > 0
+    ? Math.min(100, (chat.customersUsedThisMonth / chat.customerLimit) * 100)
+    : 0;
+  const publicLogins = company.publicPageLoginUsage;
   const vaultPercent = vault.quotaBytes > 0
     ? Math.min(100, (vault.usedBytes / vault.quotaBytes) * 100)
     : vault.usedBytes > 0 ? 100 : 0;
@@ -235,28 +249,153 @@ export default function AdminCompanyDetailsView({ company }: { company: AdminCom
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Task management</p>
-            <h2 className="mt-2 text-base font-semibold">Company task usage</h2>
-            <p className="mt-1 text-xs text-slate-500">{company.totalTaskAssignments} assignments recorded for this tenant.</p>
+            <h2 className="mt-2 text-base font-semibold">Company task usage and plan allowance</h2>
+            <p className="mt-1 text-xs text-slate-500">Current plan: {company.planName}. Daily usage follows the company workspace timezone.</p>
           </div>
-          <ClipboardList className="size-5 text-blue-600" aria-hidden="true" />
+          <span className={"w-fit rounded-full px-3 py-1.5 text-[10px] font-semibold " + (taskManagement.enabled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600")}>
+            {taskManagement.enabled ? "Task Management included" : "Not included in current plan"}
+          </span>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {[
-            ["Total tasks", company.totalTasks, "All company tasks"],
-            ["Active", company.activeTasks, "Todo, in progress, blocked or review"],
-            ["Completed", company.completedTasks, "Finished tasks"],
-            ["Overdue", company.overdueTasks, "Past-due tasks not closed"]
+            ["Today's task actions", taskManagement.usedToday.toLocaleString("en-IN") + " / " + (taskManagement.dailyLimit === null ? "Unlimited" : taskManagement.dailyLimit.toLocaleString("en-IN")), taskManagement.dayKey ? "Workspace day · " + taskManagement.dayKey : "Workspace unavailable"],
+            ["Remaining today", taskManagement.dailyLimit === null ? "Unlimited" : taskManagement.remainingToday?.toLocaleString("en-IN") ?? "—", "Remaining task create/assignment actions"],
+            ["Total tasks", company.totalTasks.toLocaleString("en-IN"), "All tasks recorded for this company"],
+            ["Task assignments", company.totalTaskAssignments.toLocaleString("en-IN"), "Assignment records across company workspaces"],
+            ["Active tasks", company.activeTasks.toLocaleString("en-IN"), "Todo, in progress, blocked or in review"],
+            ["Completed tasks", company.completedTasks.toLocaleString("en-IN"), "Tasks marked completed"],
+            ["Overdue tasks", company.overdueTasks.toLocaleString("en-IN"), "Past due and not closed"]
           ].map(([label, value, detail]) => (
             <article key={label as string} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">{label as string}</p>
-              <p className="mt-2 text-2xl font-semibold tracking-tight">{value as number}</p>
+              <p className="mt-2 break-words text-xl font-semibold tracking-tight text-slate-950">{value as string}</p>
               <p className="mt-1 text-[10px] leading-4 text-slate-500">{detail as string}</p>
             </article>
           ))}
         </div>
+        {taskManagement.enabled && taskManagement.dailyLimit !== null && (
+          <div className="mt-4 rounded-2xl border border-slate-200 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span className="font-semibold text-slate-700">Daily plan utilization</span>
+              <span className="text-slate-500">{taskManagement.usedToday.toLocaleString("en-IN")} of {taskManagement.dailyLimit.toLocaleString("en-IN")} actions · {taskUsagePercent.toFixed(1)}%</span>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div className={"h-full rounded-full " + (taskManagement.usedToday >= taskManagement.dailyLimit ? "bg-amber-500" : "bg-blue-600")} style={{ width: taskUsagePercent + "%" }} />
+            </div>
+          </div>
+        )}
+        <p className="mt-3 text-[11px] leading-5 text-slate-500">The daily action counter increments once per successful task create/assignment action, not once per assignee. Historical tasks and assignments remain visible even when this plan does not currently include Task Management.</p>
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-700"><LogIn className="size-5" aria-hidden="true" /></span>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-600">Public company page</p>
+              <h2 className="mt-1 text-xl font-semibold tracking-tight">Customer sign-ins</h2>
+              <p className="mt-1 text-sm text-slate-500">Successful sign-ins through this company’s public-page customer login flow, with Google avatars, profile names and email addresses.</p>
+            </div>
+          </div>
+          <span className="w-fit rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-semibold text-slate-600">Latest {publicLogins.items.length} shown</span>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {[
+            ["Unique signed-in users", publicLogins.uniqueUsers.toLocaleString("en-IN"), "Distinct accounts with a tracked sign-in to this company"],
+            ["Total sign-ins", publicLogins.totalLogins.toLocaleString("en-IN"), "Counted since company-specific login tracking began"],
+            ["Recent sign-in", publicLogins.items[0] ? dateLabel(publicLogins.items[0].lastLoginAt, true) : "—", "Most recent tracked login"]
+          ].map(([label, value, detail]) => (
+            <article key={label as string} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">{label as string}</p>
+              <p className="mt-2 break-words text-xl font-semibold tracking-tight text-slate-950">{value as string}</p>
+              <p className="mt-1 text-[10px] leading-4 text-slate-500">{detail as string}</p>
+            </article>
+          ))}
+        </div>
+        <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
+          {publicLogins.items.length ? (
+            <div className="divide-y divide-slate-100">
+              {publicLogins.items.map((user) => (
+                <div key={user.id} className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-5">
+                  <UserAvatar name={user.name} email={user.email} image={user.image} size={42} className="border-blue-100 bg-blue-50 text-blue-700" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-semibold text-slate-900">{user.name}</p>
+                    <p className="mt-1 truncate text-[11px] text-slate-500">{user.email}</p>
+                    <p className="mt-1 text-[10px] text-slate-400">First sign-in {dateLabel(user.firstLoginAt, true)} · Last sign-in {dateLabel(user.lastLoginAt, true)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-semibold text-slate-800">{user.loginCount.toLocaleString("en-IN")} sign-ins</p>
+                    <p className="mt-1 text-[10px] uppercase tracking-wide text-slate-400">{user.role.replaceAll("_", " ")}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="p-8 text-center text-sm text-slate-500">No tracked public-page sign-ins yet. The list starts recording successful customer sign-ins after this version is deployed; older sign-ins cannot be reconstructed.</p>
+          )}
+          {publicLogins.hasMore && <p className="border-t border-slate-100 px-4 py-3 text-[11px] text-slate-500">Showing the latest {publicLogins.items.length} accounts; summary totals include all tracked users for this company.</p>}
+        </div>
+      </section>
+
+      <section className="space-y-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-cyan-50 text-cyan-700"><MessageCircle className="size-5" aria-hidden="true" /></span>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-700">Live Chat</p>
+              <h2 className="mt-1 text-xl font-semibold tracking-tight">Plan features and usage</h2>
+              <p className="mt-1 text-sm text-slate-500">{company.planName} · usage period {chat.periodKey} (UTC).</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={"rounded-full px-3 py-1.5 text-[10px] font-semibold " + (chat.enabled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600")}>{chat.enabled ? "Included in plan" : "Not included in plan"}</span>
+            <span className={"rounded-full px-3 py-1.5 text-[10px] font-semibold " + (chat.widgetEnabled ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600")}>{chat.widgetEnabled ? "Public widget enabled" : "Public widget off"}</span>
+          </div>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            ["Chats started", chat.chatsUsedThisMonth.toLocaleString("en-IN") + " / " + chat.monthlyLimit.toLocaleString("en-IN"), chat.chatsRemaining.toLocaleString("en-IN") + " remaining this month"],
+            ["Unique visitors", chat.customersUsedThisMonth.toLocaleString("en-IN") + " / " + chat.customerLimit.toLocaleString("en-IN"), chat.customersRemaining.toLocaleString("en-IN") + " remaining this month"],
+            ["Open conversations", chat.openChats.toLocaleString("en-IN"), "Currently open and not expired"],
+            ["Agent capacity", chat.agentLimit.toLocaleString("en-IN"), "Maximum agents allowed by the plan"],
+            ["Message cooldown", chat.messageCooldownSeconds.toLocaleString("en-IN") + " sec", "Minimum interval for customer replies"],
+            ["History retention", chat.retentionDays.toLocaleString("en-IN") + " days", "Plan retention setting for chat data"],
+            ["PDF export", chat.pdfExportEnabled ? "Available" : "Disabled", "Current plan capability"],
+            ["Delete conversations", chat.deleteEnabled ? "Available" : "Disabled", "Current plan capability"]
+          ].map(([label, value, detail]) => (
+            <article key={label as string} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">{label as string}</p>
+              <p className="mt-2 break-words text-xl font-semibold tracking-tight text-slate-950">{value as string}</p>
+              <p className="mt-1 text-[10px] leading-4 text-slate-500">{detail as string}</p>
+            </article>
+          ))}
+        </div>
+        {chat.enabled && (
+          <div className="mt-1 space-y-4 rounded-2xl border border-slate-200 p-4">
+            <div>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className="font-semibold text-slate-700">Monthly chat usage</span>
+                <span className="text-slate-500">{chat.chatsUsedThisMonth.toLocaleString("en-IN")} of {chat.monthlyLimit.toLocaleString("en-IN")} · {chatUsagePercent.toFixed(1)}%</span>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                <div className={"h-full rounded-full " + (chat.chatsUsedThisMonth >= chat.monthlyLimit ? "bg-amber-500" : "bg-cyan-600")} style={{ width: chatUsagePercent + "%" }} />
+              </div>
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className="font-semibold text-slate-700">Unique customer allowance</span>
+                <span className="text-slate-500">{chat.customersUsedThisMonth.toLocaleString("en-IN")} of {chat.customerLimit.toLocaleString("en-IN")} · {chatCustomerUsagePercent.toFixed(1)}%</span>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                <div className={"h-full rounded-full " + (chat.customersUsedThisMonth >= chat.customerLimit ? "bg-amber-500" : "bg-blue-600")} style={{ width: chatCustomerUsagePercent + "%" }} />
+              </div>
+            </div>
+          </div>
+        )}
+        <p className="text-[11px] leading-5 text-slate-500">“Chats started” counts newly created conversations, not individual messages. Unique visitors are deduplicated using the existing monthly privacy-safe visitor counter. Existing usage remains visible even if Live Chat is not enabled on the current plan.</p>
       </section>
 
 
