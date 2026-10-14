@@ -229,7 +229,7 @@ try {
     Write-Host "Building the production image with Cloud Build (no local Docker installation required)..."
     Invoke-Gcloud @("builds", "submit", "--project=$projectId", "--config=cloudbuild-image.yaml", "--substitutions=$substitutionString", ".")
 
-    $imageUri = "$region-docker.pkg.dev/$projectId/$repository/$imageName:$($buildSubstitutions['_TAG'])"
+    $imageUri = "${region}-docker.pkg.dev/${projectId}/${repository}/${imageName}:$($buildSubstitutions['_TAG'])"
     Write-Host "Deploying $service with scale-to-zero and a maximum of $maxInstances instances..."
     $deployArguments = @(
       "run", "deploy", $service,
