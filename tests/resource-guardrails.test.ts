@@ -1056,7 +1056,7 @@ test("admin company details reports tenant-scoped Task Canvas limits and compact
   assert.ok(route.includes("scenePointCount,"));
   assert.ok(model.includes("sceneElementCount: { type: Number"));
   assert.ok(model.includes("sceneStoredBytes: { type: Number"));
-  assert.ok(view.includes("Task Canvas usage"));
+  assert.ok(view.includes("Company canvas usage and MongoDB storage"));
   assert.ok(view.includes("MongoDB document footprint"));
 });
 
@@ -1069,5 +1069,5 @@ test("Task Canvas read, write and delete operations retain company and workspace
   assert.ok(route.includes("requireTaskCanvasScope()"));
   assert.ok(route.includes("canReadTaskCanvas(scope, canvas)"));
   assert.ok(route.includes("canManageTaskCanvas(scope, canvas)"));
-  assert.ok(auth.includes("scope.session.role !=="));
+  assert.ok(auth.includes('requireCompanyMember(["COMPANY_ADMIN", "EMPLOYEE", "PLATFORM_ADMIN"])'));
 });
