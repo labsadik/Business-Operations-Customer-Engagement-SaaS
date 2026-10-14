@@ -1,8 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { Component, type ErrorInfo, type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, Check, CheckCircle2, Clock3, FilePlus2, LoaderCircle, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Trash2, UsersRound, X } from "lucide-react";
+import { AlertCircle, Check, CheckCircle2, Clock3, FilePlus2, LoaderCircle, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Save, Trash2, UsersRound, X } from "lucide-react";
 import WorkspaceSidebar from "@/components/workspace-sidebar";
 import UserAvatar from "@/components/user-avatar";
 import { useWorkspaceSidebarState } from "@/components/use-workspace-sidebar-state";
@@ -245,13 +246,31 @@ function mergeScenes(local: Scene, remote: Scene): Scene {
     const version = (element as { version?: unknown }).version;
     return typeof version === "number" && Number.isFinite(version) ? version : 0;
   };
+  const nonceOf = (element: unknown) => {
+    if (!element || typeof element !== "object") return 0;
+    const nonce = (element as { versionNonce?: unknown }).versionNonce;
+    return typeof nonce === "number" && Number.isFinite(nonce) ? nonce : 0;
+  };
+  const deleted = (element: unknown) => Boolean(
+    element && typeof element === "object" && (element as { isDeleted?: unknown }).isDeleted
+  );
   const add = (element: unknown) => {
     if (!element || typeof element !== "object") return;
     const id = (element as { id?: unknown }).id;
     if (typeof id !== "string" || !id) return;
     if (!chosen.has(id)) orderedIds.push(id);
     const existing = chosen.get(id);
-    if (!existing || versionOf(element) >= versionOf(existing)) chosen.set(id, element);
+    if (!existing ||
+        versionOf(element) > versionOf(existing) ||
+        (versionOf(element) === versionOf(existing) && deleted(element) && !deleted(existing)) ||
+        (versionOf(element) === versionOf(existing) &&
+          deleted(element) === deleted(existing) &&
+          nonceOf(element) > nonceOf(existing))) {
+      // Resolve simultaneous edits deterministically. A higher Excalidraw
+      // version wins; equal versions use deletion tombstones then versionNonce,
+      // rather than always preferring whichever client happened to merge last.
+      chosen.set(id, element);
+    }
   };
   remote.elements.forEach(add);
   local.elements.forEach(add);
@@ -290,7 +309,8 @@ function errorText(code: string) {
     CANVAS_MEMBER_INVALID: "Every collaborator must be an active member of this company workspace.",
     CANVAS_CREATION_LIMIT: "Your company has reached its canvas limit. Ask a company administrator to increase the plan allowance or remove an unused canvas.",
     CANVAS_SCENE_TOO_LARGE: "This canvas is too large to save. Remove a large image or some content, then try again.",
-    CANVAS_SCENE_INVALID: "Some drawing data could not be saved safely. Reload the canvas to recover the last saved version."
+    CANVAS_SCENE_INVALID: "Some drawing data could not be saved safely. Reload the canvas to recover the last saved version.",
+    CANVAS_SCENE_STORED_INVALID: "The saved scene could not be decoded. The app has not overwritten it; retry once, and if it persists ask an administrator to inspect this canvas record."
   };
   return messages[code] ?? code.replaceAll("_", " ").toLocaleLowerCase();
 }
@@ -316,6 +336,7 @@ export default function TaskCanvasDashboard({
   maxCollaborators: number;
   canvasLimit: number;
 }) {
+  const router = useRouter();
   const { collapsed: sidebarCollapsed, toggle: toggleSidebar } = useWorkspaceSidebarState();
   const [items, setItems] = useState<CanvasItem[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
@@ -500,7 +521,7 @@ export default function TaskCanvasDashboard({
     } catch (cause) {
       if (selectedIdRef.current !== canvasId) return;
       const code = (cause as Error).message;
-      if (code === "CANVAS_VERSION_CONFLICT" && mergeRetriesRef.current < 2) {
+      if (code === "CANVAS_VERSION_CONFLICT" && mergeRetriesRef.current < 5) {
         try {
           const latest = await api<{ item: CanvasItem; scene: unknown }>("/api/task-canvas/" + canvasId);
           if (selectedIdRef.current === canvasId) {
@@ -520,11 +541,13 @@ export default function TaskCanvasDashboard({
             setSaveState("saving");
             setError("");
           }
-        } catch {
+        } catch (recoveryCause) {
           conflictRef.current = true;
           setSaveState("conflict");
           dirtyRef.current = true;
-          setError(errorText(code));
+          // Report the failed read/recovery reason instead of hiding it behind
+          // the original version conflict response.
+          setError(errorText((recoveryCause as Error).message || code));
           queuedSceneRef.current = null;
         }
       } else {
@@ -603,11 +626,11 @@ export default function TaskCanvasDashboard({
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = null;
     if (dirtyRef.current) await persistRef.current(sceneRef.current);
-    // If a write was already active, wait for it and any coalesced newest
-    // scene write before allowing the user to leave this canvas.
-    while (inFlightRef.current) {
+    // Wait through both the current request and any newer coalesced edit.
+    while (inFlightRef.current || queuedSceneRef.current) {
       await new Promise<void>((resolve) => window.setTimeout(resolve, 25));
     }
+    return !dirtyRef.current && !conflictRef.current;
   }, []);
 
   const prepareCanvasSwitch = useCallback(async () => {
@@ -634,6 +657,62 @@ export default function TaskCanvasDashboard({
     if (!(await prepareCanvasSwitch())) return;
     await openCanvas(id);
   }, [openCanvas, prepareCanvasSwitch]);
+
+  // Browser tab/window exits get a native unsaved-work warning. Async saves
+  // cannot be guaranteed during unload, so users can use Save now or cancel.
+  useEffect(() => {
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (!selectedIdRef.current ||
+          (!dirtyRef.current && !inFlightRef.current && !timerRef.current && !queuedSceneRef.current)) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, []);
+
+  // Next.js client-side links do not fire beforeunload. Intercept only internal
+  // page navigation while edits are pending, then persist before routing.
+  useEffect(() => {
+    const handlePendingNavigation = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 ||
+          event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      if (!selectedIdRef.current ||
+          (!dirtyRef.current && !inFlightRef.current && !timerRef.current && !queuedSceneRef.current)) return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const anchor = target.closest<HTMLAnchorElement>("a[href]");
+      if (!anchor || anchor.hasAttribute("download") ||
+          (anchor.target && anchor.target !== "_self")) return;
+      let destination: URL;
+      try {
+        destination = new URL(anchor.href, window.location.href);
+      } catch {
+        return;
+      }
+      if (destination.origin !== window.location.origin ||
+          destination.pathname === window.location.pathname) return;
+
+      event.preventDefault();
+      void (async () => {
+        const confirmed = await askConfirmation({
+          title: "Save changes before leaving?",
+          description: "Task Canvas saves automatically. Confirm to save the latest edits before opening another page.",
+          confirmLabel: "Save and leave"
+        });
+        if (!confirmed) return;
+        const saved = await saveNow();
+        if (!saved) {
+          setError((current) => current || "The latest edits are still not saved. Resolve the save error before leaving.");
+          return;
+        }
+        setError("");
+        router.push(destination.pathname + destination.search + destination.hash);
+      })();
+    };
+    document.addEventListener("click", handlePendingNavigation, true);
+    return () => document.removeEventListener("click", handlePendingNavigation, true);
+  }, [askConfirmation, router, saveNow]);
 
   useEffect(() => {
     const loadTimer = window.setTimeout(() => { void refreshIndex(); }, 0);
@@ -772,6 +851,15 @@ export default function TaskCanvasDashboard({
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[11px] font-medium text-slate-600">{saveState === "saving" || loadingCanvas ? <LoaderCircle className="size-3.5 animate-spin" /> : saveState === "saved" ? <CheckCircle2 className="size-3.5 text-emerald-600" /> : <Clock3 className="size-3.5" />}{savingLabel}</span>
+                        <button type="button" onClick={async () => {
+                          if (!selectedId) return;
+                          setSaveState("saving");
+                          const saved = await saveNow();
+                          if (saved) {
+                            setSaveState("saved");
+                            setError("");
+                          }
+                        }} disabled={!selectedId || loadingCanvas || saveState === "loading"} className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-50" title="Save the latest canvas edits now"><Save className="size-3.5" /> Save now</button>
                         <button type="button" onClick={() => { setSelectedMembers(selected ? selected.memberUserIds : []); setPeopleOpen(true); }} disabled={!selected} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><UsersRound className="size-3.5" /> Collaborators</button>
           </div>
         </header>

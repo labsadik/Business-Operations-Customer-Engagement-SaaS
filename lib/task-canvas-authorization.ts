@@ -115,6 +115,7 @@ export function canManageTaskCanvas(
 export function taskCanvasErrorResponse(error: unknown, fallback = "TASK_CANVAS_REQUEST_FAILED") {
   const code = error instanceof Error ? error.message : fallback;
   const status =
+    code === "CANVAS_SCENE_STORED_INVALID" ? 500 :
     code === "UNAUTHENTICATED" ? 401 :
     ["FORBIDDEN", "CSRF_ORIGIN_INVALID", "FEATURE_NOT_IN_PLAN"].includes(code) ? 403 :
     code === "TASK_CANVAS_NOT_FOUND" ? 404 :
@@ -128,5 +129,5 @@ export function taskCanvasErrorResponse(error: unknown, fallback = "TASK_CANVAS_
     ["COMPANY_NOT_CONFIGURED", "WORKSPACE_NOT_FOUND"].includes(code) ? 403 :
     code.endsWith("_INVALID") ? 400 :
     500;
-  return jsonError(status === 500 ? fallback : code, status);
+  return jsonError(status === 500 && code !== "CANVAS_SCENE_STORED_INVALID" ? fallback : code, status);
 }

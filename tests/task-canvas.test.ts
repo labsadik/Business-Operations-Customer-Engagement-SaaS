@@ -38,6 +38,14 @@ test("canvas scenes require bounded elements and plain app/file maps", () => {
     files: {}
   });
   assert.equal(largeDiagram.elements.length, 6000);
+
+  // A workspace canvas has no arbitrary 100-file plan quota; byte ceilings
+  // remain the safety guard for very large serialized scenes.
+  const manyFiles = Object.fromEntries(
+    Array.from({ length: 101 }, (_, index) => ["file-" + index, { id: "file-" + index }])
+  );
+  const canvasWithManyFiles = validateTaskCanvasScene({ elements: [], appState: {}, files: manyFiles });
+  assert.equal(Object.keys(canvasWithManyFiles.files).length, 101);
 });
 
 test("scene normalization repairs null SVG/canvas tuple data and isolates corrupt elements", () => {
@@ -260,3 +268,36 @@ test("Task Canvas hides Excalidraw branding links and extra tools without changi
   assert.match(dashboard, /viewBackgroundColor: "#faf9f1"/);
 });
 
+
+
+test("compressed Task Canvas reads handle BSON Binary values returned by lean MongoDB queries", async () => {
+  const [route, authorization] = await Promise.all([
+    readFile(new URL("../app/api/task-canvas/[canvasId]/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/task-canvas-authorization.ts", import.meta.url), "utf8")
+  ]);
+
+  assert.match(route, /function storedSceneBuffer\(value: unknown\): Buffer/);
+  assert.match(route, /binary\.value\(true\)/);
+  assert.match(route, /binary\.buffer instanceof Uint8Array/);
+  assert.match(route, /Array\.isArray\(\(legacy as Record<string, unknown>\)\.elements\)/);
+  assert.doesNotMatch(route, /Buffer\.from\(canvas\.sceneGzip as Uint8Array\)/);
+  assert.match(authorization, /code === "CANVAS_SCENE_STORED_INVALID" \? 500 :/);
+});
+
+test("Task Canvas offers manual save and protects pending edits during page navigation", async () => {
+  const component = await readFile(
+    new URL("../features/task-canvas/components/task-canvas-dashboard.tsx", import.meta.url),
+    "utf8"
+  );
+
+  assert.match(component, /Save now/);
+  assert.match(component, /beforeunload/);
+  assert.match(component, /handlePendingNavigation/);
+  assert.match(component, /confirmLabel: "Save and leave"/);
+  assert.match(component, /router\.push\(destination\.pathname \+ destination\.search \+ destination\.hash\)/);
+  assert.match(component, /while \(inFlightRef\.current \|\| queuedSceneRef\.current\)/);
+  assert.match(component, /mergeRetriesRef\.current < 5/);
+  assert.match(component, /versionNonce\?: unknown/);
+  assert.match(component, /deleted\(element\) && !deleted\(existing\)/);
+  assert.match(component, /nonceOf\(element\) > nonceOf\(existing\)/);
+});

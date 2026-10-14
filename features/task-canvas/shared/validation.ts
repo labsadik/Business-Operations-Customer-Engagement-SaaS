@@ -231,7 +231,8 @@ export function validateTaskCanvasScene(value: unknown, serializedValue?: string
     }
   }
   const fileEntries = Object.entries((scene.files ?? {}) as Record<string, unknown>);
-  if (fileEntries.length > 100) throw new Error("CANVAS_SCENE_INVALID");
+  // File count is not a plan quota. The serialized scene and compressed BSON
+  // document safety ceilings below remain the protection against oversized saves.
   for (const [fileId, file] of fileEntries) {
     if (!fileId || fileId.length > 256 || !file || typeof file !== "object" || Array.isArray(file)) {
       throw new Error("CANVAS_SCENE_INVALID");

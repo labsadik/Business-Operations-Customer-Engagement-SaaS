@@ -96,15 +96,71 @@ function compressSceneForStorage(scene: unknown, serialized?: string, compressed
   return compressed;
 }
 
+function storedSceneBuffer(value: unknown): Buffer {
+  if (Buffer.isBuffer(value)) return value;
+  if (value instanceof Uint8Array) {
+    return Buffer.from(value.buffer, value.byteOffset, value.byteLength);
+  }
+
+  // Lean Mongoose reads may expose MongoDB binary fields as BSON Binary rather
+  // than Node Buffers. Handle both representations instead of treating the
+  // object's enumerable properties as bytes (which produces an empty buffer).
+  if (value && typeof value === "object") {
+    const binary = value as {
+      value?: (asRaw?: boolean) => unknown;
+      buffer?: unknown;
+      position?: unknown;
+      type?: unknown;
+      data?: unknown;
+    };
+
+    if (typeof binary.value === "function") {
+      try {
+        const raw = binary.value(true);
+        if (Buffer.isBuffer(raw)) return raw;
+        if (raw instanceof Uint8Array) {
+          return Buffer.from(raw.buffer, raw.byteOffset, raw.byteLength);
+        }
+        if (typeof raw === "string") return Buffer.from(raw, "binary");
+      } catch {
+        // Try the public backing-buffer representation below.
+      }
+    }
+
+    if (binary.buffer instanceof Uint8Array) {
+      const end = typeof binary.position === "number"
+        ? Math.max(0, Math.min(binary.position, binary.buffer.byteLength))
+        : binary.buffer.byteLength;
+      return Buffer.from(binary.buffer.subarray(0, end));
+    }
+
+    // Buffer JSON form can occur in imported/legacy data.
+    if (binary.type === "Buffer" && Array.isArray(binary.data)) {
+      return Buffer.from(binary.data.filter((item): item is number =>
+        typeof item === "number" && Number.isInteger(item) && item >= 0 && item <= 255
+      ));
+    }
+  }
+
+  throw new Error("CANVAS_SCENE_STORED_INVALID");
+}
+
 function readCanvasScene(canvas: { scene?: unknown; sceneGzip?: unknown }) {
   if (canvas.sceneGzip) {
     try {
-      const compressed = Buffer.isBuffer(canvas.sceneGzip)
-        ? canvas.sceneGzip
-        : Buffer.from(canvas.sceneGzip as Uint8Array);
+      const compressed = storedSceneBuffer(canvas.sceneGzip);
+      if (!compressed.byteLength) throw new Error("CANVAS_SCENE_STORED_INVALID");
       const serialized = gunzipSync(compressed, { maxOutputLength: TASK_CANVAS_SCENE_MAX_BYTES }).toString("utf8");
       return JSON.parse(serialized) as unknown;
     } catch {
+      // Some in-place migrations may leave both fields temporarily present.
+      // Prefer a readable legacy scene rather than making a recoverable record
+      // inaccessible because its newer binary field cannot be decoded.
+      const legacy = canvas.scene;
+      if (legacy && typeof legacy === "object" && !Array.isArray(legacy) &&
+          Array.isArray((legacy as Record<string, unknown>).elements)) {
+        return legacy;
+      }
       throw new Error("CANVAS_SCENE_STORED_INVALID");
     }
   }
