@@ -360,7 +360,7 @@ export default function AdminCompanyDetailsView({ company }: { company: AdminCom
             ["Chats started", chat.chatsUsedThisMonth.toLocaleString("en-IN") + " / " + chat.monthlyLimit.toLocaleString("en-IN"), chat.chatsRemaining.toLocaleString("en-IN") + " remaining this month"],
             ["Unique visitors", chat.customersUsedThisMonth.toLocaleString("en-IN") + " / " + chat.customerLimit.toLocaleString("en-IN"), chat.customersRemaining.toLocaleString("en-IN") + " remaining this month"],
             ["Open conversations", chat.openChats.toLocaleString("en-IN"), "Currently open and not expired"],
-            ["Agent capacity", chat.agentLimit.toLocaleString("en-IN"), "Maximum agents allowed by the plan"],
+            ["Eligible employee agents", chat.eligibleAgents.toLocaleString("en-IN") + " / " + chat.agentLimit.toLocaleString("en-IN"), chat.agentsRemaining.toLocaleString("en-IN") + " agent seat(s) remaining"],
             ["Message cooldown", chat.messageCooldownSeconds.toLocaleString("en-IN") + " sec", "Minimum interval for customer replies"],
             ["History retention", chat.retentionDays.toLocaleString("en-IN") + " days", "Plan retention setting for chat data"],
             ["PDF export", chat.pdfExportEnabled ? "Available" : "Disabled", "Current plan capability"],
