@@ -186,6 +186,18 @@ test("admin vault usage loads current company rows in cursor-paginated batches",
   assert.match(vaultUpload, /idx_vault_upload_company_status_expiry/);
 });
 
+test("admin vault summary includes full Free entitlement totals for untouched companies", async () => {
+  const service = await read("lib/admin-vault-usage.ts");
+
+  assert.match(service, /const groupedCompanyObjectIds = \[\.\.\.companyIds\]/);
+  assert.match(service, /const companiesNotInUsageGroups = await Company\.countDocuments\(\{/);
+  assert.match(service, /if \(freePlan\?\.vaultEnabled && companiesNotInUsageGroups > 0\)/);
+  assert.match(service, /totals\.enabledCompanies \+= companiesNotInUsageGroups/);
+  assert.match(service, /totals\.quotaBytes \+= untouchedQuotaBytes \* companiesNotInUsageGroups/);
+  assert.match(service, /totals\.availableBytes \+= untouchedQuotaBytes \* companiesNotInUsageGroups/);
+  assert.match(service, /totals\.maxItems \+= untouchedMaxItems \* companiesNotInUsageGroups/);
+});
+
 test("every admin menu page has a lightweight route loading fallback", async () => {
   const paths = [
     "app/admin/loading.tsx",
