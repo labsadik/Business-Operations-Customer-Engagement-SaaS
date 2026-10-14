@@ -15,6 +15,18 @@ const userSchema = new Schema(
       index: true
     },
     lastLoginAt: { type: Date },
+    // Company-specific customer-page sign-ins are embedded on the existing user
+    // record so the admin can audit genuine successful logins without a new collection.
+    publicCompanyLogins: {
+      type: [{
+        _id: false,
+        companyId: { type: Schema.Types.ObjectId, ref: "Company", required: true },
+        firstLoginAt: { type: Date, required: true },
+        lastLoginAt: { type: Date, required: true },
+        loginCount: { type: Number, required: true, default: 1, min: 1 }
+      }],
+      default: []
+    },
     active: { type: Boolean, default: true, index: true },
     platformAdminPreviousRole: {
       type: String,
