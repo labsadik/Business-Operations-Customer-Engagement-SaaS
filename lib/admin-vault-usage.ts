@@ -301,3 +301,104 @@ export async function getAdminVaultUsage(companyIds?: string[]): Promise<AdminVa
   const items = await buildUsageItems(companies);
   return { items, totals: summarizeUsage(items) };
 }
+
+/**
+ * Compute platform-wide totals without hydrating company names, storage paths,
+ * or a full array of per-company response objects. The details table uses the
+ * page API; this summary path only keeps grouped aggregate rows in memory.
+ */
+export async function getAdminVaultUsageTotals(): Promise<AdminVaultUsageTotals> {
+  await getMongo();
+
+  const [companyCount, subscriptions, fileStatsRows, pendingRows] = await Promise.all([
+    Company.countDocuments(),
+    Subscription.find({})
+      .select("companyId planId status currentPeriodEnd")
+      .lean(),
+    VaultFile.aggregate<{ _id: unknown; count: number; sizeBytes: number }>([
+      {
+        $group: {
+          _id: "$companyId",
+          count: { $sum: 1 },
+          sizeBytes: { $sum: { $ifNull: ["$storageSizeBytes", "$sizeBytes"] } }
+        }
+      }
+    ]),
+    VaultUpload.aggregate<{ _id: unknown; count: number; sizeBytes: number }>([
+      {
+        $match: {
+          status: { $in: ["OPEN", "COMPLETING"] },
+          expiresAt: { $gt: new Date() }
+        }
+      },
+      {
+        $lookup: {
+          from: VaultFile.collection.name,
+          localField: "_id",
+          foreignField: "uploadId",
+          as: "committedFiles"
+        }
+      },
+      { $match: { $expr: { $eq: [{ $size: "$committedFiles" }, 0] } } },
+      {
+        $group: {
+          _id: "$companyId",
+          count: { $sum: 1 },
+          sizeBytes: { $sum: "$sizeBytes" }
+        }
+      }
+    ])
+  ]);
+
+  await ensurePlanCatalog();
+  const planIds = [...new Set(["free", ...subscriptions.map((row) => String(row.planId))])];
+  const planRows = await Plan.find({ identifier: { $in: planIds } })
+    .select("identifier name vaultEnabled vaultQuotaBytes vaultMaxFileBytes vaultMaxItems")
+    .limit(200)
+    .lean();
+
+  const now = Date.now();
+  const plansById = new Map(planRows.map((plan) => [String(plan.identifier), plan]));
+  const subscriptionsByCompany = new Map(subscriptions.map((row) => [String(row.companyId), row]));
+  const filesByCompany = new Map(fileStatsRows.map((row) => [String(row._id), row]));
+  const pendingByCompany = new Map(pendingRows.map((row) => [String(row._id), row]));
+  const companyIds = new Set([
+    ...subscriptionsByCompany.keys(),
+    ...filesByCompany.keys(),
+    ...pendingByCompany.keys()
+  ]);
+  const totals = emptyTotals();
+  totals.companies = companyCount;
+
+  for (const companyId of companyIds) {
+    const subscription = subscriptionsByCompany.get(companyId);
+    const subscriptionEnd = subscription?.currentPeriodEnd?.getTime() ?? 0;
+    const subscriptionActive = Boolean(subscription && subscriptionEnd > now);
+    const activePlanId = subscriptionActive ? subscription?.planId ?? "free" : "free";
+    const plan = plansById.get(activePlanId) ?? plansById.get("free") ?? null;
+    const vaultEnabled = Boolean(plan?.vaultEnabled);
+    const quotaBytes = vaultEnabled ? Number(plan?.vaultQuotaBytes ?? 0) : 0;
+    const maxItems = vaultEnabled ? Number(plan?.vaultMaxItems ?? 0) : 0;
+    const fileStats = filesByCompany.get(companyId);
+    const pendingStats = pendingByCompany.get(companyId);
+    const fileCount = fileStats?.count ?? 0;
+    const pendingUploadCount = pendingStats?.count ?? 0;
+    const pendingUploadBytes = pendingStats?.sizeBytes ?? 0;
+    const usedBytes = (fileStats?.sizeBytes ?? 0) + pendingUploadBytes;
+    const usedItems = fileCount + pendingUploadCount;
+
+    if (vaultEnabled) totals.enabledCompanies += 1;
+    totals.usedBytes += usedBytes;
+    totals.quotaBytes += quotaBytes;
+    totals.availableBytes += Math.max(0, quotaBytes - usedBytes);
+    totals.usedItems += usedItems;
+    totals.maxItems += maxItems;
+    totals.fileCount += fileCount;
+    totals.pendingUploadCount += pendingUploadCount;
+    totals.pendingUploadBytes += pendingUploadBytes;
+    totals.overQuotaCompanies += usedBytes > quotaBytes ? 1 : 0;
+  }
+
+  totals.disabledCompanies = Math.max(0, totals.companies - totals.enabledCompanies);
+  return totals;
+}
