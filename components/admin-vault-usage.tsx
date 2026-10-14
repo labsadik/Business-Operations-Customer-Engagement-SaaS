@@ -153,12 +153,16 @@ export default function AdminVaultUsage() {
 
   useEffect(() => {
     const controller = new AbortController();
+    // Loading state is intentionally owned by the async request helper.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadPage({ cursor: null, append: false, searchTerm: query, signal: controller.signal });
     return () => controller.abort();
   }, [query, loadPage]);
 
   useEffect(() => {
     const controller = new AbortController();
+    // Loading state is intentionally owned by the async request helper.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadTotals(controller.signal);
     return () => controller.abort();
   }, [loadTotals]);

@@ -31,6 +31,6 @@ Example (use the exact generated snippet; the example company slug is illustrati
 - Customer-to-server message cooldown is atomically enforced against MongoDB. UI countdowns are only presentation; bypassing the widget does not bypass the server rule.
 - Monthly chat and unique-customer counters are stored separately from transcripts, so automatic history deletion does not reset plan usage limits. Only count aggregates are retained for three additional months; the month-salted visitor deduplication key expires at the end of that calendar month.
 - Conversation, message and contact records carry an expiry date. A daily scheduler removes expired conversation/message documents in bounded batches; MongoDB TTL indexes are a secondary cleanup safeguard and run asynchronously.
-- Configure `CRON_SECRET` in production. Vercel runs `/api/jobs/live-chat-retention` daily; on other hosts, configure an external scheduler to send `GET /api/jobs/live-chat-retention` with `Authorization: Bearer <CRON_SECRET>`.
+- Configure `CRON_SECRET` in production. The Cloud Run bootstrap script creates a daily Cloud Scheduler job that sends `GET /api/jobs/live-chat-retention` with `Authorization: Bearer <CRON_SECRET>`. On another host, configure an equivalent authenticated daily scheduler.
 - Database retention does not itself erase third-party backups. Configure the database provider's backup/PITR retention to meet your privacy requirements.
 - Use HTTPS in production and provide an appropriate privacy notice before collecting customer contact details.

@@ -24,7 +24,7 @@ async function findPublicCompany(companySlug: string) {
 
 function requestFingerprint(request: Request) {
   // Hash the forwarded address so raw IP addresses are not stored in the feedback document.
-  const forwarded = request.headers.get("x-vercel-forwarded-for")
+  const forwarded = request.headers.get("cf-connecting-ip")
     ?? request.headers.get("x-real-ip")
     ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
     ?? "";

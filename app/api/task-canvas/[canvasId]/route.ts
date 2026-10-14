@@ -247,7 +247,7 @@ export async function PATCH(request: Request, { params }: Params) {
       const sceneRawBytes = Buffer.byteLength(serializedScene, "utf8");
       const sceneElementCount = scene.elements.length;
       const sceneFileCount = Object.keys(scene.files ?? {}).length;
-      const scenePointCount = scene.elements.reduce((total, value) => {
+      const scenePointCount = scene.elements.reduce<number>((total, value) => {
         if (!value || typeof value !== "object" || Array.isArray(value)) return total;
         const points = (value as Record<string, unknown>).points;
         return total + (Array.isArray(points) ? points.length : 0);

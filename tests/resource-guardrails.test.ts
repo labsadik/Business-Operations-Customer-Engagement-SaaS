@@ -462,7 +462,7 @@ test("vault uploads stream chunks and never report 100 percent before Bunny fina
   const ui = source("components/company-vault.tsx");
   const start = source("app/api/vault/uploads/route.ts");
   const cleanupJob = source("app/api/jobs/vault-upload-cleanup/route.ts");
-  const vercel = source("vercel.json");
+  const cloudRun = source("docs/DEPLOY_GCP_CLOUD_RUN.md");
 
   assert.ok(chunks.includes("bunnyPutStream("));
   assert.ok(chunks.includes("streamRequestBody(request.body, expectedSize)"));
@@ -485,7 +485,8 @@ test("vault uploads stream chunks and never report 100 percent before Bunny fina
 
   assert.ok(cleanupJob.includes("cleanupExpiredVaultUploads(undefined, CLEANUP_BATCH_LIMIT)"));
   assert.ok(cleanupJob.includes('request.headers.get("authorization") === `Bearer ${secret}`'));
-  assert.ok(vercel.includes('"schedule": "0 3 * * *"'));
+  assert.ok(cloudRun.includes("/api/jobs/vault-upload-cleanup"));
+  assert.ok(cloudRun.includes("*/15 * * * *"));
 });
 
 
@@ -599,9 +600,10 @@ test("enterprise workspace sidebar groups navigation, aligns the toggle, and ret
   assert.ok(!sidebar.includes("Sign out"));
   assert.ok(!sidebar.includes("LogOut"));
 
-  assert.ok(skeleton.includes('min-h-[68px] items-center justify-between gap-2.5'));
-  assert.ok(skeleton.includes('className="size-8 shrink-0 rounded-lg"'));
-  assert.ok(skeleton.includes("Array.from({ length: 4 }"));
+  assert.ok(skeleton.includes("export function RouteSpinner("));
+  assert.ok(skeleton.includes("grid min-h-screen place-items-center"));
+  assert.ok(skeleton.includes("motion-safe:animate-spin"));
+  assert.ok(skeleton.includes("export function WorkspaceSectionLoading("));
   assert.ok(dashboard.includes("useWorkspaceSidebarState"));
   assert.ok(dashboard.includes("onToggleCollapsed={toggleSidebar}"));
   assert.ok(profilePage.includes("<CompanyProfile"));
@@ -655,7 +657,8 @@ test("landing pricing is rendered from fresh server data, not cached marketing H
 
   assert.ok(landing.includes('export const dynamic = "force-dynamic";'));
   assert.ok(landing.includes('export const runtime = "nodejs";'));
-  assert.ok(landing.includes("const plans = await listPublicPlans();"));
+  assert.ok(landing.includes("const plansPromise = listPublicPlans();"));
+  assert.ok(landing.includes("await Promise.all(["));
   assert.match(config, /source: "\/",\s*headers: \[noStore\]/);
   assert.doesNotMatch(config, /source: "\/",\s*headers: \[publicLongCache\]/);
 });
@@ -878,24 +881,36 @@ test("Google Cloud Run container runs the standard Next.js server and keeps runt
 
   assert.ok(nextConfig.includes('process.env.NEXT_OUTPUT_STANDALONE === "1"'));
   assert.ok(dockerfile.includes("npm ci --no-audit --no-fund"));
-  assert.ok(dockerfile.includes("npm ci --omit=dev --no-audit --no-fund"));
-  assert.ok(dockerfile.includes("/app/.next ./.next"));
-  assert.ok(dockerfile.includes('CMD ["npm", "run", "start"]'));
-  assert.equal(JSON.parse(source("package.json")).scripts.start, "next start");
+  assert.ok(dockerfile.includes("ENV NEXT_OUTPUT_STANDALONE=1"));
+  assert.ok(dockerfile.includes("/app/.next/standalone ./"));
+  assert.ok(dockerfile.includes("/app/.next/static ./.next/static"));
+  assert.ok(dockerfile.includes('CMD ["node", "server.js"]'));
   assert.doesNotMatch(dockerfile, /server\.mjs|WebSocket/);
-  assert.doesNotMatch(dockerfile, /NEXT_OUTPUT_STANDALONE=1|\.next\/standalone/);
-  assert.ok(dockerfile.includes('ENV PORT=8080'));
-  assert.ok(dockerfile.includes('ENV HOSTNAME=0.0.0.0'));
+  assert.match(dockerfile, /\.next\/standalone/);
+  assert.ok(dockerfile.includes("PORT=8080"));
+  assert.ok(dockerfile.includes("HOSTNAME=0.0.0.0"));
   assert.ok(dockerfile.includes("USER nextjs"));
   assert.doesNotMatch(dockerfile, /MONGODB_URI|GOOGLE_CLIENT_SECRET|AUTH_SECRET|RAZORPAY_KEY_SECRET/);
   assert.ok(dockerignore.includes(".env.*"));
   assert.ok(gcloudignore.includes(".env.*"));
-  assert.ok(deploymentGuide.includes("MONGODB_DB_NAME=Canvas"));
-  assert.ok(deploymentGuide.includes("MONGODB_DB_NAME=canvas_test"));
+  assert.ok(deploymentGuide.includes("MONGODB_URI"));
+  assert.ok(deploymentGuide.includes("CLOUD_RUN_MAX_INSTANCES"));
+  assert.ok(deploymentGuide.includes("CLOUD_RUN_CONCURRENCY"));
   assert.ok(deploymentGuide.includes("Secret Manager"));
   assert.ok(deploymentGuide.includes("/api/jobs/sweep"));
   assert.ok(cloudBuild.includes("gcloud"));
   assert.ok(cloudBuild.includes("$_NEXT_PUBLIC_APP_URL"));
+  const firstBuild = source("cloudbuild-image.yaml");
+  const envTemplate = source("cloudrun.env.example");
+  const deployScript = source("scripts/deploy-cloud-run.ps1");
+  assert.ok(firstBuild.includes("_TAG: manual"));
+  assert.ok(envTemplate.includes("CLOUD_RUN_PROJECT_ID="));
+  assert.ok(envTemplate.includes("MONGODB_DB_NAME=Canvas"));
+  assert.ok(deployScript.includes('"builds", "submit"'));
+  assert.ok(deployScript.includes("secretmanager.secretAccessor"));
+  assert.ok(deployScript.includes("--min=0"));
+  assert.ok(deployScript.includes("--max=$maxInstances"));
+  assert.ok(deployScript.includes("canvas-booking-sweep"));
 });
 
 

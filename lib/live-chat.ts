@@ -100,7 +100,7 @@ export function visitorHash(companyId: string, visitorId: string) {
 }
 
 export function requestIpHash(request: Request, companyId: string) {
-  const forwarded = request.headers.get("x-vercel-forwarded-for")
+  const forwarded = request.headers.get("cf-connecting-ip")
     ?? request.headers.get("x-real-ip")
     ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
     ?? "unknown";

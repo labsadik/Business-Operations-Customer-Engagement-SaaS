@@ -9,8 +9,7 @@ Sentry.init({
   enabled: Boolean(dsn),
   environment:
     process.env.SENTRY_ENVIRONMENT?.trim() ||
-    process.env.VERCEL_ENV?.trim() ||
-    process.env.NODE_ENV ||
+process.env.NODE_ENV ||
     "development",
   release:
     process.env.SENTRY_RELEASE?.trim() || undefined,
