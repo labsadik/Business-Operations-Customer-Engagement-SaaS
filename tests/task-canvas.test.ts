@@ -186,5 +186,10 @@ test("Task Canvas hides Excalidraw branding links and extra tools without changi
   assert.match(dashboard, /showWelcomeScreen: false/);
   assert.match(styles, /\.task-canvas-excalidraw \.App-toolbar__extra-tools-trigger/);
   assert.match(styles, /\.excalidraw-modal-container \.HelpDialog__header/);
+  assert.match(styles, /\.task-canvas-excalidraw \.main-menu-trigger/);
+  assert.match(styles, /\.task-canvas-excalidraw \.default-sidebar-trigger/);
+  assert.match(styles, /\.task-canvas-excalidraw \.default-sidebar/);
+  assert.match(styles, /background-color: #faf9f1/);
+  assert.match(dashboard, /viewBackgroundColor: "#faf9f1"/);
 });
 
