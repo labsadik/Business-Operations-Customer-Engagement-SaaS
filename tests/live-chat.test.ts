@@ -75,7 +75,7 @@ test("chat retention removes expired conversations and customer messages in a bo
   const usage = source("models/live-chat-monthly-usage.ts");
   const customerUsage = source("models/live-chat-monthly-customer.ts");
   const job = source("app/api/jobs/live-chat-retention/route.ts");
-  const config = source("vercel.json");
+  const config = source("docs/DEPLOY_GCP_CLOUD_RUN.md");
   const docs = source("docs/LIVE_CHAT.md");
 
   assert.match(conversation, /index\(\{ expiresAt: 1 \}, \{ expireAfterSeconds: 0 \}\)/);
