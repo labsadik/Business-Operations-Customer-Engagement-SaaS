@@ -126,7 +126,15 @@ export async function GET(request: Request, { params }: Params) {
     const scope = await requireTaskCanvasScope();
     const { canvasId } = await params;
     const filter = idsFor(scope, canvasId);
-    const canvas = await TaskCanvas.findOne(filter).lean();
+    const url = new URL(request.url);
+    const metaOnly = url.searchParams.get("meta") === "1";
+    const query = TaskCanvas.findOne(filter);
+    if (metaOnly) {
+      // Collaboration polling only needs version/metadata. Do not read the
+      // compressed scene blob on every ten-second metadata check.
+      query.select("name version createdByUserId memberUserIds updatedAt lastEditorUserId");
+    }
+    const canvas = await query.lean();
     if (!canvas || !canReadTaskCanvas(scope, canvas)) throw new Error("TASK_CANVAS_NOT_FOUND");
 
     const memberUserIds = [...new Set((canvas.memberUserIds ?? []).map(String))];
@@ -140,7 +148,7 @@ export async function GET(request: Request, { params }: Params) {
       updatedAt: new Date(canvas.updatedAt).toISOString(),
       lastEditorUserId: canvas.lastEditorUserId ? String(canvas.lastEditorUserId) : null
     };
-    if (new URL(request.url).searchParams.get("meta") === "1") return jsonOk({ item });
+    if (metaOnly) return jsonOk({ item });
     const canvasesUsed = await getCompanyTaskCanvasCount(scope.companyId);
     return jsonOk({
       item,
@@ -173,12 +181,12 @@ export async function PATCH(request: Request, { params }: Params) {
 
     if (body.action === "save") {
       const expectedVersion = validateCanvasVersion(body.expectedVersion);
-      const decodedScene = decodeScenePayload(body);
-      const scene = validateTaskCanvasScene(decodedScene.value, decodedScene.serialized);
-      const compressedScene = compressSceneForStorage(scene, decodedScene.serialized, decodedScene.compressed);
       if (expectedVersion !== canvas.version) {
         return jsonError("CANVAS_VERSION_CONFLICT", 409, { currentVersion: canvas.version });
       }
+      const decodedScene = decodeScenePayload(body);
+      const scene = validateTaskCanvasScene(decodedScene.value, decodedScene.serialized);
+      const compressedScene = compressSceneForStorage(scene, decodedScene.serialized, decodedScene.compressed);
 
       const updated = await TaskCanvas.findOneAndUpdate(
         { ...filter, version: expectedVersion },
