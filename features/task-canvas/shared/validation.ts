@@ -203,6 +203,27 @@ export function validateTaskCanvasScene(value: unknown): TaskCanvasScene {
       typeof record.id !== "string" || record.id.length < 1 || record.id.length > 256 ||
       typeof record.type !== "string" || record.type.length < 1 || record.type.length > 48
     ) throw new Error("CANVAS_SCENE_INVALID");
+
+    // Catch the null tuple shapes that can crash Excalidraw during rendering.
+    if (record.type === "image" && "scale" in record) {
+      if (!Array.isArray(record.scale) || record.scale.length < 2 ||
+          typeof record.scale[0] !== "number" || !Number.isFinite(record.scale[0]) ||
+          typeof record.scale[1] !== "number" || !Number.isFinite(record.scale[1])) {
+        throw new Error("CANVAS_SCENE_INVALID");
+      }
+    }
+    if (["line", "draw", "arrow", "freedraw"].includes(record.type) && "points" in record) {
+      if (!Array.isArray(record.points) || record.points.some((point) =>
+        !Array.isArray(point) || point.length < 2 ||
+        typeof point[0] !== "number" || !Number.isFinite(point[0]) ||
+        typeof point[1] !== "number" || !Number.isFinite(point[1])
+      )) {
+        throw new Error("CANVAS_SCENE_INVALID");
+      }
+    }
+    if (record.type === "freedraw" && !Array.isArray(record.points)) {
+      throw new Error("CANVAS_SCENE_INVALID");
+    }
   }
   const fileEntries = Object.entries((scene.files ?? {}) as Record<string, unknown>);
   if (fileEntries.length > 100) throw new Error("CANVAS_SCENE_INVALID");
