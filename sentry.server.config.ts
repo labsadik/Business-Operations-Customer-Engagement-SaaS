@@ -11,11 +11,10 @@ Sentry.init({
   enableOpenTelemetrySetup: false,
   environment:
     process.env.SENTRY_ENVIRONMENT?.trim() ||
-    process.env.VERCEL_ENV?.trim() ||
-    process.env.NODE_ENV ||
+process.env.NODE_ENV ||
     "development",
   release:
-    process.env.SENTRY_RELEASE?.trim() || process.env.VERCEL_GIT_COMMIT_SHA || undefined,
+    process.env.SENTRY_RELEASE?.trim() || process.env.K_REVISION || undefined,
   dataCollection: {
     userInfo: false,
     cookies: false,
