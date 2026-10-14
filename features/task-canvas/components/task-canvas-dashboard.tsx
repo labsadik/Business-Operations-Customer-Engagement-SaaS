@@ -697,7 +697,7 @@ export default function TaskCanvasDashboard({
                 {canManageSelected && <button type="button" onClick={() => void deleteCanvas()} title="Delete canvas" className="grid size-8 place-items-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="size-4" /></button>}
               </div>
               <div
-                className="min-h-0 flex-1 w-full bg-white"
+                className="min-h-0 flex-1 w-full bg-white flex flex-col"
                 onMouseEnter={handleCanvasMouseEnter}
                 onMouseLeave={handleCanvasMouseLeave}
               >
