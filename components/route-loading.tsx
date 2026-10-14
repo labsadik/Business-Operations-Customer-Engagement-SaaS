@@ -162,3 +162,11 @@ export function InvoiceLoading() {
 export function InviteLoading() {
   return <RouteSpinner label="Loading invitation" />;
 }
+
+export function AdminVaultUsageLoading() {
+  return <RouteSpinner label="Loading vault usage" />;
+}
+
+export function AdminLiveChatLoading() {
+  return <RouteSpinner label="Loading Live Chat usage" />;
+}
