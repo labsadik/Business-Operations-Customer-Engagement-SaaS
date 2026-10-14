@@ -214,6 +214,7 @@ test("Task Canvas compressed persistence and list APIs keep large scene blobs of
   assert.match(canvasRoute, /sceneGzip: compressedScene/);
   assert.match(canvasRoute, /\$unset: \{ scene: "" \}/);
   assert.match(canvasRoute, /\.select\("version createdByUserId memberUserIds"\)/);
+  assert.match(canvasRoute, /query\.select\("name version createdByUserId memberUserIds updatedAt lastEditorUserId"\)/);
   assert.match(canvasRoute, /scene: readCanvasScene\(canvas\)/);
   assert.match(canvasRoute, /gunzipSync/);
   assert.match(canvasRoute, /gzipSync/);
