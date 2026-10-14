@@ -27,5 +27,6 @@ const taskCanvasSchema = new Schema(
 );
 
 taskCanvasSchema.index({ companyId: 1, workspaceId: 1, updatedAt: -1 });
+taskCanvasSchema.index({ companyId: 1, updatedAt: -1, _id: -1 });
 taskCanvasSchema.index({ companyId: 1, workspaceId: 1, memberUserIds: 1 });
 export const TaskCanvas = models.TaskCanvas ?? model("TaskCanvas", taskCanvasSchema);
