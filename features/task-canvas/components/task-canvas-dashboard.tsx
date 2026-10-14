@@ -167,16 +167,6 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
   return body.data;
 }
 
-function toScene(value: unknown): Scene {
-  if (!value || typeof value !== "object") return EMPTY_SCENE;
-  const scene = value as Partial<Scene>;
-  return {
-    elements: Array.isArray(scene.elements) ? scene.elements : [],
-    appState: scene.appState && typeof scene.appState === "object" ? scene.appState : {},
-    files: scene.files && typeof scene.files === "object" ? scene.files : {}
-  };
-}
-
 async function restoreCanvasScene(value: unknown): Promise<Scene> {
   const normalized = normalizeTaskCanvasScene(value);
   const { restoreAppState, restoreElements } = await import("@excalidraw/excalidraw");
@@ -205,6 +195,14 @@ async function restoreCanvasScene(value: unknown): Promise<Scene> {
     currentItemFontFamily: state.currentItemFontFamily
   };
   return { elements, appState, files: normalized.files };
+}
+
+function sceneSignature(scene: Scene): string | null {
+  try {
+    return JSON.stringify(scene);
+  } catch {
+    return null;
+  }
 }
 
 function getPersistedScene(elements: unknown[], appState: Record<string, unknown>, files: Record<string, unknown>): Scene {
@@ -324,6 +322,7 @@ export default function TaskCanvasDashboard({
   const confirmationResolveRef = useRef<((confirmed: boolean) => void) | null>(null);
   const selectedIdRef = useRef("");
   const versionRef = useRef(1);
+  const lastSavedSignatureRef = useRef("");
   const editSerialRef = useRef(0);
   const suppressUntilRef = useRef(0);
   const dirtyRef = useRef(false);
@@ -369,6 +368,7 @@ export default function TaskCanvasDashboard({
       const next = await restoreCanvasScene(data.scene);
       versionRef.current = data.item.version;
       sceneRef.current = next;
+      lastSavedSignatureRef.current = sceneSignature(next) ?? "";
       setScene(next);
       setSuppressionWindow(suppressUntilRef, 1400);
       setItems((current) => current.map((item) => item.id === id ? { ...item, ...data.item } : item));
@@ -447,6 +447,12 @@ export default function TaskCanvasDashboard({
       queuedSceneRef.current = { canvasId: selectedIdRef.current, scene: nextScene };
       return;
     }
+    const signature = sceneSignature(nextScene);
+    if (signature && signature === lastSavedSignatureRef.current) {
+      dirtyRef.current = false;
+      setSaveState("saved");
+      return;
+    }
     inFlightRef.current = true;
     const editSerial = editSerialRef.current;
     setSaveState("saving");
@@ -458,6 +464,7 @@ export default function TaskCanvasDashboard({
       });
       if (selectedIdRef.current !== canvasId) return;
       versionRef.current = result.version;
+      if (signature) lastSavedSignatureRef.current = signature;
       setItems((current) => current.map((item) => item.id === canvasId ? { ...item, version: result.version, updatedAt: result.updatedAt } : item));
       if (editSerial === editSerialRef.current) {
         dirtyRef.current = false;
@@ -475,7 +482,9 @@ export default function TaskCanvasDashboard({
         try {
           const latest = await api<{ item: CanvasItem; scene: unknown }>("/api/task-canvas/" + canvasId);
           if (selectedIdRef.current === canvasId) {
-            const merged = mergeScenes(sceneRef.current, await restoreCanvasScene(latest.scene));
+            const remote = await restoreCanvasScene(latest.scene);
+            lastSavedSignatureRef.current = sceneSignature(remote) ?? "";
+            const merged = mergeScenes(sceneRef.current, remote);
             versionRef.current = latest.item.version;
             sceneRef.current = merged;
             setScene(merged);
@@ -565,6 +574,11 @@ export default function TaskCanvasDashboard({
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = null;
     if (dirtyRef.current) await persistRef.current(sceneRef.current);
+    // If a write was already active, wait for it and any coalesced newest
+    // scene write before allowing the user to leave this canvas.
+    while (inFlightRef.current) {
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 25));
+    }
   }, []);
 
   const prepareCanvasSwitch = useCallback(async () => {
@@ -612,6 +626,7 @@ export default function TaskCanvasDashboard({
         const next = await restoreCanvasScene(latest.scene);
         versionRef.current = latest.item.version;
         sceneRef.current = next;
+        lastSavedSignatureRef.current = sceneSignature(next) ?? "";
         setScene(next);
         setItems((current) => current.map((item) => item.id === selectedId ? { ...item, ...latest.item } : item));
         setSuppressionWindow(suppressUntilRef, 1400);
@@ -685,6 +700,7 @@ export default function TaskCanvasDashboard({
       setItems((current) => current.filter((item) => item.id !== selected.id));
       setScene(EMPTY_SCENE);
       sceneRef.current = EMPTY_SCENE;
+      lastSavedSignatureRef.current = sceneSignature(EMPTY_SCENE) ?? "";
       setSaveState("idle");
     } catch (cause) {
       setError(errorText((cause as Error).message));
