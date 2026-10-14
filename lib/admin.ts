@@ -12,6 +12,7 @@ import { Task } from "@/models/task";
 import { TaskAssignment } from "@/models/task-assignment";
 import { Invoice } from "@/models/invoice";
 import { GoogleAccount } from "@/models/google-account";
+import { TaskCanvas } from "@/models/task-canvas";
 import type { PlanEntitlements } from "@/lib/plans";
 import type { AdminPlan } from "@/lib/plan-catalog";
 import { ensurePlanCatalog, listPlansForAdmin } from "@/lib/plan-catalog";
@@ -52,6 +53,44 @@ export type AdminCompanyListItem = {
   paymentCount: number;
   lastPaymentAt: Date | null;
   vaultUsage?: AdminVaultUsageItem | null;
+};
+
+export type AdminTaskCanvasUsageItem = {
+  id: string;
+  name: string;
+  workspaceId: string;
+  createdByUserId: string;
+  lastEditorUserId: string | null;
+  memberCount: number;
+  version: number;
+  createdAt: Date;
+  updatedAt: Date;
+  storageFormat: "gzip" | "legacy";
+  sceneStoredBytes: number;
+  documentBsonBytes: number;
+  sceneRawBytes: number | null;
+  sceneElementCount: number | null;
+  sceneFileCount: number | null;
+  scenePointCount: number | null;
+  sceneStatsAt: Date | null;
+};
+
+export type AdminTaskCanvasUsage = {
+  enabled: boolean;
+  canvasLimit: number;
+  maxCollaboratorsPerCanvas: number;
+  canvasCount: number;
+  totalStoredSceneBytes: number;
+  totalDocumentBsonBytes: number;
+  totalRawSceneBytes: number;
+  totalElements: number;
+  totalFiles: number;
+  totalPoints: number;
+  totalCollaboratorSeats: number;
+  measuredCanvasCount: number;
+  unmeasuredCanvasCount: number;
+  hasMore: boolean;
+  items: AdminTaskCanvasUsageItem[];
 };
 
 export type AdminCompanyDetails = AdminCompanyListItem & {
@@ -116,6 +155,7 @@ export type AdminCompanyDetails = AdminCompanyListItem & {
   planExpiredAt: Date | null;
   planExpiryTestActive: boolean;
   vaultUsage: AdminVaultUsageItem;
+  taskCanvasUsage: AdminTaskCanvasUsage;
   vaultFolderCount: number;
   vaultFiles: Array<{
     id: string;
@@ -436,6 +476,304 @@ export async function getAdminCompanies({
   };
 }
 
+
+const TASK_CANVAS_ADMIN_ROWS_LIMIT = 100;
+
+async function getAdminTaskCanvasSnapshot(companyId: Types.ObjectId) {
+  type Summary = {
+    canvasCount: number;
+    totalStoredSceneBytes: number;
+    totalDocumentBsonBytes: number;
+    totalRawSceneBytes: number;
+    totalElements: number;
+    totalFiles: number;
+    totalPoints: number;
+    totalCollaboratorSeats: number;
+    measuredCanvasCount: number;
+    unmeasuredCanvasCount: number;
+  };
+  type RawItem = {
+    _id: Types.ObjectId;
+    name: string;
+    workspaceId: Types.ObjectId;
+    createdByUserId: Types.ObjectId;
+    lastEditorUserId?: Types.ObjectId | null;
+    memberCount: number;
+    version: number;
+    createdAt: Date;
+    updatedAt: Date;
+    storageFormat: "gzip" | "legacy";
+    sceneStoredBytes: number;
+    documentBsonBytes: number;
+    sceneRawBytes: number | null;
+    sceneElementCount: number | null;
+    sceneFileCount: number | null;
+    scenePointCount: number | null;
+    sceneStatsAt?: Date | null;
+  };
+  const [snapshot] = await TaskCanvas.aggregate<{
+    summary: Summary[];
+    items: RawItem[];
+  }>([
+    { $match: { companyId } },
+    {
+      $facet: {
+        summary: [
+          {
+            $group: {
+              _id: null,
+              canvasCount: { $sum: 1 },
+              totalStoredSceneBytes: {
+                $sum: {
+                  $ifNull: [
+                    "$sceneStoredBytes",
+                    {
+                      $cond: [
+                        { $eq: [{ $type: "$sceneGzip" }, "binData"] },
+                        { $binarySize: "$sceneGzip" },
+                        { $bsonSize: { $ifNull: ["$scene", {}] } }
+                      ]
+                    }
+                  ]
+                }
+              },
+              totalDocumentBsonBytes: { $sum: { $bsonSize: "$ROOT" } },
+              totalRawSceneBytes: {
+                $sum: {
+                  $ifNull: [
+                    "$sceneRawBytes",
+                    {
+                      $cond: [
+                        { $eq: [{ $type: "$scene" }, "object"] },
+                        { $bsonSize: "$scene" },
+                        0
+                      ]
+                    }
+                  ]
+                }
+              },
+              totalElements: {
+                $sum: {
+                  $ifNull: [
+                    "$sceneElementCount",
+                    {
+                      $cond: [
+                        { $eq: [{ $type: "$scene" }, "object"] },
+                        { $size: { $ifNull: ["$scene.elements", []] } },
+                        0
+                      ]
+                    }
+                  ]
+                }
+              },
+              totalFiles: {
+                $sum: {
+                  $ifNull: [
+                    "$sceneFileCount",
+                    {
+                      $cond: [
+                        { $eq: [{ $type: "$scene" }, "object"] },
+                        { $size: { $objectToArray: { $ifNull: ["$scene.files", {}] } } },
+                        0
+                      ]
+                    }
+                  ]
+                }
+              },
+              totalPoints: {
+                $sum: {
+                  $ifNull: [
+                    "$scenePointCount",
+                    {
+                      $cond: [
+                        { $eq: [{ $type: "$scene" }, "object"] },
+                        {
+                          $reduce: {
+                            input: { $ifNull: ["$scene.elements", []] },
+                            initialValue: 0,
+                            in: {
+                              $add: [
+                                "$value",
+                                { $cond: [{ $isArray: "$this.points" }, { $size: "$this.points" }, 0] }
+                              ]
+                            }
+                          }
+                        },
+                        0
+                      ]
+                    }
+                  ]
+                }
+              },
+              totalCollaboratorSeats: { $sum: { $size: { $ifNull: ["$memberUserIds", []] } } },
+              measuredCanvasCount: {
+                $sum: {
+                  $cond: [
+                    {
+                      $or: [
+                        { $ne: [{ $ifNull: ["$sceneElementCount", null] }, null] },
+                        { $eq: [{ $type: "$scene" }, "object"] }
+                      ]
+                    },
+                    1,
+                    0
+                  ]
+                }
+              },
+              unmeasuredCanvasCount: {
+                $sum: {
+                  $cond: [
+                    {
+                      $or: [
+                        { $ne: [{ $ifNull: ["$sceneElementCount", null] }, null] },
+                        { $eq: [{ $type: "$scene" }, "object"] }
+                      ]
+                    },
+                    0,
+                    1
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        items: [
+          { $sort: { updatedAt: -1, _id: -1 } },
+          { $limit: TASK_CANVAS_ADMIN_ROWS_LIMIT + 1 },
+          {
+            $project: {
+              _id: 1,
+              name: 1,
+              workspaceId: 1,
+              createdByUserId: 1,
+              lastEditorUserId: 1,
+              memberCount: { $size: { $ifNull: ["$memberUserIds", []] } },
+              version: 1,
+              createdAt: 1,
+              updatedAt: 1,
+              storageFormat: {
+                $cond: [
+                  { $eq: [{ $type: "$sceneGzip" }, "binData"] },
+                  "gzip",
+                  "legacy"
+                ]
+              },
+              sceneStoredBytes: {
+                $ifNull: [
+                  "$sceneStoredBytes",
+                  {
+                    $cond: [
+                      { $eq: [{ $type: "$sceneGzip" }, "binData"] },
+                      { $binarySize: "$sceneGzip" },
+                      { $bsonSize: { $ifNull: ["$scene", {}] } }
+                    ]
+                  }
+                ]
+              },
+              documentBsonBytes: { $bsonSize: "$ROOT" },
+              sceneRawBytes: {
+                $ifNull: [
+                  "$sceneRawBytes",
+                  {
+                    $cond: [
+                      { $eq: [{ $type: "$scene" }, "object"] },
+                      { $bsonSize: "$scene" },
+                      null
+                    ]
+                  }
+                ]
+              },
+              sceneElementCount: {
+                $ifNull: [
+                  "$sceneElementCount",
+                  {
+                    $cond: [
+                      { $eq: [{ $type: "$scene" }, "object"] },
+                      { $size: { $ifNull: ["$scene.elements", []] } },
+                      null
+                    ]
+                  }
+                ]
+              },
+              sceneFileCount: {
+                $ifNull: [
+                  "$sceneFileCount",
+                  {
+                    $cond: [
+                      { $eq: [{ $type: "$scene" }, "object"] },
+                      { $size: { $objectToArray: { $ifNull: ["$scene.files", {}] } } },
+                      null
+                    ]
+                  }
+                ]
+              },
+              scenePointCount: {
+                $ifNull: [
+                  "$scenePointCount",
+                  {
+                    $cond: [
+                      { $eq: [{ $type: "$scene" }, "object"] },
+                      {
+                        $reduce: {
+                          input: { $ifNull: ["$scene.elements", []] },
+                          initialValue: 0,
+                          in: {
+                            $add: [
+                              "$value",
+                              { $cond: [{ $isArray: "$this.points" }, { $size: "$this.points" }, 0] }
+                            ]
+                          }
+                        }
+                      },
+                      null
+                    ]
+                  }
+                ]
+              },
+              sceneStatsAt: 1
+            }
+          }
+        ]
+      }
+    }
+  ]).exec();
+
+  const summary = snapshot?.summary?.[0];
+  const rows = snapshot?.items ?? [];
+  return {
+    canvasCount: summary?.canvasCount ?? 0,
+    totalStoredSceneBytes: summary?.totalStoredSceneBytes ?? 0,
+    totalDocumentBsonBytes: summary?.totalDocumentBsonBytes ?? 0,
+    totalRawSceneBytes: summary?.totalRawSceneBytes ?? 0,
+    totalElements: summary?.totalElements ?? 0,
+    totalFiles: summary?.totalFiles ?? 0,
+    totalPoints: summary?.totalPoints ?? 0,
+    totalCollaboratorSeats: summary?.totalCollaboratorSeats ?? 0,
+    measuredCanvasCount: summary?.measuredCanvasCount ?? 0,
+    unmeasuredCanvasCount: summary?.unmeasuredCanvasCount ?? 0,
+    hasMore: rows.length > TASK_CANVAS_ADMIN_ROWS_LIMIT,
+    items: rows.slice(0, TASK_CANVAS_ADMIN_ROWS_LIMIT).map((item) => ({
+      id: String(item._id),
+      name: item.name,
+      workspaceId: String(item.workspaceId),
+      createdByUserId: String(item.createdByUserId),
+      lastEditorUserId: item.lastEditorUserId ? String(item.lastEditorUserId) : null,
+      memberCount: item.memberCount,
+      version: item.version,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+      storageFormat: item.storageFormat,
+      sceneStoredBytes: item.sceneStoredBytes,
+      documentBsonBytes: item.documentBsonBytes,
+      sceneRawBytes: item.sceneRawBytes ?? null,
+      sceneElementCount: item.sceneElementCount ?? null,
+      sceneFileCount: item.sceneFileCount ?? null,
+      scenePointCount: item.scenePointCount ?? null,
+      sceneStatsAt: item.sceneStatsAt ?? null
+    }))
+  };
+}
+
 export async function getAdminCompanyDetails(companyId: string) {
   await requirePlatformAdmin();
   if (!Types.ObjectId.isValid(companyId)) return null;
@@ -446,7 +784,7 @@ export async function getAdminCompanyDetails(companyId: string) {
 
   await ensureInvoicesForCapturedPayments(String(objectId));
 
-  const [baseRow, owner, members, memberUsers, subscription, payments, invoices, meetingStats, meetingRequestStats, recentMeetings, meetingCustomers] =
+  const [baseRow, owner, members, memberUsers, subscription, payments, invoices, meetingStats, meetingRequestStats, recentMeetings, meetingCustomers, taskCanvasSnapshot] =
     await Promise.all([
       buildCompanyRows([company as never]).then((rows) => rows[0] ?? null),
       User.findById(company.ownerUserId).select("name email image").lean(),
@@ -468,7 +806,8 @@ export async function getAdminCompanyDetails(companyId: string) {
         .limit(30)
         .select("employeeId customerId startAt endAt status")
         .lean(),
-      BookingRequest.distinct("customerId", { companyId: objectId })
+      BookingRequest.distinct("customerId", { companyId: objectId }),
+      getAdminTaskCanvasSnapshot(objectId)
     ]);
 
   if (!baseRow) return null;
@@ -581,6 +920,12 @@ export async function getAdminCompanyDetails(companyId: string) {
     adminPlans.map((plan) => [plan.id, plan])
   ) as Record<string, AdminPlan>;
   const currentPlan = subscription?.planId ? plans[subscription.planId] : undefined;
+  const taskCanvasUsage = {
+    enabled: Boolean(currentPlan?.taskCanvasEnabled),
+    canvasLimit: Math.min(100, Math.max(1, currentPlan?.taskCanvasHistoryLimit ?? 10)),
+    maxCollaboratorsPerCanvas: Math.min(200, Math.max(2, currentPlan?.taskCanvasMaxCollaborators ?? 2)),
+    ...taskCanvasSnapshot
+  };
   const alternativePlanId = currentPlan
     ? adminPlans.find((plan) => plan.id !== currentPlan.id && !plan.archivedAt)?.id ?? null
     : adminPlans.find((plan) => !plan.archivedAt)?.id ?? null;
@@ -601,6 +946,7 @@ export async function getAdminCompanyDetails(companyId: string) {
     planExpiredAt: displayedExpiredAt,
     planExpiryTestActive: Boolean(company.planExpiryTestActive),
     vaultUsage,
+    taskCanvasUsage,
     vaultFolderCount,
     vaultFiles,
     activeVaultUploads,
