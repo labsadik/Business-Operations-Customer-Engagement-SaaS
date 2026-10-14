@@ -537,7 +537,7 @@ async function getAdminTaskCanvasSnapshot(companyId: Types.ObjectId) {
                   ]
                 }
               },
-              totalDocumentBsonBytes: { $sum: { $bsonSize: "$ROOT" } },
+              totalDocumentBsonBytes: { $sum: { $bsonSize: "$$ROOT" } },
               totalRawSceneBytes: {
                 $sum: {
                   $ifNull: [
@@ -593,8 +593,8 @@ async function getAdminTaskCanvasSnapshot(companyId: Types.ObjectId) {
                             initialValue: 0,
                             in: {
                               $add: [
-                                "$value",
-                                { $cond: [{ $isArray: "$this.points" }, { $size: "$this.points" }, 0] }
+                                "$$value",
+                                { $cond: [{ $isArray: "$$this.points" }, { $size: "$$this.points" }, 0] }
                               ]
                             }
                           }
@@ -670,7 +670,7 @@ async function getAdminTaskCanvasSnapshot(companyId: Types.ObjectId) {
                   }
                 ]
               },
-              documentBsonBytes: { $bsonSize: "$ROOT" },
+              documentBsonBytes: { $bsonSize: "$$ROOT" },
               sceneRawBytes: {
                 $ifNull: [
                   "$sceneRawBytes",
@@ -719,8 +719,8 @@ async function getAdminTaskCanvasSnapshot(companyId: Types.ObjectId) {
                           initialValue: 0,
                           in: {
                             $add: [
-                              "$value",
-                              { $cond: [{ $isArray: "$this.points" }, { $size: "$this.points" }, 0] }
+                              "$$value",
+                              { $cond: [{ $isArray: "$$this.points" }, { $size: "$$this.points" }, 0] }
                             ]
                           }
                         }
