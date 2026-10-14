@@ -23,16 +23,21 @@ test("canvas scenes require bounded elements and plain app/file maps", () => {
   assert.throws(() => validateTaskCanvasScene({ elements: {}, appState: {}, files: {} }), /CANVAS_SCENE_INVALID/);
   assert.throws(() => validateTaskCanvasScene({ elements: [], appState: [], files: {} }), /CANVAS_SCENE_INVALID/);
   assert.throws(() => validateTaskCanvasScene({ elements: [], appState: {}, files: [] }), /CANVAS_SCENE_INVALID/);
-  assert.throws(() => validateTaskCanvasScene({
+  // A 2 MB text/vector scene is valid: plan history limits count canvases,
+  // not the complexity/size of a diagram inside a canvas.
+  const multiMegabyteVectorText = validateTaskCanvasScene({
     elements: [],
     appState: { memo: "x".repeat(2_000_001) },
     files: {}
-  }), /CANVAS_SCENE_TOO_LARGE/);
-  assert.throws(() => validateTaskCanvasScene({
-    elements: Array.from({ length: 5001 }, (_, id) => ({ id })),
+  });
+  assert.equal((multiMegabyteVectorText.appState.memo as string).length, 2_000_001);
+
+  const largeDiagram = validateTaskCanvasScene({
+    elements: Array.from({ length: 6000 }, (_, id) => ({ id: "node-" + id, type: "rectangle" })),
     appState: {},
     files: {}
-  }), /CANVAS_SCENE_INVALID/);
+  });
+  assert.equal(largeDiagram.elements.length, 6000);
 });
 
 test("scene normalization repairs null SVG/canvas tuple data and isolates corrupt elements", () => {
@@ -197,6 +202,25 @@ test("Task Canvas creation is limited company-wide while collaborators remain li
   assert.match(dashboard, /min-h-0 flex-1 w-full bg-white flex flex-col/);
 });
 
+test("Task Canvas compressed persistence and list APIs keep large scene blobs off metadata reads", async () => {
+  const [model, canvasRoute, listRoute, dashboard] = await Promise.all([
+    readFile(new URL("../models/task-canvas.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/task-canvas/[canvasId]/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/task-canvas/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../features/task-canvas/components/task-canvas-dashboard.tsx", import.meta.url), "utf8")
+  ]);
+
+  assert.match(model, /sceneGzip: \{ type: Buffer, required: false \}/);
+  assert.match(canvasRoute, /sceneGzip: compressedScene/);
+  assert.match(canvasRoute, /\$unset: \{ scene: "" \}/);
+  assert.match(canvasRoute, /\.select\("version createdByUserId memberUserIds"\)/);
+  assert.match(canvasRoute, /scene: readCanvasScene\(canvas\)/);
+  assert.match(canvasRoute, /gunzipSync/);
+  assert.match(canvasRoute, /gzipSync/);
+  assert.match(listRoute, /\.select\("name version createdByUserId memberUserIds updatedAt"\)/);
+  assert.match(dashboard, /await encodeSceneForTransport\(saveScene\)/);
+});
+
 test("Task Canvas collaborator profiles render Google avatars and legacy member duplicates are hidden", async () => {
   const [dashboard, listRoute, canvasRoute] = await Promise.all([
     readFile(new URL("../features/task-canvas/components/task-canvas-dashboard.tsx", import.meta.url), "utf8"),
@@ -216,8 +240,12 @@ test("Task Canvas hides Excalidraw branding links and extra tools without changi
   ]);
 
   assert.match(dashboard, /const TaskCanvasMainMenu = dynamic/);
-  assert.match(dashboard, /MainMenu\.DefaultItems\.LoadScene/);
+  assert.doesNotMatch(dashboard, /MainMenu\.DefaultItems\.LoadScene/);
   assert.match(dashboard, /MainMenu\.DefaultItems\.Export/);
+  assert.match(dashboard, /tools: \{ image: false \}/);
+  assert.match(dashboard, /loadScene: false/);
+  assert.match(dashboard, /new CompressionStream\("gzip"\)/);
+  assert.match(dashboard, /scenePayload: \{ encoding: "gzip-base64", data: btoa\(binary\) \}/);
   assert.match(dashboard, /<TaskCanvasMainMenu \/>/);
   assert.doesNotMatch(dashboard, /MainMenu\.DefaultItems\.(?:Socials|Help)/);
   assert.match(dashboard, /currentItemFontFamily: appState\.currentItemFontFamily/);
