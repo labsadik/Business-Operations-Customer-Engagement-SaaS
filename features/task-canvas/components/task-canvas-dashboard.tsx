@@ -48,7 +48,6 @@ type CanvasBridge = {
 };
 
 class TaskCanvasEditorBoundary extends Component<{
-  resetKey: string;
   onRecover: () => void;
   children: ReactNode;
 }, { hasError: boolean }> {
@@ -56,12 +55,6 @@ class TaskCanvasEditorBoundary extends Component<{
 
   static getDerivedStateFromError() {
     return { hasError: true };
-  }
-
-  componentDidUpdate(previous: Readonly<{ resetKey: string }>) {
-    if (previous.resetKey !== this.props.resetKey && this.state.hasError) {
-      this.setState({ hasError: false });
-    }
   }
 
   componentDidCatch(error: Error, _info: ErrorInfo) {
@@ -797,7 +790,7 @@ export default function TaskCanvasDashboard({
                 onMouseLeave={handleCanvasMouseLeave}
               >
                 {loadingCanvas ? <div className="grid h-full place-items-center text-sm text-slate-500"><LoaderCircle className="mr-2 inline size-4 animate-spin" /> Opening canvas…</div> : <div className="task-canvas-excalidraw min-h-0 flex-1">
-                  <TaskCanvasEditorBoundary resetKey={selectedId} onRecover={() => { void openCanvas(selected.id); }}>
+                  <TaskCanvasEditorBoundary key={selectedId} onRecover={() => { void openCanvas(selected.id); }}>
                   <Excalidraw
                     key={selectedId}
                     initialData={{ ...scene, appState: { ...scene.appState, viewBackgroundColor: "#faf9f1", showWelcomeScreen: false } } as never}
