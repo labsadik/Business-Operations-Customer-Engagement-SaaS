@@ -38,6 +38,14 @@ test("canvas scenes require bounded elements and plain app/file maps", () => {
     files: {}
   });
   assert.equal(largeDiagram.elements.length, 6000);
+
+  // A workspace canvas has no arbitrary 100-file plan quota; byte ceilings
+  // remain the safety guard for very large serialized scenes.
+  const manyFiles = Object.fromEntries(
+    Array.from({ length: 101 }, (_, index) => ["file-" + index, { id: "file-" + index }])
+  );
+  const canvasWithManyFiles = validateTaskCanvasScene({ elements: [], appState: {}, files: manyFiles });
+  assert.equal(Object.keys(canvasWithManyFiles.files).length, 101);
 });
 
 test("scene normalization repairs null SVG/canvas tuple data and isolates corrupt elements", () => {
