@@ -164,7 +164,10 @@ test("admin vault usage loads current company rows in cursor-paginated batches",
   assert.match(api, /parseListLimit/);
   assert.match(api, /url\.searchParams\.get\("cursor"\)/);
   assert.match(api, /url\.searchParams\.get\("search"\)/);
-  assert.match(summaryApi, /return jsonOk\(\{ totals: snapshot\.totals \}\)/);
+  assert.match(summaryApi, /getAdminVaultUsageTotals/);
+  assert.match(summaryApi, /return jsonOk\(\{ totals \}\)/);
+  assert.match(service, /export async function getAdminVaultUsageTotals/);
+  assert.match(service, /Company\.countDocuments\(\)/);
   assert.match(service, /\.limit\(safeLimit \+ 1\)/);
   assert.match(service, /encodeListCursor\(last\.name, last\._id\)/);
   assert.match(service, /VaultFile\.aggregate/);
