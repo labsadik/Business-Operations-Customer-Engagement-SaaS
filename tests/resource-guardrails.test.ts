@@ -600,9 +600,10 @@ test("enterprise workspace sidebar groups navigation, aligns the toggle, and ret
   assert.ok(!sidebar.includes("Sign out"));
   assert.ok(!sidebar.includes("LogOut"));
 
-  assert.ok(skeleton.includes('min-h-[68px] items-center justify-between gap-2.5'));
-  assert.ok(skeleton.includes('className="size-8 shrink-0 rounded-lg"'));
-  assert.ok(skeleton.includes("Array.from({ length: 4 }"));
+  assert.ok(skeleton.includes("export function RouteSpinner("));
+  assert.ok(skeleton.includes("grid min-h-screen place-items-center"));
+  assert.ok(skeleton.includes("motion-safe:animate-spin"));
+  assert.ok(skeleton.includes("export function WorkspaceSectionLoading("));
   assert.ok(dashboard.includes("useWorkspaceSidebarState"));
   assert.ok(dashboard.includes("onToggleCollapsed={toggleSidebar}"));
   assert.ok(profilePage.includes("<CompanyProfile"));
@@ -656,7 +657,8 @@ test("landing pricing is rendered from fresh server data, not cached marketing H
 
   assert.ok(landing.includes('export const dynamic = "force-dynamic";'));
   assert.ok(landing.includes('export const runtime = "nodejs";'));
-  assert.ok(landing.includes("const plans = await listPublicPlans();"));
+  assert.ok(landing.includes("const plansPromise = listPublicPlans();"));
+  assert.ok(landing.includes("await Promise.all(["));
   assert.match(config, /source: "\/",\s*headers: \[noStore\]/);
   assert.doesNotMatch(config, /source: "\/",\s*headers: \[publicLongCache\]/);
 });
@@ -904,7 +906,7 @@ test("Google Cloud Run container runs the standard Next.js server and keeps runt
   assert.ok(firstBuild.includes("_TAG: manual"));
   assert.ok(envTemplate.includes("CLOUD_RUN_PROJECT_ID="));
   assert.ok(envTemplate.includes("MONGODB_DB_NAME=Canvas"));
-  assert.ok(deployScript.includes("gcloud builds submit"));
+  assert.ok(deployScript.includes('"builds", "submit"'));
   assert.ok(deployScript.includes("secretmanager.secretAccessor"));
   assert.ok(deployScript.includes("--min=0"));
   assert.ok(deployScript.includes("--max=$maxInstances"));
