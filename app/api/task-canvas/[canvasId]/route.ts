@@ -32,7 +32,7 @@ const MAX_SCENE_TRANSPORT_BYTES = 3_000_000;
 const MAX_STORED_SCENE_BYTES = 12_000_000;
 const EMPTY_SCENE = { elements: [], appState: {}, files: {} };
 
-type DecodedScenePayload = { value: unknown; serialized?: string };
+type DecodedScenePayload = { value: unknown; serialized?: string; compressed?: Buffer };
 
 function decodeScenePayload(body: Record<string, unknown>): DecodedScenePayload {
   const payload = body.scenePayload;
@@ -71,10 +71,16 @@ function decodeScenePayload(body: Record<string, unknown>): DecodedScenePayload 
   } catch {
     throw new Error("CANVAS_SCENE_INVALID");
   }
-  return { value, serialized };
+  return { value, serialized, compressed };
 }
 
-function compressSceneForStorage(scene: unknown, serialized?: string) {
+function compressSceneForStorage(scene: unknown, serialized?: string, compressedPayload?: Buffer) {
+  // Reuse the already-compressed browser payload instead of spending CPU
+  // compressing the same vector JSON twice on every autosave.
+  if (compressedPayload) {
+    if (compressedPayload.byteLength > MAX_STORED_SCENE_BYTES) throw new Error("CANVAS_SCENE_TOO_LARGE");
+    return compressedPayload;
+  }
   let source: string;
   try {
     source = serialized ?? JSON.stringify(scene);
@@ -169,7 +175,7 @@ export async function PATCH(request: Request, { params }: Params) {
       const expectedVersion = validateCanvasVersion(body.expectedVersion);
       const decodedScene = decodeScenePayload(body);
       const scene = validateTaskCanvasScene(decodedScene.value, decodedScene.serialized);
-      const compressedScene = compressSceneForStorage(scene, decodedScene.serialized);
+      const compressedScene = compressSceneForStorage(scene, decodedScene.serialized, decodedScene.compressed);
       if (expectedVersion !== canvas.version) {
         return jsonError("CANVAS_VERSION_CONFLICT", 409, { currentVersion: canvas.version });
       }
