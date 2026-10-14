@@ -269,7 +269,9 @@ function errorText(code: string) {
     CANVAS_VERSION_CONFLICT: "A teammate saved a newer version. Load the latest version before continuing.",
     CANVAS_COLLABORATOR_LIMIT: "This plan's people-per-canvas limit has been reached.",
     CANVAS_MEMBER_INVALID: "Every collaborator must be an active member of this company workspace.",
-    CANVAS_CREATION_LIMIT: "Your company has reached its canvas limit. Ask a company administrator to increase the plan allowance or remove an unused canvas."
+    CANVAS_CREATION_LIMIT: "Your company has reached its canvas limit. Ask a company administrator to increase the plan allowance or remove an unused canvas.",
+    CANVAS_SCENE_TOO_LARGE: "This canvas is too large to save. Remove a large image or some content, then try again.",
+    CANVAS_SCENE_INVALID: "Some drawing data could not be saved safely. Reload the canvas to recover the last saved version."
   };
   return messages[code] ?? code.replaceAll("_", " ").toLocaleLowerCase();
 }
@@ -509,7 +511,7 @@ export default function TaskCanvasDashboard({
         setSaveState(code === "CANVAS_VERSION_CONFLICT" ? "conflict" : "error");
         conflictRef.current = code === "CANVAS_VERSION_CONFLICT";
         dirtyRef.current = true;
-        setError(code === "CANVAS_SCENE_TOO_LARGE" ? "" : errorText(code));
+        setError(errorText(code));
         queuedSceneRef.current = null;
       }
     } finally {
@@ -535,8 +537,15 @@ export default function TaskCanvasDashboard({
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       timerRef.current = null;
+      const currentScene = sceneRef.current;
+      const signature = sceneSignature(currentScene);
+      if (signature && signature === lastSavedSignatureRef.current) {
+        dirtyRef.current = false;
+        setSaveState("saved");
+        return;
+      }
       setSaveState("saving");
-      void persistRef.current(sceneRef.current);
+      void persistRef.current(currentScene);
     }, 850);
   }, []);
 
