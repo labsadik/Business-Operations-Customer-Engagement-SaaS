@@ -333,28 +333,7 @@ async function buildCompanyRows(
     TaskAssignment.aggregate<{ _id: Types.ObjectId; totalTaskAssignments: number }>([
       { $match: { companyId: { $in: ids } } },
       { $group: { _id: "$companyId", totalTaskAssignments: { $sum: 1 } } }
-    ]),
-    workspace && todayKey
-      ? TaskDailyUsage.findOne({
-          companyId: objectId,
-          workspaceId: workspace._id,
-          dayKey: todayKey
-        }).select("count").lean()
-      : Promise.resolve(null),
-    LiveChatMonthlyUsage.findOne({
-      companyId: objectId,
-      periodKey: liveChatPeriodKey
-    }).select("chatCount customerCount").lean(),
-    LiveChatConversation.countDocuments({
-      companyId: objectId,
-      status: "OPEN",
-      expiresAt: { $gt: usageNow }
-    }),
-    workspace
-      ? LiveChatSettings.findOne({ companyId: objectId, workspaceId: workspace._id })
-          .select("publicWidgetEnabled").lean()
-      : Promise.resolve(null),
-    getAdminPublicPageLoginSnapshot(objectId)
+    ])
   ]);
 
   const ownerMap = new Map(owners.map((item) => [String(item._id), item]));
@@ -1035,6 +1014,27 @@ export async function getAdminCompanyDetails(companyId: string) {
         }
       }
     ])
+    workspace && todayKey
+      ? TaskDailyUsage.findOne({
+          companyId: objectId,
+          workspaceId: workspace._id,
+          dayKey: todayKey
+        }).select("count").lean()
+      : Promise.resolve(null),
+    LiveChatMonthlyUsage.findOne({
+      companyId: objectId,
+      periodKey: liveChatPeriodKey
+    }).select("chatCount customerCount").lean(),
+    LiveChatConversation.countDocuments({
+      companyId: objectId,
+      status: "OPEN",
+      expiresAt: { $gt: usageNow }
+    }),
+    workspace
+      ? LiveChatSettings.findOne({ companyId: objectId, workspaceId: workspace._id })
+          .select("publicWidgetEnabled").lean()
+      : Promise.resolve(null),
+    getAdminPublicPageLoginSnapshot(objectId)
   ]);
   const vaultUsage = vaultSnapshot.items[0];
   if (!vaultUsage) throw new Error("ADMIN_VAULT_USAGE_UNAVAILABLE");
