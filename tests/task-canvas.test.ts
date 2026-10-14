@@ -159,8 +159,8 @@ test("large embedded images are compressed client-side before bounded scene writ
   assert.match(component, /compressSceneImages\(nextScene\)/);
   assert.match(component, /createImageBitmap\(source\)/);
   assert.match(component, /canvas\.toBlob\(resolve, "image\/webp", 0\.78\)/);
-  assert.match(component, /code === "CANVAS_SCENE_TOO_LARGE" \? ""/);
-  assert.match(validation, /TASK_CANVAS_SCENE_MAX_BYTES = 2_000_000/);
+  assert.match(component, /setError\(errorText\(code\)\)/);
+  assert.match(validation, /TASK_CANVAS_SCENE_MAX_BYTES = 32_000_000/);
 });
 
 
