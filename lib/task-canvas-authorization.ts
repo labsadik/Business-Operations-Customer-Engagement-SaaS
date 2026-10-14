@@ -115,6 +115,7 @@ export function canManageTaskCanvas(
 export function taskCanvasErrorResponse(error: unknown, fallback = "TASK_CANVAS_REQUEST_FAILED") {
   const code = error instanceof Error ? error.message : fallback;
   const status =
+    code === "CANVAS_SCENE_STORED_INVALID" ? 500 :
     code === "UNAUTHENTICATED" ? 401 :
     ["FORBIDDEN", "CSRF_ORIGIN_INVALID", "FEATURE_NOT_IN_PLAN"].includes(code) ? 403 :
     code === "TASK_CANVAS_NOT_FOUND" ? 404 :
