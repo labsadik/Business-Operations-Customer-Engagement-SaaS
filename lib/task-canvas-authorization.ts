@@ -129,5 +129,5 @@ export function taskCanvasErrorResponse(error: unknown, fallback = "TASK_CANVAS_
     ["COMPANY_NOT_CONFIGURED", "WORKSPACE_NOT_FOUND"].includes(code) ? 403 :
     code.endsWith("_INVALID") ? 400 :
     500;
-  return jsonError(status === 500 ? fallback : code, status);
+  return jsonError(status === 500 && code !== "CANVAS_SCENE_STORED_INVALID" ? fallback : code, status);
 }
