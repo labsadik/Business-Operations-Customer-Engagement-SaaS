@@ -13,6 +13,13 @@ import { TaskAssignment } from "@/models/task-assignment";
 import { Invoice } from "@/models/invoice";
 import { GoogleAccount } from "@/models/google-account";
 import { TaskCanvas } from "@/models/task-canvas";
+import { Workspace } from "@/models/workspace";
+import { TaskDailyUsage } from "@/models/task-daily-usage";
+import { LiveChatConversation } from "@/models/live-chat-conversation";
+import { LiveChatMonthlyUsage } from "@/models/live-chat-monthly-usage";
+import { LiveChatSettings } from "@/models/live-chat-settings";
+import { getTodayIso } from "@/lib/timezone";
+import { currentPeriodKey } from "@/lib/live-chat";
 import type { PlanEntitlements } from "@/lib/plans";
 import type { AdminPlan } from "@/lib/plan-catalog";
 import { ensurePlanCatalog, listPlansForAdmin } from "@/lib/plan-catalog";
@@ -93,6 +100,50 @@ export type AdminTaskCanvasUsage = {
   items: AdminTaskCanvasUsageItem[];
 };
 
+export type AdminPublicPageLoginItem = {
+  id: string;
+  name: string;
+  email: string;
+  image: string;
+  role: string;
+  firstLoginAt: Date;
+  lastLoginAt: Date;
+  loginCount: number;
+};
+
+export type AdminPublicPageLoginUsage = {
+  uniqueUsers: number;
+  totalLogins: number;
+  hasMore: boolean;
+  items: AdminPublicPageLoginItem[];
+};
+
+export type AdminTaskManagementUsage = {
+  enabled: boolean;
+  dailyLimit: number | null;
+  usedToday: number;
+  remainingToday: number | null;
+  dayKey: string | null;
+};
+
+export type AdminLiveChatUsage = {
+  enabled: boolean;
+  widgetEnabled: boolean;
+  periodKey: string;
+  monthlyLimit: number;
+  chatsUsedThisMonth: number;
+  chatsRemaining: number;
+  customerLimit: number;
+  customersUsedThisMonth: number;
+  customersRemaining: number;
+  openChats: number;
+  agentLimit: number;
+  retentionDays: number;
+  messageCooldownSeconds: number;
+  pdfExportEnabled: boolean;
+  deleteEnabled: boolean;
+};
+
 export type AdminCompanyDetails = AdminCompanyListItem & {
   description: string;
   websiteUrl: string;
@@ -156,6 +207,9 @@ export type AdminCompanyDetails = AdminCompanyListItem & {
   planExpiryTestActive: boolean;
   vaultUsage: AdminVaultUsageItem;
   taskCanvasUsage: AdminTaskCanvasUsage;
+  taskManagementUsage: AdminTaskManagementUsage;
+  liveChatUsage: AdminLiveChatUsage;
+  publicPageLoginUsage: AdminPublicPageLoginUsage;
   vaultFolderCount: number;
   vaultFiles: Array<{
     id: string;
@@ -279,7 +333,28 @@ async function buildCompanyRows(
     TaskAssignment.aggregate<{ _id: Types.ObjectId; totalTaskAssignments: number }>([
       { $match: { companyId: { $in: ids } } },
       { $group: { _id: "$companyId", totalTaskAssignments: { $sum: 1 } } }
-    ])
+    ]),
+    workspace && todayKey
+      ? TaskDailyUsage.findOne({
+          companyId: objectId,
+          workspaceId: workspace._id,
+          dayKey: todayKey
+        }).select("count").lean()
+      : Promise.resolve(null),
+    LiveChatMonthlyUsage.findOne({
+      companyId: objectId,
+      periodKey: liveChatPeriodKey
+    }).select("chatCount customerCount").lean(),
+    LiveChatConversation.countDocuments({
+      companyId: objectId,
+      status: "OPEN",
+      expiresAt: { $gt: usageNow }
+    }),
+    workspace
+      ? LiveChatSettings.findOne({ companyId: objectId, workspaceId: workspace._id })
+          .select("publicWidgetEnabled").lean()
+      : Promise.resolve(null),
+    getAdminPublicPageLoginSnapshot(objectId)
   ]);
 
   const ownerMap = new Map(owners.map((item) => [String(item._id), item]));
@@ -774,6 +849,98 @@ async function getAdminTaskCanvasSnapshot(companyId: Types.ObjectId) {
   };
 }
 
+const ADMIN_PUBLIC_LOGIN_ROWS_LIMIT = 100;
+
+async function getAdminPublicPageLoginSnapshot(companyId: Types.ObjectId): Promise<AdminPublicPageLoginUsage> {
+  type LoginRow = {
+    _id: Types.ObjectId;
+    name: string;
+    email: string;
+    image?: string | null;
+    role: string;
+    firstLoginAt: Date;
+    lastLoginAt: Date;
+    loginCount: number;
+  };
+  const [snapshot] = await User.aggregate<{
+    summary: Array<{ uniqueUsers: number; totalLogins: number }>;
+    items: LoginRow[];
+  }>([
+    {
+      $match: {
+        "publicCompanyLogins.companyId": companyId,
+        role: { $ne: "PLATFORM_ADMIN" }
+      }
+    },
+    {
+      $project: {
+        _id: 1,
+        name: 1,
+        email: 1,
+        image: 1,
+        role: 1,
+        companyLogin: {
+          $arrayElemAt: [
+            {
+              $filter: {
+                input: { $ifNull: ["$publicCompanyLogins", []] },
+                as: "login",
+                cond: { $eq: ["$login.companyId", companyId] }
+              }
+            },
+            0
+          ]
+        }
+      }
+    },
+    {
+      $facet: {
+        summary: [{
+          $group: {
+            _id: null,
+            uniqueUsers: { $sum: 1 },
+            totalLogins: { $sum: { $ifNull: ["$companyLogin.loginCount", 1] } }
+          }
+        }],
+        items: [
+          { $sort: { "companyLogin.lastLoginAt": -1, _id: -1 } },
+          { $limit: ADMIN_PUBLIC_LOGIN_ROWS_LIMIT + 1 },
+          {
+            $project: {
+              _id: 1,
+              name: 1,
+              email: 1,
+              image: 1,
+              role: 1,
+              firstLoginAt: "$companyLogin.firstLoginAt",
+              lastLoginAt: "$companyLogin.lastLoginAt",
+              loginCount: "$companyLogin.loginCount"
+            }
+          }
+        ]
+      }
+    }
+  ]).exec();
+
+  const summary = snapshot?.summary?.[0];
+  const rows = snapshot?.items ?? [];
+  return {
+    uniqueUsers: summary?.uniqueUsers ?? 0,
+    totalLogins: summary?.totalLogins ?? 0,
+    hasMore: rows.length > ADMIN_PUBLIC_LOGIN_ROWS_LIMIT,
+    items: rows.slice(0, ADMIN_PUBLIC_LOGIN_ROWS_LIMIT).map((item) => ({
+      id: String(item._id),
+      name: item.name ?? "Unknown user",
+      email: item.email ?? "",
+      image: item.image ?? "",
+      role: item.role,
+      firstLoginAt: item.firstLoginAt,
+      lastLoginAt: item.lastLoginAt,
+      loginCount: item.loginCount ?? 1
+    }))
+  };
+}
+
 export async function getAdminCompanyDetails(companyId: string) {
   await requirePlatformAdmin();
   if (!Types.ObjectId.isValid(companyId)) return null;
@@ -784,7 +951,7 @@ export async function getAdminCompanyDetails(companyId: string) {
 
   await ensureInvoicesForCapturedPayments(String(objectId));
 
-  const [baseRow, owner, members, memberUsers, subscription, payments, invoices, meetingStats, meetingRequestStats, recentMeetings, meetingCustomers, taskCanvasSnapshot] =
+  const [baseRow, owner, members, memberUsers, subscription, payments, invoices, meetingStats, meetingRequestStats, recentMeetings, meetingCustomerCounts, taskCanvasSnapshot, workspace] =
     await Promise.all([
       buildCompanyRows([company as never]).then((rows) => rows[0] ?? null),
       User.findById(company.ownerUserId).select("name email image").lean(),
@@ -806,13 +973,21 @@ export async function getAdminCompanyDetails(companyId: string) {
         .limit(30)
         .select("employeeId customerId startAt endAt status")
         .lean(),
-      BookingRequest.distinct("customerId", { companyId: objectId }),
-      getAdminTaskCanvasSnapshot(objectId)
+      BookingRequest.aggregate<{ _id: null; count: number }>([
+        { $match: { companyId: objectId } },
+        { $group: { _id: "$customerId" } },
+        { $count: "count" }
+      ]),
+      getAdminTaskCanvasSnapshot(objectId),
+      Workspace.findOne({ companyId: objectId }).select("_id timezone active").lean()
     ]);
 
   if (!baseRow) return null;
 
-  const [vaultSnapshot, vaultFileRows, vaultFolderCount, activeVaultUploadRows] = await Promise.all([
+  const todayKey = workspace ? getTodayIso(workspace.timezone || "Asia/Kolkata") : null;
+  const liveChatPeriodKey = currentPeriodKey();
+  const usageNow = new Date();
+  const [vaultSnapshot, vaultFileRows, vaultFolderCount, activeVaultUploadRows, dailyTaskUsage, liveChatMonthlyUsage, openLiveChatCount, liveChatSettings, publicPageLoginUsage] = await Promise.all([
     getAdminVaultUsage([String(objectId)]),
     VaultFile.find({ companyId: objectId })
       .sort({ createdAt: -1, _id: -1 })
@@ -920,6 +1095,40 @@ export async function getAdminCompanyDetails(companyId: string) {
     adminPlans.map((plan) => [plan.id, plan])
   ) as Record<string, AdminPlan>;
   const currentPlan = subscription?.planId ? plans[subscription.planId] : undefined;
+  const taskDailyLimit: number | null = currentPlan
+    ? currentPlan.taskManagementDailyLimit
+    : 10;
+  const taskUsedToday = dailyTaskUsage?.count ?? 0;
+  const taskManagementUsage = {
+    enabled: Boolean(currentPlan?.taskManagementEnabled),
+    dailyLimit: taskDailyLimit,
+    usedToday: taskUsedToday,
+    remainingToday: taskDailyLimit === null
+      ? null
+      : Math.max(0, taskDailyLimit - taskUsedToday),
+    dayKey: todayKey
+  };
+  const chatsUsedThisMonth = liveChatMonthlyUsage?.chatCount ?? 0;
+  const customersUsedThisMonth = liveChatMonthlyUsage?.customerCount ?? 0;
+  const liveChatMonthlyLimit = currentPlan?.liveChatMonthlyLimit ?? 1000;
+  const liveChatCustomerLimit = currentPlan?.liveChatCustomerLimit ?? 500;
+  const liveChatUsage = {
+    enabled: Boolean(currentPlan?.liveChatEnabled),
+    widgetEnabled: Boolean(currentPlan?.liveChatEnabled && liveChatSettings?.publicWidgetEnabled),
+    periodKey: liveChatPeriodKey,
+    monthlyLimit: liveChatMonthlyLimit,
+    chatsUsedThisMonth,
+    chatsRemaining: Math.max(0, liveChatMonthlyLimit - chatsUsedThisMonth),
+    customerLimit: liveChatCustomerLimit,
+    customersUsedThisMonth,
+    customersRemaining: Math.max(0, liveChatCustomerLimit - customersUsedThisMonth),
+    openChats: openLiveChatCount,
+    agentLimit: currentPlan?.liveChatAgentLimit ?? 5,
+    retentionDays: currentPlan?.liveChatRetentionDays ?? 30,
+    messageCooldownSeconds: currentPlan?.liveChatMessageCooldownSeconds ?? 15,
+    pdfExportEnabled: currentPlan?.liveChatPdfExportEnabled !== false,
+    deleteEnabled: currentPlan?.liveChatDeleteEnabled !== false
+  };
   const taskCanvasUsage = {
     enabled: Boolean(currentPlan?.taskCanvasEnabled),
     canvasLimit: Math.min(100, Math.max(1, currentPlan?.taskCanvasHistoryLimit ?? 10)),
@@ -947,6 +1156,9 @@ export async function getAdminCompanyDetails(companyId: string) {
     planExpiryTestActive: Boolean(company.planExpiryTestActive),
     vaultUsage,
     taskCanvasUsage,
+    taskManagementUsage,
+    liveChatUsage,
+    publicPageLoginUsage,
     vaultFolderCount,
     vaultFiles,
     activeVaultUploads,
@@ -975,7 +1187,7 @@ export async function getAdminCompanyDetails(companyId: string) {
     }),
     meetingRequestCounts: Object.fromEntries(meetingRequestStats.map((item) => [item._id, item.count])),
     meetingStatusCounts: Object.fromEntries(meetingStats.map((item) => [item._id, item.count])),
-    customers: meetingCustomers.length,
+    customers: meetingCustomerCounts[0]?.count ?? 0,
     recentPayments: payments.map((payment) => ({
       id: String(payment._id),
       planId: payment.planId,
