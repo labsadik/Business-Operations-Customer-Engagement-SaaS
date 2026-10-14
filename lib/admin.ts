@@ -1013,7 +1013,7 @@ export async function getAdminCompanyDetails(companyId: string) {
           createdAt: 1
         }
       }
-    ])
+    ]),
     workspace && todayKey
       ? TaskDailyUsage.findOne({
           companyId: objectId,
