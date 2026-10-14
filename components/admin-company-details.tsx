@@ -261,8 +261,8 @@ export default function AdminCompanyDetailsView({ company }: { company: AdminCom
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {[
-            ["Today's task actions", taskManagement.usedToday.toLocaleString("en-IN") + " / " + (taskManagement.dailyLimit === null ? "Unlimited" : taskManagement.dailyLimit.toLocaleString("en-IN")), taskManagement.dayKey ? "Workspace day · " + taskManagement.dayKey : "Workspace unavailable"],
-            ["Remaining today", taskManagement.dailyLimit === null ? "Unlimited" : taskManagement.remainingToday?.toLocaleString("en-IN") ?? "—", "Remaining task create/assignment actions"],
+            ["Today's task actions", taskManagement.enabled ? taskManagement.usedToday.toLocaleString("en-IN") + " / " + (taskManagement.dailyLimit === null ? "Unlimited" : taskManagement.dailyLimit.toLocaleString("en-IN")) : "—", taskManagement.enabled ? (taskManagement.dayKey ? "Workspace day · " + taskManagement.dayKey : "Workspace unavailable") : "No active task allowance on this plan"],
+            ["Remaining today", !taskManagement.enabled ? "—" : taskManagement.dailyLimit === null ? "Unlimited" : taskManagement.remainingToday?.toLocaleString("en-IN") ?? "—", "Remaining task create/assignment actions"],
             ["Total tasks", company.totalTasks.toLocaleString("en-IN"), "All tasks recorded for this company"],
             ["Task assignments", company.totalTaskAssignments.toLocaleString("en-IN"), "Assignment records across company workspaces"],
             ["Active tasks", company.activeTasks.toLocaleString("en-IN"), "Todo, in progress, blocked or in review"],
@@ -363,8 +363,8 @@ export default function AdminCompanyDetailsView({ company }: { company: AdminCom
             ["Eligible employee agents", chat.eligibleAgents.toLocaleString("en-IN") + " / " + chat.agentLimit.toLocaleString("en-IN"), chat.agentsRemaining.toLocaleString("en-IN") + " agent seat(s) remaining"],
             ["Message cooldown", chat.messageCooldownSeconds.toLocaleString("en-IN") + " sec", "Minimum interval for customer replies"],
             ["History retention", chat.retentionDays.toLocaleString("en-IN") + " days", "Plan retention setting for chat data"],
-            ["PDF export", chat.pdfExportEnabled ? "Available" : "Disabled", "Current plan capability"],
-            ["Delete conversations", chat.deleteEnabled ? "Available" : "Disabled", "Current plan capability"]
+            ["PDF export", chat.enabled && chat.pdfExportEnabled ? "Available" : "Disabled", "Current plan capability"],
+            ["Delete conversations", chat.enabled && chat.deleteEnabled ? "Available" : "Disabled", "Current plan capability"]
           ].map(([label, value, detail]) => (
             <article key={label as string} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">{label as string}</p>
