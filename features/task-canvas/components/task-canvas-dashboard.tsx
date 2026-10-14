@@ -198,6 +198,33 @@ function sceneSignature(scene: Scene): string | null {
   }
 }
 
+type SceneSaveTransport =
+  | { scene: Scene; scenePayload?: never }
+  | { scenePayload: { encoding: "gzip-base64"; data: string }; scene?: never };
+
+async function encodeSceneForTransport(scene: Scene): Promise<SceneSaveTransport> {
+  const serialized = JSON.stringify(scene);
+  if (typeof CompressionStream !== "function") {
+    // Backwards-compatible fallback for browsers without gzip streams.
+    return { scene };
+  }
+
+  const compressedStream = new Blob([serialized])
+    .stream()
+    .pipeThrough(new CompressionStream("gzip"));
+  const bytes = new Uint8Array(await new Response(compressedStream).arrayBuffer());
+
+  // Match the API's compressed payload guard before spending time on a request.
+  if (bytes.byteLength > 3_000_000) throw new Error("CANVAS_SCENE_TOO_LARGE");
+
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+  }
+  return { scenePayload: { encoding: "gzip-base64", data: btoa(binary) } };
+}
+
 function getPersistedScene(elements: unknown[], appState: Record<string, unknown>, files: Record<string, unknown>): Scene {
   return {
     elements,
@@ -453,9 +480,10 @@ export default function TaskCanvasDashboard({
     setSaveState("saving");
     try {
       const saveScene = await compressSceneImages(nextScene);
+      const payload = await encodeSceneForTransport(saveScene);
       const result = await api<{ version: number; updatedAt: string }>("/api/task-canvas/" + canvasId, {
         method: "PATCH",
-        body: JSON.stringify({ action: "save", expectedVersion: versionRef.current, scene: saveScene })
+        body: JSON.stringify({ action: "save", expectedVersion: versionRef.current, ...payload })
       });
       if (selectedIdRef.current !== canvasId) return;
       versionRef.current = result.version;
@@ -798,6 +826,9 @@ export default function TaskCanvasDashboard({
                     name={selected.name}
                     onChange={handleEditorChange}
                     UIOptions={{
+                      // Disables the image tool, including its "9" shortcut and
+                      // insertion flow. Existing saved images remain readable.
+                      tools: { image: false },
                       canvasActions: {
                         changeViewBackgroundColor: true,
                         clearCanvas: true,
