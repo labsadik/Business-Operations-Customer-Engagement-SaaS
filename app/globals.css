@@ -103,8 +103,8 @@ a[aria-disabled="true"] {
   display: none !important;
 }
 
-/* Defensive hide for branded links if the help dialog is opened by shortcut. */
-.task-canvas-excalidraw .HelpDialog__header {
+/* Excalidraw renders dialogs in a portal outside the editor wrapper. */
+.excalidraw-modal-container .HelpDialog__header {
   display: none !important;
 }
 
