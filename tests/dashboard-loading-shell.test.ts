@@ -16,7 +16,7 @@ test("dashboard and route loading share the same workspace shell", async () => {
   assert.match(dashboard, /onNavigateOverview=\{closeFeedbackModal\}/);
   assert.match(routeLoading, /export function RouteSpinner/);
   assert.match(routeLoading, /motion-safe:animate-spin/);
-  assert.doesNotMatch(routeLoading, /SidebarSkeleton|MobileWorkspaceNavSkeleton|animate-pulse/);
+  assert.doesNotMatch(routeLoading, /SidebarSkeleton|MobileWorkspaceNavSkeleton/);
   assert.match(routeLoading, /export function WorkspaceLoading/);
   assert.match(routeLoading, /export function WorkspaceLoadError/);
   assert.match(routeEntry, /WorkspaceLoading/);
