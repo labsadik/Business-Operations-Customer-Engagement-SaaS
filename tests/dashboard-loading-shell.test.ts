@@ -172,6 +172,9 @@ test("admin vault usage loads current company rows in cursor-paginated batches",
   assert.match(service, /encodeListCursor\(last\.name, last\._id\)/);
   assert.match(service, /VaultFile\.aggregate/);
   assert.match(service, /VaultUpload\.aggregate/);
+  assert.match(service, /VaultUsage\.find\(/);
+  assert.match(service, /legacyIds/);
+  assert.match(service, /counterVersion === 2/);
   assert.doesNotMatch(service, /listPlansForAdmin/);
   assert.match(client, /const PAGE_SIZE = 10/);
   assert.match(client, /Load 10 more companies/);
