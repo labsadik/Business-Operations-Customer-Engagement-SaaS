@@ -1,234 +1,321 @@
-# Canvas by AlgoQuit
+# Canvas — Business Operations & Customer Engagement SaaS
 
-Canvas by AlgoQuit is a multi-tenant scheduling SaaS for companies that want customers to request live meetings and have the system automatically route each request to an available employee.
+Canvas is a multi-tenant Software-as-a-Service (SaaS) platform for organizations that need one place to coordinate employees, manage internal work, and serve customers. It supports business-to-business use: each customer organization operates in its own workspace, with company-scoped members, workflows, and configurable feature access.
 
-## Product model
+The application combines customer meeting scheduling, collaborative visual planning, task management, a private company vault, website live chat, embedded customer feedback, subscriptions, and platform-level administration.
 
-- **Company** creates a workspace and a public booking page.
-- **Employee** connects Google and participates in availability/routing.
-- **Customer** opens the company's public page, signs in with Google, selects a date/time/duration, and sends a request.
-- **Assignment engine** offers the request to eligible employees with a five-minute acceptance window.
-- **Meeting engine** creates the Google Meet space and Calendar event after an employee accepts.
-- **Meeting route** is company-scoped, for example `/acme/meet/abc123` (canonical public-company meeting route).
+## Product screenshots
 
-## Plans
+The following screenshots show examples of the application's workspace, canvas, scheduling, and related interfaces.
 
-| Plan | Price | Employees | Meetings / month | Max duration | Concurrent meetings |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Free | Free | 1 | 10 | 5 min | 1 |
-| Starter | ₹99/month | 10 | 100 | 20 min | 10 |
-| Elite | ₹399/month | 50 | 850 | 60 min | 25 |
-| Pro | ₹799/month | 100 | 1,500 | 90 min | 50 |
-| Plus | ₹1,499/month | 250 | 3,000 | 120 min | 100 |
+### Workspace and scheduling
 
-## Architecture principles
+![Workspace interface](https://ik.imagekit.io/xvqovhmcyr/canvas/Workspace%20_%20Conventus%20-%20Google%20Chrome%2010_6_2026%2011_15_55%20AM.png)
 
-- MongoDB is the source of truth.
-- Redis is for low-latency coordination, cache, locks, and rate limiting.
-- Google OAuth is used for identity and delegated Calendar/Meet access.
-- Booking state changes are server authoritative.
-- Acceptance and meeting creation are idempotent.
-- Tenant isolation is enforced at the application/data-access layer.
-- Background work is durable and retryable rather than held open in request handlers.
-- Public booking and internal company/employee experiences are separated by route and authorization boundary.
+![Workspace view](https://ik.imagekit.io/xvqovhmcyr/canvas/Workspace%20_%20Conventus%20-%20Google%20Chrome%2010_6_2026%2011_16_11%20AM.png)
 
-## Development
+![Workspace overview](https://ik.imagekit.io/xvqovhmcyr/canvas/Workspace%20_%20Conventus%20-%20Google%20Chrome%2010_6_2026%2011_20_54%20AM.png)
 
-1. Use [`.env.example.md`](./.env.example.md) as the local environment setup reference.
-2. Create a real `.env.local` file in the repository root and fill in development credentials.
-3. Install dependencies with `npm install`.
-4. Run `npm run dev` and open `http://localhost:3000`.
+![Scheduling interface](https://ik.imagekit.io/xvqovhmcyr/canvas/Conventus%20_%20Connect.%20Schedule.%20Meet.%20-%20Google%20Chrome%2010_6_2026%2011_20_58%20AM.png)
 
-The `.env.example.md` file is documentation only; Next.js does not load Markdown files as environment files. Do not commit `.env.local` or real credentials.
+![Meeting interface](https://ik.imagekit.io/xvqovhmcyr/canvas/Conventus%20_%20Connect.%20Schedule.%20Meet.%20-%20Google%20Chrome%2010_6_2026%2011_21_18%20AM.png)
 
-## Production deployment
+### Canvas and application views
 
-For deployment, copy `cloudrun.env.example` to a local `.env`, fill in the project/provider values, then run `powershell -ExecutionPolicy Bypass -File .\scripts\deploy-cloud-run.ps1`. This builds through Cloud Build, puts server credentials in Secret Manager, deploys a scale-to-zero Cloud Run service, and configures three Cloud Scheduler jobs. The project, billing/IAM permissions, domain DNS and external OAuth/payment callbacks still need valid setup. See [docs/DEPLOY_GCP_CLOUD_RUN.md](./docs/DEPLOY_GCP_CLOUD_RUN.md).
+![Collaborative workspace canvas](https://ik.imagekit.io/xvqovhmcyr/canvas/Workspace%20_%20Canvas%20by%20AlgoQuit%20-%20Google%20Chrome%2010_22_2026%206_55_06%20PM.png)
 
-## Sentry error monitoring
+![Canvas workspace](https://ik.imagekit.io/xvqovhmcyr/canvas/Workspace%20_%20Canvas%20by%20AlgoQuit%20-%20Google%20Chrome%2010_22_2026%206_55_22%20PM.png)
 
-Sentry is optional and is initialized from environment variables. When no DSN is configured, Sentry stays disabled and the existing Axiom/console logging remains available.
+![Canvas workspace detail](https://ik.imagekit.io/xvqovhmcyr/canvas/Workspace%20_%20Canvas%20by%20AlgoQuit%20-%20Google%20Chrome%2010_22_2026%206_55_26%20PM.png)
 
-Configure these values in Cloud Run runtime environment variables or Secret Manager. The Cloud Run bootstrap script reads them from a local .env file and separates secrets automatically:
+![Canvas project view](https://ik.imagekit.io/xvqovhmcyr/canvas/Workspace%20_%20Canvas%20by%20AlgoQuit%20-%20Google%20Chrome%2010_22_2026%206_56_57%20PM.png)
 
-- `NEXT_PUBLIC_SENTRY_DSN`: the Sentry project DSN used by the browser. DSNs are public identifiers, not auth tokens.
-- `SENTRY_DSN`: the server/edge DSN. Use the same project DSN unless browser and server events should go to different projects.
-- `SENTRY_ENVIRONMENT` and `NEXT_PUBLIC_SENTRY_ENVIRONMENT`: optional labels such as `production`, `preview`, or `development`. If omitted, the server and browser use `NODE_ENV`.
-- `SENTRY_TRACES_SAMPLE_RATE` and `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE`: optional values from `0` to `1`. Defaults are `1.0` in development and `0.1` in production. Invalid values safely fall back to these defaults.
-- `SENTRY_RELEASE` and `NEXT_PUBLIC_SENTRY_RELEASE`: optional release identifier to correlate browser and server events with a deployment.
-- `SENTRY_ORG`, `SENTRY_PROJECT`, and `SENTRY_AUTH_TOKEN`: build-time settings for uploading source maps. The auth token is secret and must never use a `NEXT_PUBLIC_*` name. Source-map upload is skipped when build credentials are absent.
+![Canvas workspace view](https://ik.imagekit.io/xvqovhmcyr/canvas/Workspace%20_%20Canvas%20by%20AlgoQuit%20-%20Google%20Chrome%2010_22_2026%206_57_04%20PM.png)
 
-Set the `NEXT_PUBLIC_*` variables before running `npm run build`; Next.js embeds public environment variables into the browser bundle at build time. Sentry v11 has more permissive collection defaults, so the shipped configuration explicitly disables user information, cookies, request/response headers and bodies, URL query parameters, GenAI inputs/outputs, database query data, queues, and GraphQL documents/variables. Sentry request-error reporting is composed with the existing Axiom request-error hook, rather than replacing it.
+![Canvas editor](https://ik.imagekit.io/xvqovhmcyr/canvas/Workspace%20_%20Canvas%20by%20AlgoQuit%20-%20Google%20Chrome%2010_22_2026%207_00_02%20PM.png)
 
-## Checks
+![Canvas view](https://ik.imagekit.io/xvqovhmcyr/canvas/Workspace%20_%20Canvas%20by%20AlgoQuit%20-%20Google%20Chrome%2010_22_2026%207_00_14%20PM.png)
 
-- `npm run test`
-- `npm run typecheck`
-- `npm run lint`
-- `npm run build`
-- `npm run check`
+![Canvas project workspace](https://ik.imagekit.io/xvqovhmcyr/canvas/Workspace%20_%20Canvas%20by%20AlgoQuit%20-%20Google%20Chrome%2010_22_2026%207_01_49%20PM.png)
 
-## Production runtime and scheduled maintenance
+![Live application view](https://ik.imagekit.io/xvqovhmcyr/canvas/test%20-%20Stream%20-%20Axiom%20-%20Google%20Chrome%2010_6_2026%2011_21_31%20AM.png)
 
-This repository builds as a standard Next.js application for a Node.js-compatible hosting environment. Run `npm run build` to create the production build and `npm start` to serve it.
+## Key features
 
-The background booking sweep is exposed at `GET /api/jobs/sweep`. Configure an external scheduler to call this endpoint at the intended interval with the header `Authorization: Bearer <CRON_SECRET>`. In production, configure `CRON_SECRET` as a server-side secret. The Cloud Run bootstrap script provisions the service and its three Cloud Scheduler maintenance jobs.
+### 1. Customer meeting scheduling
 
-## Delivery phases
+- Companies can publish a company-scoped booking page for customers.
+- Customers can sign in with Google, choose an available date, time, and meeting duration, and submit a meeting request.
+- Google Calendar availability is checked before a booking is confirmed.
+- The assignment engine offers eligible requests to available employees with a five-minute acceptance window.
+- If an eligible employee accepts, the application creates the Google Meet space and Google Calendar event and returns the confirmation to the customer.
+- If no employee is available or the request is not accepted in time, the customer can wait, try again, or choose another available time instead of receiving a false confirmation.
+- Meeting pages are scoped to the relevant company, keeping each organization's meeting routes separate.
 
-### Phase 1 — Foundation
-Application shell, landing page, route boundaries, plan entitlements, database/Redis configuration, security defaults, health endpoint, and documentation.
+### 2. Collaborative live canvas
 
-### Phase 2 — Identity and tenancy
-Google OAuth, users, companies, workspaces, memberships, roles, secure OAuth token storage, onboarding.
+Teams can use a shared, visual canvas to plan and collaborate on complex work. Employees can work together on diagrams and designs such as:
 
-### Phase 3 — Scheduling
-Availability rules, Google Calendar free/busy, meeting types, public booking, five-minute request state machine, routing and concurrency protection.
+- Database schemas and data flows
+- Software and system architecture
+- Project structures and technical workflows
+- Other visual planning and design tasks
 
-### Phase 4 — Meetings
-Google Meet creation, Calendar event creation, realtime confirmation, company-scoped `/meet/[meetingId]`, supported Meet embedding/meeting surface.
+Multiple authorized employees can collaborate on the same canvas, making it useful for distributed teams and collaborative project design.
 
-### Phase 5 — Billing and operations
-Subscriptions, usage enforcement, notifications, admin operations, audit logs, monitoring, retries, rate limiting, and production hardening.
+### 3. Task management
 
-### Phase 6 — Scale
-Queue tuning, Redis upgrade when required, database scaling, caching, load testing, SLOs, observability, and disaster recovery.
+The task management module helps teams track work from creation through completion. It includes:
 
-## Billing with Razorpay
+- Kanban, Scrum canvas, and list views
+- Task creation, task details, assignments, and activity history
+- Workflow statuses such as To do, In progress, Completed, Cancelled, and Blocked
+- Support for assigning work to multiple active employees in the same workspace
+- In-app notifications and read status
+- Scrum sprint name, goal, dates, and lifecycle management
+- Application action sounds for relevant task events; browsers may require an initial user interaction before audio can play
+- Company/workspace-scoped task access, with platform-wide task views restricted to platform administrators
 
-Canvas connects the Free, Starter, Elite, Pro, and Plus plan entitlements to Razorpay Checkout. Paid plans add the GST rate configured in MongoDB to the trusted base plan price before the Razorpay order is created. The server creates the Razorpay order from the trusted plan definition, validates the returned signature, confirms the payment is captured, and then activates the paid plan for one month. Razorpay webhook events are also accepted at `/api/webhooks/razorpay` for server-side reconciliation. Razorpay recommends server-side order creation, signature validation, payment-status verification, and HMAC validation for webhooks. citeturn731333search0turn318613search5
+Task management is controlled through the platform's feature-entitlement settings. Availability depends on the effective entitlement assigned to the company.
 
-Required environment variables:
+### 4. Private Company Vault
 
+The Company Vault gives each eligible organization a private place to store and manage documents and other files.
+
+- Nested folders, including folder rename and deletion
+- Multi-file uploads using chunked transfers
+- Authenticated downloads and supported previews
+- Company-specific storage quotas, file-size limits, and item-count limits
+- Recursive folder deletion
+- Server-side enforcement of company scope and storage entitlements
+- Administrative usage visibility by company
+
+Uploads use sequential 3 MiB chunks. Each file has a hard maximum size of 250 MiB, and each upload batch is limited to 25 files. Actual company quotas and plan limits are configurable by platform administrators.
+
+The vault is designed around protected file transfer, controlled access, and encrypted storage/retrieval flows. Access is limited to authenticated, authorized users. The exact encryption and key-management behavior depends on the deployed implementation; strict zero-knowledge end-to-end encryption should only be claimed when the server cannot access plaintext or the decryption keys.
+
+### 5. Website live chat
+
+Companies can connect a website visitor chat experience to their workspace using an embeddable link or widget.
+
+- Visitors can start a live chat from the company's website.
+- Incoming conversations appear in the company's application workspace.
+- Authorized employees can respond to customer conversations.
+- A conversation is not tied permanently to one employee being online; another eligible employee can help handle it when needed.
+- Server-side coordination helps prevent duplicate open conversations from being created simultaneously for the same company.
+
+### 6. Embedded customer feedback and reviews
+
+Companies can add a company-specific feedback form to an external website using an embeddable iframe snippet.
+
+- Visitors do not need a Canvas account to submit feedback.
+- The form collects a name, email address, phone number, a one-to-five-star rating, and a written review.
+- New submissions remain private until a company owner or administrator publishes them.
+- The public widget exposes only approved display fields; reviewer email addresses and phone numbers are not sent to the public display widget.
+- Company owners and administrators can access the embed setup from the dashboard's feedback area.
+
+### 7. Subscriptions and billing integration
+
+The platform integrates with Razorpay Checkout for subscription payments. The server uses trusted plan definitions when creating orders, validates payment signatures and payment status, and accepts webhook events for reconciliation. Payment activation, invoice creation, subscription changes, and workspace entitlement updates are designed to be idempotent.
+
+Plan names, demo pricing, and sample price tables are intentionally not published in this README. The platform's configurable entitlements may include feature access, employee limits, usage limits, storage quotas, maximum file sizes, and maximum stored items.
+
+### 8. Platform administration and organization-level controls
+
+Platform administrators can administer the SaaS across its customer organizations. Depending on the configured permissions and entitlements, administrative controls include:
+
+- Creating, granting, or revoking platform administrator access, with audit events
+- Reviewing and managing customer companies and their workspaces
+- Opening a company-specific management scope to work with that company's dashboard, team, announcements, profile, and scheduling areas
+- Configuring subscription plan entitlements and deciding which features are available to each plan
+- Controlling feature availability and company-level limits, including task-management access and vault quotas
+- Reviewing company vault usage
+- Accessing platform-wide task records through protected, read-only administration endpoints
+- Reviewing platform and operational settings, including billing/legal settings stored in the database
+
+Company and workspace operations remain tenant-scoped. A company's ordinary users cannot select another company by supplying a different company ID to an API. Platform administration is protected by server-side role checks and audit controls; administrative management mode does not change the administrator's underlying platform role, and billing checkout remains disabled while managing a company in that mode.
+
+## Technology stack
+
+| Area | Technology / approach |
+| --- | --- |
+| Application | Next.js and Node.js-compatible runtime |
+| Server APIs | Next.js route handlers / API endpoints |
+| Primary database | MongoDB |
+| Coordination and short-lived cache | Redis, including Upstash Redis REST support |
+| Hosting | Google Cloud Run |
+| Build and deployment | Google Cloud Build and deployment script |
+| Scheduled maintenance | Google Cloud Scheduler |
+| Server-side secret storage | Google Secret Manager |
+| Identity | Google OAuth |
+| Scheduling and meetings | Google Calendar API and Google Meet integration |
+| File storage | Bunny.net Storage |
+| Subscription payments | Razorpay Checkout and webhooks |
+| Error monitoring | Optional Sentry integration, alongside existing Axiom/console logging |
+
+## Architecture and data isolation
+
+- **MongoDB is the source of truth** for durable application records, including organizations, users, memberships, bookings, meetings, tasks, notifications, payments, and audit history.
+- **Redis is not the system of record.** It is used for short-lived coordination, distributed locks, advisory availability caching, and related low-latency operations.
+- **Availability is revalidated on the server.** Cached availability is advisory; booking submission checks current eligibility and capacity again.
+- **Booking and meeting state changes are server-authoritative.** Creation and acceptance paths use idempotency and coordination to protect against duplicate actions.
+- **Tenant isolation is enforced server-side.** Queries and mutations are scoped to the authenticated user's company/workspace and active membership.
+- **Background maintenance is scheduled.** The booking sweep is available at `GET /api/jobs/sweep` and must be called with `Authorization: Bearer <CRON_SECRET>`.
+- **Public and private routes have separate authorization boundaries.** Public booking and embed experiences do not grant access to private company dashboards or unrelated tenant data.
+- **Secrets stay on the server.** Database credentials, Redis tokens, Google refresh tokens, payment secrets, and other private credentials must never be exposed through `NEXT_PUBLIC_*` variables.
+
+Redis currently holds short-lived availability entries and coordination locks for booking state transitions, meeting finalization, maintenance sweeps, and live-chat conversation creation. Durable records remain in MongoDB. If Redis is unavailable in production, lock-protected operations fail safely rather than proceeding without coordination; availability calculation can fall back to a non-cached calculation.
+
+## Application roles
+
+Canvas uses four canonical application roles:
+
+- `PLATFORM_ADMIN` — platform-wide administrative permissions
+- `COMPANY_ADMIN` — administration within the user's company/workspace
+- `EMPLOYEE` — employee access within an active company/workspace membership
+- `CUSTOMER` — customer-facing product access
+
+Authorization is checked on the server. A legacy `COMPANY_OWNER` database role may exist in older installations and should be migrated to `COMPANY_ADMIN` before deploying role-hardening changes.
+
+## Local development
+
+### Prerequisites
+
+- Node.js compatible with the project's Next.js runtime
+- npm
+- Access to the required development services and provider credentials, such as MongoDB, Redis, Google OAuth/Calendar/Meet, and any enabled storage or billing integrations
+
+### Setup
+
+1. Use [`.env.example.md`](./.env.example.md) as the reference for local environment variables. This Markdown file is documentation only; Next.js does not load it as an environment file.
+2. Create a real `.env.local` file in the repository root and fill in your development values.
+3. Install dependencies:
+
+   ```bash
+   npm install
+   ```
+
+4. Start the development server:
+
+   ```bash
+   npm run dev
+   ```
+
+5. Open `http://localhost:3000` in your browser.
+
+Do not commit `.env.local`, real credentials, provider tokens, or production secrets.
+
+## Production deployment on Google Cloud Run
+
+The repository includes a deployment script for Google Cloud Run. Before using it, configure the target Google Cloud project, billing, IAM permissions, external services, domain and DNS, OAuth consent/callback settings, and payment callback/webhook settings.
+
+1. Copy `cloudrun.env.example` to a local `.env` file and fill in the environment-specific configuration. Keep secret values local and out of version control.
+2. Review the Cloud Run deployment guide: [`docs/DEPLOY_GCP_CLOUD_RUN.md`](./docs/DEPLOY_GCP_CLOUD_RUN.md).
+3. Deploy from PowerShell:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\scripts\deploy-cloud-run.ps1
+   ```
+
+The deployment script builds through Cloud Build, places server credentials in Secret Manager, deploys a scale-to-zero Cloud Run service, and configures three Cloud Scheduler maintenance jobs. The target project, IAM permissions, DNS, OAuth configuration, and provider-side settings must still be valid for the deployment to operate correctly.
+
+For a conventional Node.js-compatible production runtime, build and start the application with:
+
+```bash
+npm run build
+npm start
 ```
-RAZORPAY_KEY_ID=
-RAZORPAY_KEY_SECRET=
-RAZORPAY_WEBHOOK_SECRET=
+
+### Required production configuration
+
+Use the example environment files and deployment guide as the canonical, repository-specific configuration reference. At a minimum, review and securely configure the following areas before serving real customers:
+
+- MongoDB connection details
+- Redis URL and server-only Redis token
+- Google OAuth credentials and the required Calendar/Meet access
+- Bunny.net Storage Zone and server-only storage password, if the Company Vault is enabled
+- Razorpay live credentials and webhook secret, if paid subscriptions are enabled
+- `CRON_SECRET` for the scheduled booking sweep
+- Public application URL and provider callback URLs
+- Optional Sentry and other monitoring settings
+
+Redis can be configured with `REDIS_URL` or `UPSTASH_REDIS_REST_URL` and its corresponding server-only token (`REDIS_TOKEN` or `UPSTASH_REDIS_REST_TOKEN`). Production must not expose these credentials to the browser.
+
+For Bunny.net Storage, set `BUNNY_STORAGE_ZONE` and `BUNNY_STORAGE_PASSWORD` on the server; `BUNNY_STORAGE_ENDPOINT` is optional. Use a dedicated Storage Zone that is not connected to a public Pull Zone, and never store Bunny credentials in a `NEXT_PUBLIC_*` variable.
+
+For Razorpay, configure `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, and `RAZORPAY_WEBHOOK_SECRET` as server-side environment secrets. Configure the webhook in the Razorpay dashboard to point to:
+
+```text
+https://<your-domain>/api/webhooks/razorpay
 ```
 
-Platform legal/tax details are stored in the MongoDB `PlatformSettings` singleton and managed from `/admin/platform-settings`. New invoices snapshot the legal merchant identity and GST treatment at capture time; completed invoice snapshots are not silently rewritten later.
+Use test-mode credentials for development and the appropriate live credentials for production. Replace every example value with the matching environment-specific configuration.
 
-The runtime environment only contains service/application credentials. The platform legal name, website, billing email, phone, tax ID, GSTIN, SAC code, registered address, and GST treatment are database data. The Canvas brand mark is bundled locally as /favicon.svg and is used by the favicon, landing page, admin console, public scheduling shell, dashboard billing UI, and invoices/PDFs.
+## Maintenance and operational notes
 
-For local development use Razorpay Test Mode credentials. For a production deployment, configure the Live Mode credentials as server-side environment secrets and configure the Razorpay webhook URL as:
+### Booking sweep
 
-`https://canvas.algoquit.com/api/webhooks/razorpay`
+The scheduled maintenance endpoint is `GET /api/jobs/sweep`. The scheduler must send the header `Authorization: Bearer <CRON_SECRET>`. Keep `CRON_SECRET` server-side and configure the intended schedule in the deployment environment.
 
-Do not copy the demo values into a real production environment. Replace them with the real environment-specific values before production.
+### Monitoring
 
-## Platform administration
+Sentry is optional. Configure `NEXT_PUBLIC_SENTRY_DSN` for browser reporting and `SENTRY_DSN` for server/edge reporting. Optional settings include environment labels, trace sampling, release identification, and source-map upload credentials. Source-map upload credentials must be kept secret and must not use a `NEXT_PUBLIC_*` variable. When Sentry is not configured, existing Axiom/console logging remains available.
 
-Platform administrator access is a **database role**, not a client-side flag. The role is stored on `User.role`, checked again when a session is loaded, and restricted to `/admin/*` through the server layout. Administrators can manage platform-admin access from `/admin/access`; grants and revocations are written to `AdminAuditEvent`, self-demotion is blocked, and the last active platform admin cannot be removed.
+### Database role migration
 
-Platform admins can open a specific company from `/admin/companies/:companyId` with **Manage workspace**. That sets a short-lived, server-only management scope while keeping the real user role as `PLATFORM_ADMIN`. The normal company dashboard, team, announcements, profile, and scheduling APIs then operate against that scoped company. Billing checkout stays disabled in admin management mode.
+Before applying role hardening to an existing database:
 
-To create the first platform administrator, create/promote the existing MongoDB user with the provided admin bootstrap command:
+1. Back up the intended MongoDB database.
+2. Confirm that `MONGODB_URI` points to that database.
+3. Run:
 
-```
+   ```bash
+   npm run roles:migrate
+   ```
+
+The migration reports unsupported user or membership roles and fails closed if any remain. Do not run it against the wrong database.
+
+### Initial platform administrator
+
+Use the provided bootstrap command with the email address of the existing account that should become a platform administrator:
+
+```bash
 npm run admin:create -- admin@example.com
 ```
 
-The standalone admin CLI reads `.env.local` first (then `.env`), so `MONGODB_URI` does not need to be exported separately in PowerShell.
+The standalone admin CLI reads `.env.local` first and then `.env`. After the first administrator is created, platform-admin access can be managed through the administration interface. Grants and revocations are audited, self-demotion is blocked, and the last active platform administrator cannot be removed.
 
-After that, the platform admin can use `/admin/access` to grant or revoke `PLATFORM_ADMIN` on other MongoDB users. No admin email allow-list is read from environment variables.
+### Resource and availability behavior
 
-## Platform-owned billing
+The application uses bounded database connection pools and query pages, short-lived availability caching, capped Google Calendar free/busy concurrency, bounded background batches, and throttled browser polling when tabs are hidden. Availability cache results are advisory and are checked again when a booking is submitted. Under saturation, the availability endpoint may return HTTP `503` so clients can retry rather than creating unbounded work.
 
-Tenant companies are the **customers/billing subjects**. Canvas is the product. AlgoQuit is the company operating the service and merchant for paid plans. Payments use AlgoQuit's Razorpay credentials and merchant identity; funds are collected by the AlgoQuit merchant account, not a tenant's own payment account.
+Desktop notifications and Web Push delivery are not supported in the current implementation. Authenticated in-app task notifications remain available. Older notification service workers are unregistered by a temporary service worker.
 
-The payment flow is:
-- The signed-in company owner/admin chooses a trusted Canvas plan.
-- The server creates the Razorpay order using the server-side plan price and AlgoQuit merchant metadata.
-- Razorpay Checkout displays **AlgoQuit** as the merchant and the paying company as the prefilled customer.
-- Signature, order, amount, currency, and captured status are verified server-side.
-- Webhook reconciliation can safely retry, including successful retries after a failed payment attempt.
-- Payment activation, invoice creation, subscription changes, and workspace plan state are idempotent.
-- The successful result page is `/billing/result` and is company-scoped; it shows AlgoQuit merchant branding plus the paying company's name, short description, and logo.
+## Validation and quality checks
 
-For the Razorpay account itself, the legal merchant/business identity, settlement account, checkout branding, and statement descriptor must also be configured in the Razorpay account managed by AlgoQuit. Application code cannot change the Razorpay account holder or settlement account.
-## Task management module (feature-gated)
+Run the repository's checks before releasing a new build:
 
-Task Management is a separate feature module within the existing Next.js application. UI pages live under `app/dashboard/tasks` and `components/task-management`; route handlers live under `app/api/tasks`; business logic lives under `features/task-management/server`; MongoDB documents live under `models/task*`.
+```bash
+npm run test
+npm run typecheck
+npm run lint
+npm run build
+npm run check
+```
 
-The global platform-admin read-only view lives under `/api/admin/task-management/tasks`. Tenant task APIs always derive company/workspace scope from the authenticated session and active membership; they do not accept a client-supplied company ID to choose the tenant. Global cross-company reads are restricted to platform administrators.
+Load, smoke, and quality testing should be verified against the exact release candidate and deployment configuration. Keep the corresponding test reports with the release records; a successful local build alone does not verify external credentials, DNS, OAuth callbacks, payment webhooks, scheduled jobs, or production capacity.
 
-The `taskManagementEnabled` entitlement is configurable in the platform admin plan editor. It is captured in checkout and subscription entitlement snapshots. Plan edits intentionally do not rewrite existing subscription snapshots; the new configuration applies to new purchases/renewals. A company whose effective entitlement is disabled receives `403 FEATURE_NOT_IN_PLAN` from task APIs.
+## Further documentation
 
-### Task API route map
+- [Local environment reference](./.env.example.md)
+- [Google Cloud Run deployment guide](./docs/DEPLOY_GCP_CLOUD_RUN.md)
+- [Company Vault guide](./features/company-vault/README.md)
+- [Public feedback embed guide](./features/public-feedback/README.md)
 
-| Method | Route | Purpose |
-| --- | --- | --- |
-| GET, POST | `/api/tasks` | List visible tasks; create a task with one or more assignees |
-| GET, PATCH | `/api/tasks/:taskId` | Read task details; update task metadata |
-| POST | `/api/tasks/:taskId/assignments` | Assign additional active employees |
-| DELETE | `/api/tasks/:taskId/assignments/:assignmentId` | Remove an unfinished assignment |
-| PATCH | `/api/tasks/:taskId/status` | Update the current user's assignment status (or a target assignment for managers) |
-| GET | `/api/tasks/:taskId/activity` | Read a tenant-scoped activity timeline |
-| GET | `/api/tasks/notifications` | Poll notifications for the current recipient only |
-| PATCH | `/api/tasks/notifications/:notificationId` | Mark the current user's notification as read |
-| GET | `/api/admin/task-management/tasks` | Platform-admin list across all companies |
-| GET | `/api/admin/task-management/tasks/:taskId` | Platform-admin cross-company task detail |
+## Proprietary Commercial Source License — Important Notice
 
-Every task query and mutation is company/workspace-scoped, and assignees must have an active membership in the same workspace. Notification rows carry a recipient ID and the notification feed is filtered server-side so users cannot read other users' alerts. The authenticated in-app notification endpoint remains available; desktop browser notifications are intentionally not supported.
+Canvas is proprietary software distributed under the license included in this repository. **The included `LICENSE` file is the governing license and must be read before accessing, using, modifying, or distributing this software.** This README is a summary, not a replacement for the license.
 
-The task dashboard includes Kanban, Scrum canvas, and list views. Scrum sprint name, goal, dates, and lifecycle state are saved per company/workspace in MongoDB and can be managed only by company administrators or platform administrators. Task data refreshes through authenticated HTTP polling every 30 seconds, with additional refreshes when the task page becomes visible or regains focus. This works with the standard Next.js development and production servers and does not require a persistent socket connection.
+Unless the included license expressly grants written permission, no person or company may copy, clone, reproduce, redistribute, resell, sublicense, publish, or create derivative works from this codebase or use its protected implementation for commercial purposes. Do not remove ownership notices or treat access to this repository as permission to reuse the software.
 
-## Security
-
-Do not commit real production secrets. Google refresh tokens, application secrets, Redis credentials, database credentials, billing secrets, and email provider keys must stay server-side.
-
-The demo environment reference is intentionally documented in `.env.example.md`; those values are for the demo configuration only and must be replaced before real production use.
-
-
-## Public embedded feedback
-
-Company owners and administrators can open `/dashboard?panel=feedback`, select **Public embed**, and copy a company-specific iframe snippet for another website. Visitors need no Canvas account; the embedded form requires name, email, phone, a 1–5 star rating, and a written review. Public embed API and UI boundaries are documented in [`features/public-feedback/README.md`](./features/public-feedback/README.md). New submissions stay private until a company owner or administrator publishes them. The public widget receives only approved display fields, never the reviewer's email or phone.
-
-Application action sounds are enabled automatically. Since browsers restrict audio before the first user gesture, the root sound handler attempts to unlock audio on the first normal click, tap, or key press; employees do not need a separate sound setting.
-
-
-## Production resource guardrails
-
-The application uses a small MongoDB connection pool per running instance, bounded task/history query pages, short-lived/capped availability caching, single-flight Google access-token refresh, capped Google Calendar free/busy concurrency, a bounded queue for uncached availability calculations, and bounded batches for the booking maintenance sweep. Browser polling is throttled while tabs are hidden.
-
-Desktop notifications and Web Push delivery have been removed. A temporary service worker at `/sw.js` unregisters older notification workers and unsubscribes their push subscriptions; it does not display notifications. The task notification API remains available to authenticated, tenant-scoped in-app clients.
-
-Availability results are advisory and cached briefly to reduce repeated Google Calendar reads. Booking submission still revalidates availability and capacity server-side. When the application is saturated, the availability endpoint can return HTTP 503 so clients retry later instead of expanding unbounded work.
-
-
-
-
-## Redis production behavior
-
-MongoDB remains the source of truth. Redis holds only short-lived coordination keys and an advisory availability cache; it is not the durable store for company/member records, bookings, meeting records, chat messages, tasks, notifications, payments, or audit logs.
-
-Current Redis usage:
-
-- `canvas:availability:v1:<companyId>:<date>:<duration>:<buffers>:<capacity>` — serialized availability results with a 75-second Redis TTL. Booking submission rechecks capacity and eligibility, so this cache is advisory only.
-- `booking:create:*`, `booking:accept:*`, `booking:respond:*`, `meeting:end:*`, `meeting:finalize:*` and `booking:sweep:*` — short-lived distributed locks that protect state transitions and overlapping maintenance work.
-- `live-chat:create:<companyId>` — a short-lived lock to prevent concurrent creation of duplicate open conversations for the same company.
-
-Use a dedicated Redis database for this app. Existing distributed lock key names are intentionally preserved for compatibility while old and new application revisions overlap during a rolling deployment.
-
-Production must configure `REDIS_URL` (or `UPSTASH_REDIS_REST_URL`) and the server-only REST token (`REDIS_TOKEN` or `UPSTASH_REDIS_REST_TOKEN`). The health endpoint pings Redis. Lock-protected operations fail with HTTP 503 in production when Redis is unconfigured or unavailable; development can still run without Redis. Availability caching remains best-effort and falls back to calculating availability without Redis.
-
-Task lists, dashboard data, admin reports and live-chat transcripts are not currently cached in Redis. Do not cache these indiscriminately: tenant scope, permission/entitlement changes, and freshness requirements must be addressed before adding each cache.
-
-
-## Canonical access roles
-
-Canvas has exactly four canonical application roles: `PLATFORM_ADMIN`, `COMPANY_ADMIN`, `EMPLOYEE`, and `CUSTOMER`. Company and workspace APIs enforce authorization server-side and require an explicit role allowlist plus an active membership in the requested company/workspace. `COMPANY_OWNER` is only recognized as a legacy database value so it can be migrated to `COMPANY_ADMIN`; it is not an application permission.
-
-Before deploying this role hardening to an existing database, back up the database and run `npm run roles:migrate` with the intended `MONGODB_URI`. The migration reports any user or membership records with unsupported role values and fails closed if any remain. Do not run it against the wrong database.
-
-
-## Company Vault (Bunny.net Storage)
-
-The company-scoped document vault is available at `/dashboard/vault` only when the company's active plan includes Cloud vault. It supports nested folders, folder rename/delete, chunked multi-file uploads, authenticated downloads and safe previews, plan-enforced company-wide quotas, and recursive folder deletion. Every API derives tenant scope from the authenticated company/workspace session.
-
-Set server-only `BUNNY_STORAGE_ZONE` and `BUNNY_STORAGE_PASSWORD`; optionally configure `BUNNY_STORAGE_ENDPOINT`. Plan-based storage quotas and maximum file sizes are configured under Admin → Plans. Uploads use sequential 3 MiB chunks, and completed files are streamed from Bunny staging objects into the final object without buffering the full file in application RAM. The absolute per-file hard cap is 250 MiB and upload batches are limited to 25 files. Do not put Bunny credentials in any `NEXT_PUBLIC_*` variable. Use a dedicated Storage Zone **not connected to a public Pull Zone**. See [the Company Vault guide](./features/company-vault/README.md).
-
-
-## Company Cloud Vault
-
-The Company Vault is an optional plan entitlement. Platform admins enable it per plan and configure the exact per-company storage quota, maximum file size, and maximum stored item count. The server enforces access, byte quota, item reservations, and the global file cap; companies without the entitlement are denied vault API access. See the Company Vault operations and security guide at features/company-vault/README.md. Platform admins can review company-by-company usage at /admin/vault-usage.
+Unauthorized copying, redistribution, resale, or use of protected code may lead to enforcement action, including legal action where permitted by the governing license and applicable law. All rights not expressly granted by the included license are reserved.
